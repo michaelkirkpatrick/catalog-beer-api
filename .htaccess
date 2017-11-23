@@ -1,0 +1,27 @@
+RewriteEngine On
+
+# Redirect to HTTPS
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+Header set Strict-Transport-Security "max-age=31415926; includeSubDomains; preload" env=HTTPS
+
+# API Endpoints
+RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
+RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&function=locations [L]
+RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
+RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
+RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
+RewriteRule ^brewer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&function=last-modified&id=$1 [L]
+
+RewriteRule ^beer$ index.php?endpoint=beer [QSA,L]
+RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
+RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
+RewriteRule ^beer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
+
+RewriteRule ^users(\/[-0-9a-f]{36})/api-key$ index.php?endpoint=users&id=$1&function=api-key [L]
+RewriteRule ^users/verify-email(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1&function=verify-email [L]
+RewriteRule ^users(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1 [L]
+
+RewriteRule ^login$ index.php?endpoint=login [L]
+
+RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
