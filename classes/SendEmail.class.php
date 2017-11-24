@@ -100,6 +100,9 @@ class SendEmail {
 		
 		// Send Message
 		$this->send();
+		
+		// Return Auth Code
+		return $authCode;
 	}
 	
 	private function send(){
