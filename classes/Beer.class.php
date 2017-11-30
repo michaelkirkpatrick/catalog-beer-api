@@ -282,12 +282,16 @@ class Beer {
 	private function validateIBU(){
 		// Validate IBU
 		if(!empty($this->ibu)){
+			// Save as integer
+			$this->ibu = intval($this->ibu);
+			
+			// Process
 			if(is_int($this->ibu)){
 				if($this->ibu > 0 && $this->ibu <= 9999){
 					$this->validState['ibu'] = 'valid';
 				}else{
 					$this->error = true;
-					$this->validMsg['ibu'] = 'The range for IBU values we can accept is [0, 9999].';
+					$this->validMsg['ibu'] = 'The range for IBU values we can accept is (0, 9999].';
 					$this->validState['ibu'] = 'invalid';
 
 					// Log Error
