@@ -53,7 +53,7 @@ if($_SERVER['HTTPS'] == 'on'){
 			$errorLog->errorNumber = 7;
 			$errorLog->errorMsg = 'Missing username';
 			$errorLog->badData = '';
-			$errorLog->filename = 'api.php';
+			$errorLog->filename = 'API / index.php';
 			$errorLog->write();
 		}
 	}else{
@@ -68,7 +68,7 @@ if($_SERVER['HTTPS'] == 'on'){
 		$errorLog->errorNumber = 6;
 		$errorLog->errorMsg = 'No credentials submitted';
 		$errorLog->badData = '';
-		$errorLog->filename = 'index.php';
+		$errorLog->filename = 'API / index.php';
 		$errorLog->write();
 	}
 }else{
