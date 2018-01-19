@@ -230,6 +230,9 @@ class Users {
 	}
 	
 	private function validateEmail(){
+		// Lowercase String
+		$this->email = strtolower($this->email);
+		
 		// Valid Email?
 		$sendEmail = new SendEmail();
 		if($sendEmail->validateEmail($this->email)){
