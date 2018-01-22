@@ -33,7 +33,7 @@ class Brewer {
 		
 		// Validate Social URLs
 		if(!empty($this->facebookURL)){
-			if(!substr($this->facebookURL, 0, 24) == 'https://www.facebook.com/'){
+			if(substr($this->facebookURL, 0, 24) != 'https://www.facebook.com/'){
 				// Invalid Facebook URL
 				$this->error = true;
 				$this->validState['facebook_url'] = 'invalid';
@@ -41,7 +41,7 @@ class Brewer {
 			}
 		}
 		if(!empty($this->twitterURL)){
-			if(!substr($this->twitterURL, 0, 19) == 'https://twitter.com/'){
+			if(substr($this->twitterURL, 0, 19) != 'https://twitter.com/'){
 				// Invalid Twitter URL
 				$this->error = true;
 				$this->validState['twitter_url'] = 'invalid';
@@ -49,7 +49,7 @@ class Brewer {
 			}
 		}
 		if(!empty($this->instagramURL)){
-			if(!substr($this->instagramURL, 0, 25) == 'https://www.instagram.com/'){
+			if(substr($this->instagramURL, 0, 25) != 'https://www.instagram.com/'){
 				// Invalid Instagram URL
 				$this->error = true;
 				$this->validState['instagram_url'] = 'invalid';
@@ -103,6 +103,161 @@ class Brewer {
 				
 				// Query
 				$db->query("INSERT INTO brewer (id, name, description, shortDescription, url, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')");
+				if($db->error){
+					// Query Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+				}
+			}else{
+				// User Validation Error
+				$this->error = true;
+				$this->errorMsg = $users->errorMsg;
+			}
+		}
+	}
+	
+	public function update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $brewerID){
+		// Validate BrewerID
+		if($this->validate($brewerID, false)){
+			// Save BrewerID
+			$this->brewerID = $brewerID;
+		}else{
+			// Invalid Brewer ID
+			$this->error = true;
+			$this->errorMsg = 'Sorry, the brewerID you provided appears to be invalid. Please double check that you are submitted a valid brewerID.';
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 105;
+			$errorLog->errorMsg = 'Invalid brewerID (update brewer)';
+			$errorLog->badData = $brewerID;
+			$errorLog->filename = 'API / Brewer.class.php';
+			$errorLog->write();
+		}
+		
+		// SQL String
+		$sqlString = array();
+		$db = new Database();
+		
+		// Validate Name
+		if(!empty($name)){
+			$this->name = $name;
+			$this->validateName();
+			if(!$this->error){
+				// Add to SQL String
+				$dbName = $db->escape($this->name);
+				$sqlString[] = "name='$dbName'";
+			}
+		}
+		
+		// Validate URL
+		if(!empty($url)){
+			$this->url = $this->validateURL($url, 'url');
+			if(!$this->error){
+				// Add to SQL String
+				$dbURL = $db->escape($this->url);
+				$sqlString[] = "url='$dbURL'";
+			}
+		}
+		
+		// Validate Facebook URL
+		if(!empty($facebookURL)){
+			$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
+			if(!$this->error){
+				if(!substr($this->facebookURL, 0, 24) == 'https://www.facebook.com/'){
+					// Invalid Facebook URL
+					$this->error = true;
+					$this->validState['facebook_url'] = 'invalid';
+					$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
+				}else{
+					// Add to SQL String
+					$dbFacebookURL = $db->escape($this->facebookURL);
+					$sqlString[] = "facebookURL='$dbFacebookURL'";
+				}
+			}
+		}
+		
+		// Validate Twitter URL
+		if(!empty($twitterURL)){
+			$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
+			if(!$this->error){
+				if(!substr($this->twitterURL, 0, 19) == 'https://twitter.com/'){
+					// Invalid Twitter URL
+					$this->error = true;
+					$this->validState['twitter_url'] = 'invalid';
+					$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
+				}else{
+					// Add to SQL String
+					$dbTwitterURL = $db->escape($this->twitterURL);
+					$sqlString[] = "twitterURL='$dbTwitterURL'";
+				}
+			}
+		}
+		
+		// Validate Instagram URL
+		if(!empty($instagramURL)){
+			$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
+			if(!$this->error){
+				if(!substr($this->instagramURL, 0, 25) == 'https://www.instagram.com/'){
+					// Invalid Instagram URL
+					$this->error = true;
+					$this->validState['instagram_url'] = 'invalid';
+					$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
+				}else{
+					// Add to SQL String
+					$dbInstagramURL = $db->escape($this->instagramURL);
+					$sqlString[] = "instagramURL='$dbInstagramURL'";
+				}
+			}
+		}
+		
+		// Validate Description
+		if(!empty($description)){
+			$this->description = trim($description);
+			$this->validateDescription();
+			if(!$this->error){
+				// Add to SQL String
+				$dbDescription = $db->escape($this->description);
+				$sqlString[] = "description='$dbDescription'";
+			}
+		}
+		
+		// Validate Short Description
+		if(!empty($shortDescription)){
+			$this->shortDescription = $shortDescription;
+			$this->validateShortDescription();
+			if(!$this->error){
+				// Add to SQL String
+				$dbShortDescription = $db->escape($this->shortDescription);
+				$sqlString[] = "shortDescription='$dbShortDescription'";
+			}
+		}
+		
+		if(!$this->error){
+			// Get User Info
+			$users = new Users();
+			if($users->validate($userID, true)){
+				if($users->admin){
+					// Catalog.beer Verified
+					$this->cbVerified = true;
+					$dbCBV = 1;
+				}else{
+					// Not Catalog.beer Verified
+					$dbCBV = 0;
+				}
+				
+				// Prep for Database
+				$dbBrewerID = $db->escape($this->brewerID);
+				$dbLastModified = $db->escape(time());
+				
+				// Query
+				$updateText = '';
+				foreach($sqlString as &$sqlSetStmt){
+					$updateText .= $sqlSetStmt . ', ';
+				}
+				$updateText = substr($updateText, 0, -2);
+				$queryString = "UPDATE brewer SET $updateText, lastModified='$dbLastModified', cbVerified='$dbCBV' WHERE id='$dbBrewerID'"; 
+				$db->query($queryString);
 				if($db->error){
 					// Query Error
 					$this->error = true;

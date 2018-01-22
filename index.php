@@ -260,6 +260,67 @@ if($endpoint == 'brewer' && !$error){
 				$json['valid_msg'] = $brewer->validMsg;
 			}
 			break;
+		case 'PUT':
+			// Account for Blanks
+			if(isset($data->name)){
+				$name = $data->name;
+			}else{
+				$name = '';
+			}
+			if(isset($data->description)){
+				$description = $data->description;
+			}else{
+				$description = '';
+			}
+			if(isset($data->short_description)){
+				$shortDescription = $data->short_description;
+			}else{
+				$shortDescription = '';
+			}
+			if(isset($data->url)){
+				$url = $data->url;
+			}else{
+				$url = '';
+			}
+			if(isset($data->facebook_url)){
+				$facebookURL = $data->facebook_url;
+			}else{
+				$facebookURL = '';
+			}
+			if(isset($data->twitter_url)){
+				$twitterURL = $data->twitter_url;
+			}else{
+				$twitterURL = '';
+			}
+			if(isset($data->instagram_url)){
+				$instagramURL = $data->instagram_url;
+			}else{
+				$instagramURL = '';
+			}
+			
+			$brewer->update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $apiKeys->userID, $id);
+			if(!$brewer->error){
+				// Get Updated Brewer Info
+				$brewer->validate($id, true);
+				$json['id'] = $brewer->brewerID;
+				$json['object'] = 'brewer';
+				$json['name'] = $brewer->name;
+				$json['description'] = $brewer->description;
+				$json['short_description'] = $brewer->shortDescription;
+				$json['url'] = $brewer->url;
+				$json['cb_verified'] = $brewer->cbVerified;
+				$json['brewer_verified'] = $brewer->brewerVerified;
+				$json['facebook_url'] = $brewer->facebookURL;
+				$json['twitter_url'] = $brewer->twitterURL;
+				$json['instagram_url'] = $brewer->instagramURL;
+			}else{
+				$responseCode = 400;
+				$json['error'] = true;
+				$json['error_msg'] = $brewer->errorMsg;
+				$json['valid_state'] = $brewer->validState;
+				$json['valid_msg'] = $brewer->validMsg;
+			}
+			break;
 		default:
 			// Invalid Method
 			$responseCode = 404;
