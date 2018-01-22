@@ -440,7 +440,7 @@ class Brewer {
 		if(!empty($returnURL)){
 			switch($type){
 				case 'facebook_url':
-					if(substr($url, 0, 25) != 'https://www.facebook.com/'){
+					if(substr($returnURL, 0, 25) != 'https://www.facebook.com/'){
 						// Invalid Facebook URL
 						$this->error = true;
 						$this->validState['facebook_url'] = 'invalid';
@@ -448,7 +448,7 @@ class Brewer {
 					}
 					break;
 				case 'twitter_url':
-					if(substr($url, 0, 20) != 'https://twitter.com/'){
+					if(substr($returnURL, 0, 20) != 'https://twitter.com/'){
 						// Invalid Twitter URL
 						$this->error = true;
 						$this->validState['twitter_url'] = 'invalid';
@@ -456,7 +456,7 @@ class Brewer {
 					}
 					break;
 				case 'instagram_url':
-					if(substr($url, 0, 26) != 'https://www.instagram.com/'){
+					if(substr($returnURL, 0, 26) != 'https://www.instagram.com/'){
 						// Invalid Instagram URL
 						$this->error = true;
 						$this->validState['instagram_url'] = 'invalid';
