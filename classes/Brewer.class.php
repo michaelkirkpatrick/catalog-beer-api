@@ -31,32 +31,6 @@ class Brewer {
 		$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
 		$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
 		
-		// Validate Social URLs
-		if(!empty($this->facebookURL)){
-			if(substr($this->facebookURL, 0, 24) != 'https://www.facebook.com/'){
-				// Invalid Facebook URL
-				$this->error = true;
-				$this->validState['facebook_url'] = 'invalid';
-				$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
-			}
-		}
-		if(!empty($this->twitterURL)){
-			if(substr($this->twitterURL, 0, 19) != 'https://twitter.com/'){
-				// Invalid Twitter URL
-				$this->error = true;
-				$this->validState['twitter_url'] = 'invalid';
-				$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
-			}
-		}
-		if(!empty($this->instagramURL)){
-			if(substr($this->instagramURL, 0, 25) != 'https://www.instagram.com/'){
-				// Invalid Instagram URL
-				$this->error = true;
-				$this->validState['instagram_url'] = 'invalid';
-				$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
-			}
-		}
-		
 		// Validate Description
 		$this->description = trim($description);
 		$this->validateDescription();
@@ -164,16 +138,9 @@ class Brewer {
 		if(!empty($facebookURL)){
 			$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
 			if(!$this->error){
-				if(!substr($this->facebookURL, 0, 24) == 'https://www.facebook.com/'){
-					// Invalid Facebook URL
-					$this->error = true;
-					$this->validState['facebook_url'] = 'invalid';
-					$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
-				}else{
-					// Add to SQL String
-					$dbFacebookURL = $db->escape($this->facebookURL);
-					$sqlString[] = "facebookURL='$dbFacebookURL'";
-				}
+				// Add to SQL String
+				$dbFacebookURL = $db->escape($this->facebookURL);
+				$sqlString[] = "facebookURL='$dbFacebookURL'";
 			}
 		}
 		
@@ -181,16 +148,9 @@ class Brewer {
 		if(!empty($twitterURL)){
 			$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
 			if(!$this->error){
-				if(!substr($this->twitterURL, 0, 19) == 'https://twitter.com/'){
-					// Invalid Twitter URL
-					$this->error = true;
-					$this->validState['twitter_url'] = 'invalid';
-					$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
-				}else{
-					// Add to SQL String
-					$dbTwitterURL = $db->escape($this->twitterURL);
-					$sqlString[] = "twitterURL='$dbTwitterURL'";
-				}
+				// Add to SQL String
+				$dbTwitterURL = $db->escape($this->twitterURL);
+				$sqlString[] = "twitterURL='$dbTwitterURL'";
 			}
 		}
 		
@@ -198,16 +158,9 @@ class Brewer {
 		if(!empty($instagramURL)){
 			$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
 			if(!$this->error){
-				if(!substr($this->instagramURL, 0, 25) == 'https://www.instagram.com/'){
-					// Invalid Instagram URL
-					$this->error = true;
-					$this->validState['instagram_url'] = 'invalid';
-					$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
-				}else{
-					// Add to SQL String
-					$dbInstagramURL = $db->escape($this->instagramURL);
-					$sqlString[] = "instagramURL='$dbInstagramURL'";
-				}
+				// Add to SQL String
+				$dbInstagramURL = $db->escape($this->instagramURL);
+				$sqlString[] = "instagramURL='$dbInstagramURL'";
 			}
 		}
 		
@@ -481,6 +434,36 @@ class Brewer {
 		}else{
 			// Return Blank URL
 			$returnURL = '';
+		}
+		
+		// Validate Social URLs
+		if(!empty($returnURL)){
+			switch($type){
+				case 'facebook_url':
+					if(substr($url, 0, 24) != 'https://www.facebook.com/'){
+						// Invalid Facebook URL
+						$this->error = true;
+						$this->validState['facebook_url'] = 'invalid';
+						$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
+					}
+					break;
+				case 'twitter_url':
+					if(substr($url, 0, 19) != 'https://twitter.com/'){
+						// Invalid Twitter URL
+						$this->error = true;
+						$this->validState['twitter_url'] = 'invalid';
+						$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
+					}
+					break;
+				case 'instagram_url':
+					if(substr($url, 0, 25) != 'https://www.instagram.com/'){
+						// Invalid Instagram URL
+						$this->error = true;
+						$this->validState['instagram_url'] = 'invalid';
+						$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
+					}
+					break;
+			}
 		}
 		
 		// Return
