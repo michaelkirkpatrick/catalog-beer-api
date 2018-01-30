@@ -68,7 +68,6 @@ class USAddresses {
 				$dbZip4 = $db->escape($this->zip4);
 				$dbTelephone = $db->escape($this->telephone);
 
-				echo "INSERT INTO US_addresses (locationID, address1, address2, city, sub_code, zip5, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress1', '$dbAddress2', '$dbCity', '$dbSubCode', '$dbZip5', '$dbZip4', '$dbTelephone')";
 				$db->query("INSERT INTO US_addresses (locationID, address1, address2, city, sub_code, zip5, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress1', '$dbAddress2', '$dbCity', '$dbSubCode', '$dbZip5', '$dbZip4', '$dbTelephone')");
 				if(!$db->error){
 					// Update Brewer lastModified Timestamp
@@ -266,11 +265,10 @@ class USAddresses {
 
 		$response = curl_exec($curl);
 		$err = curl_error($curl);
-
+		
 		curl_close($curl);
 
 		if($err){
-			echo 'Error' . "\n";
 			// cURL Error
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
@@ -294,13 +292,21 @@ class USAddresses {
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 64;
 				$errorLog->errorMsg = 'USPS API Error';
-				$errorLog->badData = $response;
+				$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
 				$errorLog->filename = 'API / USAddresses.class.php';
 				$errorLog->write();
 			}elseif(isset($responseObj->Address->Error)){
 				// Error
 				$this->error = true;
-				
+				$this->errorMsg = 'Sorry, we had an issue validating the address you provided. ' . htmlspecialchars(trim($responseObj->Address->Error->Description)) . ' We\'ve logged the issue and our support team will look into it.';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 106;
+				$errorLog->errorMsg = 'USPS Address Validation Error';
+				$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
 			}else{
 				// Success
 				if(isset($responseObj->Address->Address1)){
