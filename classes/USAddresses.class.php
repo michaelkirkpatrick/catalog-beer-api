@@ -17,7 +17,7 @@ class USAddresses {
 	public $validState = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $validMsg = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	
-	private $usps = '541INTER2750';
+	private $usps = '';
 	
 	// Add Address
 	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone){
@@ -106,6 +106,12 @@ class USAddresses {
 		$this->sub_code = trim($this->sub_code);
 		$this->zip5 = trim($this->zip5);
 		$this->zip4 = trim($this->zip4);
+		
+		// Substitute Accented Characters
+		$accented_chars = array('Š'=>'S', 'š'=>'s', 'Ž'=>'Z', 'ž'=>'z', 'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O', 'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss', 'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e', 'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o', 'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'þ'=>'b', 'ÿ'=>'y' );
+		$this->address1 = strtr($this->address1, $accented_chars);
+		$this->address2 = strtr($this->address2, $accented_chars);
+		$this->city = strtr($this->city, $accented_chars);
 		
 		// Address Line 1 - Apartment or suite number
 		$xmlBody = '<Address1>' . $this->address1 . '</Address1>';
@@ -291,10 +297,17 @@ class USAddresses {
 				$errorLog->badData = $response;
 				$errorLog->filename = 'API / USAddresses.class.php';
 				$errorLog->write();
+			}elseif(isset($responseObj->Address->Error)){
+				// Error
+				$this->error = true;
+				
 			}else{
 				// Success
-				print_r($responseObj);
-				$this->address1 = ucwords(strtolower($responseObj->Address->Address1));
+				if(isset($responseObj->Address->Address1)){
+					$this->address1 = ucwords(strtolower($responseObj->Address->Address1));
+				}else{
+					$this->address1 = '';
+				}
 				$this->address2 = ucwords(strtolower($responseObj->Address->Address2));
 				$this->city = ucwords(strtolower($responseObj->Address->City));
 				$this->stateShort = strval($responseObj->Address->State);
