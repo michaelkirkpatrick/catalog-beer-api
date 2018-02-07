@@ -96,8 +96,8 @@ class Database {
 	// ----- Escape -----
 	public function escape($string){
 		$escaped = $this->mysqli->real_escape_string($string);
-		$escaped = str_replace("%", "\%", $escaped);
-		$escaped = str_replace("_", "\_", $escaped);
+		//$escaped = str_replace("%", "\%", $escaped);
+		//$escaped = str_replace("_", "\_", $escaped);
 		return $escaped;
 	}
 	
