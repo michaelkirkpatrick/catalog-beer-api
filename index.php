@@ -800,8 +800,8 @@ if($endpoint == 'location' && !$error){
 						$responseCode = 400;
 						$json['error'] = true;
 						$json['error_msg'] = $usAddresses->errorMsg;
-						$json['validState'] = $usAddresses->validState;
-						$json['validMsg'] = $usAddresses->validMsg;
+						$json['valid_state'] = $usAddresses->validState;
+						$json['valid_msg'] = $usAddresses->validMsg;
 					}
 				}else{
 					// Invalid Location
@@ -834,8 +834,8 @@ if($endpoint == 'location' && !$error){
 					$responseCode = 400;
 					$json['error'] = true;
 					$json['error_msg'] = $location->errorMsg;
-					$json['validState'] = $location->validState;
-					$json['validMsg'] = $location->validMsg;
+					$json['valid_state'] = $location->validState;
+					$json['valid_msg'] = $location->validMsg;
 				}
 			}
 			break;
