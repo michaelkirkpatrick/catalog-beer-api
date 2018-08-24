@@ -299,17 +299,32 @@ class USAddresses {
 				$errorLog->filename = 'API / USAddresses.class.php';
 				$errorLog->write();
 			}elseif(isset($responseObj->Address->Error)){
-				// Error
-				$this->error = true;
-				$this->errorMsg = 'Sorry, we had an issue validating the address you provided. ' . htmlspecialchars(trim($responseObj->Address->Error->Description)) . ' We\'ve logged the issue and our support team will look into it.';
+				if(trim($responseObj->Address->Error->Description) == 'Invalid City.'){
+					// Invalid City
+					$this->error = true;
+					$this->validState['city'] = 'invalid';
+					$this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 115;
+					$errorLog->errorMsg = 'Invalid City - USPS Address Validation Error';
+					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
+				}else{
+					// Other Error
+					$this->error = true;
+					$this->errorMsg = htmlspecialchars(trim($responseObj->Address->Error->Description)) . ' Please check your entry and try again.';
 
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 106;
-				$errorLog->errorMsg = 'USPS Address Validation Error';
-				$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
-				$errorLog->filename = 'API / USAddresses.class.php';
-				$errorLog->write();
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 106;
+					$errorLog->errorMsg = 'USPS Address Validation Error';
+					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
+				}
 			}else{
 				// Success
 				if(isset($responseObj->Address->Address1)){
