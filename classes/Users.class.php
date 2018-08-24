@@ -221,7 +221,7 @@ class Users {
 			
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = CURLE_FTP_WEIRD_227_FORMAT;
+			$errorLog->errorNumber = 110;
 			$errorLog->errorMsg = 'Missing Name';
 			$errorLog->badData = $this->name;
 			$errorLog->filename = 'API / Users.class.php';
