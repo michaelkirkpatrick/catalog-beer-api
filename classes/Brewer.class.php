@@ -380,9 +380,9 @@ class Brewer {
 
 						// Log Error
 						$errorLog = new LogError();
-						$errorLog->errorNumber = 14;
+						$errorLog->errorNumber = 107;
 						$errorLog->errorMsg = 'Invalid URL / Failed cURL http';
-						$errorLog->badData = $url;
+						$errorLog->badData = 'URL: ' . $url . ' / HTTP Response Code: ' . $curlResponse['httpCode'];
 						$errorLog->filename = 'brewer.class.php';
 						$errorLog->write();
 						
