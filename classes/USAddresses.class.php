@@ -70,6 +70,9 @@ class USAddresses {
 
 				$db->query("INSERT INTO US_addresses (locationID, address1, address2, city, sub_code, zip5, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress1', '$dbAddress2', '$dbCity', '$dbSubCode', '$dbZip5', '$dbZip4', '$dbTelephone')");
 				if(!$db->error){
+					// Get Latitude and Longitude
+					$location->addLatLong($this->locationID, $this->address2 . ' ' . $this->address1 . ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5);
+					
 					// Update Brewer lastModified Timestamp
 					$brewer = new Brewer();
 					$brewer->updateModified($location->brewerID);

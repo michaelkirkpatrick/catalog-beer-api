@@ -8,12 +8,17 @@ class Location {
 	public $url = '';
 	public $countryCode = '';
 	public $countryShortName = 'United States of America';
+	public $latitude = 0;
+	public $longitude = 0;
 	
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
 	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
 	
+	private $gAPIKey = '';
+	
+	// Add Functions
 	public function add($brewerID, $name, $url, $countryCode){
 		// Save to Class
 		$this->brewerID = $brewerID;
@@ -79,6 +84,90 @@ class Location {
 		}
 	}
 	
+	public function addLatLong($locationID, $addressString){
+		
+		// Request Parameters
+		$address = urlencode($addressString);
+
+		// Headers & Options
+		$headerArray = array(
+			"accept: application/json"
+		);
+
+		$optionsArray = array(
+			CURLOPT_URL => 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . $this->gAPIKey,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_HTTPHEADER => $headerArray
+		);
+
+		// Create cURL Request
+		$curl = curl_init();
+		curl_setopt_array($curl, $optionsArray);
+		$response = curl_exec($curl);
+		$err = curl_error($curl);
+		curl_close($curl);
+
+		if(!empty($err)){			
+			// cURL Error -- Log It
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 111;
+			$errorLog->errorMsg = 'cURL Error';
+			$errorLog->badData = $err;
+			$errorLog->filename = 'Location.class.php';
+			$errorLog->write();
+		}else{
+			// Get Latitude and Longitude
+			$jsonResponse = json_decode($response);
+			var_dump($jsonResponse);
+			if($jsonResponse->status == 'OK'){
+				if(count($jsonResponse->results) == 1){
+					// Valid Request
+					$this->latitude = $jsonResponse->results[0]->geometry->location->lat;
+					$this->longitude = $jsonResponse->results[0]->geometry->location->lng;
+					
+					// Add to Database
+					if($this->validate($locationID, false)){
+						// Valid Location, Prep for Database
+						$db = new Database();
+						$dbLocationID = $db->escape($locationID);
+						$dbLatitude = $db->escape($this->latitude);
+						$dbLongitude = $db->escape($this->longitude);
+						
+						// Update Query
+						$db->query("UPDATE location SET latitude='$dbLatitude', longitude='$dbLongitude' WHERE id='$dbLocationID'");
+					}else{
+						// Invalid Location ID
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 114;
+						$errorLog->errorMsg = 'Invalid locationID';
+						$errorLog->badData = $locationID;
+						$errorLog->filename = 'Location.class.php';
+						$errorLog->write();
+					}
+				}else{
+					// More than one result, ambiguous
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 113;
+					$errorLog->errorMsg = 'Multiple Google Maps API Results';
+					$errorLog->badData = $jsonResponse;
+					$errorLog->filename = 'Location.class.php';
+					$errorLog->write();
+				}
+			}else{
+				// Google Maps API Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 112;
+				$errorLog->errorMsg = 'Google Maps Error';
+				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . $jsonResponse->error_message;
+				$errorLog->filename = 'Location.class.php';
+				$errorLog->write();
+			}
+		}
+	}
+	
+	// Validation Functions
 	private function validateName(){
 		// Must set $this->name
 		$this->name = trim($this->name);
@@ -149,7 +238,6 @@ class Location {
 		return $valid;
 	}
 	
-	// Validate
 	public function validate($locationID, $saveToClass){
 		// Valid?
 		$valid = false;
@@ -163,7 +251,7 @@ class Location {
 			$dbLocationID = $db->escape($locationID);
 			
 			// Query
-			$db->query("SELECT brewerID, name, url, countryCode FROM location WHERE id='$dbLocationID'");
+			$db->query("SELECT brewerID, name, url, countryCode, latitude, longitude FROM location WHERE id='$dbLocationID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid Location
@@ -177,6 +265,8 @@ class Location {
 						$this->name = stripcslashes($array['name']);
 						$this->url = $array['url'];
 						$this->countryCode = $array['countryCode'];
+						$this->latitude = floatval($array['latitude']);
+						$this->longitude = floatval($array['longitude']);
 					}
 				}elseif($db->result->num_rows > 1){
 					// Too Many Rows

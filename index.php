@@ -438,7 +438,7 @@ if($endpoint == 'beer' && !$error){
 
 								// Log Error
 								$errorLog = new LogError();
-								$errorLog->errorNumber = 101;
+								$errorLog->errorNumber = 109;
 								$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
 								$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
 								$errorLog->filename = 'API / index.php';
@@ -785,6 +785,8 @@ if($endpoint == 'location' && !$error){
 						$json['url'] = $location->url;
 						$json['country_code'] = $location->countryCode;
 						$json['country_short_name'] = $location->countryShortName;
+						$json['latitude'] = $location->latitude;
+						$json['longitude'] = $location->longitude;
 						
 						$json['telephone'] = $usAddresses->telephone;
 						$json['address']['address1'] = $usAddresses->address1;
@@ -829,6 +831,8 @@ if($endpoint == 'location' && !$error){
 					$json['url'] = $location->url;
 					$json['country_code'] = $location->countryCode;
 					$json['country_short_name'] = $location->countryShortName;
+					$json['latitude'] = $location->latitude;
+					$json['longitude'] = $location->longitude;
 				}else{
 					// Error Adding Location
 					$responseCode = 400;
@@ -851,6 +855,8 @@ if($endpoint == 'location' && !$error){
 					$json['url'] = $location->url;
 					$json['country_code'] = $location->countryCode;
 					$json['country_short_name'] = $location->countryShortName;
+					$json['latitude'] = $location->latitude;
+					$json['longitude'] = $location->longitude;
 					
 					// Check for Address
 					if($usAddresses->validate($location->id, true)){
