@@ -844,7 +844,7 @@ if($endpoint == 'location' && !$error){
 			}
 			break;
 		case 'GET':
-			if(!empty($id)){
+			if(!empty($id) && empty($function)){
 				// Validate ID
 				if($location->validate($id, true)){
 					// Valid Location
@@ -876,6 +876,58 @@ if($endpoint == 'location' && !$error){
 					$json['error'] = true;
 					$json['error_msg'] = 'Sorry, we don\'t have any locations with that location_id. Please check your request and try again.';
 				}
+			}elseif($function == 'nearby'){
+				// Defaults
+				$latitude = 0;
+				$longitude = 0;
+				$searchRadius = 0;
+				$metric = '';
+				$cursor = '';
+				$count = 0;
+				
+				// Get URL Parameters
+				if(isset($_GET['latitude'])){
+					$latitude = $_GET['latitude'];
+				}
+				if(isset($_GET['longitude'])){
+					$longitude = $_GET['longitude'];
+				}
+				if(isset($_GET['search_radius'])){
+					$searchRadius = $_GET['search_radius'];
+				}
+				if(isset($_GET['metric'])){
+					$metric = $_GET['metric'];
+				}
+				if(isset($_GET['cursor'])){
+					$cursor = $_GET['cursor'];
+				}
+				if(isset($_GET['count'])){
+					$count = $_GET['count'];
+				}
+				
+				$nearbyLatLngReturn = $location->nearbyLatLng($latitude, $longitude, $searchRadius, $metric, $cursor, $count);
+				if(!$location->error){
+					// Start JSON
+					$json['object'] = 'list';
+					$json['url'] = '/location/nearby';
+					$json['metric'] = $metric;
+
+					// Next Cursor
+					if(!empty($nearbyLatLngReturn['nextCursor'])){
+						$json['has_more'] = true;
+						$json['next_cursor'] = $nearbyLatLngReturn['nextCursor'];
+					}else{
+						$json['has_more'] = false;
+					}
+
+					// Append Data
+					$json['data'] = $nearbyLatLngReturn['locationArray'];	
+				}else{
+					$responseCode = 400;
+					$json['error'] = true;
+					$json['error_msg'] = $location->errorMsg;
+				}
+				
 			}else{
 				// Invalid Endpoint
 				$responseCode = 400;
