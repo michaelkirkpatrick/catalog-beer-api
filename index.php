@@ -910,7 +910,6 @@ if($endpoint == 'location' && !$error){
 					// Start JSON
 					$json['object'] = 'list';
 					$json['url'] = '/location/nearby';
-					$json['metric'] = $metric;
 
 					// Next Cursor
 					if(!empty($nearbyLatLngReturn['nextCursor'])){
