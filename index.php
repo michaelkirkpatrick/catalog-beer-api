@@ -57,11 +57,11 @@ if($_SERVER['HTTPS'] == 'on'){
 			$errorLog->write();
 		}
 	}else{
-		// Invalid Authentication Key
+		// Invalid Authentication
 		$error = true;
 		$responseCode = 401;
 		$json['error'] = true;
-		$json['error_msg'] = 'Missing API key. Please check that your request includes your API key and then try again.';
+		$json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
 
 		// Log Error
 		$errorLog = new LogError();
