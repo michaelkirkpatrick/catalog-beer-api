@@ -86,6 +86,9 @@ class Users {
 			$errorLog->write();
 		}
 		
+		// Close Database Connection
+		$db->close();
+		
 		// Return
 		return $valid;
 	}
@@ -175,6 +178,10 @@ class Users {
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
 				}
+				
+				// Close Database Connection
+				$db->close();
+				
 			}
 		}else{
 			// Not an admin, can't create new account
@@ -266,6 +273,9 @@ class Users {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			
+			// Close Database Connection
+			$db->close();
 		}else{
 			// Invalid Email
 			$this->error = true;
@@ -379,7 +389,7 @@ class Users {
 							$errorLog->errorNumber = 44;
 							$errorLog->errorMsg = 'Wrong Password';
 							$errorLog->badData = 'Given Email: ' . $email;
-							$errorLog->filename = 'Users.classphp';
+							$errorLog->filename = 'API / Users.class.php';
 							$errorLog->write();
 						}
 					}elseif($db->result->num_rows > 1){
@@ -414,6 +424,9 @@ class Users {
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
 				}
+				
+				// Close Database Connection
+				$db->close();
 			}else{
 				// No Password Given
 				$this->validState['password'] = 'invalid';
@@ -499,6 +512,9 @@ class Users {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			
+			// Close Database Connection
+			$db->close();
 		}else{
 			// Missing Email Authentication Code
 			$this->error = true;
