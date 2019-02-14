@@ -15,6 +15,7 @@ $data = json_decode($input);
 $endpoint = '';
 $id = '';
 $function = '';
+$apiKey = '';
 
 if(isset($_GET['endpoint'])){
 	$endpoint = $_GET['endpoint'];
