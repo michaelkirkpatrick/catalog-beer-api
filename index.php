@@ -15,6 +15,7 @@ $data = json_decode($input);
 $endpoint = '';
 $id = '';
 $function = '';
+$apiKey = '';
 
 if(isset($_GET['endpoint'])){
 	$endpoint = $_GET['endpoint'];
@@ -57,11 +58,11 @@ if($_SERVER['HTTPS'] == 'on'){
 			$errorLog->write();
 		}
 	}else{
-		// Invalid Authentication Key
+		// Invalid Authentication
 		$error = true;
 		$responseCode = 401;
 		$json['error'] = true;
-		$json['error_msg'] = 'Missing API key. Please check that your request includes your API key and then try again.';
+		$json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
 
 		// Log Error
 		$errorLog = new LogError();
@@ -622,9 +623,9 @@ if($endpoint == 'users' && !$error){
 						$json['object'] = 'users';
 						$json['name'] = $users->name;
 						$json['email'] = $users->email;
-						$json['emailVerified'] = $users->email;
-						$json['emailAuth'] = $users->email;
-						$json['emailAuthSent'] = $users->email;
+						$json['emailVerified'] = $users->emailVerified;
+						$json['emailAuth'] = $users->emailAuth;
+						$json['emailAuthSent'] = $users->emailAuthSent;
 						$json['admin'] = $users->admin;
 					}else{
 						$responseCode = 400;
@@ -654,9 +655,9 @@ if($endpoint == 'users' && !$error){
 								$json['object'] = 'users';
 								$json['name'] = $users->name;
 								$json['email'] = $users->email;
-								$json['emailVerified'] = $users->email;
-								$json['emailAuth'] = $users->email;
-								$json['emailAuthSent'] = $users->email;
+								$json['emailVerified'] = $users->emailVerified;
+								$json['emailAuth'] = $users->emailAuth;
+								$json['emailAuthSent'] = $users->emailAuthSent;
 								$json['admin'] = $users->admin;
 							}else{
 								$responseCode = 400;
@@ -722,9 +723,9 @@ if($endpoint == 'login' && !$error){
 				$json['object'] = 'users';
 				$json['name'] = $users->name;
 				$json['email'] = $users->email;
-				$json['emailVerified'] = $users->email;
-				$json['emailAuth'] = $users->email;
-				$json['emailAuthSent'] = $users->email;
+				$json['emailVerified'] = $users->emailVerified;
+				$json['emailAuth'] = $users->emailAuth;
+				$json['emailAuthSent'] = $users->emailAuthSent;
 				$json['admin'] = $users->admin;
 			}else{
 				// Invalid Login

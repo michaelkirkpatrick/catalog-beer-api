@@ -59,8 +59,30 @@ class Brewer {
 					$dbBV = 0;
 				}else{
 					// Not Catalog.beer Verified
-					$dbCBV = 0;
-					$dbBV = 0;
+					if(!empty($this->url)){
+						// Get Domain name from Email address
+						preg_match('/^[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})$/i', $users->email, $emailMatches);
+						$emailDomainName = $emailMatches[1];
+
+						// Get Domain name from Brewery URL
+						$host = parse_url($this->url, PHP_URL_HOST);
+						preg_match('/([A-Z0-9-]+\.[A-Z]+)$/i', $host, $hostMatches);
+						$urlDomainName = $hostMatches[1];
+						
+						if($emailDomainName == $urlDomainName){
+							// User has email associated with the brewery, give breweryValidated flag.
+							$dbCBV = 0;
+							$dbBV = 1;
+							
+							// Give user privledges for this brewer
+							$privledges = new Privledges();
+							$privledges->add($userID, $this->brewerID, true);
+						}else{
+							// User's email is not associated with this brewery
+							$dbCBV = 0;
+							$dbBV = 0;
+						}
+					}
 				}
 				
 				// Prep for Database

@@ -80,6 +80,9 @@ class uuid {
 			$this->errorMsg = $db->errorMsg;
 		}
 		
+		// Close Database Connection
+		$db->close();
+		
 		// Return
 		return $unique;
 	}

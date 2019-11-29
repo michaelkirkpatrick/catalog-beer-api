@@ -112,5 +112,19 @@ class Database {
 		$array = $this->result->fetch_array(MYSQLI_ASSOC);
 		return $array[$key];
 	}
+	
+	// ----- Close Connection -----
+	public function close(){
+		if(!$this->mysqli->close()){
+			// Unsuccessful close
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 124;
+			$errorLog->fileName = 'Database.class.php';
+			$errorLog->errorMsg = 'Database Error';
+			$errorLog->badData = 'Unable to close database connection';;
+			$errorLog->write();
+		}
+	}
 }
 ?>
