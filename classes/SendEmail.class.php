@@ -154,7 +154,7 @@ class SendEmail {
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 129;
 					$errorLog->errorMsg = 'Postmark App Error';
-					$errorLog->badData = $reponse;
+					$errorLog->badData = $decodedReponse;
 					$errorLog->filename = 'API / SendEmail.class.php';
 					$errorLog->write();
 				}
