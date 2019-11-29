@@ -623,9 +623,9 @@ if($endpoint == 'users' && !$error){
 						$json['object'] = 'users';
 						$json['name'] = $users->name;
 						$json['email'] = $users->email;
-						$json['emailVerified'] = $users->email;
-						$json['emailAuth'] = $users->email;
-						$json['emailAuthSent'] = $users->email;
+						$json['emailVerified'] = $users->emailVerified;
+						$json['emailAuth'] = $users->emailAuth;
+						$json['emailAuthSent'] = $users->emailAuthSent;
 						$json['admin'] = $users->admin;
 					}else{
 						$responseCode = 400;
@@ -655,9 +655,9 @@ if($endpoint == 'users' && !$error){
 								$json['object'] = 'users';
 								$json['name'] = $users->name;
 								$json['email'] = $users->email;
-								$json['emailVerified'] = $users->email;
-								$json['emailAuth'] = $users->email;
-								$json['emailAuthSent'] = $users->email;
+								$json['emailVerified'] = $users->emailVerified;
+								$json['emailAuth'] = $users->emailAuth;
+								$json['emailAuthSent'] = $users->emailAuthSent;
 								$json['admin'] = $users->admin;
 							}else{
 								$responseCode = 400;
@@ -723,9 +723,9 @@ if($endpoint == 'login' && !$error){
 				$json['object'] = 'users';
 				$json['name'] = $users->name;
 				$json['email'] = $users->email;
-				$json['emailVerified'] = $users->email;
-				$json['emailAuth'] = $users->email;
-				$json['emailAuthSent'] = $users->email;
+				$json['emailVerified'] = $users->emailVerified;
+				$json['emailAuth'] = $users->emailAuth;
+				$json['emailAuthSent'] = $users->emailAuthSent;
 				$json['admin'] = $users->admin;
 			}else{
 				// Invalid Login
