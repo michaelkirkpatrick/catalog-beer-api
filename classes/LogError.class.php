@@ -70,7 +70,7 @@ class LogError {
 						$this->errorID = $errorID;
 						$this->errorNumber = $array['errorNumber'];
 						$this->errorMsg = $array['errorMessage'];
-						$this->badData = $array['badData'];
+						$this->badData = unserialize($array['badData']);
 						$this->URI = $array['URI'];
 						$this->ipAddress = $array['ipAddress'];
 						$this->timestamp = $array['timestamp'];
