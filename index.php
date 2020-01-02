@@ -951,6 +951,15 @@ if($endpoint == 'location' && !$error){
 	}
 }
 
+/* - - - - - USAGE - - - - - */
+if($endpoint == 'usage' && !$error){
+	// Required Class
+	$usage = new Usage();
+	$usage->api($method, $function, $id, $apiKey);
+	$json = $usage->json;
+	$responseCode = $usage->responseCode;
+}
+
 /* - - - - - RESPONSE - - - - - */
 
 // HTTP Status Code
