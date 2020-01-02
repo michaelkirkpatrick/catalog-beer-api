@@ -18,11 +18,14 @@ RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
 RewriteRule ^beer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
 
-RewriteRule ^users(\/[-0-9a-f]{36})/api-key$ index.php?endpoint=users&id=$1&function=api-key [L]
-RewriteRule ^users/verify-email(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1&function=verify-email [L]
-RewriteRule ^users(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1 [L]
+RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
+RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]
 
-RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
-RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
+RewriteRule ^usage/currentMonth/?(\/[-0-9a-f]{36})?$ index.php?endpoint=usage&function=currentMonth&id=$1 [L]
+RewriteRule ^usage/?$ index.php?endpoint=usage [L]
+
+RewriteRule ^users(\/[-0-9a-f]{36})/api-key$ index.php?endpoint=users&id=$1&function=api-key [L]
+RewriteRule ^users/verify-email(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1&function=verify-email [L]
+RewriteRule ^users(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1 [L]
