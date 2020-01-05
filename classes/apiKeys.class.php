@@ -1,11 +1,14 @@
 <?php
 class apiKeys {
 	
+	// Variables
 	public $apiKey = '';
 	public $userID = '';
 	
+	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
+	public $responseCode = 200;
 	
 	public function add($userID){
 		// Already have a key?
@@ -26,17 +29,20 @@ class apiKeys {
 						// Database Error
 						$this->error = true;
 						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
 					}
 					$db->close();
 				}else{
 					// API Key Generation Error
 					$this->error = true;
 					$this->errorMsg = $uuid->errorMsg;
+					$this->responseCode = $uuid->responseCode;
 				}
 			}else{
 				// Already have an API Key
 				$this->error = true;
 				$this->errorMsg = 'Whoops, it looks like this user_id already has an API key associated with it. Perhaps you want to use the endpoint "GET /users/{user_id}/api-key".';
+				$this->responseCode = 400;
 			}
 		}
 	}
@@ -70,12 +76,14 @@ class apiKeys {
 				// Database Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}else{
 			// Missing API Key
 			$this->error = true;
 			$this->errorMsg = 'We seem to be missing your API key. Please try your request again and ensure you have included your API key.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -112,31 +120,26 @@ class apiKeys {
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = 400;
 				}
 				$db->close();
 			}else{
 				// Invalid UserID
 				$this->error = true;
-				$this->errorMsg = 'Sorry, we don\'t have a user with this user_id in our database.';
-				
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 81;
-				$errorLog->errorMsg = 'Invalid userID';
-				$errorLog->badData = "userID: $userID";
-				$errorLog->filename = 'API / apiKeys.class.php';
-				$errorLog->write();
+				$this->errorMsg = $users->errorMsg;
+				$this->responseCode = $users->responseCode;
 			}
 		}else{
 			// Missing API Key
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 77;
 			$errorLog->errorMsg = 'Missing userID';
-			$errorLog->badData = '';
+			$errorLog->badData = $userID;
 			$errorLog->filename = 'API / apiKeys.class.php';
 			$errorLog->write();
 		}

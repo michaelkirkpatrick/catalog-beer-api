@@ -2,6 +2,7 @@
 
 class Location {
 	
+	// Properties
 	public $id = '';
 	public $brewerID = '';
 	public $name = '';
@@ -11,6 +12,7 @@ class Location {
 	public $latitude = 0;
 	public $longitude = 0;
 	
+	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');

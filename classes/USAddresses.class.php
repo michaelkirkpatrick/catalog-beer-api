@@ -1,6 +1,7 @@
 <?php
 class USAddresses {
 	
+	// Properties
 	public $locationID = '';
 	public $address1 = '';
 	public $address2 = '';
@@ -12,12 +13,14 @@ class USAddresses {
 	public $zip4 = 0;
 	public $telephone = 0;
 	
+	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $validMsg = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $responseCode = 200;
 	
+	// USPS API Key
 	private $usps = '';
 	
 	// Add Address

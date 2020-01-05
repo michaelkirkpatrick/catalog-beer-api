@@ -6,6 +6,7 @@ $apiLogging->add($apiKey, $method, $uri, $body, $response, $responseCode);
 
 class apiLogging {
 	
+	// Variables
 	public $id = '';
 	public $apiKey = '';
 	public $timestamp = 0;
@@ -16,6 +17,7 @@ class apiLogging {
 	public $response = '';
 	public $responseCode = 0;
 	
+	// Error Handling
 	private $error = false;
 	
 	public function add($apiKey, $method, $uri, $body, $response, $responseCode){

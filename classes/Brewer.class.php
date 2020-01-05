@@ -14,6 +14,7 @@ class Brewer {
 	public $instagramURL = '';			// Optional
 	public $lastModified = 0;
 	
+	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('name'=>'', 'url'=>'', 'description'=>'', 'short_description'=>'', 'facebook_url'=>'', 'twitter_url'=>'', 'instagram_url'=>'');
