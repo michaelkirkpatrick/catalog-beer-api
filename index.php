@@ -6,6 +6,7 @@ include_once $_SERVER["DOCUMENT_ROOT"] . '/classes/initialize.php';
 $json = array();
 $error = false;
 $responseCode = 200;
+$responseHeader = '';
 
 // Method & Data
 // get the HTTP method, path and body of the request
@@ -82,260 +83,26 @@ if($_SERVER['HTTPS'] == 'on'){
 
 /* - - - - - BREWER - - - - - */
 if($endpoint == 'brewer' && !$error){
-	// Get Brewer Class
+	// Required Class
 	$brewer = new Brewer();
 	
-	switch($method){
-		case 'GET':
-			if(!empty($id) && empty($function)){
-				// Validate ID
-				if($brewer->validate($id, true)){
-					$json['id'] = $brewer->brewerID;
-					$json['object'] = 'brewer';
-					$json['name'] = $brewer->name;
-					$json['description'] = $brewer->description;
-					$json['short_description'] = $brewer->shortDescription;
-					$json['url'] = $brewer->url;
-					$json['cb_verified'] = $brewer->cbVerified;
-					$json['brewer_verified'] = $brewer->brewerVerified;
-					$json['facebook_url'] = $brewer->facebookURL;
-					$json['twitter_url'] = $brewer->twitterURL;
-					$json['instagram_url'] = $brewer->instagramURL;
-				}else{
-					// Brewer Validation Error
-					$responseCode = 404;
-					$json['error'] = true;
-					$json['error_msg'] = 'Sorry, we don\'t have any breweries with that brewer_id. Please check your request and try again.';
-				}
-			}else{
-				if(!empty($function)){
-					switch($function){
-						case 'count':
-							$numBrewers = $brewer->countBrewers();
-							if(!$brewer->error){
-								$json['object'] = 'count';
-								$json['url'] = '/brewer/count';
-								$json['value'] = $numBrewers;
-							}else{
-								$responseCode = 500;
-								$json['error'] = true;
-								$json['error_msg'] = $brewer->errorMsg;
-							}
-							break;
-						case 'beer':
-							$beer = new Beer();
-							$json = $beer->brewerBeers($id);
-							break;
-						case 'locations':
-							$location = new Location();
-							$locationArray = $location->brewerLocations($id);
-							if(!$location->error){
-								$json['object'] = 'list';
-								$json['url'] = '/brewer/' . $id . '/locations';
-								$json['has_more'] = false;
-								$json['data'] = $locationArray;
-							}else{
-								$responseCode = 404;
-								$json['error'] = true;
-								$json['error_msg'] = $location->errorMsg;
-							}
-							break;
-						case 'last-modified':
-							$users = new Users();
-							$users->validate($apiKeys->userID, true);
-							if($users->admin){
-								if(!empty($id)){
-									// Individual Brewer
-									$lastModified = $brewer->lastModified($id);
-									if(!$brewer->error){
-										$json['object'] = 'timestamp';
-										$json['url'] = '/brewer/last-modified/' . $id;
-										$json['brewer_id'] = $id;
-										$json['last_modified'] = $lastModified;
-									}else{
-										$responseCode = 404;
-										$json['error'] = true;
-										$json['error_msg'] = $brewer->errorMsg;
-									}
-								}else{
-									// All Brewers
-									$latestModified = $brewer->latestModified();
-									if(!$brewer->error){
-										$json['object'] = 'timestamp';
-										$json['url'] = '/brewer/last-modified';
-										$json['last_modified'] = $latestModified;
-									}else{
-										$responseCode = 404;
-										$json['error'] = true;
-										$json['error_msg'] = $brewer->errorMsg;
-									}
-								}
-							}else{
-								// Not an Admin
-								$responseCode = 401;
-								$json['error'] = true;
-								$json['errorMsg'] = 'Sorry, your account does not have permission to access this endpoint.';
+	// Defaults
+	$cursor = base64_encode('0');	// Page
+	$count = 500;
 
-								// Log Error
-								$errorLog = new LogError();
-								$errorLog->errorNumber = 101;
-								$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
-								$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
-								$errorLog->filename = 'API / index.php';
-								$errorLog->write();
-							}
-							break;
-						default:
-							// Invalid Function
-							$responseCode = 404;
-							$json['error'] = true;
-							$json['error_msg'] = 'Sorry, this appears to be an invalid function.';
-							
-							// Log Error
-							$errorLog = new LogError();
-							$errorLog->errorNumber = 69;
-							$errorLog->errorMsg = 'Invalid Function (/brewer)';
-							$errorLog->badData = $function;
-							$errorLog->filename = 'API / index.php';
-							$errorLog->write();
-					}
-				}else{
-					// List Breweries
-					// Defaults
-					$cursor = base64_encode('0');	// Page
-					$count = 500;
-					
-					// Get Variables
-					if(isset($_GET['cursor'])){
-						$cursor = $_GET['cursor'];
-					}
-					if(isset($_GET['count'])){
-						$count = $_GET['count'];
-					}
-					
-					// Query
-					$brewerArray = $brewer->getBrewers($cursor, $count);
-					if(!$brewer->error){
-						// Start JSON
-						$json['object'] = 'list';
-						$json['url'] = '/brewer';
-						
-						// Next Cursor
-						$nextCursor = $brewer->nextCursor($cursor, $count);
-						if(!empty($nextCursor)){
-							$json['has_more'] = true;
-							$json['next_cursor'] = $nextCursor;
-						}else{
-							$json['has_more'] = false;
-						}
-						
-						// Append Data
-						$json['data'] = $brewerArray;	
-					}else{
-						$responseCode = 400;
-						$json['error'] = true;
-						$json['error_msg'] = $brewer->errorMsg;
-					}
-				}
-			}
-			break;
-		case 'POST':
-			$brewer->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID);
-			if(!$brewer->error){
-				$json['id'] = $brewer->brewerID;
-				$json['object'] = 'brewer';
-				$json['name'] = $brewer->name;
-				$json['description'] = $brewer->description;
-				$json['short_description'] = $brewer->shortDescription;
-				$json['url'] = $brewer->url;
-				$json['cb_verified'] = $brewer->cbVerified;
-				$json['brewer_verified'] = $brewer->brewerVerified;
-				$json['facebook_url'] = $brewer->facebookURL;
-				$json['twitter_url'] = $brewer->twitterURL;
-				$json['instagram_url'] = $brewer->instagramURL;
-			}else{
-				$responseCode = 400;
-				$json['error'] = true;
-				$json['error_msg'] = $brewer->errorMsg;
-				$json['valid_state'] = $brewer->validState;
-				$json['valid_msg'] = $brewer->validMsg;
-			}
-			break;
-		case 'PUT':
-			// Account for Blanks
-			if(isset($data->name)){
-				$name = $data->name;
-			}else{
-				$name = '';
-			}
-			if(isset($data->description)){
-				$description = $data->description;
-			}else{
-				$description = '';
-			}
-			if(isset($data->short_description)){
-				$shortDescription = $data->short_description;
-			}else{
-				$shortDescription = '';
-			}
-			if(isset($data->url)){
-				$url = $data->url;
-			}else{
-				$url = '';
-			}
-			if(isset($data->facebook_url)){
-				$facebookURL = $data->facebook_url;
-			}else{
-				$facebookURL = '';
-			}
-			if(isset($data->twitter_url)){
-				$twitterURL = $data->twitter_url;
-			}else{
-				$twitterURL = '';
-			}
-			if(isset($data->instagram_url)){
-				$instagramURL = $data->instagram_url;
-			}else{
-				$instagramURL = '';
-			}
-			
-			$brewer->update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $apiKeys->userID, $id);
-			if(!$brewer->error){
-				// Get Updated Brewer Info
-				$brewer->validate($id, true);
-				$json['id'] = $brewer->brewerID;
-				$json['object'] = 'brewer';
-				$json['name'] = $brewer->name;
-				$json['description'] = $brewer->description;
-				$json['short_description'] = $brewer->shortDescription;
-				$json['url'] = $brewer->url;
-				$json['cb_verified'] = $brewer->cbVerified;
-				$json['brewer_verified'] = $brewer->brewerVerified;
-				$json['facebook_url'] = $brewer->facebookURL;
-				$json['twitter_url'] = $brewer->twitterURL;
-				$json['instagram_url'] = $brewer->instagramURL;
-			}else{
-				$responseCode = 400;
-				$json['error'] = true;
-				$json['error_msg'] = $brewer->errorMsg;
-				$json['valid_state'] = $brewer->validState;
-				$json['valid_msg'] = $brewer->validMsg;
-			}
-			break;
-		default:
-			// Invalid Method
-			$responseCode = 404;
-			$json['error'] = true;
-			$json['error_msg'] = 'Sorry, ' . $method . ' is an invalid method for this endpoint.';
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 68;
-			$errorLog->errorMsg = 'Invalid Method (/brewer)';
-			$errorLog->badData = $method;
-			$errorLog->filename = 'API / index.php';
-			$errorLog->write();
+	// Get Variables
+	if(isset($_GET['cursor'])){
+		$cursor = $_GET['cursor'];
 	}
+	if(isset($_GET['count'])){
+		$count = $_GET['count'];
+	}
+	
+	// Process Request
+	$brewer->api($method, $function, $id, $apiKey, $count, $cursor);
+	$json = $brewer->json;
+	$responseCode = $brewer->responseCode;
+	$responseHeader = $brewer->responseHeader;
 }
 
 /* - - - - - BEER - - - - - */
@@ -967,6 +734,9 @@ http_response_code($responseCode);
 
 // Header Type
 header('Content-Type: application/json');
+if(!empty($responseHeader)){
+	header($responseHeader);
+}
 
 // Output JSON
 if($json_encoded = json_encode($json)){
