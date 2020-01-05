@@ -5,15 +5,21 @@ RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 Header set Strict-Transport-Security "max-age=31415926; includeSubDomains; preload" env=HTTPS
 
+# Redirect Error Pages
+ErrorDocument 403 /errors.php?code=403
+ErrorDocument 404 /errors.php?code=404
+ErrorDocument 500 /errors.php?code=500
+ErrorDocument 503 /errors.php?code=503
+
 # API Endpoints
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&function=locations [L]
-RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
 RewriteRule ^brewer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&function=last-modified&id=$1 [L]
+RewriteRule ^brewer/?$ index.php?endpoint=brewer [QSA,L]
 
-RewriteRule ^beer$ index.php?endpoint=beer [QSA,L]
+RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
 RewriteRule ^beer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
