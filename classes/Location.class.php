@@ -81,6 +81,7 @@ class Location {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}
 	}
 	
@@ -136,6 +137,7 @@ class Location {
 						
 						// Update Query
 						$db->query("UPDATE location SET latitude='$dbLatitude', longitude='$dbLongitude' WHERE id='$dbLocationID'");
+						$db->close();
 					}else{
 						// Invalid Location ID
 						$errorLog = new LogError();
@@ -285,6 +287,7 @@ class Location {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}else{
 			// Missing LocationID
 			$this->error = true;
@@ -325,6 +328,7 @@ class Location {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}else{
 			// Invalid Brewer
 			$this->error = true;
@@ -560,6 +564,7 @@ class Location {
 		$db->query("SELECT id, (2 * $radius * ASIN(SQRT(SIN((RADIANS(latitude-$latitude))/2) * SIN((RADIANS(latitude-$latitude))/2) + COS(RADIANS($latitude)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-$longitude)/2) * SIN((RADIANS(longitude-$longitude))/2))))) AS distance FROM location HAVING distance < $searchRadius ORDER BY distance LIMIT $offset, 10000");
 		$numResults = $db->result->num_rows;
 		$nextCursor = $this->nextCursor($cursor, $count, $numResults);
+		$db->close();
 		
 		// Return
 		return array('locationArray'=>$locationArray, 'nextCursor'=>$nextCursor);
@@ -595,6 +600,7 @@ class Location {
 			$this->error = true;
 			$this->errorMsg = $db->errorMsg;
 		}
+		$db->close();
 		
 		return $count;
 	}

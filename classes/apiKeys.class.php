@@ -27,6 +27,7 @@ class apiKeys {
 						$this->error = true;
 						$this->errorMsg = $db->errorMsg;
 					}
+					$db->close();
 				}else{
 					// API Key Generation Error
 					$this->error = true;
@@ -70,6 +71,7 @@ class apiKeys {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}else{
 			// Missing API Key
 			$this->error = true;
@@ -111,6 +113,7 @@ class apiKeys {
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
 				}
+				$db->close();
 			}else{
 				// Invalid UserID
 				$this->error = true;

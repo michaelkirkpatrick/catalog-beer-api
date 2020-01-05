@@ -66,6 +66,9 @@ class Usage {
 				$this->month = $month;
 				$this->count = $array['count'];
 				$this->lastUpdated = $array['lastUpdated'];
+				
+				// Close Database Connection
+				$db->close();
 			}
 		}else{
 			// Missing API Key
@@ -105,7 +108,7 @@ class Usage {
 						break;
 					default:
 						$this->json['error'] = true;
-						$this->json['error_msg'] = 'Invalid endpoint. The endpoint you requested does not exist.';
+						$this->json['error_msg'] = 'Invalid endpoint. We do not have any resources to serve you from the endpoint you requested.';
 						$this->responseCode = 400;
 						
 						$errorLog = new LogError();

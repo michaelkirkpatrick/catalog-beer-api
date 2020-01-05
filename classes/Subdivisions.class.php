@@ -47,6 +47,7 @@ class Subdivisions {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}else{
 			// Missing Subdivision Code
 			$this->error = true;

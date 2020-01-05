@@ -56,6 +56,7 @@ class apiLogging {
 				if($db->error){
 					$this->error = true;
 				}
+				$db->close();
 			}
 		}else{
 			// Missing required attrribute

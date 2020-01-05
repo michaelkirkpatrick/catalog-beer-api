@@ -43,8 +43,8 @@ class LogError {
 			$dbFilename = $db->escape($this->filename);
 
 			// Add to Database
-			$query = "INSERT INTO error_log (id, errorNumber, errorMessage, badData, URI, ipAddress, timestamp, filename, resolved) VALUES('$dbErrorID', '$dbErrorNumber', '$dbErrorMessage', '$dbBadData', '$dbURI', '$dbIPAddress', '$dbTimestamp', '$dbFilename', '0')";
-			$db->query($query);
+			$db->query("INSERT INTO error_log (id, errorNumber, errorMessage, badData, URI, ipAddress, timestamp, filename, resolved) VALUES('$dbErrorID', '$dbErrorNumber', '$dbErrorMessage', '$dbBadData', '$dbURI', '$dbIPAddress', '$dbTimestamp', '$dbFilename', '0')");
+			$db->close();
 		}
 	}
 	
@@ -79,6 +79,7 @@ class LogError {
 					}
 				}
 			}
+			$db->close();
 		}
 		
 		// Return
@@ -101,6 +102,7 @@ class LogError {
 				}
 			}	
 		}
+		$db->close();
 			
 		// Return
 		return $errorIDs;
@@ -114,6 +116,7 @@ class LogError {
 			
 			// Query			
 			$db->query("UPDATE error_log SET resolved='1' WHERE id='$dbErrorID'");
+			$db->close();
 		}else{
 			$this->errorNumber = 3;
 			$this->errorMsg = 'Missing errorID';

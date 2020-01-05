@@ -88,6 +88,7 @@ class USAddresses {
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
 				}
+				$db->close();
 			}
 		}else{
 			// Location Already Has Address
@@ -441,6 +442,7 @@ class USAddresses {
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
 			}
+			$db->close();
 		}else{
 			// Missing LocationID
 			$this->error = true;
