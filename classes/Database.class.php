@@ -1,11 +1,13 @@
 <?php
 class Database {
 	
-	// Public Variable
+	// Public Variables
 	public $result;
+	public $insertID;
+	
 	public $error = false;
 	public $errorMsg = '';
-	public $insertID;
+	public $responseCode = 200;
 	
 	// Private Variables
 	private $mysqli;	
@@ -23,16 +25,22 @@ class Database {
 			$this->mysqli = new mysqli('', '', $password, '');
 			if($this->mysqli->connect_error){
 				//die('Connect Error (' . $this->mysqli->connect_errno . ') ' . $this->mysqli->connect_error);
+				$this->responseCode = 500;
+				echo 'Error D132 - Internal server error.';
 				exit();
 			}else{
 				// Set Character Set
 				if(!$this->mysqli->set_charset("utf8")){
 					//printf("Error loading character set utf8: %s\n", $this->mysqli->error);
+					$this->responseCode = 500;
+					echo 'Error D133 - Internal server error.';
 					exit();
 				}
 			}
 		}else{
 			// Environment Not Set
+			$this->responseCode = 500;
+			echo 'Error D134 - Internal server error.';
 			exit();
 		}
 	}
@@ -76,12 +84,14 @@ class Database {
 				$errorLog->write();
 
 				// Generic Error Message
+				$this->responseCode = 500;
 				$this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
 			}
 		}else{
 			// mysqli not set
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
