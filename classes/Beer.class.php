@@ -1,6 +1,7 @@
 <?php
 class Beer {
 	
+	// Variables
 	public $beerID = '';
 	public $brewerID = '';
 	public $name = '';
@@ -11,11 +12,19 @@ class Beer {
 	public $cbVerified = false;
 	public $brewerVerified = false;
 	public $lastModified = 0;
+	public $proposed = false;
 	
+	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
 	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
+	public $responseCode = 200;
+	
+	// Is the brewery, brewerVerified?
+	private $isBV = false;
+	// Is the brewery, catalog.beer verified (cbVerified)?
+	private $isCBV = false;
 	
 	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID){
 		// Save to Class
@@ -43,23 +52,61 @@ class Beer {
 		}else{
 			// UUID Generation Error
 			$this->error = true;
-			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->errorMsg = $uuid->errorMsg;
+			$this->responseCode = $uuid->responseCode;
+			
 		}
 		
 		if(!$this->error){
 			// Get User Info
 			$users = new Users();
 			if($users->validate($userID, true)){
-				if($users->admin){
-						// Catalog.beer Verified
+				// Check Privledges
+				$privledges = new Privledges();
+				$breweryIDs = $privledges->brewerList($userID);
+				
+				if($this->isCBV){
+					// Brewery is Catalog.beer Verified
+					if($users->admin){
+						// Beer is Catalog.beer Verified
 						$this->cbVerified = true;
 						$dbCBV = 1;
 						$dbBV = 0;
+					}elseif(in_array($this->brewerID, $breweryIDs)){
+						// Beer is Brewery Verified
+						$this->brewerVerified = true;
+						$dbCBV = 0;
+						$dbBV = 1;
 					}else{
-						// Not Catalog.beer Verified
+						// General User
 						$dbCBV = 0;
 						$dbBV = 0;
+						$this->proposed = true;
 					}
+				}elseif($this->isBV){
+					// Brewery is Brewer Verified
+					if($users->admin){
+						// Beer is Catalog.beer Verified
+						$this->cbVerified = true;
+						$dbCBV = 1;
+						$dbBV = 0;
+						// *** Stub for 'Notify Brewer' Workflow ***
+					}elseif(in_array($this->brewerID, $breweryIDs)){
+						// Beer is Brewery Verified
+						$this->brewerVerified = true;
+						$dbCBV = 0;
+						$dbBV = 1;
+					}else{
+						// General User
+						$dbCBV = 0;
+						$dbBV = 0;
+						$this->proposed = true;
+					}
+				}else{
+					// Neither BV or CBV
+					$dbCBV = 0;
+					$dbBV = 0;
+				}
 
 				// Prep for Database
 				$db = new Database();
@@ -71,17 +118,29 @@ class Beer {
 				$dbABV = $db->escape($this->abv);
 				$dbIBU = $db->escape($this->ibu);
 				$dbLastModified = $db->escape(time());
+				if($this->proposed){
+					$dbProposed = 1;
+				}else{
+					$dbProposed = 0;
+				}
 
-				$db->query("INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified')");
+				// Add to Database
+				$db->query("INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified', '$dbProposed')");
 				if($db->error){
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
+				$db->close();
+				
+				// Trigger Proposed Workflow
+				
 			}else{
 				// User Validation Error
 				$this->error = true;
 				$this->errorMsg = $users->errorMsg;
+				$this->responseCode = $users->responseCode;
 			}
 		}
 	}
@@ -92,11 +151,14 @@ class Beer {
 		if($brewer->validate($this->brewerID, true)){
 			// Valid Brewer
 			$this->brewerID = $brewer->brewerID;
+			$this->isBV = $brewer->brewerVerified;
+			$this->isCBV = $brewer->cbVerified;
 			$this->validState['brewer_id'] = 'valid';
 		}else{
 			// Invalid Brewer
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
+			$this->responseCode = 400;
 			
 			// Trim, Empty?
 			$this->brewerID = trim($brewer->brewerID);
@@ -152,6 +214,7 @@ class Beer {
 				$this->error = true;
 				$this->validState['name'] = 'invalid';
 				$this->validMsg['name'] = 'We hate to say it but your beer name is too long for our database. Beer names are limited to 255 bytes. Any chance you can shorten it?';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -166,6 +229,7 @@ class Beer {
 			$this->error = true;
 			$this->validState['name'] = 'invalid';
 			$this->validMsg['name'] = 'What\'s the name of this beer? We seem to be missing the name.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -190,6 +254,7 @@ class Beer {
 				$this->error = true;
 				$this->validState['style'] = 'invalid';
 				$this->validMsg['style'] = 'We hate to say it but this beer style is too long for our database. Style names are limited to 255 bytes. Any chance you can shorten it?';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -204,6 +269,7 @@ class Beer {
 			$this->error = true;
 			$this->validState['style'] = 'invalid';
 			$this->validMsg['style'] = 'What\'s the style of this beer? We seem to be missing its style.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -228,6 +294,7 @@ class Beer {
 				$this->error = true;
 				$this->validState['description'] = 'invalid';
 				$this->validMsg['description'] = 'We hate to say it but this beer description is too long for our database. Descriptions are limited to 65,536 bytes. Any chance you can shorten it?';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -255,6 +322,7 @@ class Beer {
 				$this->error = true;
 				$this->validState['abv'] = 'invalid';
 				$this->validMsg['abv'] = 'ABV must be between 0 and 99.9.';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -268,6 +336,7 @@ class Beer {
 			$this->error = true;
 			$this->validState['abv'] = 'invalid';
 			$this->validMsg['abv'] = 'The number you entered appears to be non-numeric. Please enter a number for the ABV percentage.';
+			$this->responseCode = 400;
 
 			// Log Error
 			$errorLog = new LogError();
@@ -293,6 +362,7 @@ class Beer {
 					$this->error = true;
 					$this->validMsg['ibu'] = 'The range for IBU values we can accept is (0, 9999].';
 					$this->validState['ibu'] = 'invalid';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -306,6 +376,7 @@ class Beer {
 				$this->error = true;
 				$this->validMsg['ibu'] = 'Please enter an integer value for IBU\'s.';
 				$this->validState['ibu'] = 'invalid';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -333,7 +404,7 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$dbBeerID = $db->escape($beerID);
-			$db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id='$dbBeerID'");
+			$db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed FROM beer WHERE id='$dbBeerID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid Result
@@ -360,17 +431,51 @@ class Beer {
 						}else{
 							$this->brewerVerified = false;
 						}
+						if($array['proposed']){
+							$this->proposed = true;
+						}else{
+							$this->proposed = false;
+						}
 					}
+				}elseif($db->result->num_rows > 1){
+					// Duplicate Results
+					$this->error = true;
+					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 136;
+					$errorLog->errorMsg = 'Duplicate beerID\'s found';
+					$errorLog->badData = $beerID;
+					$errorLog->filename = 'API / Beer.class.php';
+					$errorLog->write();
+				}else{
+					// No Results Found
+					$this->error = true;
+					$this->errorMsg = "Sorry, we couldn't find a beer with the beer_id you provided.";
+					$this->responseCode = 404;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 137;
+					$errorLog->errorMsg = 'beerID Not Found';
+					$errorLog->badData = $beerID;
+					$errorLog->filename = 'API / Beer.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
+			$db->close();
 		}else{
 			// Missing beerID
 			$this->error = true;
 			$this->errorMsg = 'Whoops, we seem to be missing the beer_id for the beer. Please check your request and try again.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -401,6 +506,7 @@ class Beer {
 					// Outside Range
 					$this->error = true;
 					$this->errorMsg = 'Sorry, the cursor value you supplied is outside our data range.';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -415,6 +521,7 @@ class Beer {
 					// Outside Range
 					$this->error = true;
 					$this->errorMsg = 'Sorry, the count value you specified is outside our acceptable range. The range we will accept is [1, 1,000,000].';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -428,6 +535,7 @@ class Beer {
 				// Not an integer offset
 				$this->error = true;
 				$this->errorMsg = 'Sorry, the count value you supplied is invalid. Please ensure you are sending an integer value.';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -441,6 +549,7 @@ class Beer {
 			// Not an integer offset
 			$this->error = true;
 			$this->errorMsg = 'Sorry, the cursor value you supplied is invalid.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -455,7 +564,7 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$brewer = new Brewer();
-			$db->query("SELECT id, name FROM beer ORDER BY name LIMIT $offset, $count");
+			$db->query("SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
 					// Brewer Info
@@ -466,7 +575,9 @@ class Beer {
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
+			$db->close();
 		}
 		
 		// Return
@@ -496,7 +607,7 @@ class Beer {
 		
 		// Query Database
 		$db = new Database();
-		$db->query("SELECT COUNT('id') AS numBeers FROM beer");
+		$db->query("SELECT COUNT('id') AS numBeers FROM beer WHERE proposed=0");
 		if(!$db->error){
 			$array = $db->resultArray();
 			return $array['numBeers'];
@@ -504,7 +615,9 @@ class Beer {
 			// Query Error
 			$this->error = true;
 			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
 		}
+		$db->close();
 		
 		return $count;
 	}
@@ -538,7 +651,7 @@ class Beer {
 				// Prep for Query
 				$db = new Database();
 				$dbBrewerID = $db->escape($brewerID);
-				$db->query("SELECT id, name, style FROM beer WHERE brewerID='$dbBrewerID' ORDER BY name");
+				$db->query("SELECT id, name, style FROM beer WHERE brewerID='$dbBrewerID' AND proposed=0 ORDER BY name");
 				if(!$db->error){
 					if($db->result->num_rows >= 1){
 						// Has Beers associated with it
@@ -551,23 +664,18 @@ class Beer {
 						}
 					}
 				}
+				$db->close();
 			}else{
 				// Invalid BrewerID
 				$this->error = true;
-				$this->errorMsg = 'Sorry, we don\'t have any brewers with that brewer_id. Please check your request and try again.';
-
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 47;
-				$errorLog->errorMsg = 'Invalid brewerID';
-				$errorLog->badData = '';
-				$errorLog->filename = 'API / Beer.class.php';
-				$errorLog->write();
+				$this->errorMsg = $brewer->errorMsg;
+				$this->responseCode = $brewer->responseCode;
 			}
 		}else{
 			// Missing Brewer ID
 			$this->error = true;
 			$this->errorMsg = 'Sorry, we seem to be missing the brewer_id. Please check your request and try again.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -597,7 +705,9 @@ class Beer {
 			// Query Error
 			$this->error = true;
 			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
 		}
+		$db->close();
 		
 		// Return
 		return $lastModified;
@@ -610,23 +720,12 @@ class Beer {
 		if(!empty($beerID)){
 			if($this->validate($beerID, true)){
 				$lastModified = $this->lastModified;
-			}else{
-				// Invalid Brewer
-				$this->error = true;
-				$this->errorMsg = 'Missing beerID';
-
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 104;
-				$errorLog->errorMsg = 'Invalid beerID';
-				$errorLog->badData = $beerID;
-				$errorLog->filename = 'API / Beer.class.php';
-				$errorLog->write();
 			}
 		}else{
 			// Missing BrewerID
 			$this->error = true;
 			$this->errorMsg = 'Missing beerID';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -639,6 +738,31 @@ class Beer {
 		
 		// Return
 		return $lastModified;
+	}
+	
+	public function proposedAdd($beerID, $brewerID){
+		// Are there any users with Brewery privledges?
+		$privledges = new Privledges();
+		$userIDs = $privledges->userList($brewerID);
+		if(!$privledges->error){
+			$users = new Users();
+			if(empty($userIDs)){
+				// No users with Brewery Privledges, email Catalog.beer Admin
+				$emails = $users->getAdminEmails();
+				if(!$users->error){
+					echo $users->errorMsg;
+				}else{
+					// Error Retreiving email addresses
+					$this->error = true;
+					$this->errorMsg = $users->errorMsg;
+					$this->responseCode = $users->responseCode;
+				}
+			}
+		}else{
+			$this->error = true;
+			$this->errorMsg = $privledges->errorMsg;
+			$this->responseCode = $privledges->responseCode;
+		}
 	}
 }
 ?>
