@@ -725,6 +725,7 @@ if($endpoint == 'usage' && !$error){
 	$usage->api($method, $function, $id, $apiKey);
 	$json = $usage->json;
 	$responseCode = $usage->responseCode;
+	$responseHeader = $usage->responseHeader;
 }
 
 /* - - - - - RESPONSE - - - - - */

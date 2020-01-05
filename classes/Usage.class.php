@@ -14,6 +14,7 @@ class Usage {
 	public $errorMsg = '';
 	
 	// API Response
+	public $responseHeader = '';
 	public $responseCode = 200;
 	public $json = array();
 	
@@ -108,21 +109,31 @@ class Usage {
 						break;
 					default:
 						$this->json['error'] = true;
-						$this->json['error_msg'] = 'Invalid endpoint. We do not have any resources to serve you from the endpoint you requested.';
-						$this->responseCode = 400;
+						$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+						$this->responseCode = 404;
 						
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 130;
-						$errorLog->errorMsg = 'Invalid Endpoint';
-						$errorLog->badData = 'User requested: /usage/' . $function;
+						$errorLog->errorMsg = 'Invalid function (/usage)';
+						$errorLog->badData = $function;
 						$errorLog->filename = 'API / Usage.class.php';
 						$errorLog->write();
 				}
 				break;
 			default:
+				// Unsupported Method - Method Not Allowed
 				$this->json['error'] = true;
-				$this->json['error_msg'] = 'Invalid HTTP method for this endpoint.';
-				$this->responseCode = 400;
+				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+				$this->responseCode = 405;
+				$this->responseHeader = 'Allow: GET';
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 141;
+				$errorLog->errorMsg = 'Invalid Method (/usage)';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Usage.class.php';
+				$errorLog->write();
 		}
 	}
 }
