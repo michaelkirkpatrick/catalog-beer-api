@@ -15,6 +15,7 @@ class Users {
 	public $errorMsg = '';
 	public $validState = array('name'=>'', 'email'=>'', 'password'=>'', 'terms_agreement'=>'');
 	public $validMsg = array('name'=>'', 'email'=>'', 'password'=>'');
+	public $responseCode = 200;
 	
 	public function validate($userID, $saveToClass){
 		// Valid
@@ -58,6 +59,7 @@ class Users {
 					// Unexpected number of results
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -66,16 +68,32 @@ class Users {
 					$errorLog->badData = $userID;
 					$errorLog->filename = 'API / Users.class.php';
 					$errorLog->write();
+				}else{
+					// User Does Not Exist
+					$this->error = true;
+					$this->errorMsg = "Sorry, we couldn't find a user with the userID you provided.";
+					$this->responseCode = 400;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 134;
+					$errorLog->errorMsg = 'userID Not Found';
+					$errorLog->badData = "userID: $userID";
+					$errorLog->filename = 'API / Users.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
+			$db->close();
 		}else{
 			// Missing userID
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -122,6 +140,7 @@ class Users {
 				$this->error = true;
 				$this->errorMsg = 'Before we can create your account, you will need to agree to the Terms and Conditions by checking the box below.';
 				$this->validState['terms_agreement'] = 'invalid';
+				$this->responseCode = 400;
 			}
 
 			// Generate userID
@@ -131,6 +150,7 @@ class Users {
 				// userID Generation Error
 				$this->error = true;
 				$this->errorMsg = $uuid->errorMsg;
+				$this->responseCode = $uuid->responseCode;
 			}
 
 			// Add User to Database
@@ -149,8 +169,7 @@ class Users {
 				$dbPasswordHash = $db->escape($passwordHash);
 
 				// Add to Database
-				$query = "INSERT INTO users (id, email, passwordHash, name, admin, emailVerified) VALUES ('$dbUserID', '$dbEmail', '$dbPasswordHash', '$dbName', '0', '0')";
-				$db->query($query);
+				$db->query("INSERT INTO users (id, email, passwordHash, name, admin, emailVerified) VALUES ('$dbUserID', '$dbEmail', '$dbPasswordHash', '$dbName', '0', '0')");
 				if(!$db->error){
 					// Send email confirmation
 					$sendEmail = new SendEmail();
@@ -161,22 +180,24 @@ class Users {
 						// Update Database
 						$dbEmailAuth = $db->escape($this->emailAuth);
 						$dbEmailAuthSent = $db->escape($this->emailAuthSent);
-						$query = "UPDATE users SET emailAuth='$dbEmailAuth', emailAuthSent='$dbEmailAuthSent' WHERE id='$dbUserID'";
-						$db->query($query);
+						$db->query("UPDATE users SET emailAuth='$dbEmailAuth', emailAuthSent='$dbEmailAuthSent' WHERE id='$dbUserID'");
 						if($db->error){
 							// Error Updating Email Info
 							$this->error = true;
 							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
 						}
 					}else{
 						// Email Verification Error
 						$this->error = true;
 						$this->errorMsg = $sendEmail->errorMsg;
+						$this->responseCode = $sendEmail->responseCode;
 					}
 				}else{
 					// Query Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
 				
 				// Close Database Connection
@@ -187,6 +208,7 @@ class Users {
 			// Not an admin, can't create new account
 			$this->error = true;
 			$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+			$this->responseCode = 403;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -211,6 +233,7 @@ class Users {
 				$this->validState['name'] = 'invalid';
 				$this->validMsg['name'] = 'We apologize, your name is a little too long for our database. Please input a name that is less than 255 bytes.';
 				$this->error = true;
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -225,6 +248,7 @@ class Users {
 			$this->validState['name'] = 'invalid';
 			$this->validMsg['name'] = "What's your name? We seem to be missing that piece of information.";
 			$this->error = true;
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -263,6 +287,7 @@ class Users {
 						$this->error = true;
 						$this->validState['email'] = 'invalid';
 						$this->validMsg['email'] = 'Sorry, someone has already created an account with this email addresses.';
+						$this->responseCode = 400;
 					}
 				}elseif($db->result->num_rows == 0){
 					// Valid, new email address
@@ -272,6 +297,7 @@ class Users {
 				// Database Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			
 			// Close Database Connection
@@ -281,6 +307,7 @@ class Users {
 			$this->error = true;
 			$this->validState['email'] = 'invalid';
 			$this->validMsg['email'] = $sendEmail->errorMsg;
+			$this->responseCode = $sendEmail->responseCode;
 		}
 	}
 	
@@ -300,6 +327,7 @@ class Users {
 					$this->error = true;
 					$this->validState['password'] = 'invalid';
 					$this->validState['password'] = 'Please use a different password. That password is common and easily guessed.';// [Need some help with a better password?](/support/6256)';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -314,6 +342,7 @@ class Users {
 				$this->error = true;
 				$this->validState['password'] = 'invalid';
 				$this->validMsg['password'] = 'Please enter a password that is at least eight (8) characters in length.';// [Need some help with a better password?](/support/6256)';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -328,6 +357,7 @@ class Users {
 			$this->error = true;
 			$this->validState['password'] = 'invalid';
 			$this->validMsg['password'] = 'Please enter a password.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -383,6 +413,7 @@ class Users {
 							$this->validState['password'] = 'invalid';
 							$this->validMsg['password'] = 'Incorrect password. Please check your password and try again.';
 							$this->error = true;
+							$this->responseCode = 403;
 
 							// Log Error
 							$errorLog = new LogError();
@@ -397,6 +428,7 @@ class Users {
 						$this->validState['email'] = 'invalid';
 						$this->validMsg['email'] = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 						$this->error = true;
+						$this->responseCode = 500;
 
 						// Log Error
 						$errorLog = new LogError();
@@ -410,6 +442,7 @@ class Users {
 						$this->validState['email'] = 'invalid';
 						$this->validMsg['email'] = 'Sorry, we couldn\'t find your account. Would you like to [create one](/signup)?';
 						$this->error = true;
+						$this->responseCode = 400;
 
 						// Log Error
 						$errorLog = new LogError();
@@ -423,6 +456,7 @@ class Users {
 					// Query Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
 				
 				// Close Database Connection
@@ -432,6 +466,7 @@ class Users {
 				$this->validState['password'] = 'invalid';
 				$this->validMsg['password'] = 'Please enter a password';
 				$this->error = true;
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -446,6 +481,7 @@ class Users {
 			$this->error = true;
 			$this->validState['email'] = 'invalid';
 			$this->validMsg['email'] = $sendEmail->errorMsg;
+			$this->responseCode = $sendEmail->responseCode;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -482,10 +518,12 @@ class Users {
 						// Query Error
 						$this->error = true;
 						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
 					}
 				}elseif($db->result->num_rows > 1){
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -498,6 +536,7 @@ class Users {
 					// Invalid Email Authentication Code
 					$this->error = true;
 					$this->errorMsg = 'Sorry, this appears to be an invalid email verification code. Please double check that you have clicked on the link in your email or have copy and pasted the entirety of the link into your browser.';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -511,6 +550,7 @@ class Users {
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->errorMsg = $db->responseCode;
 			}
 			
 			// Close Database Connection
@@ -519,6 +559,7 @@ class Users {
 			// Missing Email Authentication Code
 			$this->error = true;
 			$this->errorMsg = 'Sorry, we seem to be missing your email authentication code. Try clicking on the link in your email again.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -528,6 +569,28 @@ class Users {
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
+	}
+	
+	public function getAdminEmails(){
+		// Email Array
+		$emails = array();
+		
+		// Connect to Database
+		$db = new Database();
+		$db->query("SELECT email FROM users WHERE admin=1");
+		if(!$db->error){
+			while($array = $db->resultArray()){
+				$emails[] = $array['email'];
+			}
+		}else{
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		$db->close();
+		
+		// Return
+		return $emails;
 	}
 }
 ?>
