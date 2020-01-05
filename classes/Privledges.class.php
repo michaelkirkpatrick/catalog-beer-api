@@ -7,6 +7,7 @@ class Privledges {
 	
 	public $error = false;
 	public $errorMsg = '';
+	public $responseCode = 200;
 	
 	public function add($userID, $brewerID, $newBrewery){
 		// Associate a new user as an "Admin" for a brewery
@@ -24,6 +25,7 @@ class Privledges {
 					// Invalid Brewer
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -59,6 +61,7 @@ class Privledges {
 						if($db->error){
 							$this->error = true;
 							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
 						}
 
 						// Close Database Connection
@@ -68,6 +71,7 @@ class Privledges {
 						// UUID Generation Error
 						$this->error = true;
 						$this->errorMsg = $uuid->errorMsg;
+						$this->responseCode = $uuid->responseCode;
 					}
 				}
 			}
@@ -75,6 +79,7 @@ class Privledges {
 			// Invalid User
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -112,6 +117,7 @@ class Privledges {
 			// Invalid UserID
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -124,6 +130,51 @@ class Privledges {
 		
 		// Return
 		return $brewerIDs;
+	}
+	
+	public function userList($brewerID){
+		// Return
+		$userIDs = array();
+		
+		// Which users have privledges for this brewer?
+		$brewer = new Brewer();
+		if($brewer->validate($brewerID, false)){
+			// Prep for Database
+			$db = new Database();
+			$dbBrewerID = $db->escape($brewerID);
+			
+			// Query Database
+			$db->query("SELECT userID FROM privledges WHERE brewerID='$dbBrewerID'");
+			if(!$db->error){
+				// Loop through Results
+				while($array = $db->resultArray()){
+					$userIDs[] = $array['userID'];
+				}
+			}else{
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+			}
+			
+			// Close Database Connection
+			$db->close();
+		}else{
+			// Invalid brewerID
+			$this->error = true;
+			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 132;
+			$errorLog->errorMsg = 'Invalid brewerID';
+			$errorLog->badData = $brewerID;
+			$errorLog->filename = 'API / Permissions.class.php';
+			$errorLog->write();
+		}
+		
+		// Return
+		return $userIDs;
 	}
 }
 ?>
