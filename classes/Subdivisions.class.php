@@ -7,6 +7,7 @@ class Subdivisions {
 	
 	public $error = false;
 	public $errorMsg = '';
+	public $responseCode = 200;
 	
 	public function validate($sub_code, $saveToClass){
 		// Valid
@@ -33,6 +34,7 @@ class Subdivisions {
 					// Undesirable number of results
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -41,17 +43,33 @@ class Subdivisions {
 					$errorLog->badData = "sub_code: $sub_code";
 					$errorLog->filename = 'API / Subdivisions.class.php';
 					$errorLog->write();
+				}else{
+					// Not Found
+					// Subdivision Code Does Not Exist
+					$this->error = true;
+					$this->errorMsg = "Sorry, we couldn't find a subdivision with the sub_code you provided.";
+					$this->responseCode = 404;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 139;
+					$errorLog->errorMsg = 'sub_code Not Found';
+					$errorLog->badData = $sub_code;
+					$errorLog->filename = 'API / Subdivisions.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Database Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}else{
 			// Missing Subdivision Code
 			$this->error = true;
 			$this->errorMsg = 'Sorry, we seem to be missing the subdivision code (sub_code) you\'re requesting';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();

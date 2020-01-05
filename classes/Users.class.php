@@ -72,7 +72,7 @@ class Users {
 					// User Does Not Exist
 					$this->error = true;
 					$this->errorMsg = "Sorry, we couldn't find a user with the userID you provided.";
-					$this->responseCode = 400;
+					$this->responseCode = 404;
 					
 					// Log Error
 					$errorLog = new LogError();

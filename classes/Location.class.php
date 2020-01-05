@@ -15,6 +15,7 @@ class Location {
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
 	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
+	public $responseCode = 200;
 	
 	private $gAPIKey = '';
 	
@@ -32,7 +33,8 @@ class Location {
 			// Invalid Brewer
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
-			$this->validMsg['brewer_id'] = 'Sorry, we don\'t have any brewers with that brewer_id. Please check your request and try again.';
+			$this->validMsg['brewer_id'] = $brewer->errorMsg;
+			$this->responseCode = $brewer->responseCode;
 		}
 		
 		// Validate Name
@@ -48,6 +50,7 @@ class Location {
 			$this->error = true;
 			$this->validState['url'] = $brewer->validState['url'];
 			$this->validMsg['url'] = $brewer->validMsg['url'];
+			$this->responseCode = $brewer->responseCode;
 		}
 		
 		// Validate Country Code
@@ -60,6 +63,7 @@ class Location {
 			// locationID Generation Error
 			$this->error = true;
 			$this->errorMsg = $uuid->errorMsg;
+			$this->responseCode = $uuid->responseCode;
 		}
 		
 		if(!$this->error){
@@ -80,6 +84,7 @@ class Location {
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}
@@ -182,6 +187,7 @@ class Location {
 				$this->error = true;
 				$this->validState['name'] = 'invalid';
 				$this->validMsg['name'] = 'We hate to say it but your location name is too long for our database. Location names are limited to 255 bytes. Any chance you can shorten it?';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -196,6 +202,7 @@ class Location {
 			$this->error = true;
 			$this->validState['name'] = 'invalid';
 			$this->validMsg['name'] = 'Please give us the name of the location you\'d like to add.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -225,6 +232,7 @@ class Location {
 			$this->error = true;
 			$this->validState['country_code'] = 'invalid';
 			$this->validMsg['country_code'] = 'Sorry, at this time we are only collecting brewery locations for the United States of America.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -273,6 +281,7 @@ class Location {
 					// Too Many Rows
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -281,17 +290,33 @@ class Location {
 					$errorLog->badData = "locationID: $locationID";
 					$errorLog->filename = 'API / Location.class.php';
 					$errorLog->write();
+				}else{
+					// Not Found
+					// Location Does Not Exist
+					$this->error = true;
+					$this->errorMsg = "Sorry, we couldn't find a location with the location_id you provided.";
+					$this->responseCode = 404;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 138;
+					$errorLog->errorMsg = 'locationID Not Found';
+					$errorLog->badData = $locationID;
+					$errorLog->filename = 'API / Location.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}else{
 			// Missing LocationID
 			$this->error = true;
 			$this->errorMsg = 'Whoops, we seem to be missing the location_id for the location. Please check your request and try again.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -327,20 +352,14 @@ class Location {
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}else{
 			// Invalid Brewer
 			$this->error = true;
-			$this->errorMsg = 'Sorry, we don\'t have any breweries in our database with the brewer_id you submitted.';
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 75;
-			$errorLog->errorMsg = 'Invalid BrewerID';
-			$errorLog->badData = $brewerID;
-			$errorLog->filename = 'API / Location.class.php';
-			$errorLog->write();
+			$this->errorMsg = $brewer->errorMsg;
+			$this->responseCode = $brewer->responseCode;
 		}
 		
 		// Return
@@ -383,6 +402,7 @@ class Location {
 					// Outside Range
 					$this->error = true;
 					$this->errorMsg = 'Sorry, the cursor value you supplied is outside our data range.';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -397,6 +417,7 @@ class Location {
 					// Outside Range
 					$this->error = true;
 					$this->errorMsg = 'Sorry, the count value you specified is outside our acceptable range. The range we will accept is [1, 500].';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -410,6 +431,7 @@ class Location {
 				// Not an integer offset
 				$this->error = true;
 				$this->errorMsg = 'Sorry, the count value you supplied is invalid. Please ensure you are sending an integer value.';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -423,6 +445,7 @@ class Location {
 			// Not an integer offset
 			$this->error = true;
 			$this->errorMsg = 'Sorry, the cursor value you supplied is invalid.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -444,6 +467,7 @@ class Location {
 				// Middle of the ocean
 				$this->error = true;
 				$this->errorMsg = "It looks like you're looking for a brewery in the middle of the ocean. Sad to say, we aren't able to track shipboard breweries yet. You might want to check the latitude and longitude you provided.";
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -458,6 +482,7 @@ class Location {
 				// Invalid Search Radius
 				$this->error = true;
 				$this->errorMsg = "Whoops, the search radius you gave us appears to be zero. You'll want a search radius greater than zero. Please double check your value.'";
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -470,6 +495,7 @@ class Location {
 				// Invalid Search Radius
 				$this->error = true;
 				$this->errorMsg = "Whoops, the search radius you gave is negative. Negative distances are weird to compute. Try a positive value for your search radius.'";
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -485,6 +511,7 @@ class Location {
 				// Outside bounds
 				$this->error = true;
 				$this->errorMsg = "The latitude value you gave is is out of bounds, please check the value you gave us. The accepted range for latitude is [-90, 90].";
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -500,6 +527,7 @@ class Location {
 				// Outside bounds
 				$this->error = true;
 				$this->errorMsg = "The longitude value you gave is is out of bounds, please check the value you gave us. The accepted range for longitude is [-180, 180].";
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -556,6 +584,7 @@ class Location {
 					// Query Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
 			}
 		}
@@ -599,6 +628,7 @@ class Location {
 			// Query Error
 			$this->error = true;
 			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = 400;
 		}
 		$db->close();
 		

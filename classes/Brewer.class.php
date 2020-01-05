@@ -628,14 +628,14 @@ class Brewer {
 				}else{
 					// Brewer Does Not Exist
 					$this->error = true;
-					$this->errorMsg = "Sorry, we couldn't find a brewer with the brewerID you provided.";
-					$this->responseCode = 400;
+					$this->errorMsg = "Sorry, we couldn't find a brewer with the brewer_id you provided.";
+					$this->responseCode = 404;
 					
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 133;
 					$errorLog->errorMsg = 'brewerID Not Found';
-					$errorLog->badData = "brewerID: $brewerID";
+					$errorLog->badData = $brewerID;
 					$errorLog->filename = 'API / Brewer.class.php';
 					$errorLog->write();
 				}

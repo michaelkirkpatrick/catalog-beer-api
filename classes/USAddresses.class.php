@@ -16,6 +16,7 @@ class USAddresses {
 	public $errorMsg = '';
 	public $validState = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $validMsg = array('location_id'=>'', 'address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
+	public $responseCode = 200;
 	
 	private $usps = '';
 	
@@ -38,7 +39,8 @@ class USAddresses {
 			if(!$location->validate($this->locationID, true)){
 				// Invalid Location
 				$this->error = true;
-				$this->errorMsg = 'Sorry, we don\'t have any locations with the location_id you provided';
+				$this->errorMsg = $location->errorMsg;
+				$this->responseCode = $location->responseCode;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -87,6 +89,7 @@ class USAddresses {
 					// Query Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
 				$db->close();
 			}
@@ -94,6 +97,7 @@ class USAddresses {
 			// Location Already Has Address
 			$this->error = true;
 			$this->errorMsg = 'Sorry, this location already has an address. Perhaps you meant to edit the address?';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -134,6 +138,7 @@ class USAddresses {
 			$this->error = true;
 			$this->validState['address2'] = 'invalid';
 			$this->validState['address2'] = 'Sorry, we seem to be missing the street address for this location. Please double check your submission.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -157,6 +162,7 @@ class USAddresses {
 				$this->error = true;
 				$this->validState['zip5'] = 'invalid';
 				$this->validMsg['zip5'] = 'Sorry, this appears to be an invalid ZIP Code (zip5). Ensure you have submitted a five digit ZIP code.';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -177,6 +183,7 @@ class USAddresses {
 					$this->error = true;
 					$this->validState['zip4'] = 'invalid';
 					$this->validMsg['zip4'] = 'Sorry, this appears to be an invalid ZIP Code + 4 (zip4). Ensure you have submitted a four digit ZIP Code + 4.';
+					$this->responseCode = 400;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -206,6 +213,7 @@ class USAddresses {
 				$this->error = true;
 				$this->validState['city'] = 'invalid';
 				$this->validMsg['city'] = 'What city is this location in? If you don\'t know the city, you can alternatively provide the ZIP Code.';
+				$this->responseCode = 400;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -231,6 +239,7 @@ class USAddresses {
 					$this->error = true;
 					$this->validState['sub_code'] = 'invalid';
 					$this->validMsg['sub_code'] = 'Sorry, this appears to be an invalid sub_code. Please double check the parameter.';
+					$this->responseCode = 400;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -245,6 +254,7 @@ class USAddresses {
 				$this->error = true;
 				$this->validState['sub_code'] = 'invalid';
 				$this->validMsg['sub_code'] = 'Sorry, we seem to be missing the sub_code for this location. Please check your submission.';
+				$this->responseCode = 400;
 			}
 			
 			if(!$this->error){
@@ -283,6 +293,7 @@ class USAddresses {
 			// cURL Error
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
 			
 			// Log Error
 			$errorLog = new LogError();
@@ -298,6 +309,7 @@ class USAddresses {
 				// Error
 				$this->error = true;
 				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+				$this->responseCode = 500;
 				
 				// Log Error
 				$errorLog = new LogError();
@@ -312,6 +324,7 @@ class USAddresses {
 					$this->error = true;
 					$this->validState['city'] = 'invalid';
 					$this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
+					$this->responseCode = 400;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -324,6 +337,7 @@ class USAddresses {
 					// Other Error
 					$this->error = true;
 					$this->errorMsg = htmlspecialchars(trim($responseObj->Address->Error->Description)) . ' Please check your entry and try again.';
+					$this->responseCode = 400;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -373,6 +387,7 @@ class USAddresses {
 				$this->error = true;
 				$this->validState['telephone'] = 'invalid';
 				$this->validMsg['telephone'] = 'The telephone number you submitted appears to be invalid. We are looking for a ten-digit phone number similar to ###-###-####.';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -428,6 +443,7 @@ class USAddresses {
 					// Too Many Results
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -436,17 +452,33 @@ class USAddresses {
 					$errorLog->badData = '';
 					$errorLog->filename = 'API / USAddresses.class.php';
 					$errorLog->write();
+				}else{
+					// Not Found
+					// No US Address for this locationID
+					$this->error = true;
+					$this->errorMsg = "Sorry, we couldn't find an address for the location_id you provided.";
+					$this->responseCode = 404;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 140;
+					$errorLog->errorMsg = 'US Address Not Found';
+					$errorLog->badData = $locationID;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
 			$db->close();
 		}else{
 			// Missing LocationID
 			$this->error = true;
 			$this->errorMsg = 'We seem to be missing the location_id. We\'ll need that to look up the location\'s address.';
+			$this->responseCode = 400;
 			
 			// Log Error
 			$errorLog = new LogError();
