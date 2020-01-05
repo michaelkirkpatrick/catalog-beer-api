@@ -21,6 +21,7 @@ class uuid {
 	
 	public $error = false;
 	public $errorMsg = '';
+	public $reponseCode = 200;
 	
 	
 	// ----- Generate Unique UUID -----
@@ -78,6 +79,7 @@ class uuid {
 		}else{
 			$this->error = true;
 			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
 		}
 		
 		// Close Database Connection
