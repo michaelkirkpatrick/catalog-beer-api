@@ -3,11 +3,6 @@
 Catalog.beer API
 $sendEmail = new SendEmail();
 $sendEmail->email = '';
-$sendEmail->subject = '';
-$sendEmail->filename = 'VAR'; // replace VAR, i.e. email-VAR.html
-$sendEmail->find = array(); // Optional
-$sendEmail->replace = array(); // Optional
-$sendEmail->send();
 --- */
 
 class SendEmail {
@@ -19,6 +14,7 @@ class SendEmail {
 	// Validation
 	public $error = false;
 	public $errorMsg = '';
+	public $responseCode = 200;
 		
 	public function validateEmail($email){
 		// Initial State
@@ -40,6 +36,7 @@ class SendEmail {
 					// Check string length
 					$this->error = true;
 					$this->errorMsg = 'We apologize, your email address is a little too long for us to process. Please input an email that is less than 255 bytes in length.';
+					$this->responseCode = 400;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -53,6 +50,7 @@ class SendEmail {
 				// Invalid Email
 				$this->error = true;
 				$this->errorMsg = 'Sorry, the email address you provided appears to be invalid.';
+				$this->responseCode = 400;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -66,6 +64,7 @@ class SendEmail {
 			// Invalid Email
 			$this->error = true;
 			$this->errorMsg = 'Sorry, we seem to be missing your email address. Please enter it.';
+			$this->responseCode = 400;
 
 			// Log Error
 			$errorLog = new LogError();
@@ -134,6 +133,7 @@ class SendEmail {
 				// cURL Error
 				$this->error = true;
 				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+				$this->responseCode = 500;
 
 				// Log Error
 				$errorLog = new LogError();
@@ -149,6 +149,7 @@ class SendEmail {
 					// Error Sending Email
 					$this->error = true;
 					$this->errorMsg = 'Sorry, there was an error sending your confirmation email. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
 
 					// Log Error
 					$errorLog = new LogError();
