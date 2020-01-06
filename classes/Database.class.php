@@ -78,7 +78,7 @@ class Database {
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 1;
-				$errorLog->fileName = 'Database.class.php';
+				$errorLog->filename = 'API / Database.class.php';
 				$errorLog->errorMsg = 'Query Error';
 				$errorLog->badData = 'Query: ' . $query . ' MySQL Error: ' . $this->mysqli->error;
 				$errorLog->write();
@@ -98,7 +98,7 @@ class Database {
 			$errorLog->errorNumber = 2;
 			$errorLog->errorMsg = '$this->mysqli not set';
 			$errorLog->badData = "Query: $query";
-			$errorLog->filename = 'Database.class.php';
+			$errorLog->filename = 'API / Database.class.php';
 			$errorLog->write();
 		}
 	}
@@ -130,7 +130,7 @@ class Database {
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 124;
-			$errorLog->fileName = 'Database.class.php';
+			$errorLog->filename = 'API / Database.class.php';
 			$errorLog->errorMsg = 'Database Error';
 			$errorLog->badData = 'Unable to close database connection';;
 			$errorLog->write();
