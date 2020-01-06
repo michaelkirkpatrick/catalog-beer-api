@@ -99,7 +99,7 @@ if($endpoint == 'brewer' && !$error){
 	}
 	
 	// Process Request
-	$brewer->api($method, $function, $id, $apiKey, $count, $cursor);
+	$brewer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
 	$json = $brewer->json;
 	$responseCode = $brewer->responseCode;
 	$responseHeader = $brewer->responseHeader;
