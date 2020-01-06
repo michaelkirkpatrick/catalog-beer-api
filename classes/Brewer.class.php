@@ -109,6 +109,11 @@ class Brewer {
 				if(!$db->error){
 					// Successfully Added Brewer
 					$this->responseCode = 201;
+					$responseHeaderString = 'Location: https://';
+					if(ENVIRONMENT == 'staging'){
+						$responseHeaderString .= 'staging.';
+					}
+					$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
 				}else{
 					// Query Error
 					$this->error = true;
@@ -463,6 +468,14 @@ class Brewer {
 					$this->validStatee[$type] = 'invalid';
 					$this->validMsg[$type] = 'Sorry, but URL strings are limited to 255 bytes in length. Any chance there is a shorter URL you can use?';
 					$this->responseCode = 400;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 147;
+					$errorLog->errorMsg = 'URL Too Long';
+					$errorLog->badData = $url;
+					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->write();
 				}
 			}else{
 				// Invalid URL
@@ -494,6 +507,14 @@ class Brewer {
 						$this->validState['facebook_url'] = 'invalid';
 						$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
 						$this->responseCode = 400;
+						
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 144;
+						$errorLog->errorMsg = 'Invalid Facebook URL';
+						$errorLog->badData = $returnURL;
+						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->write();
 					}
 					break;
 				case 'twitter_url':
@@ -503,15 +524,33 @@ class Brewer {
 						$this->validState['twitter_url'] = 'invalid';
 						$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
 						$this->responseCode = 400;
+						
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 145;
+						$errorLog->errorMsg = 'Invalid Twitter URL';
+						$errorLog->badData = $returnURL;
+						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->write();
 					}
 					break;
 				case 'instagram_url':
 					if(substr($returnURL, 0, 26) != 'https://www.instagram.com/'){
-						// Invalid Instagram URL
-						$this->error = true;
-						$this->validState['instagram_url'] = 'invalid';
-						$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
-						$this->responseCode = 400;
+						if(substr($returnURL, 0, 22) != 'https://instagram.com/'){
+							// Invalid Instagram URL
+							$this->error = true;
+							$this->validState['instagram_url'] = 'invalid';
+							$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
+							$this->responseCode = 400;
+							
+							// Log Error
+							$errorLog = new LogError();
+							$errorLog->errorNumber = 146;
+							$errorLog->errorMsg = 'Invalid Instagram URL';
+							$errorLog->badData = $returnURL;
+							$errorLog->filename = 'API / Brewer.class.php';
+							$errorLog->write();
+						}
 					}
 					break;
 			}
@@ -885,7 +924,7 @@ class Brewer {
 		return $lastModified;
 	}
 	
-	public function api($method, $function, $id, $apiKey, $count, $cursor){
+	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		switch($method){
 			case 'GET':
 				/*---
@@ -1052,6 +1091,8 @@ class Brewer {
 				break;
 			case 'POST':
 				// POST https://api.catalog.beer/brewer
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID);
 				if(!$this->error){
 					$this->json['id'] = $this->brewerID;
@@ -1152,7 +1193,6 @@ class Brewer {
 				$errorLog->badData = $method;
 				$errorLog->filename = 'API / Brewer.class.php';
 				$errorLog->write();
-			}
 		}
 	}
 }
