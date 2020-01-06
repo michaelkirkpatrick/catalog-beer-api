@@ -750,6 +750,11 @@ class Beer {
 				// No users with Brewery Privledges, email Catalog.beer Admin
 				$emails = $users->getAdminEmails();
 				if(!$users->error){
+					// POST https://api.catalog.beer/beer/{beer_id}/approve/{authorization_code}
+					// POST https://api.catalog.beer/beer/{beer_id}/deny/{authorization_code}
+					
+					
+					// Send Email to Catalog.beer Admin
 					echo $users->errorMsg;
 				}else{
 					// Error Retreiving email addresses
