@@ -27,49 +27,61 @@ class Usage {
 		if(!empty($apiKey)){
 			// Required Classes
 			$apiKeys = new apiKeys();
-			$users = new Users();
-
-			// Get UserID for $apiKeyInUse
-			$apiKeys->validate($apiKeyInUse, true);
-			$users->validate($apiKeys->userID, true);
-
-			if($apiKey != $apiKeyInUse){
-				// This request didn't come from the user themselves, ensure it came from an Admin user (e.g. the website)
-				if(!$users->admin){
-					// Didn't come from the Admin user, disallow this request
-					$this->responseCode = 401;
-					$this->error = true;
-					$this->errorMsg = 'Unauthorized: API Key mismatch. In order to retreive API usage for your account, you must make the API request using your API Key.';
-				}
-			}
-			
-			if(!$this->error){
-				// Current month and year
-				$year = date('Y', time());
-				$month = date('n', time());
-
-				// Required Class
-				$db = new Database();
-
-				// Prep for Database
-				$dbAPIKey = $db->escape($apiKey);
-				$dbYear = $db->escape($year);
-				$dbMonth = $db->escape($month);
-
-				// Query
-				$db->query("SELECT id, count, lastUpdated FROM api_usage WHERE apiKey='$dbAPIKey' AND year='$dbYear' AND month='$dbMonth'");
-				$array = $db->resultArray();
-
-				// Save to Class
-				$this->id = $array['id'];
-				$this->apiKey = $apiKey;
-				$this->year = $year;
-				$this->month = $month;
-				$this->count = $array['count'];
-				$this->lastUpdated = $array['lastUpdated'];
+			if($apiKeys->validate($apiKey, true)){
 				
-				// Close Database Connection
-				$db->close();
+				$users = new Users();
+				$users->validate($apiKeys->userID, true);
+
+				if($apiKey != $apiKeyInUse){
+					// This request didn't come from the user themselves, ensure it came from an Admin user (e.g. the website)
+					if(!$users->admin){
+						// Didn't come from the Admin user, disallow this request
+						$this->responseCode = 401;
+						$this->error = true;
+						$this->errorMsg = 'Unauthorized: API Key mismatch. In order to retreive API usage for your account, you must make the API request using your API Key.';
+					}
+				}
+
+				if(!$this->error){
+					// Current month and year
+					$year = date('Y', time());
+					$month = date('n', time());
+
+					// Required Class
+					$db = new Database();
+
+					// Prep for Database
+					$dbAPIKey = $db->escape($apiKey);
+					$dbYear = $db->escape($year);
+					$dbMonth = $db->escape($month);
+
+					// Query
+					$db->query("SELECT id, count, lastUpdated FROM api_usage WHERE apiKey='$dbAPIKey' AND year='$dbYear' AND month='$dbMonth'");
+					$array = $db->resultArray();
+
+					// Save to Class
+					$this->id = $array['id'];
+					$this->apiKey = $apiKey;
+					$this->year = $year;
+					$this->month = $month;
+					$this->count = $array['count'];
+					$this->lastUpdated = $array['lastUpdated'];
+
+					// Close Database Connection
+					$db->close();
+				}
+			}else{
+				// Invalid API Key
+				$this->error = true;
+				$this->errorMsg = 'Invalid API Key. Unable to retreive API usage information.';
+				$this->responseCode = 404;
+
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 143;
+				$errorLog->errorMsg = 'Invalid API Key';
+				$errorLog->badData = $apiKey;
+				$errorLog->filename = 'API / Usage.class.php';
+				$errorLog->write();
 			}
 		}else{
 			// Missing API Key
