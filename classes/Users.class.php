@@ -104,9 +104,6 @@ class Users {
 			$errorLog->write();
 		}
 		
-		// Close Database Connection
-		$db->close();
-		
 		// Return
 		return $valid;
 	}
