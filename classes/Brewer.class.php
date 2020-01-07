@@ -712,11 +712,8 @@ class Brewer {
 		return $valid;
 	}
 	
-	// Get BrewerIDs
-	public function getBrewers($cursor, $count){
-		// Return Array
-		$brewerArray = array();
-		
+	// Validate Cursor and Count
+	private function validateCursorCount($cursor, $count){
 		// Prep Variables
 		$offset = intval(base64_decode($cursor));
 		$count = intval($count);
@@ -783,6 +780,19 @@ class Brewer {
 			$errorLog->write();
 		}
 		
+		return(array($offset, $count));
+	}
+	
+	// Get BrewerIDs
+	public function getBrewers($cursor, $count){
+		// Return Array
+		$brewerArray = array();
+		
+		// Validate $cursor and $count
+		$cursorCountArray = $this->validateCursorCount($cursor, $count);
+		$offset = $cursorCountArray[0];
+		$count = $cursorCountArray[1];
+		
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
@@ -806,18 +816,24 @@ class Brewer {
 	}
 	
 	public function nextCursor($cursor, $count){
-		// Number of Brewers
-		$numBrewers = $this->countBrewers();
+		// Validate $cursor and $count
+		$cursorCountArray = $this->validateCursorCount($cursor, $count);
+		$offset = $cursorCountArray[0];
+		$count = $cursorCountArray[1];
 		
-		// Next Cursor
-		$offset = base64_decode($cursor);
-		$nextCursor = $offset + $count;
-		
-		if($nextCursor <= $numBrewers){
-			// Return Next Page
-			return base64_encode($nextCursor);
-		}else{
-			return '';
+		if(!$this->error){
+			// Number of Brewers
+			$numBrewers = $this->countBrewers();
+
+			// Next Cursor
+			$nextCursor = $offset + $count;
+
+			if($nextCursor <= $numBrewers){
+				// Return Next Page
+				return base64_encode($nextCursor);
+			}else{
+				return '';
+			}
 		}
 	}
 	
