@@ -982,6 +982,10 @@ class Brewer {
 								// GET https://api.catalog.beer/brewer/{brewer_id}/beer
 								$beer = new Beer();
 								$this->json = $beer->brewerBeers($id);
+								if($beer->error){
+									$this->json['error'] = true;
+									$this->json['error_msg'] = $beer->errorMsg;
+								}
 								$this->responseCode = $beer->responseCode;
 								break;
 							case 'locations':
