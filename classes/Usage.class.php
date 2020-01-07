@@ -110,10 +110,10 @@ class Usage {
 						$this->currentUsage($id, $apiKey, false);
 						if(!$this->error){
 							$this->json['api_key'] = $this->apiKey;
-							$this->json['year'] = $this->year;
-							$this->json['month'] = $this->month;
-							$this->json['count'] = $this->count;
-							$this->json['last_updated'] = $this->lastUpdated;
+							$this->json['year'] = intval($this->year);
+							$this->json['month'] = intval($this->month);
+							$this->json['count'] = intval($this->count);
+							$this->json['last_updated'] = intval($this->lastUpdated);
 						}else{
 							$this->json['error'] = true;
 							$this->json['error_msg'] = $this->errorMsg;
