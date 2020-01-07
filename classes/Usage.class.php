@@ -109,6 +109,8 @@ class Usage {
 					case 'currentMonth':
 						$this->currentUsage($id, $apiKey, false);
 						if(!$this->error){
+							$this->json['id'] = $this->id;
+							$this->json['object'] = 'usage';
 							$this->json['api_key'] = $this->apiKey;
 							$this->json['year'] = intval($this->year);
 							$this->json['month'] = intval($this->month);
