@@ -25,7 +25,8 @@ RewriteRule ^brewer/last-modified$ index.php?endpoint=brewer&function=last-modif
 RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
-RewriteRule ^beer/last-modified(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
+RewriteRule ^beer/last-modified$ index.php?endpoint=beer&function=last-modified [L]
+RewriteRule ^beer/(\/[-0-9a-f]{36})/last-modified$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
 
 RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]

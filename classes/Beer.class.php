@@ -1,14 +1,14 @@
 <?php
 class Beer {
 	
-	// Variables
+	// Properties
 	public $beerID = '';
 	public $brewerID = '';
 	public $name = '';
 	public $style = '';
-	public $description = '';	// Optional
+	public $description = '';
 	public $abv = 0;
-	public $ibu = 0;					// Optional
+	public $ibu = 0;
 	public $cbVerified = false;
 	public $brewerVerified = false;
 	public $lastModified = 0;
@@ -19,12 +19,16 @@ class Beer {
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
 	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
-	public $responseCode = 200;
 	
-	// Is the brewery, brewerVerified?
-	private $isBV = false;
-	// Is the brewery, catalog.beer verified (cbVerified)?
-	private $isCBV = false;
+	// API Response
+	public $responseHeader = '';
+	public $responseCode = 200;
+	public $json = array();
+	
+	// Verification
+	private $isBV = false;	// Is the brewery, brewerVerified?
+	private $isCBV = false;	// Is the brewery, catalog.beer verified (cbVerified)?
+	
 	
 	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID){
 		// Save to Class
@@ -126,16 +130,17 @@ class Beer {
 
 				// Add to Database
 				$db->query("INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified', '$dbProposed')");
-				if($db->error){
+				if(!$db->error){
+					if($this->proposed){
+						// *** Stub for 'Proposed' Workflow ***
+					}
+				}else{
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
 					$this->responseCode = $db->responseCode;
 				}
 				$db->close();
-				
-				// Trigger Proposed Workflow
-				
 			}else{
 				// User Validation Error
 				$this->error = true;
@@ -564,6 +569,7 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$brewer = new Brewer();
+			echo "SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count";
 			$db->query("SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
@@ -767,6 +773,213 @@ class Beer {
 			$this->error = true;
 			$this->errorMsg = $privledges->errorMsg;
 			$this->responseCode = $privledges->responseCode;
+		}
+	}
+	
+	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
+		/*---
+		{METHOD} https://api.catalog.beer/beer/{function}
+		{METHOD} https://api.catalog.beer/beer/{id}/{function}
+		
+		GET https://api.catalog.beer/beer
+		GET https://api.catalog.beer/beer/count
+		GET https://api.catalog.beer/beer/last-modified
+		GET https://api.catalog.beer/beer/{beer_id}
+		GET https://api.catalog.beer/beer/{beer_id}/last-modified
+		
+		POST https://api.catalog.beer/beer
+		---*/
+		switch($method){
+			case 'GET':
+				if(!empty($id) && empty($function)){
+					// GET https://api.catalog.beer/beer/{beer_id}
+					// Validate ID
+					if($this->validate($id, true)){
+						// Validate Brewery
+						$brewer = new Brewer();
+						if($brewer->validate($this->brewerID, true)){
+							// Beer Info
+							$this->json['id'] = $this->beerID;
+							$this->json['object'] = 'beer';
+							$this->json['name'] = $this->name;
+							$this->json['style'] = $this->style;
+							$this->json['description'] = $this->description;
+							$this->json['abv'] = $this->abv;
+							$this->json['ibu'] = $this->ibu;
+							$this->json['cb_verified'] = $this->cbVerified;
+							$this->json['brewer_verified'] = $this->brewerVerified;
+
+							// Brewer Info
+							$this->json['brewer']['id'] = $brewer->brewerID;
+							$this->json['brewer']['object'] = 'brewer';
+							$this->json['brewer']['name'] = $brewer->name;
+							$this->json['brewer']['description'] = $brewer->description;
+							$this->json['brewer']['short_description'] = $brewer->shortDescription;
+							$this->json['brewer']['url'] = $brewer->url;
+							$this->json['brewer']['cb_verified'] = $brewer->cbVerified;
+							$this->json['brewer']['brewer_verified'] = $brewer->brewerVerified;
+							$this->json['brewer']['facebook_url'] = $brewer->facebookURL;
+							$this->json['brewer']['twitter_url'] = $brewer->twitterURL;
+							$this->json['brewer']['instagram_url'] = $brewer->instagramURL;
+						}else{
+							// Brewer Validation Error
+							$this->responseCode = $brewer->responseCode;
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $brewer->errorMsg;
+						}
+					}else{
+						// Beer Validation Error
+						$this->json['error'] = true;
+						$this->json['error_msg'] = 'Sorry, we don\'t have any beer with that beer_id. Please check your request and try again.';
+					}
+				}else{
+					if(!empty($function)){
+						switch($function){
+							case 'count':
+								// GET https://api.catalog.beer/beer/count
+								$numBeers = $this->countBeers();
+								if(!$this->error){
+									$this->json['object'] = 'count';
+									$this->json['url'] = '/beer/count';
+									$this->json['value'] = $numBeers;
+								}else{
+									$this->json['error'] = true;
+									$this->json['error_msg'] = $this->errorMsg;
+								}
+								break;
+							case 'last-modified':
+								$users = new Users();
+								$users->validate($apiKeys->userID, true);
+								if($users->admin){
+									if(!empty($id)){
+										// GET https://api.catalog.beer/beer/{beer_id}/last-modified
+										// Individual Brewer
+										$lastModified = $this->lastModified($id);
+										if(!$this->error){
+											$this->json['object'] = 'timestamp';
+											$this->json['url'] = '/beer/' . $id . '/last-modified';
+											$this->json['beer_id'] = $id;
+											$this->json['last_modified'] = $lastModified;
+										}else{
+											$this->json['error'] = true;
+											$this->json['error_msg'] = $this->errorMsg;
+										}
+									}else{
+										// GET https://api.catalog.beer/beer/last-modified
+										// All Brewers
+										$latestModified = $this->latestModified();
+										if(!$this->error){
+											$this->json['object'] = 'timestamp';
+											$this->json['url'] = '/beer/last-modified';
+											$this->json['last_modified'] = $latestModified;
+										}else{
+											$this->json['error'] = true;
+											$this->json['error_msg'] = $this->errorMsg;
+										}
+									}
+								}else{
+									// Not an Admin
+									$this->responseCode = 403;
+									$this->json['error'] = true;
+									$this->json['errorMsg'] = 'Sorry, your account does not have permission to access this endpoint.';
+
+									// Log Error
+									$errorLog = new LogError();
+									$errorLog->errorNumber = 109;
+									$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
+									$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
+									$errorLog->filename = 'API / Beer.class.php';
+									$errorLog->write();
+								}
+								break;
+							default:
+								// Invalid Function
+								$this->responseCode = 404;
+								$this->json['error'] = true;
+								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+
+								// Log Error
+								$errorLog = new LogError();
+								$errorLog->errorNumber = 70;
+								$errorLog->errorMsg = 'Invalid Function (/beer)';
+								$errorLog->badData = $function;
+								$errorLog->filename = 'API / Beer.class.php';
+								$errorLog->write();
+						}
+					}else{
+						// GET https://api.catalog.beer/beer
+						// List Beers
+						// Defaults
+						$cursor = base64_encode('0');	// Page
+						$count = 500;
+
+						// Get Variables
+						if(isset($_GET['cursor'])){
+							$cursor = $_GET['cursor'];
+						}
+						if(isset($_GET['count'])){
+							$count = $_GET['count'];
+						}
+
+						// Query
+						$beerArray = $this->getBeers($cursor, $count);
+						if(!$this->error){
+							// Start JSON
+							$this->json['object'] = 'list';
+							$this->json['url'] = '/beer';
+
+							// Next Cursor
+							$nextCursor = $this->nextCursor($cursor, $count);
+							if(!empty($nextCursor)){
+								$this->json['has_more'] = true;
+								$this->json['next_cursor'] = $nextCursor;
+							}else{
+								$this->json['has_more'] = false;
+							}
+
+							// Append Data
+							$this->json['data'] = $beerArray;
+						}else{
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $this->errorMsg;
+						}
+					}
+				}
+				break;
+			case 'POST':
+				// POST https://api.catalog.beer/beer
+				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID);
+				if(!$this->error){
+					$this->json['id'] = $this->beerID;
+					$this->json['object'] = 'beer';
+					$this->json['name'] = $this->name;
+					$this->json['style'] = $this->style;
+					$this->json['description'] = $this->description;
+					$this->json['abv'] = floatval($this->abv);
+					$this->json['ibu'] = intval($this->ibu);
+					$this->json['cb_verified'] = $this->cbVerified;
+					$this->json['brewer_verified'] = $this->brewerVerified;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			default:
+				// Unsupported Method - Method Not Allowed
+				$this->responseCode = 405;
+				$this->json['error'] = true;
+				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+				$this->responseHeader = 'Allow: GET, POST';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 71;
+				$errorLog->errorMsg = 'Invalid Method (/beer)';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Beer.class.php';
+				$errorLog->write();
 		}
 	}
 }

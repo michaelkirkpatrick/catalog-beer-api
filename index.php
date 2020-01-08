@@ -2,32 +2,41 @@
 // Initialize
 include_once $_SERVER["DOCUMENT_ROOT"] . '/classes/initialize.php';
 
-// Setup Variables
-$json = array();
-$error = false;
-$responseCode = 200;
-$responseHeader = '';
-
 // Method & Data
 // get the HTTP method, path and body of the request
 $method = $_SERVER['REQUEST_METHOD'];
 $input = file_get_contents('php://input');
 $data = json_decode($input);
 if(empty($data)){$data = new stdClass();}
-$endpoint = '';
-$id = '';
-$function = '';
-$apiKey = '';
 
+// Defaults
+$apiKey = '';
+$count = 500;
+$cursor = base64_encode('0');	// Page
+$endpoint = '';
+$error = false;
+$function = '';
+$id = '';
+$json = array();
+$responseCode = 200;
+$responseHeader = '';
+
+if(isset($_GET['count'])){
+	$count = $_GET['count'];
+}
+if(isset($_GET['cursor'])){
+	$cursor = $_GET['cursor'];
+}
 if(isset($_GET['endpoint'])){
 	$endpoint = $_GET['endpoint'];
-}
-if(isset($_GET['id'])){
-	$id = substr($_GET['id'], 1, 36);
 }
 if(isset($_GET['function'])){
 	$function = $_GET['function'];
 }
+if(isset($_GET['id'])){
+	$id = substr($_GET['id'], 1, 36);
+}
+
 
 if($_SERVER['HTTPS'] == 'on'){
 	// Check Authorization Header
@@ -84,22 +93,7 @@ if($_SERVER['HTTPS'] == 'on'){
 
 /* - - - - - BREWER - - - - - */
 if($endpoint == 'brewer' && !$error){
-	// Required Class
 	$brewer = new Brewer();
-	
-	// Defaults
-	$cursor = base64_encode('0');	// Page
-	$count = 500;
-
-	// Get Variables
-	if(isset($_GET['cursor'])){
-		$cursor = $_GET['cursor'];
-	}
-	if(isset($_GET['count'])){
-		$count = $_GET['count'];
-	}
-	
-	// Process Request
 	$brewer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
 	$json = $brewer->json;
 	$responseCode = $brewer->responseCode;
@@ -108,200 +102,11 @@ if($endpoint == 'brewer' && !$error){
 
 /* - - - - - BEER - - - - - */
 if($endpoint == 'beer' && !$error){
-	// Get Beer Class
 	$beer = new Beer();
-	
-	switch($method){
-		case 'GET':
-			if(!empty($id) && empty($function)){
-				// Validate ID
-				if($beer->validate($id, true)){
-					// Validate Brewery
-					$brewer = new Brewer();
-					if($brewer->validate($beer->brewerID, true)){
-						// Beer Info
-						$json['id'] = $beer->beerID;
-						$json['object'] = 'beer';
-						$json['name'] = $beer->name;
-						$json['style'] = $beer->style;
-						$json['description'] = $beer->description;
-						$json['abv'] = $beer->abv;
-						$json['ibu'] = $beer->ibu;
-						$json['cb_verified'] = $beer->cbVerified;
-						$json['brewer_verified'] = $beer->brewerVerified;
-						
-						// Brewer Info
-						$json['brewer']['id'] = $brewer->brewerID;
-						$json['brewer']['object'] = 'brewer';
-						$json['brewer']['name'] = $brewer->name;
-						$json['brewer']['description'] = $brewer->description;
-						$json['brewer']['short_description'] = $brewer->shortDescription;
-						$json['brewer']['url'] = $brewer->url;
-						$json['brewer']['cb_verified'] = $brewer->cbVerified;
-						$json['brewer']['brewer_verified'] = $brewer->brewerVerified;
-						$json['brewer']['facebook_url'] = $brewer->facebookURL;
-						$json['brewer']['twitter_url'] = $brewer->twitterURL;
-						$json['brewer']['instagram_url'] = $brewer->instagramURL;
-					}else{
-						// Brewer Validation Error
-						$responseCode = 400;
-						$json['error'] = true;
-						$json['error_msg'] = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-					}
-				}else{
-					// Beer Validation Error
-					$responseCode = 404;
-					$json['error'] = true;
-					$json['error_msg'] = 'Sorry, we don\'t have any beer with that beer_id. Please check your request and try again.';
-				}
-			}else{
-				if(!empty($function)){
-					switch($function){
-						case 'count':
-							$numBeers = $beer->countBeers();
-							if(!$beer->error){
-								$json['object'] = 'count';
-								$json['url'] = '/beer/count';
-								$json['value'] = $numBeers;
-							}else{
-								$responseCode = 500;
-								$json['error'] = true;
-								$json['error_msg'] = $beer->errorMsg;
-							}
-							break;
-						case 'last-modified':
-							$users = new Users();
-							$users->validate($apiKeys->userID, true);
-							if($users->admin){
-								if(!empty($id)){
-									// Individual Brewer
-									$lastModified = $beer->lastModified($id);
-									if(!$beer->error){
-										$json['object'] = 'timestamp';
-										$json['url'] = '/beer/last-modified/' . $id;
-										$json['beer_id'] = $id;
-										$json['last_modified'] = $lastModified;
-									}else{
-										$responseCode = 404;
-										$json['error'] = true;
-										$json['error_msg'] = $beer->errorMsg;
-									}
-								}else{
-									// All Brewers
-									$latestModified = $beer->latestModified();
-									if(!$beer->error){
-										$json['object'] = 'timestamp';
-										$json['url'] = '/beer/last-modified';
-										$json['last_modified'] = $latestModified;
-									}else{
-										$responseCode = 404;
-										$json['error'] = true;
-										$json['error_msg'] = $beer->errorMsg;
-									}
-								}
-							}else{
-								// Not an Admin
-								$responseCode = 401;
-								$json['error'] = true;
-								$json['errorMsg'] = 'Sorry, your account does not have permission to access this endpoint.';
-
-								// Log Error
-								$errorLog = new LogError();
-								$errorLog->errorNumber = 109;
-								$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
-								$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
-								$errorLog->filename = 'API / index.php';
-								$errorLog->write();
-							}
-							break;
-						default:
-							// Invalid Function
-							$responseCode = 404;
-							$json['error'] = true;
-							$json['error_msg'] = 'Sorry, this appears to be an invalid function.';
-							
-							// Log Error
-							$errorLog = new LogError();
-							$errorLog->errorNumber = 70;
-							$errorLog->errorMsg = 'Invalid Function (/beer)';
-							$errorLog->badData = $function;
-							$errorLog->filename = 'API / index.php';
-							$errorLog->write();
-					}
-				}else{
-					// List Beers
-					// Defaults
-					$cursor = base64_encode('0');	// Page
-					$count = 500;
-					
-					// Get Variables
-					if(isset($_GET['cursor'])){
-						$cursor = $_GET['cursor'];
-					}
-					if(isset($_GET['count'])){
-						$count = $_GET['count'];
-					}
-					
-					// Query
-					$beerArray = $beer->getBeers($cursor, $count);
-					if(!$beer->error){
-						// Start JSON
-						$json['object'] = 'list';
-						$json['url'] = '/beer';
-						
-						// Next Cursor
-						$nextCursor = $beer->nextCursor($cursor, $count);
-						if(!empty($nextCursor)){
-							$json['has_more'] = true;
-							$json['next_cursor'] = $nextCursor;
-						}else{
-							$json['has_more'] = false;
-						}
-						
-						// Append Data
-						$json['data'] = $beerArray;
-					}else{
-						$responseCode = 400;
-						$json['error'] = true;
-						$json['error_msg'] = $beer->errorMsg;
-					}
-				}
-			}
-			break;
-		case 'POST':
-			$beer->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID);
-			if(!$beer->error){
-				$json['id'] = $beer->beerID;
-				$json['object'] = 'beer';
-				$json['name'] = $beer->name;
-				$json['style'] = $beer->style;
-				$json['description'] = $beer->description;
-				$json['abv'] = floatval($beer->abv);
-				$json['ibu'] = intval($beer->ibu);
-				$json['cb_verified'] = $beer->cbVerified;
-				$json['brewer_verified'] = $beer->brewerVerified;
-			}else{
-				$responseCode = 400;
-				$json['error'] = true;
-				$json['error_msg'] = $beer->errorMsg;
-				$json['valid_state'] = $beer->validState;
-				$json['valid_msg'] = $beer->validMsg;
-			}
-			break;
-		default:
-			// Invalid Method
-			$responseCode = 404;
-			$json['error'] = true;
-			$json['error_msg'] = 'Sorry, ' . $method . ' is an invalid method for this endpoint.';
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 71;
-			$errorLog->errorMsg = 'Invalid Method (/beer)';
-			$errorLog->badData = $method;
-			$errorLog->filename = 'API / index.php';
-			$errorLog->write();
-	}
+	$beer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+	$json = $beer->json;
+	$responseCode = $beer->responseCode;
+	$responseHeader = $beer->responseHeader;
 }
 
 /* - - - - - USERS - - - - - */
