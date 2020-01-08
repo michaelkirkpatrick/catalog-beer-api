@@ -56,6 +56,13 @@ class Brewer {
 		}
 		
 		if(!$this->error){
+			// Default Values
+			$this->cbVerified = false;
+			$dbCBV = 0;
+			$this->brewerVerified = false;
+			$dbBV = 0;
+			
+			
 			// Get User Info
 			$users = new Users();
 			if($users->validate($userID, true)){
@@ -63,7 +70,6 @@ class Brewer {
 					// Catalog.beer Verified
 					$this->cbVerified = true;
 					$dbCBV = 1;
-					$dbBV = 0;
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($this->url)){
@@ -78,16 +84,12 @@ class Brewer {
 						
 						if($emailDomainName == $urlDomainName){
 							// User has email associated with the brewery, give breweryValidated flag.
-							$dbCBV = 0;
+							$this->brewerVerified = true;
 							$dbBV = 1;
 							
 							// Give user privledges for this brewer
 							$privledges = new Privledges();
 							$privledges->add($userID, $this->brewerID, true);
-						}else{
-							// User's email is not associated with this brewery
-							$dbCBV = 0;
-							$dbBV = 0;
 						}
 					}
 				}
@@ -1113,6 +1115,17 @@ class Brewer {
 				// POST https://api.catalog.beer/brewer
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
+				
+				// Handle Empty Fields
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->description)){$data->description = '';}
+				if(empty($data->short_description)){$data->short_description = '';}
+				if(empty($data->url)){$data->url = '';}
+				if(empty($data->facebook_url)){$data->facebook_url = '';}
+				if(empty($data->twitter_url)){$data->twitter_url = '';}
+				if(empty($data->instagram_url)){$data->instagram_url = '';}
+				
+				// Add Brewer
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID);
 				if(!$this->error){
 					$this->json['id'] = $this->brewerID;

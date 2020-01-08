@@ -13,6 +13,7 @@ $responseHeader = '';
 $method = $_SERVER['REQUEST_METHOD'];
 $input = file_get_contents('php://input');
 $data = json_decode($input);
+if(empty($data)){$data = new stdClass();}
 $endpoint = '';
 $id = '';
 $function = '';
