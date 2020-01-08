@@ -798,6 +798,7 @@ class Brewer {
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
+			echo "SELECT id, name FROM brewer ORDER BY name LIMIT $offset, $count";
 			$db->query("SELECT id, name FROM brewer ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
@@ -921,7 +922,7 @@ class Brewer {
 		
 		if(!empty($brewerID)){
 			if($this->validate($brewerID, true)){
-				$lastModified = $this->lastModified;
+				$lastModified = intval($this->lastModified);
 			}
 		}else{
 			// Missing BrewerID
@@ -1037,7 +1038,7 @@ class Brewer {
 											$this->json['object'] = 'timestamp';
 											$this->json['url'] = '/brewer/' . $id . '/last-modified';
 											$this->json['brewer_id'] = $id;
-											$this->json['last_modified'] = intval($lastModified);
+											$this->json['last_modified'] = $lastModified;
 										}else{
 											$this->json['error'] = true;
 											$this->json['error_msg'] = $this->errorMsg;
@@ -1049,7 +1050,7 @@ class Brewer {
 										if(!$this->error){
 											$this->json['object'] = 'timestamp';
 											$this->json['url'] = '/brewer/last-modified';
-											$this->json['last_modified'] = intval($latestModified);
+											$this->json['last_modified'] = $latestModified;
 										}else{
 											$this->json['error'] = true;
 											$this->json['error_msg'] = $this->errorMsg;
@@ -1066,13 +1067,13 @@ class Brewer {
 									$errorLog->errorNumber = 101;
 									$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
 									$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
-									$errorLog->filename = 'API / index.php';
+									$errorLog->filename = 'API / Brewer.class.php';
 									$errorLog->write();
 								}
 								break;
 							default:
 								// Invalid Function
-								$responseCode = 404;
+								$this->responseCode = 404;
 								$this->json['error'] = true;
 								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
 
@@ -1081,7 +1082,7 @@ class Brewer {
 								$errorLog->errorNumber = 69;
 								$errorLog->errorMsg = 'Invalid function (/brewer)';
 								$errorLog->badData = $function;
-								$errorLog->filename = 'API / index.php';
+								$errorLog->filename = 'API / Brewer.class.php';
 								$errorLog->write();
 						}
 					}else{
