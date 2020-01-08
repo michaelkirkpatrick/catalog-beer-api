@@ -943,24 +943,24 @@ class Brewer {
 	}
 	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
+		/*---
+		{METHOD} https://api.catalog.beer/brewer/{function}
+		{METHOD} https://api.catalog.beer/brewer/{id}/{function}
+
+		GET https://api.catalog.beer/brewer
+		GET https://api.catalog.beer/brewer/count
+		GET https://api.catalog.beer/brewer/last-modified
+		GET https://api.catalog.beer/brewer/{brewer_id}
+		GET https://api.catalog.beer/brewer/{brewer_id}/beer
+		GET https://api.catalog.beer/brewer/{brewer_id}/locations
+		GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
+
+		POST https://api.catalog.beer/brewer
+
+		PUT https://api.catalog.beer/brewer/{brewer_id}
+		---*/
 		switch($method){
 			case 'GET':
-				/*---
-				{METHOD} https://api.catalog.beer/brewer/{function}
-				{METHOD} https://api.catalog.beer/brewer/{id}/{function}
-				
-				GET https://api.catalog.beer/brewer
-				GET https://api.catalog.beer/brewer/count
-				GET https://api.catalog.beer/brewer/last-modified
-				GET https://api.catalog.beer/brewer/{brewer_id}
-				GET https://api.catalog.beer/brewer/{brewer_id}/beer
-				GET https://api.catalog.beer/brewer/{brewer_id}/locations
-				GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
-				
-				POST https://api.catalog.beer/brewer
-				
-				PUT https://api.catalog.beer/brewer/{brewer_id}
-				---*/
 				if(!empty($id) && empty($function)){
 					// Validate ID
 					// GET https://api.catalog.beer/brewer/{brewer_id}
@@ -1035,9 +1035,9 @@ class Brewer {
 										$lastModified = $this->lastModified($id);
 										if(!$this->error){
 											$this->json['object'] = 'timestamp';
-											$this->json['url'] = '/brewer/last-modified/' . $id;
+											$this->json['url'] = '/brewer/' . $id . '/last-modified';
 											$this->json['brewer_id'] = $id;
-											$this->json['last_modified'] = $lastModified;
+											$this->json['last_modified'] = intval($lastModified);
 										}else{
 											$this->json['error'] = true;
 											$this->json['error_msg'] = $this->errorMsg;
@@ -1049,7 +1049,7 @@ class Brewer {
 										if(!$this->error){
 											$this->json['object'] = 'timestamp';
 											$this->json['url'] = '/brewer/last-modified';
-											$this->json['last_modified'] = $latestModified;
+											$this->json['last_modified'] = intval($latestModified);
 										}else{
 											$this->json['error'] = true;
 											$this->json['error_msg'] = $this->errorMsg;
@@ -1057,7 +1057,7 @@ class Brewer {
 									}
 								}else{
 									// Not an Admin
-									$responseCode = 401;
+									$this->responseCode = 403;
 									$this->json['error'] = true;
 									$this->json['errorMsg'] = 'Sorry, your account does not have permission to access this endpoint.';
 
