@@ -71,7 +71,7 @@ class SendEmail {
 			$errorLog->errorNumber = 30;
 			$errorLog->errorMsg = 'No email address provided';
 			$errorLog->badData = $email;
-			$errorLog->filename = 'SendEmail.class.php';
+			$errorLog->filename = 'API / SendEmail.class.php';
 			$errorLog->write();
 		}
 		
