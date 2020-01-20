@@ -131,6 +131,12 @@ class Beer {
 				// Add to Database
 				$db->query("INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified', '$dbProposed')");
 				if(!$db->error){
+					$this->responseCode = 201;
+					$responseHeaderString = 'Location: https://';
+					if(ENVIRONMENT == 'staging'){
+						$responseHeaderString .= 'staging.';
+					}
+					$this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
 					if($this->proposed){
 						// *** Stub for 'Proposed' Workflow ***
 					}
@@ -164,45 +170,7 @@ class Beer {
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
 			$this->responseCode = 400;
-			
-			// Trim, Empty?
-			$this->brewerID = trim($brewer->brewerID);
-			if(empty($this->brewerID)){
-				// Empty brewerID
-				$this->validMsg['brewer_id'] = 'Who brews this beer? We\'re missing the brewer_id';
-				
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 14;
-				$errorLog->errorMsg = 'Missing brewerID';
-				$errorLog->badData = '';
-				$errorLog->filename = 'API / Beer.class.php';
-				$errorLog->write();
-			}else{
-				if(!empty($brewerID->errorMsg)){
-					// Invalid from $brewer->validate()
-					$this->validMsg['brewer_id'] = $brewerID->errorMsg;
-				}else{
-					// Not found
-					$this->validMsg['brewer_id'] = 'Sorry, we don\'t have any breweries with that brewer_id. Please check your request and try again.';
-					
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 13;
-					$errorLog->errorMsg = 'Invalid brewerID';
-					$errorLog->badData = $this->brewerID;
-					$errorLog->filename = 'API / Beer.class.php';
-					$errorLog->write();
-				}
-			}
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 11;
-			$errorLog->errorMsg = 'Invalid Brewer ID';
-			$errorLog->badData = $this->brewerID;
-			$errorLog->filename = 'API / Beer.class.php';
-			$errorLog->write();
+			$this->validMsg['brewer_id'] = $brewer->errorMsg;
 		}
 	}
 	
@@ -569,7 +537,6 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$brewer = new Brewer();
-			echo "SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count";
 			$db->query("SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
@@ -616,7 +583,7 @@ class Beer {
 		$db->query("SELECT COUNT('id') AS numBeers FROM beer WHERE proposed=0");
 		if(!$db->error){
 			$array = $db->resultArray();
-			return $array['numBeers'];
+			return intval($array['numBeers']);
 		}else{
 			// Query Error
 			$this->error = true;
@@ -849,6 +816,8 @@ class Beer {
 								break;
 							case 'last-modified':
 								$users = new Users();
+								$apiKeys = new apiKeys();
+								$apiKeys->validate($apiKey, true);
 								$users->validate($apiKeys->userID, true);
 								if($users->admin){
 									if(!empty($id)){
@@ -948,6 +917,19 @@ class Beer {
 				break;
 			case 'POST':
 				// POST https://api.catalog.beer/beer
+				// Handle Empty Fields
+				if(empty($data->brewer_id)){$data->brewer_id = '';}
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->style)){$data->style = '';}
+				if(empty($data->description)){$data->description = '';}
+				if(empty($data->abv)){$data->abv = '';}
+				if(empty($data->ibu)){$data->ibu = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+				
+				// Add Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID);
 				if(!$this->error){
 					$this->json['id'] = $this->beerID;
