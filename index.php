@@ -287,55 +287,9 @@ if($endpoint == 'users' && !$error){
 /* - - - - - LOGIN - - - - - */
 if($endpoint == 'login' && !$error){
 	$users = new Users();
-	if($method == 'POST'){
-		$users->validate($apiKeys->userID, true);
-		if($users->admin){
-			if($users->login($data->email, $data->password)){
-				// Successful Login
-				$json['id'] = $users->userID;
-				$json['object'] = 'users';
-				$json['name'] = $users->name;
-				$json['email'] = $users->email;
-				$json['emailVerified'] = $users->emailVerified;
-				$json['emailAuth'] = $users->emailAuth;
-				$json['emailAuthSent'] = $users->emailAuthSent;
-				$json['admin'] = $users->admin;
-			}else{
-				// Invalid Login
-				$responseCode = 401;
-				$json['error'] = true;
-				$json['error_msg'] = $users->errorMsg;
-				$json['valid_state'] = $users->validState;
-				$json['valid_msg'] = $users->validMsg;
-			}
-		}else{
-			// Not an Admin
-			$responseCode = 401;
-			$json['error'] = true;
-			$json['errorMsg'] = 'Sorry, your account does not have permission to perform this action.';
-
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 39;
-			$errorLog->errorMsg = 'Non-Admin trying to get account info';
-			$errorLog->badData = "UserID: $apiKeys->userID";
-			$errorLog->filename = 'API / index.php';
-			$errorLog->write();
-		}
-	}else{
-		// Invalid Method
-		$responseCode = 400;
-		$json['error'] = true;
-		$json['error_msg'] = 'This endpoint only accepts POST requests.';
-		
-		// Log Error
-		$errorLog = new LogError();
-		$errorLog->errorNumber = 73;
-		$errorLog->errorMsg = 'Invalid Method (/login)';
-		$errorLog->badData = $method;
-		$errorLog->filename = 'API / index.php';
-		$errorLog->write();
-	}
+	$users->api($method, $apiKey, $data);
+	$json = $users->json;
+	$responseCode = $users->responseCode;
 }
 
 /* - - - - - LOCATION - - - - - */

@@ -1,6 +1,7 @@
 <?php
 class Users {
 	
+	// Properties
 	public $userID = '';
 	public $email = '';
 	private $password = '';
@@ -15,7 +16,10 @@ class Users {
 	public $errorMsg = '';
 	public $validState = array('name'=>'', 'email'=>'', 'password'=>'', 'terms_agreement'=>'');
 	public $validMsg = array('name'=>'', 'email'=>'', 'password'=>'');
+	
+	// API Response
 	public $responseCode = 200;
+	public $json = array();
 	
 	public function validate($userID, $saveToClass){
 		// Valid
@@ -410,7 +414,7 @@ class Users {
 							$this->validState['password'] = 'invalid';
 							$this->validMsg['password'] = 'Incorrect password. Please check your password and try again.';
 							$this->error = true;
-							$this->responseCode = 403;
+							$this->responseCode = 401;
 
 							// Log Error
 							$errorLog = new LogError();
@@ -439,7 +443,7 @@ class Users {
 						$this->validState['email'] = 'invalid';
 						$this->validMsg['email'] = 'Sorry, we couldn\'t find your account. Would you like to [create one](/signup)?';
 						$this->error = true;
-						$this->responseCode = 400;
+						$this->responseCode = 401;
 
 						// Log Error
 						$errorLog = new LogError();
@@ -479,14 +483,6 @@ class Users {
 			$this->validState['email'] = 'invalid';
 			$this->validMsg['email'] = $sendEmail->errorMsg;
 			$this->responseCode = $sendEmail->responseCode;
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 40;
-			$errorLog->errorMsg = 'Invalid Email';
-			$errorLog->badData = $email;
-			$errorLog->filename = 'API / Users.class.php';
-			$errorLog->write();
 		}
 		
 		// Return
@@ -588,6 +584,68 @@ class Users {
 		
 		// Return
 		return $emails;
+	}
+	
+	public function api($method, $apiKey, $data) {
+		/*---
+		POST https://api.catalog.beer/login	
+		---*/
+		if($method == 'POST'){
+			// Validate that the $apiKey is an admin API key
+			$apiKeys = new apiKeys();
+			$apiKeys->validate($apiKey, true);
+			$this->validate($apiKeys->userID, true);
+			if($this->admin){
+				// Handle Empty Fields
+				if(empty($data->email)){$data->email = '';}
+				if(empty($data->password)){$data->password = '';}
+				
+				// Validate Login /data
+				if($this->login($data->email, $data->password)){
+					// Successful Login
+					$this->json['object'] = 'user_id';
+					$this->json['id'] = $this->userID;
+				}else{
+					// Invalid Login
+					$this->json['error'] = true;
+					$this->json['error_msg'] =$this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+					
+					// Remove Uncessary Fields
+					unset($this->json['valid_state']['name']);
+					unset($this->json['valid_state']['terms_agreement']);
+					unset($this->json['valid_msg']['name']);
+				}
+			}else{
+				// Not an Admin
+				$this->responseCode = 403;
+				$this->json['error'] = true;
+				$this->json['error_msg'] = 'Sorry, your account does not have permission to perform this action.';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 39;
+				$errorLog->errorMsg = 'Non-Admin trying to get account info';
+				$errorLog->badData = "UserID: $apiKeys->userID";
+				$errorLog->filename = 'API / index.php';
+				$errorLog->write();
+			}
+		}else{
+			// Unsupported Method - Method Not Allowed
+			$this->json['error'] = true;
+			$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+			$this->responseCode = 405;
+			$this->responseHeader = 'Allow: POST';
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 73;
+			$errorLog->errorMsg = 'Invalid Method (/login)';
+			$errorLog->badData = $method;
+			$errorLog->filename = 'API / Users.class.php';
+			$errorLog->write();
+		}
 	}
 }
 ?>
