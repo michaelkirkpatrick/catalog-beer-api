@@ -798,7 +798,6 @@ class Brewer {
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
-			echo "SELECT id, name FROM brewer ORDER BY name LIMIT $offset, $count";
 			$db->query("SELECT id, name FROM brewer ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
