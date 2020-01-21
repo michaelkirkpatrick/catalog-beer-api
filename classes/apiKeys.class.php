@@ -16,30 +16,53 @@ class apiKeys {
 		
 		if(!$this->error){
 			if(empty($apiKey)){
-				// Generate API Key
-				$uuid = new uuid();
-				$this->apiKey = $uuid->generate('api_keys');
-				if(!$uuid->error){
-					// Add to Database
-					$db = new Database();
-					$dbAPIKey = $db->escape($this->apiKey);
-					$dbUserID = $db->escape($userID);
-					$db->query("INSERT INTO api_keys (id, userID) VALUES ('$dbAPIKey', '$dbUserID')");
-					if($db->error){
-						// Database Error
+				// Has the users's email been verified?
+				$users = new Users();
+				$users->validate($userID, true);
+				
+				if($users->emailVerified){
+					// Generate API Key
+					$uuid = new uuid();
+					$apiKey = $uuid->generate('api_keys');
+					if(!$uuid->error){
+						// Add to Database
+						$db = new Database();
+						$dbAPIKey = $db->escape($apiKey);
+						$dbUserID = $db->escape($userID);
+						$db->query("INSERT INTO api_keys (id, userID) VALUES ('$dbAPIKey', '$dbUserID')");
+						if(!$db->error){
+							// Successfully added apiKey
+							$this->userID = $userID;
+							$this->apiKey = $apiKey;
+						}else{
+							// Database Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+						$db->close();
+					}else{
+						// API Key Generation Error
 						$this->error = true;
-						$this->errorMsg = $db->errorMsg;
-						$this->responseCode = $db->responseCode;
+						$this->errorMsg = $uuid->errorMsg;
+						$this->responseCode = $uuid->responseCode;
 					}
-					$db->close();
 				}else{
-					// API Key Generation Error
+					// The user needs to verify their email before we will provide an API Key
 					$this->error = true;
-					$this->errorMsg = $uuid->errorMsg;
-					$this->responseCode = $uuid->responseCode;
+					$this->errorMsg = 'Before we can provide you with an API key, you will need to validate your email address.';
+					$this->responseCode = 403;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 150;
+					$errorLog->errorMsg = 'Email verification required before API key will be issued.';
+					$errorLog->badData = 'userID: ' . $userID;
+					$errorLog->filename = 'API / apiKeys.class.php';
+					$errorLog->write();
 				}
 			}else{
-				// Already have an API Key
+				// This user already has an API Key
 				$this->error = true;
 				$this->errorMsg = 'Whoops, it looks like this user_id already has an API key associated with it. Perhaps you want to use the endpoint "GET /users/{user_id}/api-key".';
 				$this->responseCode = 400;
@@ -69,8 +92,23 @@ class apiKeys {
 						$this->apiKey = $apiKey;
 						$this->userID = $array['userID'];
 					}
+				}elseif($db->result->num_rows > 1){
+					// Duplicate API Keys
+					$this->error = true;
+					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+					$this->responseCode = 500;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 148;
+					$errorLog->errorMsg = 'Duplicate API Keys';
+					$errorLog->badData = $apiKey;
+					$errorLog->filename = 'API / apiKeys.class.php';
+					$errorLog->write();
 				}else{
-					// Invalid API Key
+					// Invalid API Key -- Does not exist in the database
+					// Script will return default of $valid = false;
+					// No further action required.
 				}
 			}else{
 				// Database Error
@@ -115,12 +153,28 @@ class apiKeys {
 					if($db->result->num_rows == 1){
 						$array = $db->resultArray();
 						$apiKey = $array['id'];
+					}elseif($db->result->num_rows > 1){
+						// Duplicate API Keys for userID
+						$this->error = true;
+						$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+						$this->responseCode = 500;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 149;
+						$errorLog->errorMsg = 'More than one API key for userID';
+						$errorLog->badData = 'userID: ' . $userID;
+						$errorLog->filename = 'API / apiKeys.class.php';
+						$errorLog->write();
+					}else{
+						// This user doesn't have an API Key yet
+						// Return default empty $apiKey = '';
 					}
 				}else{
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = 400;
+					$this->responseCode = $db->responseCode;
 				}
 				$db->close();
 			}else{
