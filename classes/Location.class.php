@@ -17,9 +17,13 @@ class Location {
 	public $errorMsg = '';
 	public $validState = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
 	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
-	public $responseCode = 200;
 	
-	private $gAPIKey = '';
+	// API Response
+	public $responseHeader = '';
+	public $responseCode = 200;
+	public $json = array();
+	
+	private $gAPIKey = 'AIzaSyAKt3H88c9midqM0Y1x7RQB5mk_N8U3CXg';
 	
 	// Add Functions
 	public function add($brewerID, $name, $url, $countryCode){
@@ -635,5 +639,185 @@ class Location {
 		$db->close();
 		
 		return $count;
+	}
+	
+	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
+		/*---
+		GET https://api.catalog.beer/location/{location_id}
+		
+		POST https://api.catalog.beer/location
+		POST https://api.catalog.beer/location/{location_id}
+		---*/
+		// Connect to Class
+		$usAddresses = new USAddresses();
+
+		switch($method){
+			case 'POST':
+				if(!empty($id)){
+					if($this->validate($id, true)){
+						// POST https://api.catalog.beer/location/{location_id}
+						// Add Address for Location
+						
+						// Handle Empty Fields
+						if(empty($data->address1)){$data->address1 = '';}
+						if(empty($data->address2)){$data->address2 = '';}
+						if(empty($data->city)){$data->city = '';}
+						if(empty($data->sub_code)){$data->sub_code = '';}
+						if(empty($data->zip5)){$data->zip5 = '';}
+						if(empty($data->zip4)){$data->zip4 = '';}
+						if(empty($data->telephone)){$data->telephone = '';}
+						
+						$usAddresses->add($this->id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone);
+						if(!$usAddresses->error){
+							// Successfully Added
+							$this->json['id'] = $this->id;
+							$this->json['object'] = 'location';
+							$this->json['name'] = $this->name;
+							$this->json['brewer_id'] = $this->brewerID;
+							$this->json['url'] = $this->url;
+							$this->json['country_code'] = $this->countryCode;
+							$this->json['country_short_name'] = $this->countryShortName;
+							$this->json['latitude'] = $this->latitude;
+							$this->json['longitude'] = $this->longitude;
+
+							$this->json['telephone'] = $usAddresses->telephone;
+							$this->json['address']['address1'] = $usAddresses->address1;
+							$this->json['address']['address2'] = $usAddresses->address2;
+							$this->json['address']['city'] = $usAddresses->city;
+							$this->json['address']['sub_code'] = $usAddresses->sub_code;
+							$this->json['address']['state_short'] = $usAddresses->stateShort;
+							$this->json['address']['state_long'] = $usAddresses->stateLong;
+							$this->json['address']['zip5'] = $usAddresses->zip5;
+							$this->json['address']['zip4'] = $usAddresses->zip4;
+						}else{
+							// Error Adding Address
+							$this->responseCode = $usAddresses->responseCode;
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $usAddresses->errorMsg;
+							$this->json['valid_state'] = $usAddresses->validState;
+							$this->json['valid_msg'] = $usAddresses->validMsg;
+						}
+					}else{
+						// Invalid Location
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+				}else{
+					// POST https://api.catalog.beer/location
+					// Add Location
+					
+					// Handle Empty Fields
+					if(empty($data->brewer_id)){$data->brewer_id = '';}
+					if(empty($data->name)){$data->name = '';}
+					if(empty($data->url)){$data->url = '';}
+					if(empty($data->country_code)){$data->country_code = '';}
+					
+					$this->add($data->brewer_id, $data->name, $data->url, $data->country_code);
+					if(!$this->error){
+						// Successfully Added
+						$this->json['id'] = $this->id;
+						$this->json['object'] = 'location';
+						$this->json['name'] = $this->name;
+						$this->json['brewer_id'] = $this->brewerID;
+						$this->json['url'] = $this->url;
+						$this->json['country_code'] = $this->countryCode;
+						$this->json['country_short_name'] = $this->countryShortName;
+						$this->json['latitude'] = $this->latitude;
+						$this->json['longitude'] = $this->longitude;
+					}else{
+						// Error Adding Location
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+						$this->json['valid_state'] = $this->validState;
+						$this->json['valid_msg'] = $this->validMsg;
+					}
+				}
+				break;
+			case 'GET':
+				if(!empty($id) && empty($function)){
+					// GET https://api.catalog.beer/location/{location_id}
+					// Validate ID
+					if($this->validate($id, true)){
+						// Valid Location
+						$this->json['id'] = $this->id;
+						$this->json['object'] = 'location';
+						$this->json['name'] = $this->name;
+						$this->json['brewer_id'] = $this->brewerID;
+						$this->json['url'] = $this->url;
+						$this->json['country_code'] = $this->countryCode;
+						$this->json['country_short_name'] = $this->countryShortName;
+						$this->json['latitude'] = $this->latitude;
+						$this->json['longitude'] = $this->longitude;
+
+						// Check for Address
+						if($usAddresses->validate($this->id, true)){
+							$this->json['telephone'] = $usAddresses->telephone;
+							$this->json['address']['address1'] = $usAddresses->address1;
+							$this->json['address']['address2'] = $usAddresses->address2;
+							$this->json['address']['city'] = $usAddresses->city;
+							$this->json['address']['sub_code'] = $usAddresses->sub_code;
+							$this->json['address']['state_short'] = $usAddresses->stateShort;
+							$this->json['address']['state_long'] = $usAddresses->stateLong;
+							$this->json['address']['zip5'] = $usAddresses->zip5;
+							$this->json['address']['zip4'] = $usAddresses->zip4;
+						}
+					}else{
+						// Invalid Location
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+				}elseif($function == 'nearby'){
+					// GET https://api.catalog.beer/location/nearby
+					$nearbyLatLngReturn = $this->nearbyLatLng($data->latitude, $data->longitude, $data->searchRadius, $data->metric, $cursor, $count);
+					if(!$this->error){
+						// Start JSON
+						$this->json['object'] = 'list';
+						$this->json['url'] = '/location/nearby';
+
+						// Next Cursor
+						if(!empty($nearbyLatLngReturn['nextCursor'])){
+							$this->json['has_more'] = true;
+							$this->json['next_cursor'] = $nearbyLatLngReturn['nextCursor'];
+						}else{
+							$this->json['has_more'] = false;
+						}
+
+						// Append Data
+						$this->json['data'] = $nearbyLatLngReturn['locationArray'];	
+					}else{
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+
+				}else{
+					// Invalid Function
+					$this->responseCode = 404;
+					$this->json['error'] = true;
+					$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 152;
+					$errorLog->errorMsg = 'Invalid function (/location)';
+					$errorLog->badData = $function;
+					$errorLog->filename = 'API / Location.class.php';
+					$errorLog->write();
+				}
+				break;
+			default:
+				// Unsupported Method - Method Not Allowed
+				$this->json['error'] = true;
+				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+				$this->responseCode = 405;
+				$this->responseHeader = 'Allow: GET, POST';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 74;
+				$errorLog->errorMsg = 'Invalid Method (/location)';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Location.class.php';
+				$errorLog->write();
+		}
 	}
 }

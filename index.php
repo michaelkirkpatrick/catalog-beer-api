@@ -11,16 +11,17 @@ if(empty($data)){$data = new stdClass();}
 
 // Defaults
 $apiKey = '';
-$count = 500;
-$cursor = base64_encode('0');	// Page
-$endpoint = '';
 $error = false;
-$function = '';
-$id = '';
 $json = array();
 $responseCode = 200;
 $responseHeader = '';
 
+// General URL Parameters
+$count = 500;
+$cursor = base64_encode('0');	// Page
+$endpoint = '';
+$function = '';
+$id = '';
 if(isset($_GET['count'])){
 	$count = $_GET['count'];
 }
@@ -35,6 +36,24 @@ if(isset($_GET['function'])){
 }
 if(isset($_GET['id'])){
 	$id = substr($_GET['id'], 1, 36);
+}
+
+// Location Search URL Parameters
+$data->latitude = 0;
+$data->longitude = 0;
+$data->searchRadius = 0;
+$data->metric = '';
+if(isset($_GET['latitude'])){
+	$data->latitude = $_GET['latitude'];
+}
+if(isset($_GET['longitude'])){
+	$data->longitude = $_GET['longitude'];
+}
+if(isset($_GET['search_radius'])){
+	$data->searchRadius = $_GET['search_radius'];
+}
+if(isset($_GET['metric'])){
+	$data->metric = $_GET['metric'];
 }
 
 
@@ -91,236 +110,66 @@ if($_SERVER['HTTPS'] == 'on'){
 	$json['error_msg'] = 'In order to connect to the Catalog.beer API, you will need to connect using a secure connection (HTTPS). Please try your request again.';
 }
 
-/* - - - - - BREWER - - - - - */
-if($endpoint == 'brewer' && !$error){
-	$brewer = new Brewer();
-	$brewer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
-	$json = $brewer->json;
-	$responseCode = $brewer->responseCode;
-	$responseHeader = $brewer->responseHeader;
-}
-
-/* - - - - - BEER - - - - - */
-if($endpoint == 'beer' && !$error){
-	$beer = new Beer();
-	$beer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
-	$json = $beer->json;
-	$responseCode = $beer->responseCode;
-	$responseHeader = $beer->responseHeader;
-}
-
-/* - - - - - USERS - - - - - */
-if($endpoint == 'users' && !$error){
-	$users = new Users();
-	$users->usersAPI($method, $function, $id, $apiKey, $data);
-	$json = $users->json;
-	$responseCode = $users->responseCode;
-	$responseHeader = $users->responseHeader;
-}
-
-/* - - - - - LOGIN - - - - - */
-if($endpoint == 'login' && !$error){
-	$users = new Users();
-	$users->loginAPI($method, $apiKey, $data);
-	$json = $users->json;
-	$responseCode = $users->responseCode;
-	$responseHeader = $users->responseHeader;
-}
-
-/* - - - - - LOCATION - - - - - */
-if($endpoint == 'location' && !$error){
-	// Connect to Class
-	$location = new Location();
-	$usAddresses = new USAddresses();
-	
-	switch($method){
-		case 'POST':
-			if(!empty($id)){
-				if($location->validate($id, true)){
-					// Add Address for Location
-					$usAddresses->add($location->id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone);
-					if(!$usAddresses->error){
-						// Successfully Added
-						$json['id'] = $location->id;
-						$json['object'] = 'location';
-						$json['name'] = $location->name;
-						$json['brewer_id'] = $location->brewerID;
-						$json['url'] = $location->url;
-						$json['country_code'] = $location->countryCode;
-						$json['country_short_name'] = $location->countryShortName;
-						$json['latitude'] = $location->latitude;
-						$json['longitude'] = $location->longitude;
-						
-						$json['telephone'] = $usAddresses->telephone;
-						$json['address']['address1'] = $usAddresses->address1;
-						$json['address']['address2'] = $usAddresses->address2;
-						$json['address']['city'] = $usAddresses->city;
-						$json['address']['sub_code'] = $usAddresses->sub_code;
-						$json['address']['state_short'] = $usAddresses->stateShort;
-						$json['address']['state_long'] = $usAddresses->stateLong;
-						$json['address']['zip5'] = $usAddresses->zip5;
-						$json['address']['zip4'] = $usAddresses->zip4;
-					}else{
-						// Error Adding Address
-						$responseCode = 400;
-						$json['error'] = true;
-						$json['error_msg'] = $usAddresses->errorMsg;
-						$json['valid_state'] = $usAddresses->validState;
-						$json['valid_msg'] = $usAddresses->validMsg;
-					}
-				}else{
-					// Invalid Location
-					$responseCode = 404;
-					$json['error'] = true;
-					$json['error_msg'] = 'Sorry, we don\'t have any locations with that location_id. Please check your request and try again.';
-					
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 85;
-					$errorLog->errorMsg = 'Invalid location_id';
-					$errorLog->badData = $id;
-					$errorLog->filename = 'API / index.php';
-					$errorLog->write();
-				}
-			}else{
-				// Add Location
-				$location->add($data->brewer_id, $data->name, $data->url, $data->country_code);
-				if(!$location->error){
-					// Successfully Added
-					$json['id'] = $location->id;
-					$json['object'] = 'location';
-					$json['name'] = $location->name;
-					$json['brewer_id'] = $location->brewerID;
-					$json['url'] = $location->url;
-					$json['country_code'] = $location->countryCode;
-					$json['country_short_name'] = $location->countryShortName;
-					$json['latitude'] = $location->latitude;
-					$json['longitude'] = $location->longitude;
-				}else{
-					// Error Adding Location
-					$responseCode = 400;
-					$json['error'] = true;
-					$json['error_msg'] = $location->errorMsg;
-					$json['valid_state'] = $location->validState;
-					$json['valid_msg'] = $location->validMsg;
-				}
-			}
+/* - - - - - Process Based on Endpoint - - - - - */
+if(!$error){
+	switch($endpoint){
+		case 'beer':
+			$beer = new Beer();
+			$beer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+			$json = $beer->json;
+			$responseCode = $beer->responseCode;
+			$responseHeader = $beer->responseHeader;
 			break;
-		case 'GET':
-			if(!empty($id) && empty($function)){
-				// Validate ID
-				if($location->validate($id, true)){
-					// Valid Location
-					$json['id'] = $location->id;
-					$json['object'] = 'location';
-					$json['name'] = $location->name;
-					$json['brewer_id'] = $location->brewerID;
-					$json['url'] = $location->url;
-					$json['country_code'] = $location->countryCode;
-					$json['country_short_name'] = $location->countryShortName;
-					$json['latitude'] = $location->latitude;
-					$json['longitude'] = $location->longitude;
-					
-					// Check for Address
-					if($usAddresses->validate($location->id, true)){
-						$json['telephone'] = $usAddresses->telephone;
-						$json['address']['address1'] = $usAddresses->address1;
-						$json['address']['address2'] = $usAddresses->address2;
-						$json['address']['city'] = $usAddresses->city;
-						$json['address']['sub_code'] = $usAddresses->sub_code;
-						$json['address']['state_short'] = $usAddresses->stateShort;
-						$json['address']['state_long'] = $usAddresses->stateLong;
-						$json['address']['zip5'] = $usAddresses->zip5;
-						$json['address']['zip4'] = $usAddresses->zip4;
-					}
-				}else{
-					// Invalid Location
-					$responseCode = 404;
-					$json['error'] = true;
-					$json['error_msg'] = 'Sorry, we don\'t have any locations with that location_id. Please check your request and try again.';
-				}
-			}elseif($function == 'nearby'){
-				// Defaults
-				$latitude = 0;
-				$longitude = 0;
-				$searchRadius = 0;
-				$metric = '';
-				$cursor = '';
-				$count = 0;
-				
-				// Get URL Parameters
-				if(isset($_GET['latitude'])){
-					$latitude = $_GET['latitude'];
-				}
-				if(isset($_GET['longitude'])){
-					$longitude = $_GET['longitude'];
-				}
-				if(isset($_GET['search_radius'])){
-					$searchRadius = $_GET['search_radius'];
-				}
-				if(isset($_GET['metric'])){
-					$metric = $_GET['metric'];
-				}
-				if(isset($_GET['cursor'])){
-					$cursor = $_GET['cursor'];
-				}
-				if(isset($_GET['count'])){
-					$count = $_GET['count'];
-				}
-				
-				$nearbyLatLngReturn = $location->nearbyLatLng($latitude, $longitude, $searchRadius, $metric, $cursor, $count);
-				if(!$location->error){
-					// Start JSON
-					$json['object'] = 'list';
-					$json['url'] = '/location/nearby';
-
-					// Next Cursor
-					if(!empty($nearbyLatLngReturn['nextCursor'])){
-						$json['has_more'] = true;
-						$json['next_cursor'] = $nearbyLatLngReturn['nextCursor'];
-					}else{
-						$json['has_more'] = false;
-					}
-
-					// Append Data
-					$json['data'] = $nearbyLatLngReturn['locationArray'];	
-				}else{
-					$responseCode = 400;
-					$json['error'] = true;
-					$json['error_msg'] = $location->errorMsg;
-				}
-				
-			}else{
-				// Invalid Endpoint
-				$responseCode = 400;
-				$json['error'] = true;
-				$json['error_msg'] = 'Sorry, this is an invalid endpoint. You can list all the locations for a specific brewery (GET https://api.catalog.beer/brewer/{brewer_id}/locations).';
-			}
+		case 'brewer':
+			$brewer = new Brewer();
+			$brewer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+			$json = $brewer->json;
+			$responseCode = $brewer->responseCode;
+			$responseHeader = $brewer->responseHeader;
+			break;
+		case 'location':
+			if(empty($_GET['count'])){$count = 0;}
+			$location = new Location();
+			$location->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+			$json = $location->json;
+			$responseCode = $location->responseCode;
+			$responseHeader = $location->responseHeader;
+			break;
+		case 'login':
+			$users = new Users();
+			$users->loginAPI($method, $apiKey, $data);
+			$json = $users->json;
+			$responseCode = $users->responseCode;
+			$responseHeader = $users->responseHeader;
+			break;
+		case 'usage':
+			$usage = new Usage();
+			$usage->api($method, $function, $id, $apiKey);
+			$json = $usage->json;
+			$responseCode = $usage->responseCode;
+			$responseHeader = $usage->responseHeader;
+			break;
+		case 'users':
+			$users = new Users();
+			$users->usersAPI($method, $function, $id, $apiKey, $data);
+			$json = $users->json;
+			$responseCode = $users->responseCode;
+			$responseHeader = $users->responseHeader;
 			break;
 		default:
-			// Invalid Method
+			// Invalid Endpoint
 			$responseCode = 404;
 			$json['error'] = true;
-			$json['error_msg'] = 'Sorry, ' . $method . ' is an invalid method for this endpoint.';
-			
+			$json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = 74;
-			$errorLog->errorMsg = 'Invalid Method (/location)';
-			$errorLog->badData = $method;
+			$errorLog->errorNumber = 151;
+			$errorLog->errorMsg = 'Invalid endpoint';
+			$errorLog->badData = $endpoint;
 			$errorLog->filename = 'API / index.php';
 			$errorLog->write();
 	}
-}
-
-/* - - - - - USAGE - - - - - */
-if($endpoint == 'usage' && !$error){
-	// Required Class
-	$usage = new Usage();
-	$usage->api($method, $function, $id, $apiKey);
-	$json = $usage->json;
-	$responseCode = $usage->responseCode;
-	$responseHeader = $usage->responseHeader;
 }
 
 /* - - - - - RESPONSE - - - - - */
