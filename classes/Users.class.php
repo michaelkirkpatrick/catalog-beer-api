@@ -18,6 +18,7 @@ class Users {
 	public $validMsg = array('name'=>'', 'email'=>'', 'password'=>'');
 	
 	// API Response
+	public $responseHeader = '';
 	public $responseCode = 200;
 	public $json = array();
 	
@@ -52,7 +53,7 @@ class Users {
 							$this->emailVerified = false;
 						}
 						$this->emailAuth = $array['emailAuth'];
-						$this->emailAuthSent = $array['emailAuthSent'];
+						$this->emailAuthSent = intval($array['emailAuthSent']);
 						if($array['admin']){
 							$this->admin = true;	
 						}else{
@@ -76,7 +77,7 @@ class Users {
 					// User Does Not Exist
 					$this->error = true;
 					$this->errorMsg = "Sorry, we couldn't find a user with the userID you provided.";
-					$this->responseCode = 404;
+					$this->responseCode = 401;
 					
 					// Log Error
 					$errorLog = new LogError();
@@ -327,7 +328,7 @@ class Users {
 					// Common Password
 					$this->error = true;
 					$this->validState['password'] = 'invalid';
-					$this->validState['password'] = 'Please use a different password. That password is common and easily guessed.';// [Need some help with a better password?](/support/6256)';
+					$this->validMsg['password'] = 'Please use a different password. That password is common and easily guessed.';// [Need some help with a better password?](/support/6256)';
 					$this->responseCode = 400;
 
 					// Log Error
@@ -586,7 +587,185 @@ class Users {
 		return $emails;
 	}
 	
-	public function api($method, $apiKey, $data) {
+	public function usersAPI($method, $function, $id, $apiKey, $data){
+		/*---
+		{METHOD} https://api.catalog.beer/users/{function}/{email_auth}
+		{METHOD} https://api.catalog.beer/users/{id}/{function}
+		
+		GET https://api.catalog.beer/users/{id}
+		GET https://api.catalog.beer/users/{id}/api-key
+		
+		POST https://api.catalog.beer/users/verify-email/{email_auth}
+		POST https://api.catalog.beer/users
+		---*/
+		
+		// Validate API Key
+		$apiKeys = new apiKeys();
+		$apiKeys->validate($apiKey, true);
+		
+		// Validate userID
+		$this->validate($apiKeys->userID, true);
+		if($this->admin){
+			switch($method){
+				case 'GET':
+					if(!empty($id) && empty($function)){
+						// GET https://api.catalog.beer/users/{id}
+						if($this->validate($id, true)){
+							$this->json['id'] = $this->userID;
+							$this->json['object'] = 'users';
+							$this->json['name'] = $this->name;
+							$this->json['email'] = $this->email;
+							$this->json['email_verified'] = $this->emailVerified;
+							$this->json['email_auth'] = $this->emailAuth;
+							$this->json['email_auth_sent'] = $this->emailAuthSent;
+							$this->json['admin'] = $this->admin;
+						}else{
+							// Invalid User
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $this->errorMsg;
+						}
+					}else{
+						switch($function){
+							// GET https://api.catalog.beer/users/{id}/api-key
+							case 'api-key':
+								if(!empty($id)){
+									// Get API Key
+									$userAPIKey = $apiKeys->getKey($id);
+									if(!empty($userAPIKey)){
+										$this->json['object'] = 'api_key';
+										$this->json['user_id'] = $id;
+										$this->json['api_key'] = $userAPIKey;
+									}else{
+										// Invalid User
+										$this->responseCode = $apiKeys->responseCode;
+										$this->json['error'] = true;
+										$this->json['error_msg'] = $apiKeys->errorMsg;
+									}
+								}else{
+									// Missing userID
+									$this->responseCode = 400;
+									$this->json['error'] = true;
+									$this->json['error_msg'] = 'We seem to be missing the user_id you would like to retreive the api_key for. Please check your submission and try again.';
+
+									// Log Error
+									$errorLog = new LogError();
+									$errorLog->errorNumber = 79;
+									$errorLog->errorMsg = 'Missing user_id';
+									$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+									$errorLog->filename = 'API / Users.class.php';
+									$errorLog->write();
+								}
+								break;
+							default:
+								// Missing Function
+								$this->responseCode = 404;
+								$this->json['error'] = true;
+								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+
+								// Log Error
+								$errorLog = new LogError();
+								$errorLog->errorNumber = 78;
+								$errorLog->errorMsg = 'Invalid Endpoint (/users)';
+								$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+								$errorLog->filename = 'API / Users.class.php';
+								$errorLog->write();		
+						}
+					}
+					break;
+				case 'POST':
+					if(empty($function)){
+						// POST https://api.catalog.beer/users
+						
+						// Handle Empty Fields
+						if(empty($data->name)){$data->name = '';}
+						if(empty($data->email)){$data->email = '';}
+						if(empty($data->password)){$data->password = '';}
+						if(empty($data->terms_agreement)){$data->terms_agreement = '';}
+						
+						// Create Account
+						$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKeys->userID);
+						if(!$this->error){
+							$this->json['id'] = $this->userID;
+							$this->json['object'] = 'users';
+							$this->json['name'] = $this->name;
+							$this->json['email'] = $this->email;
+							$this->json['email_verified'] = $this->emailVerified;
+							$this->json['email_auth'] = $this->emailAuth;
+							$this->json['email_auth_sent'] = $this->emailAuthSent;
+							$this->json['admin'] = $this->admin;
+						}else{
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $this->errorMsg;
+							$this->json['valid_state'] = $this->validState;
+							$this->json['valid_msg'] = $this->validMsg;
+						}
+					}else{
+						switch($function){
+							case 'verify-email':
+								// POST https://api.catalog.beer/users/verify-email/{email_auth}
+								$this->verifyEmail($id);
+								if(!$this->error){
+									$this->json['id'] = $this->userID;
+									$this->json['object'] = 'users';
+									$this->json['name'] = $this->name;
+									$this->json['email'] = $this->email;
+									$this->json['email_verified'] = $this->emailVerified;
+									$this->json['email_auth'] = $this->emailAuth;
+									$this->json['email_auth_sent'] = $this->emailAuthSent;
+									$this->json['admin'] = $this->admin;
+								}else{
+									$this->json['error'] = true;
+									$this->json['error_msg'] = $this->errorMsg;
+								}
+								break;
+							default:
+								// Missing Function
+								$this->responseCode = 404;
+								$this->json['error'] = true;
+								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+
+								// Log Error
+								$errorLog = new LogError();
+								$errorLog->errorNumber = 80;
+								$errorLog->errorMsg = 'Invalid Endpoint (/users)';
+								$errorLog->badData = "UserID: $apiKeys->userID / function: $function / id: $id";
+								$errorLog->filename = 'API / Users.class.php';
+								$errorLog->write();	
+						}
+					}
+					break;
+				default:
+					// Invalid Method
+					$this->responseCode = 405;
+					$this->json['error'] = true;
+					$this->json['error_msg'] = 'Invalid HTTP method for this endpoint.';
+					$this->responseHeader = 'Allow: GET, POST';
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 72;
+					$errorLog->errorMsg = 'Invalid Method (/users)';
+					$errorLog->badData = $method;
+					$errorLog->filename = 'API / Users.class.php';
+					$errorLog->write();
+			}
+		}else{
+			// Not an Admin
+			$this->responseCode = 403;
+			$this->json['error'] = true;
+			$this->json['error_msg'] = 'Sorry, your account does not have permission to perform this action.';
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 37;
+			$errorLog->errorMsg = 'Non-Admin trying to get account info';
+			$errorLog->badData = "UserID: $apiKeys->userID / id: $id / function: $function";
+			$errorLog->filename = 'API / Users.class.php';
+			$errorLog->write();
+		}
+	}
+	
+	public function loginAPI($method, $apiKey, $data) {
 		/*---
 		POST https://api.catalog.beer/login	
 		---*/
@@ -628,7 +807,7 @@ class Users {
 				$errorLog->errorNumber = 39;
 				$errorLog->errorMsg = 'Non-Admin trying to get account info';
 				$errorLog->badData = "UserID: $apiKeys->userID";
-				$errorLog->filename = 'API / index.php';
+				$errorLog->filename = 'API / Users.class.php';
 				$errorLog->write();
 			}
 		}else{

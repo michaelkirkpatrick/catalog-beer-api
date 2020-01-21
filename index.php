@@ -111,185 +111,20 @@ if($endpoint == 'beer' && !$error){
 
 /* - - - - - USERS - - - - - */
 if($endpoint == 'users' && !$error){
-	// Verify User
 	$users = new Users();
-	$users->validate($apiKeys->userID, true);
-	if($users->admin){
-		switch($method){
-			case 'GET':
-				if(!empty($id) && empty($function)){
-					if($users->validate($id, true)){
-						$json['id'] = $users->userID;
-						$json['object'] = 'users';
-						$json['name'] = $users->name;
-						$json['email'] = $users->email;
-						$json['emailVerified'] = $users->emailVerified;
-						$json['emailAuth'] = $users->emailAuth;
-						$json['emailAuthSent'] = $users->emailAuthSent;
-						$json['admin'] = $users->admin;
-					}else{
-						// Invalid User
-						$responseCode = 401;
-						$json['error'] = true;
-						$json['errorMsg'] = 'Sorry, this is not a valid Catalog.beer account.';
-
-						// Log Error
-						$errorLog = new LogError();
-						$errorLog->errorNumber = 36;
-						$errorLog->errorMsg = 'Invalid Account';
-						$errorLog->badData = "UserID: $id";
-						$errorLog->filename = 'API / index.php';
-						$errorLog->write();
-					}
-				}else{
-					switch($function){
-						case 'api-key':
-							if(!empty($id)){
-								// Get API Key
-								$userAPIKey = $apiKeys->getKey($id);
-								if(!empty($userAPIKey)){
-									$json['object'] = 'api_key';
-									$json['user_id'] = $id;
-									$json['api_key'] = $userAPIKey;
-								}else{
-									// Invalid User
-									$json['error'] = true;
-									$json['error_msg'] = $apiKeys->error_msg;
-								}
-							}else{
-								// Missing Function
-								$responseCode = 400;
-								$json['error'] = true;
-								$json['errorMsg'] = 'We seem to be missing the user_id you would like to retreive the api_key for. Please check your submission and try again.';
-
-								// Log Error
-								$errorLog = new LogError();
-								$errorLog->errorNumber = 79;
-								$errorLog->errorMsg = 'Missing user_id';
-								$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
-								$errorLog->filename = 'API / index.php';
-								$errorLog->write();
-							}
-							break;
-						default:
-							// Missing Function
-							$responseCode = 400;
-							$json['error'] = true;
-							$json['errorMsg'] = 'Sorry, this is an invalid endpoint.';
-
-							// Log Error
-							$errorLog = new LogError();
-							$errorLog->errorNumber = 78;
-							$errorLog->errorMsg = 'Invalid Endpoint (/users)';
-							$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
-							$errorLog->filename = 'API / index.php';
-							$errorLog->write();		
-					}
-				}
-				break;
-			case 'POST':
-				if(empty($function)){
-					// Create Account
-					$users->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKeys->userID);
-					if(!$users->error){
-						$json['id'] = $users->userID;
-						$json['object'] = 'users';
-						$json['name'] = $users->name;
-						$json['email'] = $users->email;
-						$json['emailVerified'] = $users->emailVerified;
-						$json['emailAuth'] = $users->emailAuth;
-						$json['emailAuthSent'] = $users->emailAuthSent;
-						$json['admin'] = $users->admin;
-					}else{
-						$responseCode = 400;
-						$json['error'] = true;
-						$json['error_msg'] = $users->errorMsg;
-						$json['valid_state'] = $users->validState;
-						$json['valid_msg'] = $users->validMsg;
-					}
-				}else{
-					switch($function){
-						case 'api-key':
-							$apiKeys->add($id);
-							if(!$apiKeys->error){
-								$json['object'] = 'api_key';
-								$json['user_id'] = $id;
-								$json['api_key'] = $apiKeys->apiKey;
-							}else{
-								$responseCode = 400;
-								$json['error'] = true;
-								$json['errorMsg'] = $apiKeys->errorMsg;
-							}
-							break;
-						case 'verify-email':
-							$users->verifyEmail($id);
-							if(!$users->error){
-								$json['id'] = $users->userID;
-								$json['object'] = 'users';
-								$json['name'] = $users->name;
-								$json['email'] = $users->email;
-								$json['emailVerified'] = $users->emailVerified;
-								$json['emailAuth'] = $users->emailAuth;
-								$json['emailAuthSent'] = $users->emailAuthSent;
-								$json['admin'] = $users->admin;
-							}else{
-								$responseCode = 400;
-								$json['error'] = true;
-								$json['error_msg'] = $users->errorMsg;
-							}
-							break;
-						default:
-							// Missing Function
-							$responseCode = 400;
-							$json['error'] = true;
-							$json['error_msg'] = 'Sorry, this is an invalid endpoint.';
-
-							// Log Error
-							$errorLog = new LogError();
-							$errorLog->errorNumber = 80;
-							$errorLog->errorMsg = 'Invalid Endpoint (/users)';
-							$errorLog->badData = "UserID: $apiKeys->userID / function: $function / id: $id";
-							$errorLog->filename = 'API / index.php';
-							$errorLog->write();	
-					}
-				}
-				break;
-			default:
-				// Invalid Method
-				$responseCode = 404;
-				$json['error'] = true;
-				$json['error_msg'] = 'Sorry, ' . $method . ' is an invalid method for this endpoint.';
-
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 72;
-				$errorLog->errorMsg = 'Invalid Method (/users)';
-				$errorLog->badData = $method;
-				$errorLog->filename = 'API / index.php';
-				$errorLog->write();
-		}
-	}else{
-		// Not an Admin
-		$responseCode = 401;
-		$json['error'] = true;
-		$json['errorMsg'] = 'Sorry, your account does not have permission to perform this action.';
-
-		// Log Error
-		$errorLog = new LogError();
-		$errorLog->errorNumber = 37;
-		$errorLog->errorMsg = 'Non-Admin trying to get account info';
-		$errorLog->badData = "UserID: $apiKeys->userID / id: $id / function: $function";
-		$errorLog->filename = 'API / index.php';
-		$errorLog->write();
-	}
+	$users->usersAPI($method, $function, $id, $apiKey, $data);
+	$json = $users->json;
+	$responseCode = $users->responseCode;
+	$responseHeader = $users->responseHeader;
 }
 
 /* - - - - - LOGIN - - - - - */
 if($endpoint == 'login' && !$error){
 	$users = new Users();
-	$users->api($method, $apiKey, $data);
+	$users->loginAPI($method, $apiKey, $data);
 	$json = $users->json;
 	$responseCode = $users->responseCode;
+	$responseHeader = $users->responseHeader;
 }
 
 /* - - - - - LOCATION - - - - - */
