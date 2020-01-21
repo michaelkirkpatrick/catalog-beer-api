@@ -1059,7 +1059,7 @@ class Brewer {
 									// Not an Admin
 									$this->responseCode = 403;
 									$this->json['error'] = true;
-									$this->json['errorMsg'] = 'Sorry, your account does not have permission to access this endpoint.';
+									$this->json['error_msg'] = 'Sorry, your account does not have permission to access this endpoint.';
 
 									// Log Error
 									$errorLog = new LogError();
