@@ -699,6 +699,9 @@ class Location {
 							}
 							$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->id;
 
+							// Validate Location to get latitude and longitude
+							$this->validate($this->id, true);
+
 							// JSON Response
 							$this->json['id'] = $this->id;
 							$this->json['object'] = 'location';
