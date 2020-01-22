@@ -2,19 +2,72 @@
 // Initialize
 include_once $_SERVER["DOCUMENT_ROOT"] . '/classes/initialize.php';
 
-// Method & Data
-// get the HTTP method, path and body of the request
-$method = $_SERVER['REQUEST_METHOD'];
-$input = file_get_contents('php://input');
-$data = json_decode($input);
-if(empty($data)){$data = new stdClass();}
-
 // Defaults
 $apiKey = '';
 $error = false;
 $json = array();
 $responseCode = 200;
 $responseHeader = '';
+
+// Method & Data
+// get the HTTP method and body of the request
+$method = $_SERVER['REQUEST_METHOD'];
+$input = file_get_contents('php://input');
+if(!empty($input)){
+	$data = json_decode($input);
+	if(json_last_error() > 0){
+		// Error Decoding JSON
+		$error = true;
+		$responseCode = 400;
+		$json['error'] = true;
+		switch (json_last_error()) {
+			case JSON_ERROR_DEPTH:
+		    $json['error_msg'] = 'JSON decoding error: Maximum stack depth exceeded';
+			break;
+			case JSON_ERROR_STATE_MISMATCH:
+		    $json['error_msg'] = 'JSON decoding error: Underflow or the modes mismatch';
+			break;
+			case JSON_ERROR_CTRL_CHAR:
+		    $json['error_msg'] = 'JSON decoding error: Unexpected control character found';
+			break;
+			case JSON_ERROR_SYNTAX:
+		    $json['error_msg'] = 'JSON decoding error: Syntax error, malformed JSON';
+			break;
+			case JSON_ERROR_UTF8:
+		    $json['error_msg'] = 'JSON decoding error: Malformed UTF-8 characters, possibly incorrectly encoded';
+			break;
+			case JSON_ERROR_RECURSION:
+		    $json['error_msg'] = 'JSON decoding error: One or more recursive references in the value to be encoded';
+			break;
+			case JSON_ERROR_INF_OR_NAN:
+		    $json['error_msg'] = 'JSON decoding error: One or more NAN or INF values in the value to be encoded';
+			break;
+			case JSON_ERROR_UNSUPPORTED_TYPE:
+		    $json['error_msg'] = 'JSON decoding error: A value of a type that cannot be encoded was given';
+			break;
+			case JSON_ERROR_INVALID_PROPERTY_NAME:
+		    $json['error_msg'] = 'JSON decoding error: A property name that cannot be encoded was given';
+			break;
+			case JSON_ERROR_UTF16:
+		    $json['error_msg'] = 'JSON decoding error: Malformed UTF-16 characters, possibly incorrectly encoded';
+			break;
+			default:
+		    $json['error_msg'] = 'JSON decoding error: Unknown error';
+			break;
+		}
+
+		// Log Error
+		$errorLog = new LogError();
+		$errorLog->errorNumber = 154;
+		$errorLog->errorMsg = 'JSON Decoding Error';
+		$errorLog->badData = $json['error_msg'] . ' // ' . $input;
+		$errorLog->filename = 'API / index.php';
+		$errorLog->write();
+	}
+}else{
+	// Setup Default Class
+	$data = new stdClass();
+}
 
 // General URL Parameters
 $count = 500;
@@ -111,6 +164,7 @@ if($_SERVER['HTTPS'] == 'on'){
 }
 
 /* - - - - - Process Based on Endpoint - - - - - */
+
 if(!$error){
 	switch($endpoint){
 		case 'beer':
@@ -192,7 +246,7 @@ if($json_encoded = json_encode($json)){
 	$json['error'] = true;
 	$json['error_msg'] = 'Sorry, we have encountered an encoding error and are unable to present your data at this time. We\'ve logged the issue and our support team will look into it.';
 	echo json_encode($json);
-	
+
 	// Log Error
 	$errorLog = new LogError();
 	$errorLog->errorNumber = 45;
