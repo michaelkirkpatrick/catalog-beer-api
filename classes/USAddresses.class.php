@@ -23,15 +23,16 @@ class USAddresses {
 	// USPS API Key
 	private $usps = '';
 
+	// Adding an address to a location?
+	private $addNewAddress = false;
+
 	// Add Address
 	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone){
+		// Adding a new address
+		$this->addNewAddress = true;
+
 		// Address Already Exists?
 		if(!$this->validate($locationID, false)){
-			// Clear Address not Found Errors generated in validate()
-			$this->error = false;
-			$this->errorMsg = '';
-			$this->responseCode = 200;
-
 			// Save to Class
 			$this->locationID = $locationID;
 			$this->address1 = $address1;
@@ -476,18 +477,21 @@ class USAddresses {
 					$errorLog->write();
 				}else{
 					// Not Found
-					// No US Address for this locationID
-					$this->error = true;
-					$this->errorMsg = "Sorry, we couldn't find an address for the location_id you provided.";
-					$this->responseCode = 404;
+					if(!$this->addNewAddress){
+						// Not adding a new address to a location, log the error
+						// No US Address for this locationID
+						$this->error = true;
+						$this->errorMsg = "Sorry, we couldn't find an address for the location_id you provided.";
+						$this->responseCode = 404;
 
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 140;
-					$errorLog->errorMsg = 'US Address Not Found';
-					$errorLog->badData = $locationID;
-					$errorLog->filename = 'API / USAddresses.class.php';
-					$errorLog->write();
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 140;
+						$errorLog->errorMsg = 'US Address Not Found';
+						$errorLog->badData = $locationID;
+						$errorLog->filename = 'API / USAddresses.class.php';
+						$errorLog->write();
+					}
 				}
 			}else{
 				// Query Error
