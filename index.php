@@ -15,6 +15,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 $input = file_get_contents('php://input');
 if(!empty($input)){
 	$data = json_decode($input);
+	if(empty($data)){
+		// Set new, empty class for empty data sets
+		$data = new stdClass();
+	}
 	if(json_last_error() > 0){
 		// Error Decoding JSON
 		$error = true;
