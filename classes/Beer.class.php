@@ -815,50 +815,31 @@ class Beer {
 								}
 								break;
 							case 'last-modified':
-								$users = new Users();
-								$apiKeys = new apiKeys();
-								$apiKeys->validate($apiKey, true);
-								$users->validate($apiKeys->userID, true);
-								if($users->admin){
-									if(!empty($id)){
-										// GET https://api.catalog.beer/beer/{beer_id}/last-modified
-										// Individual Brewer
-										$lastModified = $this->lastModified($id);
-										if(!$this->error){
-											$this->json['object'] = 'timestamp';
-											$this->json['url'] = '/beer/' . $id . '/last-modified';
-											$this->json['beer_id'] = $id;
-											$this->json['last_modified'] = $lastModified;
-										}else{
-											$this->json['error'] = true;
-											$this->json['error_msg'] = $this->errorMsg;
-										}
+								if(!empty($id)){
+									// GET https://api.catalog.beer/beer/{beer_id}/last-modified
+									// Individual Brewer
+									$lastModified = $this->lastModified($id);
+									if(!$this->error){
+										$this->json['object'] = 'timestamp';
+										$this->json['url'] = '/beer/' . $id . '/last-modified';
+										$this->json['beer_id'] = $id;
+										$this->json['last_modified'] = $lastModified;
 									}else{
-										// GET https://api.catalog.beer/beer/last-modified
-										// All Brewers
-										$latestModified = $this->latestModified();
-										if(!$this->error){
-											$this->json['object'] = 'timestamp';
-											$this->json['url'] = '/beer/last-modified';
-											$this->json['last_modified'] = $latestModified;
-										}else{
-											$this->json['error'] = true;
-											$this->json['error_msg'] = $this->errorMsg;
-										}
+										$this->json['error'] = true;
+										$this->json['error_msg'] = $this->errorMsg;
 									}
 								}else{
-									// Not an Admin
-									$this->responseCode = 403;
-									$this->json['error'] = true;
-									$this->json['error_msg'] = 'Sorry, your account does not have permission to access this endpoint.';
-
-									// Log Error
-									$errorLog = new LogError();
-									$errorLog->errorNumber = 109;
-									$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
-									$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
-									$errorLog->filename = 'API / Beer.class.php';
-									$errorLog->write();
+									// GET https://api.catalog.beer/beer/last-modified
+									// All Brewers
+									$latestModified = $this->latestModified();
+									if(!$this->error){
+										$this->json['object'] = 'timestamp';
+										$this->json['url'] = '/beer/last-modified';
+										$this->json['last_modified'] = $latestModified;
+									}else{
+										$this->json['error'] = true;
+										$this->json['error_msg'] = $this->errorMsg;
+									}
 								}
 								break;
 							default:

@@ -1,6 +1,6 @@
 <?php
 class Brewer {
-	
+
 	// Properties
 	public $brewerID = '';
 	public $name = '';
@@ -13,38 +13,38 @@ class Brewer {
 	public $twitterURL = '';				// Optional
 	public $instagramURL = '';			// Optional
 	public $lastModified = 0;
-	
+
 	// Error Handling
 	public $error = false;
 	public $errorMsg = '';
 	public $validState = array('name'=>'', 'url'=>'', 'description'=>'', 'short_description'=>'', 'facebook_url'=>'', 'twitter_url'=>'', 'instagram_url'=>'');
 	public $validMsg = array('name'=>'', 'url'=>'', 'description'=>'', 'short_description'=>'', 'facebook_url'=>'', 'twitter_url'=>'', 'instagram_url'=>'');
-	
+
 	// API Response
 	public $responseHeader = '';
 	public $responseCode = 200;
 	public $json = array();
-	
+
 	// Add Brewer
-	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID){		
+	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID){
 		// Validate Name
 		$this->name = $name;
 		$this->validateName();
-		
+
 		// Validate URLs
 		$this->url = $this->validateURL($url, 'url');
 		$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
 		$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
 		$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
-		
+
 		// Validate Description
 		$this->description = trim($description);
 		$this->validateDescription();
-		
+
 		// Validate Short Description
 		$this->shortDescription = $shortDescription;
 		$this->validateShortDescription();
-		
+
 		// Generate UUID
 		$uuid = new uuid();
 		$this->brewerID = $uuid->generate('brewer');
@@ -54,15 +54,15 @@ class Brewer {
 			$this->errorMsg = $uuid->errorMsg;
 			$this->responseCode = $uuid->responseCode;
 		}
-		
+
 		if(!$this->error){
 			// Default Values
 			$this->cbVerified = false;
 			$dbCBV = 0;
 			$this->brewerVerified = false;
 			$dbBV = 0;
-			
-			
+
+
 			// Get User Info
 			$users = new Users();
 			if($users->validate($userID, true)){
@@ -81,19 +81,19 @@ class Brewer {
 						$host = parse_url($this->url, PHP_URL_HOST);
 						preg_match('/([A-Z0-9-]+\.[A-Z]+)$/i', $host, $hostMatches);
 						$urlDomainName = $hostMatches[1];
-						
+
 						if($emailDomainName == $urlDomainName){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
 							$dbBV = 1;
-							
+
 							// Give user privledges for this brewer
 							$privledges = new Privledges();
 							$privledges->add($userID, $this->brewerID, true);
 						}
 					}
 				}
-				
+
 				// Prep for Database
 				$db = new Database();
 				$dbBrewerID = $db->escape($this->brewerID);
@@ -105,7 +105,7 @@ class Brewer {
 				$dbTwitterURL = $db->escape($this->twitterURL);
 				$dbInstagramURL = $db->escape($this->instagramURL);
 				$dbLastModified = $db->escape(time());
-				
+
 				// Query
 				$db->query("INSERT INTO brewer (id, name, description, shortDescription, url, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')");
 				if(!$db->error){
@@ -122,7 +122,7 @@ class Brewer {
 					$this->errorMsg = $db->errorMsg;
 					$this->responseCode = $db->responseCode;
 				}
-				
+
 				// Close Database Connection
 				$db->close();
 			}else{
@@ -133,7 +133,7 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	public function update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $brewerID){
 		// Validate BrewerID
 		if($this->validate($brewerID, false)){
@@ -144,7 +144,7 @@ class Brewer {
 			$this->error = true;
 			$this->errorMsg = 'Sorry, the brewer_id you provided appears to be invalid. Please double check that you are submitted a valid brewer_id.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 105;
@@ -153,11 +153,11 @@ class Brewer {
 			$errorLog->filename = 'API / Brewer.class.php';
 			$errorLog->write();
 		}
-		
+
 		// SQL String
 		$sqlString = array();
 		$db = new Database();
-		
+
 		// Validate Name
 		if(!empty($name)){
 			$this->name = $name;
@@ -168,7 +168,7 @@ class Brewer {
 				$sqlString[] = "name='$dbName'";
 			}
 		}
-		
+
 		// Validate URL
 		if(!empty($url)){
 			$this->url = $this->validateURL($url, 'url');
@@ -178,7 +178,7 @@ class Brewer {
 				$sqlString[] = "url='$dbURL'";
 			}
 		}
-		
+
 		// Validate Facebook URL
 		if(!empty($facebookURL)){
 			$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
@@ -188,7 +188,7 @@ class Brewer {
 				$sqlString[] = "facebookURL='$dbFacebookURL'";
 			}
 		}
-		
+
 		// Validate Twitter URL
 		if(!empty($twitterURL)){
 			$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
@@ -198,7 +198,7 @@ class Brewer {
 				$sqlString[] = "twitterURL='$dbTwitterURL'";
 			}
 		}
-		
+
 		// Validate Instagram URL
 		if(!empty($instagramURL)){
 			$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
@@ -208,7 +208,7 @@ class Brewer {
 				$sqlString[] = "instagramURL='$dbInstagramURL'";
 			}
 		}
-		
+
 		// Validate Description
 		if(!empty($description)){
 			$this->description = trim($description);
@@ -219,7 +219,7 @@ class Brewer {
 				$sqlString[] = "description='$dbDescription'";
 			}
 		}
-		
+
 		// Validate Short Description
 		if(!empty($shortDescription)){
 			$this->shortDescription = $shortDescription;
@@ -230,7 +230,7 @@ class Brewer {
 				$sqlString[] = "shortDescription='$dbShortDescription'";
 			}
 		}
-		
+
 		if(!$this->error){
 			// Get User Info
 			$users = new Users();
@@ -243,11 +243,11 @@ class Brewer {
 					// Not Catalog.beer Verified
 					$dbCBV = 0;
 				}
-				
+
 				// Prep for Database
 				$dbBrewerID = $db->escape($this->brewerID);
 				$dbLastModified = $db->escape(time());
-				
+
 				// Query
 				$updateText = '';
 				foreach($sqlString as &$sqlSetStmt){
@@ -270,11 +270,11 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	private function validateName(){
 		// Must set $this->name
 		$this->name = trim($this->name);
-		
+
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
 				// Valid
@@ -285,7 +285,7 @@ class Brewer {
 				$this->validState['name'] = 'invalid';
 				$this->validMsg['name'] = 'We hate to say it but your brewery name is too long for our database. Brewery names are limited to 255 bytes. Any chance you can shorten it?';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 21;
@@ -300,7 +300,7 @@ class Brewer {
 			$this->validState['name'] = 'invalid';
 			$this->validMsg['name'] = 'Please give us the name of the brewery you\'d like to add.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 1;
@@ -310,11 +310,11 @@ class Brewer {
 			$errorLog->write();
 		}
 	}
-	
+
 	private function validateDescription(){
 		// Must set $this->description
 		$this->description = trim($this->description);
-		
+
 		if(!empty($this->description)){
 			if(strlen($this->description <= 65536)){
 				// Valid
@@ -325,7 +325,7 @@ class Brewer {
 				$this->validState['description'] = 'invalid';
 				$this->validMsg['description'] = 'We hate to say it but this brewery description is too long for our database. Descriptions are limited to 65,536 bytes. Any chance you can shorten it?';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 20;
@@ -336,11 +336,11 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	private function validateShortDescription(){
 		// Must set $this->shortDescription
 		$this->shortDescription = trim($this->shortDescription);
-		
+
 		if(!empty($this->shortDescription)){
 			if(strlen($this->shortDescription <= 160)){
 				// Valid
@@ -362,15 +362,15 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	public function validateURL($url, $type){
 		// Return
 		$returnURL = '';
-		
+
 		// Counter
 		$i = 1;
 		$maxCount = 30;
-		
+
 		$url = trim($url);
 		if(!empty($url)){
 			// Add HTTP?
@@ -378,7 +378,7 @@ class Brewer {
 				// Add HTTP
 				$url = 'http://' . $url;
 			}
-			
+
 			// Check URL Symantics
 			if(filter_var($url, FILTER_VALIDATE_URL)){
 				$returnURL = $url;
@@ -387,8 +387,8 @@ class Brewer {
 					// Perform cURL
 					$curlResponse = $this->curlRequest($url, $type);
 					$i++;
-					
-					if($curlResponse['httpCode'] == 200){
+
+					if($curlResponse['httpCode'] >= 200 && $curlResponse['httpCode'] <= 206){
 						if(!empty($curlResponse['url'])){
 							// Test New URL
 							$url = $curlResponse['url'];
@@ -403,14 +403,14 @@ class Brewer {
 								// Use HTTPS
 								$returnURL = $secureURL;
 								$this->validState[$type] = 'valid';
-								
+
 								// Stop Loop
 								$continue = false;
 							}else{
 								// HTTPS Not Valid, use HTTP
 								$returnURL = $url;
 								$this->validState[$type] = 'valid';
-																
+
 								// Stop Loop
 								$continue = false;
 							}
@@ -418,7 +418,7 @@ class Brewer {
 							// Already HTTPS, good to go
 							$returnURL = $url;
 							$this->validState[$type] = 'valid';
-														
+
 							// Stop Loop
 							$continue = false;
 						}
@@ -437,11 +437,11 @@ class Brewer {
 						$errorLog->badData = 'URL: ' . $url . ' / HTTP Response Code: ' . $curlResponse['httpCode'];
 						$errorLog->filename = 'API / Brewer.class.php';
 						$errorLog->write();
-						
+
 						// Stop Loop
 						$continue = false;
 					}
-					
+
 					if($i==$maxCount){
 						// Too Many Redirects
 						$this->error = true;
@@ -462,7 +462,7 @@ class Brewer {
 						$continue = false;
 					}
 				}
-				
+
 				// Check Length
 				if(strlen($url) > 255){
 					// URL Too Long
@@ -470,7 +470,7 @@ class Brewer {
 					$this->validStatee[$type] = 'invalid';
 					$this->validMsg[$type] = 'Sorry, but URL strings are limited to 255 bytes in length. Any chance there is a shorter URL you can use?';
 					$this->responseCode = 400;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 147;
@@ -485,7 +485,7 @@ class Brewer {
 				$this->validState[$type] = 'invalid';
 				$this->validMsg[$type] = 'Sorry, something seems to be wrong with your URL. Please check it and try again.';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 13;
@@ -498,7 +498,7 @@ class Brewer {
 			// Return Blank URL
 			$returnURL = '';
 		}
-		
+
 		// Validate Social URLs
 		if(!empty($returnURL)){
 			switch($type){
@@ -509,7 +509,7 @@ class Brewer {
 						$this->validState['facebook_url'] = 'invalid';
 						$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
 						$this->responseCode = 400;
-						
+
 						// Log Error
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 144;
@@ -526,7 +526,7 @@ class Brewer {
 						$this->validState['twitter_url'] = 'invalid';
 						$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
 						$this->responseCode = 400;
-						
+
 						// Log Error
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 145;
@@ -544,7 +544,7 @@ class Brewer {
 							$this->validState['instagram_url'] = 'invalid';
 							$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
 							$this->responseCode = 400;
-							
+
 							// Log Error
 							$errorLog = new LogError();
 							$errorLog->errorNumber = 146;
@@ -557,18 +557,18 @@ class Brewer {
 					break;
 			}
 		}
-		
+
 		// Return
 		return $returnURL;
 	}
-	
-	private function curlRequest($url, $type){		
+
+	private function curlRequest($url, $type){
 		// Return URL
 		$returnURL = '';
-		
+
 		// Initialize Curl
 		$curl = curl_init();
-		
+
 		// URL to Test
 		curl_setopt($curl, CURLOPT_URL, $url);
 
@@ -582,17 +582,17 @@ class Brewer {
 		curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($curl, CURLOPT_USERAGENT, 'curl/7.53.1');
 		curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-		
+
 		// Send Request, Get Output
 		$output = curl_exec($curl);
-		
+
 		// Response HTTP Code
 		$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 		if($type == 'instagram_url' && $httpCode == 405){
 			// Override HTTP Code
 			$httpCode = 200;
 		}
-		
+
 		if(curl_errno($curl)){
 			// cURL Error
 			// Log Error
@@ -603,7 +603,7 @@ class Brewer {
 			$errorLog->filename = 'API / Brewer.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Process Output?
 		if(gettype($output) == 'string'){
 			$exploded = explode("\n", $output);
@@ -617,19 +617,19 @@ class Brewer {
 
 		// Close curl
 		curl_close($curl);
-		
+
 		// Return
 		return array('httpCode'=>$httpCode, 'url'=>$returnURL);
 	}
-	
+
 	// Validate Brewer
 	public function validate($brewerID, $saveToClass){
 		// Valid?
 		$valid = false;
-		
+
 		// Trim
 		$brewerID = trim($brewerID);
-		
+
 		if(!empty($brewerID)){
 			// Prep for Database
 			$db = new Database();
@@ -639,11 +639,11 @@ class Brewer {
 				if($db->result->num_rows == 1){
 					// Valid
 					$valid = true;
-					
+
 					if($saveToClass){
 						// Get Result Array
 						$array = $db->resultArray();
-												
+
 						// Save to Class
 						$this->brewerID = $brewerID;
 						$this->name = stripcslashes($array['name']);
@@ -654,7 +654,7 @@ class Brewer {
 						$this->twitterURL = $array['twitterURL'];
 						$this->instagramURL = $array['instagramURL'];
 						$this->lastModified = intval($array['lastModified']);
-						
+
 						if($array['cbVerified']){
 							$this->cbVerified = true;
 						}if($array['brewerVerified']){
@@ -679,7 +679,7 @@ class Brewer {
 					$this->error = true;
 					$this->errorMsg = "Sorry, we couldn't find a brewer with the brewer_id you provided.";
 					$this->responseCode = 404;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 133;
@@ -700,7 +700,7 @@ class Brewer {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, we seem to be missing the brewer_id for the brewer. Please check your request and try again.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 18;
@@ -709,17 +709,17 @@ class Brewer {
 			$errorLog->filename = 'API / Brewer.class.php';
 			$errorLog->write();
 		}
-								
+
 		// Return
 		return $valid;
 	}
-	
+
 	// Validate Cursor and Count
 	private function validateCursorCount($cursor, $count){
 		// Prep Variables
 		$offset = intval(base64_decode($cursor));
 		$count = intval($count);
-		
+
 		if(is_int($offset) && $offset >= 0){
 			if(is_int($count)){
 				// Within Limits?
@@ -738,7 +738,7 @@ class Brewer {
 					$errorLog->filename = 'API / Brewer.class.php';
 					$errorLog->write();
 				}
-				
+
 				if($count > 1000000 || $count < 1){
 					// Outside Range
 					$this->error = true;
@@ -772,7 +772,7 @@ class Brewer {
 			$this->error = true;
 			$this->errorMsg = 'Sorry, the cursor value you supplied is invalid.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 94;
@@ -781,20 +781,20 @@ class Brewer {
 			$errorLog->filename = 'API / Brewer.class.php';
 			$errorLog->write();
 		}
-		
+
 		return(array($offset, $count));
 	}
-	
+
 	// Get BrewerIDs
 	public function getBrewers($cursor, $count){
 		// Return Array
 		$brewerArray = array();
-		
+
 		// Validate $cursor and $count
 		$cursorCountArray = $this->validateCursorCount($cursor, $count);
 		$offset = $cursorCountArray[0];
 		$count = $cursorCountArray[1];
-		
+
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
@@ -812,17 +812,17 @@ class Brewer {
 			}
 			$db->close();
 		}
-		
+
 		// Return
 		return $brewerArray;
 	}
-	
+
 	public function nextCursor($cursor, $count){
 		// Validate $cursor and $count
 		$cursorCountArray = $this->validateCursorCount($cursor, $count);
 		$offset = $cursorCountArray[0];
 		$count = $cursorCountArray[1];
-		
+
 		if(!$this->error){
 			// Number of Brewers
 			$numBrewers = $this->countBrewers();
@@ -838,12 +838,12 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	// Number of Brewers
 	public function countBrewers(){
 		// Return
 		$count = 0;
-		
+
 		// Query Database
 		$db = new Database();
 		$db->query("SELECT COUNT('id') AS numBrewers FROM brewer");
@@ -857,10 +857,10 @@ class Brewer {
 			$this->responseCode = $db->responseCode;
 		}
 		$db->close();
-		
+
 		return $count;
 	}
-	
+
 	// Last Modified
 	public function updateModified($brewerID){
 		if(!empty($brewerID)){
@@ -892,11 +892,11 @@ class Brewer {
 			$errorLog->write();
 		}
 	}
-	
+
 	public function latestModified(){
 		// Return
 		$lastModified = 0;
-		
+
 		// Connect to Database
 		$db = new Database();
 		$db->query("SELECT MAX(lastModified) AS lastModified FROM brewer");
@@ -910,15 +910,15 @@ class Brewer {
 			$this->responseCode = $db->responseCode;
 		}
 		$db->close();
-		
+
 		// Return
 		return $lastModified;
 	}
-	
+
 	public function lastModified($brewerID){
 		// Return
 		$lastModified = 0;
-		
+
 		if(!empty($brewerID)){
 			if($this->validate($brewerID, true)){
 				$lastModified = intval($this->lastModified);
@@ -928,7 +928,7 @@ class Brewer {
 			$this->error = true;
 			$this->errorMsg = 'Missing brewerID';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 102;
@@ -937,11 +937,11 @@ class Brewer {
 			$errorLog->filename = 'API / Brewer.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $lastModified;
 	}
-	
+
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/brewer/{function}
@@ -1022,52 +1022,31 @@ class Brewer {
 								}
 								break;
 							case 'last-modified':
-								$apiKeys = new apiKeys();
-								$apiKeys->validate($apiKey, true);
-								
-								$users = new Users();
-								$users->validate($apiKeys->userID, true);
-								
-								if($users->admin){
-									if(!empty($id)){
-										// Individual Brewer
-										// GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
-										$lastModified = $this->lastModified($id);
-										if(!$this->error){
-											$this->json['object'] = 'timestamp';
-											$this->json['url'] = '/brewer/' . $id . '/last-modified';
-											$this->json['brewer_id'] = $id;
-											$this->json['last_modified'] = $lastModified;
-										}else{
-											$this->json['error'] = true;
-											$this->json['error_msg'] = $this->errorMsg;
-										}
+								if(!empty($id)){
+									// Individual Brewer
+									// GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
+									$lastModified = $this->lastModified($id);
+									if(!$this->error){
+										$this->json['object'] = 'timestamp';
+										$this->json['url'] = '/brewer/' . $id . '/last-modified';
+										$this->json['brewer_id'] = $id;
+										$this->json['last_modified'] = $lastModified;
 									}else{
-										// All Brewers
-										// GET https://api.catalog.beer/brewer/last-modified
-										$latestModified = $this->latestModified();
-										if(!$this->error){
-											$this->json['object'] = 'timestamp';
-											$this->json['url'] = '/brewer/last-modified';
-											$this->json['last_modified'] = $latestModified;
-										}else{
-											$this->json['error'] = true;
-											$this->json['error_msg'] = $this->errorMsg;
-										}
+										$this->json['error'] = true;
+										$this->json['error_msg'] = $this->errorMsg;
 									}
 								}else{
-									// Not an Admin
-									$this->responseCode = 403;
-									$this->json['error'] = true;
-									$this->json['error_msg'] = 'Sorry, your account does not have permission to access this endpoint.';
-
-									// Log Error
-									$errorLog = new LogError();
-									$errorLog->errorNumber = 101;
-									$errorLog->errorMsg = 'Non-Admin trying to get brewer last modified info';
-									$errorLog->badData = "UserID: $apiKeys->userID / function: $function";
-									$errorLog->filename = 'API / Brewer.class.php';
-									$errorLog->write();
+									// All Brewers
+									// GET https://api.catalog.beer/brewer/last-modified
+									$latestModified = $this->latestModified();
+									if(!$this->error){
+										$this->json['object'] = 'timestamp';
+										$this->json['url'] = '/brewer/last-modified';
+										$this->json['last_modified'] = $latestModified;
+									}else{
+										$this->json['error'] = true;
+										$this->json['error_msg'] = $this->errorMsg;
+									}
 								}
 								break;
 							default:
@@ -1103,7 +1082,7 @@ class Brewer {
 							}
 
 							// Append Data
-							$this->json['data'] = $brewerArray;	
+							$this->json['data'] = $brewerArray;
 						}else{
 							$this->json['error'] = true;
 							$this->json['error_msg'] = $this->errorMsg;
@@ -1115,7 +1094,7 @@ class Brewer {
 				// POST https://api.catalog.beer/brewer
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
-				
+
 				// Handle Empty Fields
 				if(empty($data->name)){$data->name = '';}
 				if(empty($data->description)){$data->description = '';}
@@ -1124,7 +1103,7 @@ class Brewer {
 				if(empty($data->facebook_url)){$data->facebook_url = '';}
 				if(empty($data->twitter_url)){$data->twitter_url = '';}
 				if(empty($data->instagram_url)){$data->instagram_url = '';}
-				
+
 				// Add Brewer
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID);
 				if(!$this->error){
@@ -1184,7 +1163,7 @@ class Brewer {
 				}else{
 					$instagramURL = '';
 				}
-				
+
 				// Required Information
 				$apiKeys = new apiKeys();
 				$apikeys->validate($apiKey, true);
