@@ -37,7 +37,13 @@ class apiLogging {
 			$this->method = $method;
 			$this->uri = $uri;
 			$this->body = serialize($body);
-			$this->response = $response;
+			if($method == 'GET'){
+				// Don't save the response (Memory Issues with large requests)
+				$this->response = '';
+			}else{
+				// Save the Response
+				$this->response = $response;
+			}
 			$this->responseCode = $responseCode;
 
 			if(!$this->error){
