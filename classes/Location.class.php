@@ -397,6 +397,7 @@ class Location {
 	public function nearbyLatLng($latitude, $longitude, $searchRadius, $metric, $cursor, $count){
 		// Return Variable
 		$locationArray = array();
+		$nextCursor = '';
 
 		// Default Values
 		if(empty($cursor)){
@@ -492,7 +493,7 @@ class Location {
 			if($latitude == 0 && $longitude == 0){
 				// Middle of the ocean
 				$this->error = true;
-				$this->errorMsg = "It looks like you're looking for a brewery in the middle of the ocean. Sad to say, we aren't able to track shipboard breweries yet. You might want to check the latitude and longitude you provided.";
+				$this->errorMsg = "It looks like you're looking for a brewery in the middle of the ocean (latitude = 0, longitude = 0). Sad to say, we aren't able to track shipboard breweries yet. You might want to check the latitude and longitude you provided.";
 				$this->responseCode = 400;
 
 				// Log Error
@@ -601,11 +602,17 @@ class Location {
 						$distance = round(floatval($array['distance']), 1);
 
 						// Build Response Array
-						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location','name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>$array['latitude'], 'longitude'=>$array['longitude'], 'telephone'=>$usaddresses->telephone, 'address'=>array('address1'=>$usaddresses->address1, 'address2'=>$usaddresses->address2, 'city'=>$usaddresses->city, 'sub_code'=>$usaddresses->sub_code, 'state_short'=>$usaddresses->stateShort, 'state_long'=>$usaddresses->stateLong, 'zip5'=>$usaddresses->zip5, 'zip4'=>$usaddresses->zip4)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$brewer->brewerID, 'object'=>'brewer', 'name'=>$brewer->name, 'description'=>$brewer->description, 'short_description'=>$brewer->shortDescription, 'url'=>$brewer->url, 'cb_verified'=>$brewer->cbVerified, 'brewer_verified'=>$brewer->brewerVerified, 'facebook_url'=>$brewer->facebookURL, 'twitter_url'=>$brewer->twitterURL, 'instagram_url'=>$brewer->instagramURL));
+						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location','name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$usaddresses->telephone, 'address'=>array('address1'=>$usaddresses->address1, 'address2'=>$usaddresses->address2, 'city'=>$usaddresses->city, 'sub_code'=>$usaddresses->sub_code, 'state_short'=>$usaddresses->stateShort, 'state_long'=>$usaddresses->stateLong, 'zip5'=>$usaddresses->zip5, 'zip4'=>$usaddresses->zip4)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$brewer->brewerID, 'object'=>'brewer', 'name'=>$brewer->name, 'description'=>$brewer->description, 'short_description'=>$brewer->shortDescription, 'url'=>$brewer->url, 'cb_verified'=>$brewer->cbVerified, 'brewer_verified'=>$brewer->brewerVerified, 'facebook_url'=>$brewer->facebookURL, 'twitter_url'=>$brewer->twitterURL, 'instagram_url'=>$brewer->instagramURL));
 
 						// Add to Array
 						$locationArray[] = $locationInfo;
 					}
+
+					// Next Cursor
+					$db->query("SELECT id, (2 * $radius * ASIN(SQRT(SIN((RADIANS(latitude-$latitude))/2) * SIN((RADIANS(latitude-$latitude))/2) + COS(RADIANS($latitude)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-$longitude)/2) * SIN((RADIANS(longitude-$longitude))/2))))) AS distance FROM location HAVING distance < $searchRadius ORDER BY distance LIMIT $offset, 10000");
+					$numResults = $db->result->num_rows;
+					$nextCursor = $this->nextCursor($cursor, $count, $numResults);
+					$db->close();
 				}else{
 					// Query Error
 					$this->error = true;
@@ -614,12 +621,6 @@ class Location {
 				}
 			}
 		}
-
-		// Next Cursor
-		$db->query("SELECT id, (2 * $radius * ASIN(SQRT(SIN((RADIANS(latitude-$latitude))/2) * SIN((RADIANS(latitude-$latitude))/2) + COS(RADIANS($latitude)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-$longitude)/2) * SIN((RADIANS(longitude-$longitude))/2))))) AS distance FROM location HAVING distance < $searchRadius ORDER BY distance LIMIT $offset, 10000");
-		$numResults = $db->result->num_rows;
-		$nextCursor = $this->nextCursor($cursor, $count, $numResults);
-		$db->close();
 
 		// Return
 		return array('locationArray'=>$locationArray, 'nextCursor'=>$nextCursor);
@@ -664,6 +665,7 @@ class Location {
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		GET https://api.catalog.beer/location/{location_id}
+		GET https://api.catalog.beer/location/nearby
 
 		POST https://api.catalog.beer/location
 		POST https://api.catalog.beer/location/{location_id}
