@@ -5,12 +5,13 @@ class Brewer {
 	public $brewerID = '';
 	public $name = '';
 	public $description = ''; 			// Optional
-	public $shortDescription = '';	// Optional
-	public $url = '';								// Optional
+	public $shortDescription = '';		// Optional
+	public $url = '';					// Optional
+	public $domainName = '';			// Optional
 	public $cbVerified = false;
 	public $brewerVerified = false;
-	public $facebookURL = '';				// Optional
-	public $twitterURL = '';				// Optional
+	public $facebookURL = '';			// Optional
+	public $twitterURL = '';			// Optional
 	public $instagramURL = '';			// Optional
 	public $lastModified = 0;
 
@@ -74,15 +75,9 @@ class Brewer {
 					// Not Catalog.beer Verified
 					if(!empty($this->url)){
 						// Get Domain name from Email address
-						preg_match('/^[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})$/i', $users->email, $emailMatches);
-						$emailDomainName = $emailMatches[1];
+						$emailDomainName = $users->emailDomainName($users->email);
 
-						// Get Domain name from Brewery URL
-						$host = parse_url($this->url, PHP_URL_HOST);
-						preg_match('/([A-Z0-9-]+\.[A-Z]+)$/i', $host, $hostMatches);
-						$urlDomainName = $hostMatches[1];
-
-						if($emailDomainName == $urlDomainName){
+						if($emailDomainName == $this->domainName){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
 							$dbBV = 1;
@@ -101,13 +96,14 @@ class Brewer {
 				$dbDescription = $db->escape($this->description);
 				$dbShortDescription = $db->escape($this->shortDescription);
 				$dbURL = $db->escape($this->url);
+				$dbDomainName = $db->escape($this->domainName);
 				$dbFacebookURL = $db->escape($this->facebookURL);
 				$dbTwitterURL = $db->escape($this->twitterURL);
 				$dbInstagramURL = $db->escape($this->instagramURL);
 				$dbLastModified = $db->escape(time());
 
 				// Query
-				$db->query("INSERT INTO brewer (id, name, description, shortDescription, url, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')");
+				$db->query("INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')");
 				if(!$db->error){
 					// Successfully Added Brewer
 					$this->responseCode = 201;
@@ -499,7 +495,7 @@ class Brewer {
 			$returnURL = '';
 		}
 
-		// Validate Social URLs
+		// Validate URLs
 		if(!empty($returnURL)){
 			switch($type){
 				case 'facebook_url':
@@ -555,11 +551,53 @@ class Brewer {
 						}
 					}
 					break;
+				case 'url':
+					// Get Domain name from Brewery URL
+					$this->domainName = $this->urlDomainName($this->url);
+					break;
 			}
 		}
 
 		// Return
 		return $returnURL;
+	}
+
+	private function urlDomainName($url){
+		// Get Domain name from URL
+		$urlDomainName = '';
+
+		// trim
+		$url = trim($url);
+
+		if(!empty($url)){
+			$host = parse_url($url, PHP_URL_HOST);
+			preg_match('([a-zA-Z0-9.-]+)', $host, $hostMatches);
+			if(!empty($hostMatches)){
+				// Save Match
+				$urlDomainName = $hostMatches[0];
+
+				// Remove www prefix
+				$stringPrefix = substr($urlDomainName, 0, 4);
+				if($stringPrefix == "www."){
+					$urlDomainName = substr($urlDomainName, 4);
+				}
+			}else{
+				// Error with hostname
+				$this->error = true;
+				$this->errorMsg = 'Sorry, we had a problem parsing the domain name you gave us for the brewer. We have logged the issue for our support team.';
+				$this->responseCode = 500;
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 155;
+				$errorLog->errorMsg = 'Brewer Domain Parsing Error';
+				$errorLog->badData = "URL: $url / Host: $host";
+				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->write();
+			}
+		}
+
+		return $urlDomainName;
 	}
 
 	private function curlRequest($url, $type){
@@ -634,7 +672,7 @@ class Brewer {
 			// Prep for Database
 			$db = new Database();
 			$dbBrewerID = $db->escape($brewerID);
-			$db->query("SELECT name, description, shortDescription, url, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified FROM brewer WHERE id='$dbBrewerID'");
+			$db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified FROM brewer WHERE id='$dbBrewerID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid
@@ -650,6 +688,7 @@ class Brewer {
 						$this->description = stripcslashes($array['description']);
 						$this->shortDescription = stripcslashes($array['shortDescription']);
 						$this->url = $array['url'];
+						$this->domainName = $array['domainName'];
 						$this->facebookURL = $array['facebookURL'];
 						$this->twitterURL = $array['twitterURL'];
 						$this->instagramURL = $array['instagramURL'];
