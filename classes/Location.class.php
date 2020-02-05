@@ -662,6 +662,40 @@ class Location {
 		return $count;
 	}
 
+	public function deleteLocation($locationID, $userID){
+		if($this->validate($locationID, false)){
+			$users = new Users();
+			$users->validate($userID, true);
+			if($users->admin){
+				// Delete the Location and US Address
+				$usAddresses = new USAddresses();
+				$usAddresses->delete($locationID);
+				if(!$usAddresses->error){
+					// Delete Location
+					$db = new Database();
+					$dbLocationID = $db->escape($locationID);
+					$db->query("DELETE FROM location WHERE id='$dbLocationID'");
+					if($db->error){
+						// Database Error
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
+				}else{
+					// Error Deleting Address
+					$this->error = true;
+					$this->errorMsg = $usAddresses->errorMsg;
+					$this->responseCode = $usAddresses->responseCode;
+				}
+			}else{
+				// Not an Admin - Not Allowed to Delete
+				$this->error = true;
+				$this->errorMsg = 'Sorry, you do not have permission to delete a location.';
+				$this->responseCode = 403;
+			}
+		}
+	}
+
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		GET https://api.catalog.beer/location/{location_id}
@@ -849,12 +883,28 @@ class Location {
 					$errorLog->write();
 				}
 				break;
+			case 'DELETE':
+				// DELETE https://api.catalog.beer/location/{{location_id}}
+				// Get userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				// Delete Location
+				$this->deleteLocation($id, $apiKeys->userID);
+				if(!$this->error){
+					// Successful Delete
+					$this->responseCode = 200;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+				}
+				break;
 			default:
 				// Unsupported Method - Method Not Allowed
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: GET, POST';
+				$this->responseHeader = 'Allow: GET, POST, DELETE';
 
 				// Log Error
 				$errorLog = new LogError();
