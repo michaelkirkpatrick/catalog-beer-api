@@ -6,24 +6,24 @@ $sendEmail->email = '';
 --- */
 
 class SendEmail {
-	
+
 	// Variables
 	public $email;
 	private $postmarkServerToken = '';
-	private $testing = true;
-	
+	private $testing = false;
+
 	// Validation
 	public $error = false;
 	public $errorMsg = '';
 	public $responseCode = 200;
-		
+
 	public function validateEmail($email){
 		// Initial State
 		$validEmail = false;
-		
+
 		// Trim Email
 		$email = trim($email);
-		
+
 		if(!empty($email)){
 			// Not Blank
 			if(filter_var($email, FILTER_VALIDATE_EMAIL)){
@@ -38,7 +38,7 @@ class SendEmail {
 					$this->error = true;
 					$this->errorMsg = 'We apologize, your email address is a little too long for us to process. Please input an email that is less than 255 bytes in length.';
 					$this->responseCode = 400;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 28;
@@ -75,15 +75,15 @@ class SendEmail {
 			$errorLog->filename = 'API / SendEmail.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return Status
 		return $validEmail;
 	}
-	
+
 	public function verifyEmail($email){
 		// Validate Email
 		if($this->validateEmail($email)){
-		
+
 			// Generate Auth UUID
 			$uuid = new uuid();
 			$authCode = $uuid->createCode();
