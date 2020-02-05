@@ -475,23 +475,6 @@ class USAddresses {
 					$errorLog->badData = '';
 					$errorLog->filename = 'API / USAddresses.class.php';
 					$errorLog->write();
-				}else{
-					// Not Found
-					if(!$this->addNewAddress){
-						// Not adding a new address to a location, log the error
-						// No US Address for this locationID
-						$this->error = true;
-						$this->errorMsg = "Sorry, we couldn't find an address for the location_id you provided.";
-						$this->responseCode = 404;
-
-						// Log Error
-						$errorLog = new LogError();
-						$errorLog->errorNumber = 140;
-						$errorLog->errorMsg = 'US Address Not Found';
-						$errorLog->badData = $locationID;
-						$errorLog->filename = 'API / USAddresses.class.php';
-						$errorLog->write();
-					}
 				}
 			}else{
 				// Query Error
@@ -517,6 +500,22 @@ class USAddresses {
 
 		// Return
 		return $valid;
+	}
+
+	public function delete($locationID){
+		if($this->validate($locationID, false)){
+			// Valid Location, Delete It
+			$db = new Database();
+			$dbLocationID = $db->escape($locationID);
+			$db->query("DELETE FROM US_addresses WHERE locationID='$dbLocationID'");
+			if($db->error){
+				// Database Error
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+			}
+			$db->close();
+		}
 	}
 }
 ?>
