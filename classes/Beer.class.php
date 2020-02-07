@@ -743,6 +743,30 @@ class Beer {
 		}
 	}
 	
+	public function deleteBeer($beerID, $userID){
+		if($this->validate($beerID, false)){
+			$users = new Users();
+			$users->validate($userID, true);
+			if($users->admin){
+				// Delete Beer
+				$db = new Database();
+				$dbBeerID = $db->escape($beerID);
+				$db->query("DELETE FROM beer WHERE id='$dbBeerID'");
+				if($db->error){
+					// Database Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
+				}
+			}else{
+				// Not an Admin - Not Allowed to Delete
+				$this->error = true;
+				$this->errorMsg = 'Sorry, you do not have permission to delete a beer.';
+				$this->responseCode = 403;
+			}
+		}
+	}
+	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/beer/{function}
@@ -755,6 +779,8 @@ class Beer {
 		GET https://api.catalog.beer/beer/{beer_id}/last-modified
 		
 		POST https://api.catalog.beer/beer
+		
+		DELETE https://api.catalog.beer/beer/{beer_id}
 		---*/
 		switch($method){
 			case 'GET':
@@ -929,12 +955,28 @@ class Beer {
 					$this->json['valid_msg'] = $this->validMsg;
 				}
 				break;
+			case 'DELETE':
+				// DELETE https://api.catalog.beer/beer/{{location_id}}
+				// Get userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				// Delete Location
+				$this->deleteBeer($id, $apiKeys->userID);
+				if(!$this->error){
+					// Successful Delete
+					$this->responseCode = 200;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+				}
+				break;
 			default:
 				// Unsupported Method - Method Not Allowed
 				$this->responseCode = 405;
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
-				$this->responseHeader = 'Allow: GET, POST';
+				$this->responseHeader = 'Allow: GET, POST, DELETE';
 
 				// Log Error
 				$errorLog = new LogError();
