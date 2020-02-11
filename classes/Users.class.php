@@ -494,11 +494,12 @@ class Users {
 		if(!empty($emailAuth)){
 			$db = new Database();
 			$dbEmailAuth = $db->escape($emailAuth);
-			$db->query("SELECT id FROM users WHERE emailAuth='$dbEmailAuth'");
+			$db->query("SELECT id, email FROM users WHERE emailAuth='$dbEmailAuth'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid Email Auth, Update Database
-					$userID = $db->singleResult('id');
+					$resultArray = $db->resultArray();
+					$userID = $resultArray['id'];
 					$dbUserID = $db->escape($userID);
 					$db->query("UPDATE users SET emailVerified='1', emailAuth='', emailAuthSent='0' WHERE id='$dbUserID'");
 					if(!$db->error){
@@ -508,6 +509,10 @@ class Users {
 						// Create API Key
 						$apiKeys = new apiKeys();
 						$apiKeys->add($userID);
+						
+						// Give user Brewer Privledges?
+						$emailDomainName = $this->emailDomainName($this->email);
+						// To be continued...
 					}else{
 						// Query Error
 						$this->error = true;
@@ -563,6 +568,11 @@ class Users {
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
+	}
+	
+	public function emailDomainName($email){
+		preg_match('/(?<=@)[^.]+(?=\.).*/m', $email, $matches);
+		return $matches[0];
 	}
 	
 	public function getAdminEmails(){
