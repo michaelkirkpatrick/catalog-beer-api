@@ -681,6 +681,7 @@ class Location {
 						$this->errorMsg = $db->errorMsg;
 						$this->responseCode = $db->responseCode;
 					}
+					$db->close();
 				}else{
 					// Error Deleting Address
 					$this->error = true;
@@ -694,6 +695,65 @@ class Location {
 				$this->responseCode = 403;
 			}
 		}
+	}
+	
+	public function deleteBrewerLocations($brewerID){
+		/*---
+		Assume the following for this function
+		1) Brewer has been validated
+		2) User has been validated and has permission to perform this action
+		This function does not perform this validation so as to not do it every time.
+		---*/
+		
+		// Prep for Database
+		$db = new Database();
+		$db2 = new Database();
+		$dbBrewerID = $db->escape($brewerID);
+		
+		// Get US Addresses Class
+		$usAddresses = new USAddresses();
+		
+		// Get locationID's for this brewerID
+		$db->query("SELECT id FROM location WHERE brewerID='$dbBrewerID'");
+		if(!$db->error){
+			if($db->result->num_rows > 0){
+				// Loop through locations
+				while($array = $db->resultArray()){
+					// Get LocationID
+					$locationID = $array['id'];
+					
+					// Delete US Addresses
+					$usAddresses->delete($locationID);
+					if(!$usAddresses->error){
+						// Delete Location
+						$dbLocationID = $db->escape($locationID);
+						$db2->query("DELETE FROM location WHERE id='$dbLocationID'");
+						if($db2->error){
+							// Database Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+							break;
+						}
+					}else{
+						// Error Deleting Address
+						$this->error = true;
+						$this->errorMsg = $usAddresses->errorMsg;
+						$this->responseCode = $usAddresses->responseCode;
+						break;
+					}
+				}
+			}
+		}else{
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		
+		// Close Database Connections
+		$db->close();
+		$db2->close();
 	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
