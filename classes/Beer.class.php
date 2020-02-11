@@ -758,6 +758,7 @@ class Beer {
 					$this->errorMsg = $db->errorMsg;
 					$this->responseCode = $db->responseCode;
 				}
+				$db->close();
 			}else{
 				// Not an Admin - Not Allowed to Delete
 				$this->error = true;
@@ -765,6 +766,29 @@ class Beer {
 				$this->responseCode = 403;
 			}
 		}
+	}
+	
+	public function deleteBrewerBeers($brewerID){
+		/*---
+		Assume the following for this function
+		1) Brewer has been validated
+		2) User has been validated and has permission to perform this action
+		This function does not perform this validation so as to not do it every time.
+		---*/
+		
+		// Prep for Database
+		$db = new Database();
+		$dbBrewerID = $db->escape($brewerID);
+		
+		// Delete Beers
+		$db->query("DELETE FROM beer WHERE brewerID='$dbBrewerID'");
+		if($db->error){
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		$db->close();
 	}
 	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
