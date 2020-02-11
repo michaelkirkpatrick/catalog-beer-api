@@ -1307,7 +1307,7 @@ class Brewer {
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: GET, POST, PUT';
+				$this->responseHeader = 'Allow: GET, POST, PUT, DELETE';
 
 				// Log Error
 				$errorLog = new LogError();
