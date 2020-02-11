@@ -553,7 +553,7 @@ class Brewer {
 					break;
 				case 'url':
 					// Get Domain name from Brewery URL
-					$this->domainName = $this->urlDomainName($this->url);
+					$this->domainName = $this->urlDomainName($returnURL);
 					break;
 			}
 		}
@@ -980,6 +980,60 @@ class Brewer {
 		// Return
 		return $lastModified;
 	}
+	
+	public function delete($brewerID, $userID){
+		if($this->validate($brewerID, false)){
+			$users = new Users();
+			$users->validate($userID, true);
+			if($users->admin){
+				// Delete Locations + Addresses
+				$location = new Location();
+				$location->deleteBrewerLocations($brewerID);
+				if($location->error){
+					$this->error = true;
+					$this->errorMsg = $location->errorMsg;
+					$this->responseCode = $location->responseCode;
+				}
+				
+				// Delete Beer
+				$beer = new Beer();
+				$beer->deleteBrewerBeers($brewerID);
+				if($beer->error){
+					$this->error = true;
+					$this->errorMsg = $beer->errorMsg;
+					$this->responseCode = $beer->responseCode;
+				}
+				
+				// Delete Permissions
+				$privledges = new Privledges();
+				$privledges->deleteBrewer($brewerID);
+				if($privledges->error){
+					$this->error = true;
+					$this->errorMsg = $privledges->errorMsg;
+					$this->responseCode = $privledges->responseCode;
+				}
+				
+				if(!$this->error){
+					// Delete Brewer
+					$db = new Database();
+					$dbBrewerID = $db->escape($brewerID);
+					$db->query("DELETE FROM brewer WHERE id='$dbBrewerID'");
+					if($db->error){
+						// Database Error
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
+					$db->close();
+				}
+			}else{
+				// Not an Admin - Not Allowed to Delete
+				$this->error = true;
+				$this->errorMsg = 'Sorry, you do not have permission to delete a beer.';
+				$this->responseCode = 403;
+			}
+		}
+	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
@@ -997,6 +1051,8 @@ class Brewer {
 		POST https://api.catalog.beer/brewer
 
 		PUT https://api.catalog.beer/brewer/{brewer_id}
+		
+		DELETE https://api.catalog.beer/brewer/{brewer_id}
 		---*/
 		switch($method){
 			case 'GET':
@@ -1228,6 +1284,22 @@ class Brewer {
 					$this->json['error_msg'] = $this->errorMsg;
 					$this->json['valid_state'] = $this->validState;
 					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			case 'DELETE':
+				// DELETE https://api.catalog.beer/brewer/{{brewer_id}}
+				// Get userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				// Delete Location
+				$this->delete($id, $apiKeys->userID);
+				if(!$this->error){
+					// Successful Delete
+					$this->responseCode = 200;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
 				}
 				break;
 			default:
