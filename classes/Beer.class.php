@@ -65,9 +65,9 @@ class Beer {
 			// Get User Info
 			$users = new Users();
 			if($users->validate($userID, true)){
-				// Check Privledges
-				$privledges = new Privledges();
-				$breweryIDs = $privledges->brewerList($userID);
+				// Check privileges
+				$privileges = new Privileges();
+				$breweryIDs = $privileges->brewerList($userID);
 				
 				if($this->isCBV){
 					// Brewery is Catalog.beer Verified
@@ -714,13 +714,13 @@ class Beer {
 	}
 	
 	public function proposedAdd($beerID, $brewerID){
-		// Are there any users with Brewery privledges?
-		$privledges = new Privledges();
-		$userIDs = $privledges->userList($brewerID);
-		if(!$privledges->error){
+		// Are there any users with Brewery privileges?
+		$privileges = new Privileges();
+		$userIDs = $privileges->userList($brewerID);
+		if(!$privileges->error){
 			$users = new Users();
 			if(empty($userIDs)){
-				// No users with Brewery Privledges, email Catalog.beer Admin
+				// No users with Brewery privileges, email Catalog.beer Admin
 				$emails = $users->getAdminEmails();
 				if(!$users->error){
 					// POST https://api.catalog.beer/beer/{beer_id}/approve/{authorization_code}
@@ -738,8 +738,8 @@ class Beer {
 			}
 		}else{
 			$this->error = true;
-			$this->errorMsg = $privledges->errorMsg;
-			$this->responseCode = $privledges->responseCode;
+			$this->errorMsg = $privileges->errorMsg;
+			$this->responseCode = $privileges->responseCode;
 		}
 	}
 	

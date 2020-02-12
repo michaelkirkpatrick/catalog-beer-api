@@ -82,9 +82,9 @@ class Brewer {
 							$this->brewerVerified = true;
 							$dbBV = 1;
 
-							// Give user privledges for this brewer
-							$privledges = new Privledges();
-							$privledges->add($userID, $this->brewerID, true);
+							// Give user privileges for this brewer
+							$privileges = new Privileges();
+							$privileges->add($userID, $this->brewerID, true);
 						}
 					}
 				}
@@ -1005,12 +1005,12 @@ class Brewer {
 				}
 				
 				// Delete Permissions
-				$privledges = new Privledges();
-				$privledges->deleteBrewer($brewerID);
-				if($privledges->error){
+				$privileges = new Privileges();
+				$privileges->deleteBrewer($brewerID);
+				if($privileges->error){
 					$this->error = true;
-					$this->errorMsg = $privledges->errorMsg;
-					$this->responseCode = $privledges->responseCode;
+					$this->errorMsg = $privileges->errorMsg;
+					$this->responseCode = $privileges->responseCode;
 				}
 				
 				if(!$this->error){

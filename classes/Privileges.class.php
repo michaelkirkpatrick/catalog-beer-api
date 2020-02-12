@@ -1,5 +1,5 @@
 <?php
-class Privledges {
+class Privileges {
 	
 	public $id = '';
 	public $userID = '';
@@ -38,14 +38,14 @@ class Privledges {
 			}
 			
 			if($validBrewer){
-				// Does user already have privledges for this brewerID?
+				// Does user already have privileges for this brewerID?
 				$brewerIDs = $this->brewerList($userID);
 				
 				if(!in_array($brewerID, $brewerIDs)){
 					// userID not yet associated with this brewerID
 					// Create UUID
 					$uuid = new uuid();
-					$privID = $uuid->generate('privledges');
+					$privID = $uuid->generate('privileges');
 					if(!$uuid->error){
 						// Save to Class
 						$this->id = $privID;
@@ -57,7 +57,7 @@ class Privledges {
 						$dbBrewerID = $db->escape($brewerID);
 
 						// Add to Database
-						$db->query("INSERT INTO privledges (id, userID, brewerID) VALUES ('$dbID', '$dbUserID', '$dbBrewerID')");
+						$db->query("INSERT INTO privileges (id, userID, brewerID) VALUES ('$dbID', '$dbUserID', '$dbBrewerID')");
 						if($db->error){
 							$this->error = true;
 							$this->errorMsg = $db->errorMsg;
@@ -95,7 +95,7 @@ class Privledges {
 		// Return
 		$brewerIDs = array();
 		
-		// Which brewer/breweries does this user have privledges for?
+		// Which brewer/breweries does this user have privileges for?
 		$users = new Users();
 		if($users->validate($userID, false)){
 			// Prep for Database
@@ -103,7 +103,7 @@ class Privledges {
 			$dbUserID = $db->escape($userID);
 			
 			// Query Database
-			$db->query("SELECT brewerID FROM privledges WHERE userID='$dbUserID'");
+			$db->query("SELECT brewerID FROM privileges WHERE userID='$dbUserID'");
 			if(!$db->error){
 				// Loop through Results
 				while($array = $db->resultArray()){
@@ -136,7 +136,7 @@ class Privledges {
 		// Return
 		$userIDs = array();
 		
-		// Which users have privledges for this brewer?
+		// Which users have privileges for this brewer?
 		$brewer = new Brewer();
 		if($brewer->validate($brewerID, false)){
 			// Prep for Database
@@ -144,7 +144,7 @@ class Privledges {
 			$dbBrewerID = $db->escape($brewerID);
 			
 			// Query Database
-			$db->query("SELECT userID FROM privledges WHERE brewerID='$dbBrewerID'");
+			$db->query("SELECT userID FROM privileges WHERE brewerID='$dbBrewerID'");
 			if(!$db->error){
 				// Loop through Results
 				while($array = $db->resultArray()){
@@ -189,8 +189,8 @@ class Privledges {
 		$db = new Database();
 		$dbBrewerID = $db->escape($brewerID);
 		
-		// Delete this brewerID and associated user privledges
-		$db->query("DELETE FROM privledges WHERE brewerID='$dbBrewerID'");
+		// Delete this brewerID and associated user privileges
+		$db->query("DELETE FROM privileges WHERE brewerID='$dbBrewerID'");
 		if($db->error){
 			// Database Error
 			$this->error = true;
@@ -212,8 +212,8 @@ class Privledges {
 		$db = new Database();
 		$dbUserID = $db->escape($userID);
 		
-		// Delete all brewery privledges for this user
-		$db->query("DELETE FROM privledges WHERE userID='$dbUserID'");
+		// Delete all brewery privileges for this user
+		$db->query("DELETE FROM privileges WHERE userID='$dbUserID'");
 		if($db->error){
 			// Database Error
 			$this->error = true;

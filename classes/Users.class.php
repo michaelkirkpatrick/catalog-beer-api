@@ -510,7 +510,7 @@ class Users {
 						$apiKeys = new apiKeys();
 						$apiKeys->add($userID);
 						
-						// Give user Brewer Privledges?
+						// Give user Brewer privileges?
 						$emailDomainName = $this->emailDomainName($this->email);
 						// To be continued...
 					}else{
@@ -599,17 +599,17 @@ class Users {
 	
 	public function delete($userID){
 		/*--
-		This function will delete a user from the 'users', 'api_keys', and 'privledges' tables.
+		This function will delete a user from the 'users', 'api_keys', and 'privileges' tables.
 		Broken links to their userID or API Key will remain in 'error_log', 'api_logging', and 'api_usage'.
 		--*/
 		
-		// Delete Brewery Privledges
-		$privledges = new Privledges();
-		$privledges->deleteUser($userID);
-		if($privledges->error){
+		// Delete Brewery Privileges
+		$privileges = new Privileges();
+		$privileges->deleteUser($userID);
+		if($privileges->error){
 			$this->error = true;
-			$this->errorMsg = $privledges->errorMsg;
-			$this->responseCode = $privledges->responseCode;
+			$this->errorMsg = $privileges->errorMsg;
+			$this->responseCode = $privileges->responseCode;
 		}
 		
 		// Delete API Keys
