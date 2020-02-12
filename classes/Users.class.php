@@ -597,6 +597,48 @@ class Users {
 		return $emails;
 	}
 	
+	public function delete($userID){
+		/*--
+		This function will delete a user from the 'users', 'api_keys', and 'privledges' tables.
+		Broken links to their userID or API Key will remain in 'error_log', 'api_logging', and 'api_usage'.
+		--*/
+		
+		// Delete Brewery Privledges
+		$privledges = new Privledges();
+		$privledges->deleteUser($userID);
+		if($privledges->error){
+			$this->error = true;
+			$this->errorMsg = $privledges->errorMsg;
+			$this->responseCode = $privledges->responseCode;
+		}
+		
+		// Delete API Keys
+		$apiKeys = new apiKeys();
+		$apiKeys->deleteUser($userID);
+		if($apiKeys->error){
+			$this->error = true;
+			$this->errorMsg = $apiKeys->errorMsg;
+			$this->responseCode = $apiKeys->responseCode;
+		}
+		
+		if(!$this->error){
+			// Delete user
+			// Prep for Database
+			$db = new Database();
+			$dbUserID = $db->escape($userID);
+
+			// Delete API Keys for this userID
+			$db->query("DELETE FROM users WHERE id='$dbUserID'");
+			if($db->error){
+				// Database Error
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+			}
+			$db->close();
+		}
+	}
+	
 	public function usersAPI($method, $function, $id, $apiKey, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/users/{function}/{email_auth}
@@ -607,6 +649,8 @@ class Users {
 		
 		POST https://api.catalog.beer/users/verify-email/{email_auth}
 		POST https://api.catalog.beer/users
+		
+		DELETE https://api.catalog.beer/users/{id}
 		---*/
 		
 		// Validate API Key
@@ -744,12 +788,27 @@ class Users {
 						}
 					}
 					break;
+				case 'DELETE':
+					// DELETE https://api.catalog.beer/users/{id}
+					if($this->validate($id, true)){
+						// Delete a User
+						$this->delete($id);
+						if($this->error){
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $this->errorMsg;
+						}
+					}else{
+						// Invalid User
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+					break;
 				default:
 					// Invalid Method
 					$this->responseCode = 405;
 					$this->json['error'] = true;
 					$this->json['error_msg'] = 'Invalid HTTP method for this endpoint.';
-					$this->responseHeader = 'Allow: GET, POST';
+					$this->responseHeader = 'Allow: GET, POST, DELETE';
 
 					// Log Error
 					$errorLog = new LogError();
