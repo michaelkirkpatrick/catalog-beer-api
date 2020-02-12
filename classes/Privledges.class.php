@@ -180,8 +180,8 @@ class Privledges {
 	public function deleteBrewer($brewerID){
 		/*---
 		Assume the following for this function
-		1) Brewer has been validated
-		2) User has been validated and has permission to perform this action
+		1) brewerID has been validated
+		2) User calling this function has been validated and has permission to perform this action.
 		This function does not perform this validation so as to not do it every time.
 		---*/
 		
@@ -189,8 +189,31 @@ class Privledges {
 		$db = new Database();
 		$dbBrewerID = $db->escape($brewerID);
 		
-		// Delete Beers
+		// Delete this brewerID and associated user privledges
 		$db->query("DELETE FROM privledges WHERE brewerID='$dbBrewerID'");
+		if($db->error){
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		$db->close();
+	}
+	
+	public function deleteUser($userID){
+		/*---
+		Assume the following for this function
+		1) userID has been validated
+		2) User calling this function has been validated and has permission to perform this action.
+		This function does not perform this validation so as to not do it every time.
+		---*/
+		
+		// Prep for Database
+		$db = new Database();
+		$dbUserID = $db->escape($userID);
+		
+		// Delete all brewery privledges for this user
+		$db->query("DELETE FROM privledges WHERE userID='$dbUserID'");
 		if($db->error){
 			// Database Error
 			$this->error = true;
