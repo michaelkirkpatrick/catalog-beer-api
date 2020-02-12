@@ -184,7 +184,7 @@ class apiKeys {
 				$this->responseCode = $users->responseCode;
 			}
 		}else{
-			// Missing API Key
+			// Missing userID
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
@@ -200,6 +200,29 @@ class apiKeys {
 		
 		// Return
 		return $apiKey;
+	}
+	
+	public function deleteUser($userID){
+		/*--
+		Assume the following for this function
+		1) userID has been validated
+		2) User calling this function has been validated and has permission to perform this action.
+		This function does not perform this validation so as to not do it every time.
+		--*/
+		
+		// Prep for Database
+		$db = new Database();
+		$dbUserID = $db->escape($userID);
+		
+		// Delete API Keys for this userID
+		$db->query("DELETE FROM api_keys WHERE userID='$dbUserID'");
+		if($db->error){
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		$db->close();
 	}
 }
 ?>
