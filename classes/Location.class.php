@@ -953,8 +953,9 @@ class Location {
 				$this->deleteLocation($id, $apiKeys->userID);
 				if(!$this->error){
 					// Successful Delete
-					$this->responseCode = 200;
+					$this->responseCode = 204;
 				}else{
+					// Error
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
 				}

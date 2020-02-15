@@ -793,7 +793,11 @@ class Users {
 					if($this->validate($id, true)){
 						// Delete a User
 						$this->delete($id);
-						if($this->error){
+						if(!$this->error){
+							// Successful
+							$this->responseCode = 204;
+						}else{
+							// Error
 							$this->json['error'] = true;
 							$this->json['error_msg'] = $this->errorMsg;
 						}

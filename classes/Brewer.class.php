@@ -1229,7 +1229,7 @@ class Brewer {
 					$name = '';
 				}
 				if(isset($data->description)){
-					$description = $data->description;
+					$description = $data->description;	
 				}else{
 					$description = '';
 				}
@@ -1296,8 +1296,9 @@ class Brewer {
 				$this->delete($id, $apiKeys->userID);
 				if(!$this->error){
 					// Successful Delete
-					$this->responseCode = 200;
+					$this->responseCode = 204;
 				}else{
+					// Error
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
 				}
