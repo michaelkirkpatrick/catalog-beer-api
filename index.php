@@ -9,7 +9,8 @@ $json = array();
 $responseCode = 200;
 $responseHeader = '';
 
-// Method & Data
+// ----- Method & Data -----
+
 // get the HTTP method and body of the request
 $method = $_SERVER['REQUEST_METHOD'];
 $input = file_get_contents('php://input');
@@ -113,6 +114,64 @@ if(isset($_GET['metric'])){
 	$data->metric = $_GET['metric'];
 }
 
+// --- Check Headers ----
+
+// Get all the headers that were sent
+$headers = array();
+foreach (getallheaders() as $name => $value) {
+	$headers[$name] = $value;
+}
+
+// Content-Type
+$contentTypeMethods = array('POST', 'PUT', 'PATCH');
+if(in_array($method, $contentTypeMethods)){
+	// Check the Content-Type Header - Method may include 'Content-Type' header.
+	if(array_key_exists('Content-Type', $headers)){
+		// User is telling us they are sending a specific Content-Type
+		if($headers['Content-Type'] != 'application/json'){
+			// They are trying to send us data in a form that we can't accept
+			$error = true;
+			$responseCode = 415;
+			$json['error'] = true;
+			$json['error_msg'] = 'Our API only accepts JSON data at this time. Based on your \'Content-Type\' header, it doesn\'t appear that you are sending us \'application/json\' data.';
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 157;
+			$errorLog->errorMsg = 'Invalid Content-Type Header';
+			$errorLog->badData = $headers['Content-Type'];
+			$errorLog->filename = 'API / index.php';
+			$errorLog->write();
+		}
+	}
+}
+
+// Accept
+$contentTypeMethods = array('GET', 'POST', 'PUT', 'PATCH');
+if(in_array($method, $contentTypeMethods)){
+	// Check the Accept Header - Method may include 'Accept' header.
+	if(array_key_exists('Accept', $headers)){
+		// User is telling us they would like us to return a specific Content-Type
+		$acceptableAcceptHeader = array('application/json', '*/*');
+		if(!in_array($headers['Accept'], $acceptableAcceptHeader)){
+			// They are asking us to send us data in a format different from what we send (JSON)
+			$error = true;
+			$responseCode = 406;
+			$json['error'] = true;
+			$json['error_msg'] = 'At this time our API only sends data in a JSON format. Based on your \'Accept\' header, it appears that you would like us to send you data in a format other than \'application/json\'.';
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 158;
+			$errorLog->errorMsg = 'Invalid Accept header';
+			$errorLog->badData = $headers['Accept'];
+			$errorLog->filename = 'API / index.php';
+			$errorLog->write();
+		}
+	}
+}
+
+// ----- HTTPS & Authorization  -----
 
 if($_SERVER['HTTPS'] == 'on'){
 	// Check Authorization Header
