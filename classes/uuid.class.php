@@ -21,7 +21,7 @@ class uuid {
 	
 	public $error = false;
 	public $errorMsg = '';
-	public $reponseCode = 200;
+	public $responseCode = 200;
 	
 	
 	// ----- Generate Unique UUID -----
@@ -191,31 +191,48 @@ class uuid {
 	}
 	
 	// ----- Validate string is UUID v4 Compliant -----
-	public function validateUUID($uuid){	
+	public function validate($uuid){	
 		// Default
-	$valid = false;
-	
-	// Validate UUID
-	if(preg_match('/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/', $uuid)){
-		// Check Version Number
-		$time_hi_and_version_hex = substr($uuid, 14, 4);
-		$time_hi_and_version_binary = sprintf("%016d", base_convert($time_hi_and_version_hex, 16, 2));
-		
-		// Check Reserved Sequence
-		$clock_seq_hi_and_reserved_hex = substr($uuid, 19, 2);
-		$clock_seq_hi_and_reserved_binary = sprintf("%08d", base_convert($clock_seq_hi_and_reserved_hex, 16, 2));
-		
-		// Validate that the two most significant bits (bits 6 and 7) of clock_seq_hi_and_reserved are zero and one, respectively.
-		if(substr($clock_seq_hi_and_reserved_binary, 0, 2) === '10'){
-			// Validate that the four most significant bits (bits 12 through 15) of the time_hi_and_version field are 0010, respectively
-			if(substr($time_hi_and_version_binary, 0, 4) === '0100'){
-				// Valid RFC 4122 v4 UUID
-				$valid = true;
+		$valid = false;
+		$this->error = true;
+		$this->errorMsg = 'Invalid UUID. All UUIDs must be compliant with RFC 4122 and the version 4 UUID.';
+		$this->responseCode = 400;
+
+		// Validate UUID
+		if(preg_match('/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/', $uuid)){
+			// Check Version Number
+			$time_hi_and_version_hex = substr($uuid, 14, 4);
+			$time_hi_and_version_binary = sprintf("%016d", base_convert($time_hi_and_version_hex, 16, 2));
+
+			// Check Reserved Sequence
+			$clock_seq_hi_and_reserved_hex = substr($uuid, 19, 2);
+			$clock_seq_hi_and_reserved_binary = sprintf("%08d", base_convert($clock_seq_hi_and_reserved_hex, 16, 2));
+
+			// Validate that the two most significant bits (bits 6 and 7) of clock_seq_hi_and_reserved are zero and one, respectively.
+			if(substr($clock_seq_hi_and_reserved_binary, 0, 2) === '10'){
+				// Validate that the four most significant bits (bits 12 through 15) of the time_hi_and_version field are 0010, respectively
+				if(substr($time_hi_and_version_binary, 0, 4) === '0100'){
+					// Valid RFC 4122 v4 UUID
+					$valid = true;
+					$this->error = false;
+					$this->errorMsg = '';
+					$this->responseCode = 200;
+				}
 			}
 		}
-	}
-	   
-	// Return
-	return $valid;
+		
+		if(!$valid){
+			// Invalid UUID Submission
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 159;
+			$errorLog->errorMsg = 'Invalid UUID';
+			$errorLog->badData = $uuid;
+			$errorLog->filename = 'API / uuid.class.php';
+			$errorLog->write();
+		}
+
+		// Return
+		return $valid;
 	}
 }
+?>
