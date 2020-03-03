@@ -39,6 +39,14 @@ class Usage {
 						$this->responseCode = 401;
 						$this->error = true;
 						$this->errorMsg = 'Unauthorized: API Key mismatch. In order to retreive API usage for your account, you must make the API request using your API Key.';
+						
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 164;
+						$errorLog->errorMsg = 'API Usage Request: API Key Mismatch';
+						$errorLog->badData = "Usage requested for: $apiKey / by: $apiKeyInUse";
+						$errorLog->filename = 'Usage.class.php';
+						$errorLog->write();
 					}
 				}
 
