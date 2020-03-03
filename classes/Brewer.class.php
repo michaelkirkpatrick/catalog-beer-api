@@ -27,85 +27,318 @@ class Brewer {
 	public $json = array();
 
 	// Add Brewer
-	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID){
-		// Validate Name
-		$this->name = $name;
-		$this->validateName();
-
-		// Validate URLs
-		$this->url = $this->validateURL($url, 'url');
-		$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
-		$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
-		$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
-
-		// Validate Description
-		$this->description = trim($description);
-		$this->validateDescription();
-
-		// Validate Short Description
-		$this->shortDescription = $shortDescription;
-		$this->validateShortDescription();
-
-		// Generate UUID
+	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $method, $brewerID, $patchFields){
+		
+		// ----- BrewerID -----
 		$uuid = new uuid();
-		$this->brewerID = $uuid->generate('brewer');
-		if($uuid->error){
-			// UUID Generation Error
-			$this->error = true;
-			$this->errorMsg = $uuid->errorMsg;
-			$this->responseCode = $uuid->responseCode;
+		$newBrewer = false;
+		switch($method){
+			case 'POST':
+				// Generate a new brewer_id
+				$newBrewer = true;
+				$this->brewerID = $uuid->generate('brewer');
+				if($uuid->error){
+					// UUID Generation Error
+					$this->error = true;
+					$this->errorMsg = $uuid->errorMsg;
+					$this->responseCode = $uuid->responseCode;
+				}
+				break;
+			case 'PUT':
+				if($this->validate($brewerID, false)){
+					// Valid Brewer - Update Existing Entry
+					$this->brewerID = $brewerID;
+				}else{
+					// Brewer doesn't exist, they'd like to add it
+					// Reset Errors from $this->validate()
+					$this->error = false;
+					$this->errorMsg = '';
+					$this->responseCode = 200;
+					
+					// Validate UUID
+					if($uuid->validate($brewerID)){
+						// Save submitted UUID as brewerID
+						$newBrewer = true;
+						$this->brewerID = $brewerID;
+					}else{
+						// Invalid UUID Submission
+						$this->error = true;
+						$this->errorMsg = $uuid->errorMsg;
+						$this->responseCode = $uuid->responseCode;
+					}
+				}
+				break;
+			case 'PATCH':
+				if($this->validate($brewerID, true)){
+					// Valid Brewer - Update Existing Entry
+					$this->brewerID = $brewerID;
+				}
+				break;
+			default:
+				// Invalid Method
+				$this->error = true;
+				$this->errorMsg = 'Invalid Method.';
+				$this->responseCode = 405;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 160;
+				$errorLog->errorMsg = 'Invalid Method';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->write();
 		}
+		
+		// ----- Permissions & Validation Badge -----
+		$db = new Database();
+		$users = new Users();
+		$privileges = new Privileges();
+		
+		if($users->validate($userID, true)){
+			// Get User's Email Domain Name
+			$userEmailDomain = $users->emailDomainName($users->email);
+			
+			// Get User Privileges
+			$userBrewerPrivileges = $privileges->brewerList($userID);
+			
+			// ----- Permissions Check -----
+			if($method == 'PUT' || $method == 'PATCH'){
+				if(!$newBrewer){
+					// Attempting to PUT or PATCH existing Brewery
+					// Get cb_verified and brewer_verified flags
+					$dbBrewerID = $db->escape($this->brewerID);
+					$db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id='$dbBrewerID'");
+					$cbVerified = $db->singleResult('cbVerified');
+					$brewerVerified = $db->singleResult('brewerVerified');
 
-		if(!$this->error){
-			// Default Values
+					if($cbVerified){
+						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							// Allow PUT/PATCH. User is brewery staff.
+						}else{
+							if(!$users->admin){
+								// Deny
+								$this->error = true;
+								$this->errorMsg = 'Sorry, because this brewer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+								$this->responseCode = 403;
+								
+								// Log Error
+								$errorLog = new LogError();
+								$errorLog->errorNumber = 161;
+								$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, cb_verified';
+								$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
+								$errorLog->filename = 'API / Brewer.class.php';
+								$errorLog->write();
+							}
+						}
+					}else{
+						if($brewerVerified){
+							if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+								// Allow PUT/PATCH. User is brewery staff.
+							}else{
+								if(!$users->admin){
+									// Deny
+									$this->error = true;
+									$this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+									$this->responseCode = 403;
+
+									// Log Error
+									$errorLog = new LogError();
+									$errorLog->errorNumber = 161;
+									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
+									$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
+									$errorLog->filename = 'API / Brewer.class.php';
+									$errorLog->write();
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			// ----- Verification Badges -----
 			$this->cbVerified = false;
 			$dbCBV = 0;
 			$this->brewerVerified = false;
 			$dbBV = 0;
 
-
 			// Get User Info
-			$users = new Users();
-			if($users->validate($userID, true)){
-				if($users->admin){
-					// Catalog.beer Verified
-					$this->cbVerified = true;
-					$dbCBV = 1;
-				}else{
-					// Not Catalog.beer Verified
-					if(!empty($this->url)){
-						// Get Domain name from Email address
-						$emailDomainName = $users->emailDomainName($users->email);
-
-						if($emailDomainName == $this->domainName){
-							// User has email associated with the brewery, give breweryValidated flag.
-							$this->brewerVerified = true;
-							$dbBV = 1;
-
+			if($users->admin){
+				// Catalog.beer Verified
+				$this->cbVerified = true;
+				$dbCBV = 1;
+			}else{
+				// Not Catalog.beer Verified
+				if(!empty($this->url)){
+					if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+						// User has email associated with the brewery, give breweryValidated flag.
+						$this->brewerVerified = true;
+						$dbBV = 1;
+						
+						if(!in_array($this->brewerID, $userBrewerPrivileges)){
 							// Give user privileges for this brewer
-							$privileges = new Privileges();
 							$privileges->add($userID, $this->brewerID, true);
 						}
 					}
 				}
+			}
+		}else{
+			// User Validation Error
+			$this->error = true;
+			$this->errorMsg = $users->errorMsg;
+			$this->responseCode = $users->responseCode;
+		}
+		
+		// ----- Validate Fields -----
+		// Don't waste processing resources if there's been an error in the steps above.
+		if(!$this->error){
+			if($method == 'POST' || $method == 'PUT'){
+				// Validate Name
+				$this->name = $name;
+				$this->validateName();
 
-				// Prep for Database
-				$db = new Database();
-				$dbBrewerID = $db->escape($this->brewerID);
-				$dbName = $db->escape($this->name);
-				$dbDescription = $db->escape($this->description);
-				$dbShortDescription = $db->escape($this->shortDescription);
-				$dbURL = $db->escape($this->url);
-				$dbDomainName = $db->escape($this->domainName);
-				$dbFacebookURL = $db->escape($this->facebookURL);
-				$dbTwitterURL = $db->escape($this->twitterURL);
-				$dbInstagramURL = $db->escape($this->instagramURL);
-				$dbLastModified = $db->escape(time());
+				// Validate URLs
+				$this->url = $this->validateURL($url, 'url');
+				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
+				$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
+				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
 
-				// Query
-				$db->query("INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')");
-				if(!$db->error){
-					// Successfully Added Brewer
+				// Validate Description
+				$this->description = $description;
+				$this->validateDescription();
+
+				// Validate Short Description
+				$this->shortDescription = $shortDescription;
+				$this->validateShortDescription();
+
+				if(!$this->error){
+					// Prep for Database
+					$dbBrewerID = $db->escape($this->brewerID);
+					$dbName = $db->escape($this->name);
+					$dbDescription = $db->escape($this->description);
+					$dbShortDescription = $db->escape($this->shortDescription);
+					$dbURL = $db->escape($this->url);
+					$dbDomainName = $db->escape($this->domainName);
+					$dbFacebookURL = $db->escape($this->facebookURL);
+					$dbTwitterURL = $db->escape($this->twitterURL);
+					$dbInstagramURL = $db->escape($this->instagramURL);
+					$dbLastModified = $db->escape(time());
+
+					// Construct SQL Statement
+					if($newBrewer){
+						$sql = "INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')";
+					}else{
+						$sql = "UPDATE brewer SET name='$dbName', description='$dbDescription', shortDescription='$dbShortDescription', url='$dbURL', domainName='$dbDomainName', cbVerified='$dbCBV', brewerVerified='$dbBV', facebookURL='$dbFacebookURL', twitterURL='$dbTwitterURL', instagramURL='$dbInstagramURL', lastModified='$dbLastModified' WHERE id='$dbBrewerID'";
+					}
+				}
+			}elseif($method == 'PATCH'){
+				/*-- 
+				Validate the field if it's different than what is currently stored.
+				Check against the $this->{var} which we have from performing a $this->validate($brewerID, true) in the brewerID flow above for PATCH.
+				--*/
+				
+				// SQL Update
+				$sqlArray = array();
+				
+				// Validate Name
+				if(in_array('name', $patchFields)){
+					if($name != $this->name){
+						// Validate Name
+						$this->name = $name;
+						$this->validateName();
+						if(!$this->error){
+							$dbName = $db->escape($this->name);
+							$sqlArray[] = "name='$dbName'";
+						}
+					}
+				}
+
+				// Validate URLs
+				if(in_array('url', $patchFields)){
+					if($url != $this->url){
+						$this->url = $this->validateURL($url, 'url');
+						if(!$this->error){
+							$dbURL = $db->escape($this->url);
+							$dbDomainName = $db->escape($this->domainName);
+							$sqlArray[] = "url='$dbURL', domainName='$dbDomainName'";
+						}
+					}
+				}
+				if(in_array('facebook_url', $patchFields)){
+					if($facebookURL != $this->facebookURL){
+						$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
+						if(!$this->error){
+							$dbFacebookURL = $db->escape($this->facebookURL);
+							$sqlArray[] = "facebookURL='$dbFacebookURL'";
+						}
+					}
+				}
+				if(in_array('twitter_url', $patchFields)){
+					if($twitterURL != $this->twitterURL){
+						$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
+						if(!$this->error){
+							$dbTwitterURL = $db->escape($this->twitterURL);
+							$sqlArray[] = "twitterURL='$dbTwitterURL'";
+						}
+					}
+				}
+				if(in_array('instagram_url', $patchFields)){
+					if($instagramURL != $this->instagramURL){
+						$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
+						if(!$this->error){
+							$dbInstagramURL = $db->escape($this->instagramURL);
+							$sqlArray[] = "instagramURL='$dbInstagramURL'";
+						}
+					}
+				}
+
+				// Validate Description
+				if(in_array('description', $patchFields)){
+					if($description != $this->description){
+						$this->description = $description;
+						$this->validateDescription();
+						if(!$this->error){
+							$dbDescription = $db->escape($this->description);
+							$sqlArray[] = "description='$dbDescription'";
+						}
+					}
+				}
+
+				// Validate Short Description
+				if(in_array('short_description', $patchFields)){
+					if($shortDescription != $this->shortDescription){
+						$this->shortDescription = $shortDescription;
+						$this->validateShortDescription();
+						if(!$this->error){
+							$dbShortDescription = $db->escape($this->shortDescription);
+							$sqlArray[] = "shortDescription='$dbShortDescription'";
+						}
+					}
+				}
+				
+				if(!$this->error && !empty($sqlArray)){
+					// Construct SQL Statement
+					$sql = "UPDATE brewer SET ";
+					$totalUpdates = count($sqlArray);
+					$lastUpdate = $totalUpdates - 1;
+					for($i=0;$i<$totalUpdates; $i++){
+						if($i == $lastUpdate){
+							$sql .= $sqlArray[$i];
+						}else{
+							$sql .= $sqlArray[$i] . ", ";
+						}
+					}
+					$sql .= " WHERE id='$dbBrewerID'";
+				}
+			}
+		}
+
+		if(!$this->error && !empty($sql)){
+			// Query
+			$db->query($sql);
+			if(!$db->error){
+				// Successful database operation
+				if($newBrewer){
+					// Created New Brewer
 					$this->responseCode = 201;
 					$responseHeaderString = 'Location: https://';
 					if(ENVIRONMENT == 'staging'){
@@ -113,157 +346,17 @@ class Brewer {
 					}
 					$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
 				}else{
-					// Query Error
-					$this->error = true;
-					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = $db->responseCode;
+					$this->responseCode = 200;
 				}
-
-				// Close Database Connection
-				$db->close();
 			}else{
-				// User Validation Error
+				// Query Error
 				$this->error = true;
-				$this->errorMsg = $users->errorMsg;
-				$this->responseCode = $users->responseCode;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
-		}
-	}
 
-	public function update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $brewerID){
-		// Validate BrewerID
-		if($this->validate($brewerID, false)){
-			// Save BrewerID
-			$this->brewerID = $brewerID;
-		}else{
-			// Invalid Brewer ID
-			$this->error = true;
-			$this->errorMsg = 'Sorry, the brewer_id you provided appears to be invalid. Please double check that you are submitted a valid brewer_id.';
-			$this->responseCode = 400;
-
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 105;
-			$errorLog->errorMsg = 'Invalid brewerID (update brewer)';
-			$errorLog->badData = $brewerID;
-			$errorLog->filename = 'API / Brewer.class.php';
-			$errorLog->write();
-		}
-
-		// SQL String
-		$sqlString = array();
-		$db = new Database();
-
-		// Validate Name
-		if(!empty($name)){
-			$this->name = $name;
-			$this->validateName();
-			if(!$this->error){
-				// Add to SQL String
-				$dbName = $db->escape($this->name);
-				$sqlString[] = "name='$dbName'";
-			}
-		}
-
-		// Validate URL
-		if(!empty($url)){
-			$this->url = $this->validateURL($url, 'url');
-			if(!$this->error){
-				// Add to SQL String
-				$dbURL = $db->escape($this->url);
-				$sqlString[] = "url='$dbURL'";
-			}
-		}
-
-		// Validate Facebook URL
-		if(!empty($facebookURL)){
-			$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
-			if(!$this->error){
-				// Add to SQL String
-				$dbFacebookURL = $db->escape($this->facebookURL);
-				$sqlString[] = "facebookURL='$dbFacebookURL'";
-			}
-		}
-
-		// Validate Twitter URL
-		if(!empty($twitterURL)){
-			$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
-			if(!$this->error){
-				// Add to SQL String
-				$dbTwitterURL = $db->escape($this->twitterURL);
-				$sqlString[] = "twitterURL='$dbTwitterURL'";
-			}
-		}
-
-		// Validate Instagram URL
-		if(!empty($instagramURL)){
-			$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
-			if(!$this->error){
-				// Add to SQL String
-				$dbInstagramURL = $db->escape($this->instagramURL);
-				$sqlString[] = "instagramURL='$dbInstagramURL'";
-			}
-		}
-
-		// Validate Description
-		if(!empty($description)){
-			$this->description = trim($description);
-			$this->validateDescription();
-			if(!$this->error){
-				// Add to SQL String
-				$dbDescription = $db->escape($this->description);
-				$sqlString[] = "description='$dbDescription'";
-			}
-		}
-
-		// Validate Short Description
-		if(!empty($shortDescription)){
-			$this->shortDescription = $shortDescription;
-			$this->validateShortDescription();
-			if(!$this->error){
-				// Add to SQL String
-				$dbShortDescription = $db->escape($this->shortDescription);
-				$sqlString[] = "shortDescription='$dbShortDescription'";
-			}
-		}
-
-		if(!$this->error){
-			// Get User Info
-			$users = new Users();
-			if($users->validate($userID, true)){
-				if($users->admin){
-					// Catalog.beer Verified
-					$this->cbVerified = true;
-					$dbCBV = 1;
-				}else{
-					// Not Catalog.beer Verified
-					$dbCBV = 0;
-				}
-
-				// Prep for Database
-				$dbBrewerID = $db->escape($this->brewerID);
-				$dbLastModified = $db->escape(time());
-
-				// Query
-				$updateText = '';
-				foreach($sqlString as &$sqlSetStmt){
-					$updateText .= $sqlSetStmt . ', ';
-				}
-				$updateText = substr($updateText, 0, -2);
-				$db->query("UPDATE brewer SET $updateText, lastModified='$dbLastModified', cbVerified='$dbCBV' WHERE id='$dbBrewerID'");
-				if($db->error){
-					// Query Error
-					$this->error = true;
-					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = $db->responseCode;
-				}
-				$db->close();
-			}else{
-				// User Validation Error
-				$this->error = true;
-				$this->errorMsg = $users->errorMsg;
-				$this->responseCode = $users->responseCode;
-			}
+			// Close Database Connection
+			$db->close();
 		}
 	}
 
@@ -1031,6 +1124,14 @@ class Brewer {
 				$this->error = true;
 				$this->errorMsg = 'Sorry, you do not have permission to delete a beer.';
 				$this->responseCode = 403;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 163;
+				$errorLog->errorMsg = 'Forbidden: Non-Admin, DELETE, /brewer';
+				$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
+				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->write();
 			}
 		}
 	}
@@ -1051,6 +1152,8 @@ class Brewer {
 		POST https://api.catalog.beer/brewer
 
 		PUT https://api.catalog.beer/brewer/{brewer_id}
+		
+		PATCH https://api.catalog.beer/brewer/{brewer_id}
 		
 		DELETE https://api.catalog.beer/brewer/{brewer_id}
 		---*/
@@ -1200,7 +1303,7 @@ class Brewer {
 				if(empty($data->instagram_url)){$data->instagram_url = '';}
 
 				// Add Brewer
-				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID);
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					$this->json['id'] = $this->brewerID;
 					$this->json['object'] = 'brewer';
@@ -1222,49 +1325,72 @@ class Brewer {
 				break;
 			case 'PUT':
 				// PUT https://api.catalog.beer/brewer/{brewer_id}
-				// Account for Blanks
-				if(isset($data->name)){
-					$name = $data->name;
-				}else{
-					$name = '';
-				}
-				if(isset($data->description)){
-					$description = $data->description;	
-				}else{
-					$description = '';
-				}
-				if(isset($data->short_description)){
-					$shortDescription = $data->short_description;
-				}else{
-					$shortDescription = '';
-				}
-				if(isset($data->url)){
-					$url = $data->url;
-				}else{
-					$url = '';
-				}
-				if(isset($data->facebook_url)){
-					$facebookURL = $data->facebook_url;
-				}else{
-					$facebookURL = '';
-				}
-				if(isset($data->twitter_url)){
-					$twitterURL = $data->twitter_url;
-				}else{
-					$twitterURL = '';
-				}
-				if(isset($data->instagram_url)){
-					$instagramURL = $data->instagram_url;
-				}else{
-					$instagramURL = '';
-				}
-
-				// Required Information
 				$apiKeys = new apiKeys();
-				$apikeys->validate($apiKey, true);
+				$apiKeys->validate($apiKey, true);
+
+				// Handle Empty Fields
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->description)){$data->description = '';}
+				if(empty($data->short_description)){$data->short_description = '';}
+				if(empty($data->url)){$data->url = '';}
+				if(empty($data->facebook_url)){$data->facebook_url = '';}
+				if(empty($data->twitter_url)){$data->twitter_url = '';}
+				if(empty($data->instagram_url)){$data->instagram_url = '';}
 
 				// Update Brewer
-				$this->update($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $apiKeys->userID, $id);
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'PUT', $id, array());
+				if(!$this->error){
+					// Get Updated Brewer Info
+					$this->validate($id, true);
+					$this->json['id'] = $this->brewerID;
+					$this->json['object'] = 'brewer';
+					$this->json['name'] = $this->name;
+					$this->json['description'] = $this->description;
+					$this->json['short_description'] = $this->shortDescription;
+					$this->json['url'] = $this->url;
+					$this->json['cb_verified'] = $this->cbVerified;
+					$this->json['brewer_verified'] = $this->brewerVerified;
+					$this->json['facebook_url'] = $this->facebookURL;
+					$this->json['twitter_url'] = $this->twitterURL;
+					$this->json['instagram_url'] = $this->instagramURL;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			case 'PATCH':
+				// PATCH https://api.catalog.beer/brewer/{brewer_id}
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				// Which fields are we updating?
+				$patchFields = array();
+				
+				if(isset($data->name)){$patchFields[] = 'name';}
+				else{$data->name = '';}
+				
+				if(isset($data->description)){$patchFields[] = 'description';}
+				else{$data->description = '';}
+				
+				if(isset($data->short_description)){$patchFields[] = 'short_description';}
+				else{$data->short_description = '';}
+				
+				if(isset($data->url)){$patchFields[] = 'url';}
+				else{$data->url = '';}
+				
+				if(isset($data->facebook_url)){$patchFields[] = 'facebook_url';}
+				else{$data->facebook_url = '';}
+				
+				if(isset($data->twitter_url)){$patchFields[] = 'twitter_url';}
+				else{$data->twitter_url = '';}
+				
+				if(isset($data->instagram_url)){$patchFields[] = 'instagram_url';}
+				else{$data->instagram_url = '';}
+				
+				// Update Brewer
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
