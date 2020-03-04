@@ -29,6 +29,11 @@ class Brewer {
 	// Add Brewer
 	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $method, $brewerID, $patchFields){
 		
+		// Required Classes
+		$db = new Database();
+		$users = new Users();
+		$privileges = new Privileges();
+		
 		// ----- BrewerID -----
 		$uuid = new uuid();
 		$newBrewer = false;
@@ -37,7 +42,10 @@ class Brewer {
 				// Generate a new brewer_id
 				$newBrewer = true;
 				$this->brewerID = $uuid->generate('brewer');
-				if($uuid->error){
+				if(!$uuid->error){
+					// Get Brewer domain name for brewerVerified by validating URL
+					$this->url = $this->validateURL($url, 'url');
+				}else{
 					// UUID Generation Error
 					$this->error = true;
 					$this->errorMsg = $uuid->errorMsg;
@@ -48,6 +56,19 @@ class Brewer {
 				if($this->validate($brewerID, false)){
 					// Valid Brewer - Update Existing Entry
 					$this->brewerID = $brewerID;
+					
+					// Get Brewer domain name for brewerVerified by querying database
+					$dbBrewerID = $db->escape($brewerID);
+					$db->query("SELECT domainName FROM brewer WHERE id='$dbBrewerID'");
+					if(!$db->error){
+						// Save Domain Name
+						$this->domainName = $db->singleResult('domainName');
+					}else{
+						// Database Error
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
 				}else{
 					// Brewer doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
@@ -60,6 +81,9 @@ class Brewer {
 						// Save submitted UUID as brewerID
 						$newBrewer = true;
 						$this->brewerID = $brewerID;
+						
+						// Get Brewer domain name for brewerVerified by validating URL
+						$this->url = $this->validateURL($url, 'url');
 					}else{
 						// Invalid UUID Submission
 						$this->error = true;
@@ -71,6 +95,7 @@ class Brewer {
 			case 'PATCH':
 				if($this->validate($brewerID, true)){
 					// Valid Brewer - Update Existing Entry
+					// Note $this->domainName saved via $this->validate() function above
 					$this->brewerID = $brewerID;
 				}
 				break;
@@ -90,9 +115,6 @@ class Brewer {
 		}
 		
 		// ----- Permissions & Validation Badge -----
-		$db = new Database();
-		$users = new Users();
-		$privileges = new Privileges();
 		
 		if($users->validate($userID, true)){
 			// Get User's Email Domain Name
@@ -168,7 +190,7 @@ class Brewer {
 				$dbCBV = 1;
 			}else{
 				// Not Catalog.beer Verified
-				if(!empty($this->url)){
+				if(!empty($this->domainName)){
 					if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 						// User has email associated with the brewery, give breweryValidated flag.
 						$this->brewerVerified = true;
