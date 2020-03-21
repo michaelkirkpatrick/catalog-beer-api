@@ -20,7 +20,7 @@ class apiLogging {
 	// Error Handling
 	private $error = false;
 	
-	public function add($apiKey, $method, $uri, $body, $response, $responseCode){
+	public function add($apiKey, $method, $uri, $body, $response, $responseCode){		
 		// Check for missing variables
 		if(!empty($apiKey) && !empty($method) && !empty($uri)){
 			// Generate UUID
@@ -69,11 +69,10 @@ class apiLogging {
 		}else{
 			// Missing required attrribute
 			$this->error = true;
-
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 48;
 			$errorLog->errorMsg = 'Missing required parameter';
-			$errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: $body";
+			$errorLog->badData = "apiKey: $this->apiKey / method: $this->method / uri: $this->uri / body: $this->body";
 			$errorLog->filename = 'API / apiLogging.class.php';
 			$errorLog->write();
 		}
