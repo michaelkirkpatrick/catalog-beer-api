@@ -12,7 +12,6 @@ class Beer {
 	public $cbVerified = false;
 	public $brewerVerified = false;
 	public $lastModified = 0;
-	public $proposed = false;
 	
 	// Error Handling
 	public $error = false;
@@ -30,123 +29,181 @@ class Beer {
 	private $isCBV = false;	// Is the brewery, catalog.beer verified (cbVerified)?
 	
 	
-	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID){
-		// Save to Class
-		$this->brewerID = $brewerID;
-		$this->name = $name;
-		$this->style = $style;
-		$this->description = $description;
-		$this->abv = $abv;
-		$this->ibu = $ibu;
+	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
 		
-		// Validate Fields
-		$this->validateBrewery();
-		$this->validateName();
-		$this->validateStyle();
-		$this->validateDescription();
-		$this->validateABV();
-		$this->validateIBU();
-		
-		// Generate UUID
+		// Required Classes
+		$brewer = new Brewer();
+		$db = new Database();
+		$privileges = new Privileges();
+		$users = new Users();
+				
+		// ----- beerID -----
 		$uuid = new uuid();
-		$var = $uuid->generate('beer');
-		if(!$uuid->error){
-			// Save to Class
-			$this->beerID = $var;
-		}else{
-			// UUID Generation Error
-			$this->error = true;
-			$this->errorMsg = $uuid->errorMsg;
-			$this->responseCode = $uuid->responseCode;
-			
+		$newBeer = false;
+		switch($method){
+			case 'POST':
+				// Generate a new beer_id
+				$newBeer = true;
+				$this->beerID = $uuid->generate('beer');
+				if($uuid->error){
+					// UUID Generation Error
+					$this->error = true;
+					$this->errorMsg = $uuid->errorMsg;
+					$this->responseCode = $uuid->responseCode;
+				}
+				break;
+			case 'PUT':
+				if($this->validate($beerID, false)){
+					// Valid Beer - Update Existing Entry
+					$this->beerID = $beerID;
+				}else{
+					// Beer doesn't exist, they'd like to add it
+					// Reset Errors from $this->validate()
+					$this->error = false;
+					$this->errorMsg = '';
+					$this->responseCode = 200;
+					
+					// Validate UUID
+					if($uuid->validate($beerID)){
+						// Save submitted UUID as beerID
+						$newBeer = true;
+						$this->beerID = $beerID;
+					}else{
+						// Invalid UUID Submission
+						$this->error = true;
+						$this->errorMsg = $uuid->errorMsg;
+						$this->responseCode = $uuid->responseCode;
+					}
+				}
+				break;
+			case 'PATCH':
+				if($this->validate($beerID, true)){
+					// Valid Beer - Update Existing Entry
+					$this->beerID = $beerID;
+					if(!in_array('brewerID', $patchFields)){
+						// Not updating brewer. Retain current brewerID
+						$brewerID = $this->brewerID;
+					}
+				}
+				break;
+			default:
+				// Invalid Method
+				$this->error = true;
+				$this->errorMsg = 'Invalid Method.';
+				$this->responseCode = 405;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 165;
+				$errorLog->errorMsg = 'Invalid Method';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Beer.class.php';
+				$errorLog->write();
 		}
 		
+		// ----- Validate Brewery -----
+		if($brewer->validate($brewerID, true)){
+			// Valid Brewer
+			$this->brewerID = $brewerID;
+			$this->validState['brewer_id'] = 'valid';
+		}else{
+			// Invalid Brewer
+			$this->error = true;
+			$this->validState['brewer_id'] = 'invalid';
+			$this->responseCode = $brewer->responseCode;
+			$this->validMsg['brewer_id'] = $brewer->errorMsg;
+		}
+		
+		// ----- Permissions & Validation Badge -----
+		
 		if(!$this->error){
-			// Get User Info
-			$users = new Users();
 			if($users->validate($userID, true)){
-				// Check privileges
-				$privileges = new Privileges();
-				$breweryIDs = $privileges->brewerList($userID);
-				
-				if($this->isCBV){
-					// Brewery is Catalog.beer Verified
-					if($users->admin){
-						// Beer is Catalog.beer Verified
-						$this->cbVerified = true;
-						$dbCBV = 1;
-						$dbBV = 0;
-					}elseif(in_array($this->brewerID, $breweryIDs)){
-						// Beer is Brewery Verified
-						$this->brewerVerified = true;
-						$dbCBV = 0;
-						$dbBV = 1;
-					}else{
-						// General User
-						$dbCBV = 0;
-						$dbBV = 0;
-						$this->proposed = true;
+				// Get User's Email Domain Name
+				$userEmailDomain = $users->emailDomainName($users->email);
+
+				// Get User Privileges
+				$userBrewerPrivileges = $privileges->brewerList($userID);
+
+				// ----- Permissions Check -----
+				if($method == 'PUT' || $method == 'PATCH'){
+					if(!$newBeer){
+						// Attempting to PUT or PATCH existing Beer
+						// Get cb_verified and brewer_verified flags
+						$dbBeerID = $db->escape($this->beerID);
+						$db->query("SELECT cbVerified, brewerVerified FROM beer WHERE id='$dbBeerID'");
+						$cbVerified = $db->singleResult('cbVerified');
+						$brewerVerified = $db->singleResult('brewerVerified');
+
+						if($cbVerified){
+							if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+								// Allow PUT/PATCH. User is brewery staff.
+							}else{
+								if(!$users->admin){
+									// Deny
+									$this->error = true;
+									$this->errorMsg = 'Sorry, because this beer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+									$this->responseCode = 403;
+
+									// Log Error
+									$errorLog = new LogError();
+									$errorLog->errorNumber = 166;
+									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /beer, cb_verified';
+									$errorLog->badData = "User: $userID / Beer: $this->beerID";
+									$errorLog->filename = 'API / Beer.class.php';
+									$errorLog->write();
+								}
+							}
+						}else{
+							if($brewerVerified){
+								if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+									// Allow PUT/PATCH. User is brewery staff.
+								}else{
+									if(!$users->admin){
+										// Deny
+										$this->error = true;
+										$this->errorMsg = 'Sorry, because this beer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+										$this->responseCode = 403;
+
+										// Log Error
+										$errorLog = new LogError();
+										$errorLog->errorNumber = 167;
+										$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
+										$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
+										$errorLog->filename = 'API / Brewer.class.php';
+										$errorLog->write();
+									}
+								}
+							}
+						}
 					}
-				}elseif($this->isBV){
-					// Brewery is Brewer Verified
-					if($users->admin){
-						// Beer is Catalog.beer Verified
-						$this->cbVerified = true;
-						$dbCBV = 1;
-						$dbBV = 0;
-						// *** Stub for 'Notify Brewer' Workflow ***
-					}elseif(in_array($this->brewerID, $breweryIDs)){
-						// Beer is Brewery Verified
-						$this->brewerVerified = true;
-						$dbCBV = 0;
-						$dbBV = 1;
-					}else{
-						// General User
-						$dbCBV = 0;
-						$dbBV = 0;
-						$this->proposed = true;
-					}
-				}else{
-					// Neither BV or CBV
-					$dbCBV = 0;
-					$dbBV = 0;
 				}
 
-				// Prep for Database
-				$db = new Database();
-				$dbBeerID = $db->escape($this->beerID);
-				$dbBrewerID = $db->escape($this->brewerID);
-				$dbName = $db->escape($this->name);
-				$dbStyle = $db->escape($this->style);
-				$dbDescription = $db->escape($this->description);
-				$dbABV = $db->escape($this->abv);
-				$dbIBU = $db->escape($this->ibu);
-				$dbLastModified = $db->escape(time());
-				if($this->proposed){
-					$dbProposed = 1;
-				}else{
-					$dbProposed = 0;
-				}
+				// ----- Verification Badges -----
+				$this->cbVerified = false;
+				$dbCBV = 0;
+				$this->brewerVerified = false;
+				$dbBV = 0;
 
-				// Add to Database
-				$db->query("INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified', '$dbProposed')");
-				if(!$db->error){
-					$this->responseCode = 201;
-					$responseHeaderString = 'Location: https://';
-					if(ENVIRONMENT == 'staging'){
-						$responseHeaderString .= 'staging.';
-					}
-					$this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
-					if($this->proposed){
-						// *** Stub for 'Proposed' Workflow ***
-					}
+				// Get User Info
+				if($users->admin){
+					// Catalog.beer Verified
+					$this->cbVerified = true;
+					$dbCBV = 1;
 				}else{
-					// Database Error
-					$this->error = true;
-					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = $db->responseCode;
+					// Not Catalog.beer Verified
+					if(!empty($brewer->domainName)){
+						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							// User has email associated with the brewery, give breweryValidated flag.
+							$this->brewerVerified = true;
+							$dbBV = 1;
+
+							if(!in_array($this->brewerID, $userBrewerPrivileges)){
+								// Give user privileges for this brewer
+								$privileges->add($userID, $this->brewerID, true);
+							}
+						}
+					}
 				}
-				$db->close();
 			}else{
 				// User Validation Error
 				$this->error = true;
@@ -154,23 +211,172 @@ class Beer {
 				$this->responseCode = $users->responseCode;
 			}
 		}
-	}
-	
-	private function validateBrewery(){
-		// Validate Brewer ID
-		$brewer = new Brewer();
-		if($brewer->validate($this->brewerID, true)){
-			// Valid Brewer
-			$this->brewerID = $brewer->brewerID;
-			$this->isBV = $brewer->brewerVerified;
-			$this->isCBV = $brewer->cbVerified;
-			$this->validState['brewer_id'] = 'valid';
-		}else{
-			// Invalid Brewer
-			$this->error = true;
-			$this->validState['brewer_id'] = 'invalid';
-			$this->responseCode = 400;
-			$this->validMsg['brewer_id'] = $brewer->errorMsg;
+		
+		// ----- Validate Fields -----
+		// Don't waste processing resources if there's been an error in the steps above.
+		if(!$this->error){
+			// Default SQL
+			$sql = '';
+			
+			if($method == 'POST' || $method == 'PUT'){
+				// Save to Class
+				$this->name = $name;
+				$this->style = $style;
+				$this->description = $description;
+				$this->abv = $abv;
+				$this->ibu = $ibu;
+
+				// Validate Fields
+				$this->validateName();
+				$this->validateStyle();
+				$this->validateDescription();
+				$this->validateABV();
+				$this->validateIBU();
+
+				if(!$this->error){
+					// Prep for Database
+					$db = new Database();
+					$dbBeerID = $db->escape($this->beerID);
+					$dbBrewerID = $db->escape($this->brewerID);
+					$dbName = $db->escape($this->name);
+					$dbStyle = $db->escape($this->style);
+					$dbDescription = $db->escape($this->description);
+					$dbABV = $db->escape($this->abv);
+					$dbIBU = $db->escape($this->ibu);
+					$dbLastModified = $db->escape(time());
+					
+					// Construct SQL Statement
+					if($newBeer){
+						$sql = "INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified')";
+					}else{
+						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', description='$dbDescription', abv='$dbABV', ibu='$dbIBU', cbVerified='$dbCBV', brewerVerified='$dbBV', lastModified='$dbLastModified' WHERE id='$dbBeerID'";
+					}
+				}
+			}elseif($method == 'PATCH'){
+				/*-- 
+				Validate the field if it's different than what is currently stored.
+				Check against the $this->{var} which we have from performing a $this->validate($beerID, true) in the beerID flow above for PATCH.
+				--*/
+				
+				// SQL Update
+				$sqlArray = array();
+				
+				// brewerID
+				if(in_array('brewerID', $patchFields)){
+					$dbBrewerID = $db->escape($this->brewerID);
+					$sqlArray[] = "brewerID='$dbBrewerID'";
+				}
+				
+				// Validate Name
+				if(in_array('name', $patchFields)){
+					if($name != $this->name){
+						// Validate Name
+						$this->name = $name;
+						$this->validateName();
+						if(!$this->error){
+							$dbName = $db->escape($this->name);
+							$sqlArray[] = "name='$dbName'";
+						}
+					}
+				}
+				
+				// Validate Style
+				if(in_array('style', $patchFields)){
+					if($style != $this->style){
+						// Validate Style
+						$this->style = $style;
+						$this->validateStyle();
+						if(!$this->error){
+							$dbStyle = $db->escape($this->style);
+							$sqlArray[] = "style='$dbStyle'";
+						}
+					}
+				}
+				
+				// Validate Description
+				if(in_array('description', $patchFields)){
+					if($description != $this->description){
+						// Validate Description
+						$this->description = $description;
+						$this->validateDescription();
+						if(!$this->error){
+							$dbDescription = $db->escape($this->description);
+							$sqlArray[] = "description='$dbDescription'";
+						}
+					}
+				}
+				
+				// Validate ABV
+				if(in_array('abv', $patchFields)){
+					if($abv != $this->abv){
+						// Validate ABV
+						$this->abv = $abv;
+						$this->validateABV();
+						if(!$this->error){
+							$dbABV = $db->escape($this->abv);
+							$sqlArray[] = "abv='$dbABV'";
+						}
+					}
+				}
+				
+				// Validate IBU
+				if(in_array('ibu', $patchFields)){
+					if($ibu != $this->ibu){
+						// Validate IBU
+						$this->ibu = $ibu;
+						$this->validateIBU();
+						if(!$this->error){
+							$dbIBU = $db->escape($this->ibu);
+							$sqlArray[] = "ibu='$dbIBU'";
+						}
+					}
+				}
+				
+				if(!$this->error && !empty($sqlArray)){
+					// Construct SQL Statement
+					$dbLastModified = $db->escape(time());
+					$dbBeerID = $db->escape($this->beerID);
+					$sql = "UPDATE beer SET lastModified='$dbLastModified', cbVerified='$dbCBV', brewerVerified='$dbBV'";
+					$totalUpdates = count($sqlArray);
+					if($totalUpdates > 0){$sql .= ", ";}
+					$lastUpdate = $totalUpdates - 1;
+					for($i=0;$i<$totalUpdates; $i++){
+						if($i == $lastUpdate){
+							$sql .= $sqlArray[$i];
+						}else{
+							$sql .= $sqlArray[$i] . ", ";
+						}
+					}
+					$sql .= " WHERE id='$dbBeerID'";
+				}
+			}
+			
+			if(!$this->error && !empty($sql)){
+				// Query
+				$db->query($sql);
+				if(!$db->error){
+					// Successful database operation
+					if($newBeer){
+						// Created New Beer
+						$this->responseCode = 201;
+						$responseHeaderString = 'Location: https://';
+						if(ENVIRONMENT == 'staging'){
+							$responseHeaderString .= 'staging.';
+						}
+						$this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
+					}else{
+						$this->responseCode = 200;
+					}
+				}else{
+					// Query Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
+				}
+
+				// Close Database Connection
+				$db->close();
+			}
 		}
 	}
 	
@@ -377,7 +583,7 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$dbBeerID = $db->escape($beerID);
-			$db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified, proposed FROM beer WHERE id='$dbBeerID'");
+			$db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id='$dbBeerID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid Result
@@ -403,11 +609,6 @@ class Beer {
 							$this->brewerVerified = true;
 						}else{
 							$this->brewerVerified = false;
-						}
-						if($array['proposed']){
-							$this->proposed = true;
-						}else{
-							$this->proposed = false;
 						}
 					}
 				}elseif($db->result->num_rows > 1){
@@ -537,7 +738,7 @@ class Beer {
 			// Prep for Database
 			$db = new Database();
 			$brewer = new Brewer();
-			$db->query("SELECT id, name FROM beer WHERE proposed=0 ORDER BY name LIMIT $offset, $count");
+			$db->query("SELECT id, name FROM beer ORDER BY name LIMIT $offset, $count");
 			if(!$db->error){
 				while($array = $db->resultArray()){
 					// Brewer Info
@@ -580,7 +781,7 @@ class Beer {
 		
 		// Query Database
 		$db = new Database();
-		$db->query("SELECT COUNT('id') AS numBeers FROM beer WHERE proposed=0");
+		$db->query("SELECT COUNT('id') AS numBeers FROM beer");
 		if(!$db->error){
 			$array = $db->resultArray();
 			return intval($array['numBeers']);
@@ -624,7 +825,7 @@ class Beer {
 				// Prep for Query
 				$db = new Database();
 				$dbBrewerID = $db->escape($brewerID);
-				$db->query("SELECT id, name, style FROM beer WHERE brewerID='$dbBrewerID' AND proposed=0 ORDER BY name");
+				$db->query("SELECT id, name, style FROM beer WHERE brewerID='$dbBrewerID' ORDER BY name");
 				if(!$db->error){
 					if($db->result->num_rows >= 1){
 						// Has Beers associated with it
@@ -713,36 +914,6 @@ class Beer {
 		return $lastModified;
 	}
 	
-	public function proposedAdd($beerID, $brewerID){
-		// Are there any users with Brewery privileges?
-		$privileges = new Privileges();
-		$userIDs = $privileges->userList($brewerID);
-		if(!$privileges->error){
-			$users = new Users();
-			if(empty($userIDs)){
-				// No users with Brewery privileges, email Catalog.beer Admin
-				$emails = $users->getAdminEmails();
-				if(!$users->error){
-					// POST https://api.catalog.beer/beer/{beer_id}/approve/{authorization_code}
-					// POST https://api.catalog.beer/beer/{beer_id}/deny/{authorization_code}
-					
-					
-					// Send Email to Catalog.beer Admin
-					echo $users->errorMsg;
-				}else{
-					// Error Retreiving email addresses
-					$this->error = true;
-					$this->errorMsg = $users->errorMsg;
-					$this->responseCode = $users->responseCode;
-				}
-			}
-		}else{
-			$this->error = true;
-			$this->errorMsg = $privileges->errorMsg;
-			$this->responseCode = $privileges->responseCode;
-		}
-	}
-	
 	public function deleteBeer($beerID, $userID){
 		if($this->validate($beerID, false)){
 			$users = new Users();
@@ -803,6 +974,10 @@ class Beer {
 		GET https://api.catalog.beer/beer/{beer_id}/last-modified
 		
 		POST https://api.catalog.beer/beer
+		
+		PUT https://api.catalog.beer/beer/{beer_id}
+		
+		PATCH https://api.catalog.beer/beer/{beer_id}
 		
 		DELETE https://api.catalog.beer/beer/{beer_id}
 		---*/
@@ -961,7 +1136,7 @@ class Beer {
 				$apiKeys->validate($apiKey, true);
 				
 				// Add Beer
-				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID);
+				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					$this->json['id'] = $this->beerID;
 					$this->json['object'] = 'beer';
@@ -996,12 +1171,92 @@ class Beer {
 					$this->json['error_msg'] = $this->errorMsg;
 				}
 				break;
+			case 'PUT':
+				// PUT https://api.catalog.beer/beer/{beer_id}
+				// Handle Empty Fields
+				if(empty($data->brewer_id)){$data->brewer_id = '';}
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->style)){$data->style = '';}
+				if(empty($data->description)){$data->description = '';}
+				if(empty($data->abv)){$data->abv = '';}
+				if(empty($data->ibu)){$data->ibu = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+				
+				// Add/Update/Replace Beer
+				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
+				if(!$this->error){
+					$this->json['id'] = $this->beerID;
+					$this->json['object'] = 'beer';
+					$this->json['name'] = $this->name;
+					$this->json['style'] = $this->style;
+					$this->json['description'] = $this->description;
+					$this->json['abv'] = floatval($this->abv);
+					$this->json['ibu'] = intval($this->ibu);
+					$this->json['cb_verified'] = $this->cbVerified;
+					$this->json['brewer_verified'] = $this->brewerVerified;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			case 'PATCH':
+				// PATCH https://api.catalog.beer/beer/{beer_id}
+				// Which fields are we updating?
+				$patchFields = array();
+				
+				// Handle Empty Fields
+				if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
+				else{$data->brewer_id = '';}
+				
+				if(isset($data->name)){$patchFields[] = 'name';}
+				else{$data->name = '';}
+				
+				if(isset($data->style)){$patchFields[] = 'style';}
+				else{$data->style = '';}
+				
+				if(isset($data->description)){$patchFields[] = 'description';}
+				else{$data->description = '';}
+				
+				if(isset($data->abv)){$patchFields[] = 'abv';}
+				else{$data->abv = '';}
+				
+				if(isset($data->ibu)){$patchFields[] = 'ibu';}
+				else{$data->ibu = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+				
+				// Add/Update/Replace Beer
+				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
+				if(!$this->error){
+					$this->json['id'] = $this->beerID;
+					$this->json['object'] = 'beer';
+					$this->json['name'] = $this->name;
+					$this->json['style'] = $this->style;
+					$this->json['description'] = $this->description;
+					$this->json['abv'] = floatval($this->abv);
+					$this->json['ibu'] = intval($this->ibu);
+					$this->json['cb_verified'] = $this->cbVerified;
+					$this->json['brewer_verified'] = $this->brewerVerified;
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
 			default:
 				// Unsupported Method - Method Not Allowed
 				$this->responseCode = 405;
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
-				$this->responseHeader = 'Allow: GET, POST, DELETE';
+				$this->responseHeader = 'Allow: GET, POST, PUT, PATCH, DELETE';
 
 				// Log Error
 				$errorLog = new LogError();

@@ -34,7 +34,7 @@ class Brewer {
 		$users = new Users();
 		$privileges = new Privileges();
 		
-		// ----- BrewerID -----
+		// ----- brewerID -----
 		$uuid = new uuid();
 		$newBrewer = false;
 		switch($method){
@@ -116,103 +116,108 @@ class Brewer {
 		
 		// ----- Permissions & Validation Badge -----
 		
-		if($users->validate($userID, true)){
-			// Get User's Email Domain Name
-			$userEmailDomain = $users->emailDomainName($users->email);
-			
-			// Get User Privileges
-			$userBrewerPrivileges = $privileges->brewerList($userID);
-			
-			// ----- Permissions Check -----
-			if($method == 'PUT' || $method == 'PATCH'){
-				if(!$newBrewer){
-					// Attempting to PUT or PATCH existing Brewery
-					// Get cb_verified and brewer_verified flags
-					$dbBrewerID = $db->escape($this->brewerID);
-					$db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id='$dbBrewerID'");
-					$cbVerified = $db->singleResult('cbVerified');
-					$brewerVerified = $db->singleResult('brewerVerified');
+		if(!$this->error){
+			if($users->validate($userID, true)){
+				// Get User's Email Domain Name
+				$userEmailDomain = $users->emailDomainName($users->email);
 
-					if($cbVerified){
-						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
-							// Allow PUT/PATCH. User is brewery staff.
-						}else{
-							if(!$users->admin){
-								// Deny
-								$this->error = true;
-								$this->errorMsg = 'Sorry, because this brewer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
-								$this->responseCode = 403;
-								
-								// Log Error
-								$errorLog = new LogError();
-								$errorLog->errorNumber = 161;
-								$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, cb_verified';
-								$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-								$errorLog->filename = 'API / Brewer.class.php';
-								$errorLog->write();
-							}
-						}
-					}else{
-						if($brewerVerified){
+				// Get User Privileges
+				$userBrewerPrivileges = $privileges->brewerList($userID);
+
+				// ----- Permissions Check -----
+				if($method == 'PUT' || $method == 'PATCH'){
+					if(!$newBrewer){
+						// Attempting to PUT or PATCH existing Brewery
+						// Get cb_verified and brewer_verified flags
+						$dbBrewerID = $db->escape($this->brewerID);
+						$db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id='$dbBrewerID'");
+						$cbVerified = $db->singleResult('cbVerified');
+						$brewerVerified = $db->singleResult('brewerVerified');
+
+						if($cbVerified){
 							if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 								// Allow PUT/PATCH. User is brewery staff.
 							}else{
 								if(!$users->admin){
 									// Deny
 									$this->error = true;
-									$this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+									$this->errorMsg = 'Sorry, because this brewer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
 									$this->responseCode = 403;
 
 									// Log Error
 									$errorLog = new LogError();
 									$errorLog->errorNumber = 161;
-									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
+									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, cb_verified';
 									$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
 									$errorLog->filename = 'API / Brewer.class.php';
 									$errorLog->write();
 								}
 							}
-						}
-					}
-				}
-			}
-			
-			// ----- Verification Badges -----
-			$this->cbVerified = false;
-			$dbCBV = 0;
-			$this->brewerVerified = false;
-			$dbBV = 0;
+						}else{
+							if($brewerVerified){
+								if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+									// Allow PUT/PATCH. User is brewery staff.
+								}else{
+									if(!$users->admin){
+										// Deny
+										$this->error = true;
+										$this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+										$this->responseCode = 403;
 
-			// Get User Info
-			if($users->admin){
-				// Catalog.beer Verified
-				$this->cbVerified = true;
-				$dbCBV = 1;
-			}else{
-				// Not Catalog.beer Verified
-				if(!empty($this->domainName)){
-					if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
-						// User has email associated with the brewery, give breweryValidated flag.
-						$this->brewerVerified = true;
-						$dbBV = 1;
-						
-						if(!in_array($this->brewerID, $userBrewerPrivileges)){
-							// Give user privileges for this brewer
-							$privileges->add($userID, $this->brewerID, true);
+										// Log Error
+										$errorLog = new LogError();
+										$errorLog->errorNumber = 168;
+										$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
+										$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
+										$errorLog->filename = 'API / Brewer.class.php';
+										$errorLog->write();
+									}
+								}
+							}
 						}
 					}
 				}
+
+				// ----- Verification Badges -----
+				$this->cbVerified = false;
+				$dbCBV = 0;
+				$this->brewerVerified = false;
+				$dbBV = 0;
+
+				// Get User Info
+				if($users->admin){
+					// Catalog.beer Verified
+					$this->cbVerified = true;
+					$dbCBV = 1;
+				}else{
+					// Not Catalog.beer Verified
+					if(!empty($this->domainName)){
+						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							// User has email associated with the brewery, give breweryValidated flag.
+							$this->brewerVerified = true;
+							$dbBV = 1;
+
+							if(!in_array($this->brewerID, $userBrewerPrivileges)){
+								// Give user privileges for this brewer
+								$privileges->add($userID, $this->brewerID, true);
+							}
+						}
+					}
+				}
+			}else{
+				// User Validation Error
+				$this->error = true;
+				$this->errorMsg = $users->errorMsg;
+				$this->responseCode = $users->responseCode;
 			}
-		}else{
-			// User Validation Error
-			$this->error = true;
-			$this->errorMsg = $users->errorMsg;
-			$this->responseCode = $users->responseCode;
 		}
 		
 		// ----- Validate Fields -----
 		// Don't waste processing resources if there's been an error in the steps above.
 		if(!$this->error){
+			// Default SQL
+			$sql = '';
+			
 			if($method == 'POST' || $method == 'PUT'){
 				// Validate Name
 				$this->name = $name;
@@ -352,33 +357,33 @@ class Brewer {
 					$sql .= " WHERE id='$dbBrewerID'";
 				}
 			}
-		}
-
-		if(!$this->error && !empty($sql)){
-			// Query
-			$db->query($sql);
-			if(!$db->error){
-				// Successful database operation
-				if($newBrewer){
-					// Created New Brewer
-					$this->responseCode = 201;
-					$responseHeaderString = 'Location: https://';
-					if(ENVIRONMENT == 'staging'){
-						$responseHeaderString .= 'staging.';
+			
+			if(!$this->error && !empty($sql)){
+				// Query
+				$db->query($sql);
+				if(!$db->error){
+					// Successful database operation
+					if($newBrewer){
+						// Created New Brewer
+						$this->responseCode = 201;
+						$responseHeaderString = 'Location: https://';
+						if(ENVIRONMENT == 'staging'){
+							$responseHeaderString .= 'staging.';
+						}
+						$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
+					}else{
+						$this->responseCode = 200;
 					}
-					$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
 				}else{
-					$this->responseCode = 200;
+					// Query Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
-			}else{
-				// Query Error
-				$this->error = true;
-				$this->errorMsg = $db->errorMsg;
-				$this->responseCode = $db->responseCode;
-			}
 
-			// Close Database Connection
-			$db->close();
+				// Close Database Connection
+				$db->close();
+			}
 		}
 	}
 
@@ -857,7 +862,7 @@ class Brewer {
 
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = 18;
+			$errorLog->errorNumber = 169;
 			$errorLog->errorMsg = 'Missing brewer ID';
 			$errorLog->badData = '';
 			$errorLog->filename = 'API / Brewer.class.php';
@@ -1456,7 +1461,7 @@ class Brewer {
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: GET, POST, PUT, DELETE';
+				$this->responseHeader = 'Allow: GET, POST, PUT, PATCH, DELETE';
 
 				// Log Error
 				$errorLog = new LogError();
