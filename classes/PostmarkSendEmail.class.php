@@ -12,6 +12,7 @@ class PostmarkSendEmail {
 	
 	function generateBody($to, $subject, $tag, $htmlBody, $textBody){
 		$this->to = $to;
+		$this->bcc = 'michael@catalog.beer';
 		$this->subject = $subject;
 		$this->tag = $tag;
 		$this->HtmlBody = $htmlBody;
