@@ -90,10 +90,7 @@ class Location {
 
 			// Add to Database
 			$db->query("INSERT INTO location (id, brewerID, name, url, countryCode) VALUES ('$dbLocationID', '$dbBrewerID', '$dbName', '$dbURL', '$dbCC')");
-			if(!$db->error){
-				// Update Brewer lastModified Timestamp
-				$brewer->updateModified($this->brewerID);
-			}else{
+			if($db->error){
 				// Query Error
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;

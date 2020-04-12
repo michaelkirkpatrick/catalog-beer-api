@@ -90,10 +90,6 @@ class USAddresses {
 
 					// Get Latitude and Longitude
 					$location->addLatLong($this->locationID, $addressString);
-
-					// Update Brewer lastModified Timestamp
-					$brewer = new Brewer();
-					$brewer->updateModified($location->brewerID);
 				}else{
 					// Query Error
 					$this->error = true;

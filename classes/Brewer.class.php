@@ -343,10 +343,15 @@ class Brewer {
 				}
 				
 				if(!$this->error && !empty($sqlArray)){
-					// Construct SQL Statement
+					// Prep for Database
+					$dbBrewerID = $db->escape($this->brewerID);
 					$dbLastModified = $db->escape(time());
-					$sql = "UPDATE brewer SET lastModified='$dbLastModified' ";
+					
+					// Construct SQL Statement
+					$sql = "UPDATE brewer SET lastModified='$dbLastModified', cbVerified='$dbCBV', brewerVerified='$dbBV'";
+					
 					$totalUpdates = count($sqlArray);
+					if($totalUpdates > 0){$sql .= ", ";}
 					$lastUpdate = $totalUpdates - 1;
 					for($i=0;$i<$totalUpdates; $i++){
 						if($i == $lastUpdate){
@@ -1019,38 +1024,6 @@ class Brewer {
 		$db->close();
 
 		return $count;
-	}
-
-	// Last Modified
-	public function updateModified($brewerID){
-		if(!empty($brewerID)){
-			if($this->validate($brewerID, false)){
-				// Update Modified Timestamp
-				$db = new Database();
-				$dbLastModified = $db->escape(time());
-				$dbBrewerID = $db->escape($brewerID);
-				$db->query("UPDATE brewer SET lastModified='$dbLastModified' WHERE id='$dbBrewerID'");
-				$db->close();
-			}else{
-				// Invalid brewerID
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 100;
-				$errorLog->errorMsg = 'Invalid brewerID';
-				$errorLog->badData = $brewerID;
-				$errorLog->filename = 'API / Brewer.class.php';
-				$errorLog->write();
-			}
-		}else{
-			// Missing brewerID
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 99;
-			$errorLog->errorMsg = 'Missing brewerID';
-			$errorLog->badData = '';
-			$errorLog->filename = 'API / Brewer.class.php';
-			$errorLog->write();
-		}
 	}
 	
 	public function delete($brewerID, $userID){
