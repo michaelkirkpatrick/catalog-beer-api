@@ -1058,6 +1058,23 @@ class Brewer {
 			}
 		}
 	}
+	
+	public function generateBrewerObject(){
+		// Generates the Brewer Object
+		// Generally returned as part of the API output
+		$this->json['id'] = $this->brewerID;
+		$this->json['object'] = 'brewer';
+		$this->json['name'] = $this->name;
+		$this->json['description'] = $this->description;
+		$this->json['short_description'] = $this->shortDescription;
+		$this->json['url'] = $this->url;
+		$this->json['cb_verified'] = $this->cbVerified;
+		$this->json['brewer_verified'] = $this->brewerVerified;
+		$this->json['facebook_url'] = $this->facebookURL;
+		$this->json['twitter_url'] = $this->twitterURL;
+		$this->json['instagram_url'] = $this->instagramURL;
+		$this->json['last_modified'] = $this->lastModified;
+	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
@@ -1084,18 +1101,8 @@ class Brewer {
 					// Validate ID
 					// GET https://api.catalog.beer/brewer/{brewer_id}
 					if($this->validate($id, true)){
-						$this->json['id'] = $this->brewerID;
-						$this->json['object'] = 'brewer';
-						$this->json['name'] = $this->name;
-						$this->json['description'] = $this->description;
-						$this->json['short_description'] = $this->shortDescription;
-						$this->json['url'] = $this->url;
-						$this->json['cb_verified'] = $this->cbVerified;
-						$this->json['brewer_verified'] = $this->brewerVerified;
-						$this->json['facebook_url'] = $this->facebookURL;
-						$this->json['twitter_url'] = $this->twitterURL;
-						$this->json['instagram_url'] = $this->instagramURL;
-						$this->json['last_modified'] = $this->lastModified;
+						// Generate Brewer Object JSON
+						$this->generateBrewerObject();
 					}else{
 						// Brewer Validation Error
 						$this->json['error'] = true;
@@ -1199,18 +1206,8 @@ class Brewer {
 				// Add Brewer
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
-					$this->json['id'] = $this->brewerID;
-					$this->json['object'] = 'brewer';
-					$this->json['name'] = $this->name;
-					$this->json['description'] = $this->description;
-					$this->json['short_description'] = $this->shortDescription;
-					$this->json['url'] = $this->url;
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
-					$this->json['facebook_url'] = $this->facebookURL;
-					$this->json['twitter_url'] = $this->twitterURL;
-					$this->json['instagram_url'] = $this->instagramURL;
-					$this->json['last_modified'] = $this->lastModified;
+					// Generate Brewer Object JSON
+					$this->generateBrewerObject();
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1237,18 +1234,9 @@ class Brewer {
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
-					$this->json['id'] = $this->brewerID;
-					$this->json['object'] = 'brewer';
-					$this->json['name'] = $this->name;
-					$this->json['description'] = $this->description;
-					$this->json['short_description'] = $this->shortDescription;
-					$this->json['url'] = $this->url;
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
-					$this->json['facebook_url'] = $this->facebookURL;
-					$this->json['twitter_url'] = $this->twitterURL;
-					$this->json['instagram_url'] = $this->instagramURL;
-					$this->json['last_modified'] = $this->lastModified;
+					
+					// Generate Brewer Object JSON
+					$this->generateBrewerObject();
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1290,18 +1278,9 @@ class Brewer {
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
-					$this->json['id'] = $this->brewerID;
-					$this->json['object'] = 'brewer';
-					$this->json['name'] = $this->name;
-					$this->json['description'] = $this->description;
-					$this->json['short_description'] = $this->shortDescription;
-					$this->json['url'] = $this->url;
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
-					$this->json['facebook_url'] = $this->facebookURL;
-					$this->json['twitter_url'] = $this->twitterURL;
-					$this->json['instagram_url'] = $this->instagramURL;
-					$this->json['last_modified'] = $this->lastModified;
+					
+					// Generate Brewer Object JSON
+					$this->generateBrewerObject();
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
