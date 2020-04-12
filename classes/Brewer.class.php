@@ -344,7 +344,8 @@ class Brewer {
 				
 				if(!$this->error && !empty($sqlArray)){
 					// Construct SQL Statement
-					$sql = "UPDATE brewer SET ";
+					$dbLastModified = $db->escape(time());
+					$sql = "UPDATE brewer SET lastModified='$dbLastModified' ";
 					$totalUpdates = count($sqlArray);
 					$lastUpdate = $totalUpdates - 1;
 					for($i=0;$i<$totalUpdates; $i++){
@@ -1051,105 +1052,27 @@ class Brewer {
 			$errorLog->write();
 		}
 	}
-
-	public function latestModified(){
-		// Return
-		$lastModified = 0;
-
-		// Connect to Database
-		$db = new Database();
-		$db->query("SELECT MAX(lastModified) AS lastModified FROM brewer");
-		if(!$db->error){
-			// Save Last Modified
-			$lastModified = intval($db->singleResult('lastModified'));
-		}else{
-			// Query Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-		$db->close();
-
-		// Return
-		return $lastModified;
-	}
-
-	public function lastModified($brewerID){
-		// Return
-		$lastModified = 0;
-
-		if(!empty($brewerID)){
-			if($this->validate($brewerID, true)){
-				$lastModified = intval($this->lastModified);
-			}
-		}else{
-			// Missing BrewerID
-			$this->error = true;
-			$this->errorMsg = 'Missing brewerID';
-			$this->responseCode = 400;
-
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 102;
-			$errorLog->errorMsg = 'Missing brewerID';
-			$errorLog->badData = '';
-			$errorLog->filename = 'API / Brewer.class.php';
-			$errorLog->write();
-		}
-
-		// Return
-		return $lastModified;
-	}
 	
 	public function delete($brewerID, $userID){
 		if($this->validate($brewerID, false)){
 			$users = new Users();
 			$users->validate($userID, true);
 			if($users->admin){
-				// Delete Locations + Addresses
-				$location = new Location();
-				$location->deleteBrewerLocations($brewerID);
-				if($location->error){
+				// Delete Brewer
+				$db = new Database();
+				$dbBrewerID = $db->escape($brewerID);
+				$db->query("DELETE FROM brewer WHERE id='$dbBrewerID'");
+				if($db->error){
+					// Database Error
 					$this->error = true;
-					$this->errorMsg = $location->errorMsg;
-					$this->responseCode = $location->responseCode;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
-				
-				// Delete Beer
-				$beer = new Beer();
-				$beer->deleteBrewerBeers($brewerID);
-				if($beer->error){
-					$this->error = true;
-					$this->errorMsg = $beer->errorMsg;
-					$this->responseCode = $beer->responseCode;
-				}
-				
-				// Delete Permissions
-				$privileges = new Privileges();
-				$privileges->deleteBrewer($brewerID);
-				if($privileges->error){
-					$this->error = true;
-					$this->errorMsg = $privileges->errorMsg;
-					$this->responseCode = $privileges->responseCode;
-				}
-				
-				if(!$this->error){
-					// Delete Brewer
-					$db = new Database();
-					$dbBrewerID = $db->escape($brewerID);
-					$db->query("DELETE FROM brewer WHERE id='$dbBrewerID'");
-					if($db->error){
-						// Database Error
-						$this->error = true;
-						$this->errorMsg = $db->errorMsg;
-						$this->responseCode = $db->responseCode;
-					}
-					$db->close();
-				}
+				$db->close();
 			}else{
 				// Not an Admin - Not Allowed to Delete
 				$this->error = true;
-				$this->errorMsg = 'Sorry, you do not have permission to delete a beer.';
+				$this->errorMsg = 'Sorry, you do not have permission to delete this brewery.';
 				$this->responseCode = 403;
 				
 				// Log Error
@@ -1170,11 +1093,9 @@ class Brewer {
 
 		GET https://api.catalog.beer/brewer
 		GET https://api.catalog.beer/brewer/count
-		GET https://api.catalog.beer/brewer/last-modified
 		GET https://api.catalog.beer/brewer/{brewer_id}
 		GET https://api.catalog.beer/brewer/{brewer_id}/beer
 		GET https://api.catalog.beer/brewer/{brewer_id}/locations
-		GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
 
 		POST https://api.catalog.beer/brewer
 
@@ -1201,6 +1122,7 @@ class Brewer {
 						$this->json['facebook_url'] = $this->facebookURL;
 						$this->json['twitter_url'] = $this->twitterURL;
 						$this->json['instagram_url'] = $this->instagramURL;
+						$this->json['last_modified'] = $this->lastModified;
 					}else{
 						// Brewer Validation Error
 						$this->json['error'] = true;
@@ -1244,34 +1166,6 @@ class Brewer {
 									$this->responseCode = $location->responseCode;
 									$this->json['error'] = true;
 									$this->json['error_msg'] = $location->errorMsg;
-								}
-								break;
-							case 'last-modified':
-								if(!empty($id)){
-									// Individual Brewer
-									// GET https://api.catalog.beer/brewer/{brewer_id}/last-modified
-									$lastModified = $this->lastModified($id);
-									if(!$this->error){
-										$this->json['object'] = 'timestamp';
-										$this->json['url'] = '/brewer/' . $id . '/last-modified';
-										$this->json['brewer_id'] = $id;
-										$this->json['last_modified'] = $lastModified;
-									}else{
-										$this->json['error'] = true;
-										$this->json['error_msg'] = $this->errorMsg;
-									}
-								}else{
-									// All Brewers
-									// GET https://api.catalog.beer/brewer/last-modified
-									$latestModified = $this->latestModified();
-									if(!$this->error){
-										$this->json['object'] = 'timestamp';
-										$this->json['url'] = '/brewer/last-modified';
-										$this->json['last_modified'] = $latestModified;
-									}else{
-										$this->json['error'] = true;
-										$this->json['error_msg'] = $this->errorMsg;
-									}
 								}
 								break;
 							default:
@@ -1343,6 +1237,7 @@ class Brewer {
 					$this->json['facebook_url'] = $this->facebookURL;
 					$this->json['twitter_url'] = $this->twitterURL;
 					$this->json['instagram_url'] = $this->instagramURL;
+					$this->json['last_modified'] = $this->lastModified;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1380,6 +1275,7 @@ class Brewer {
 					$this->json['facebook_url'] = $this->facebookURL;
 					$this->json['twitter_url'] = $this->twitterURL;
 					$this->json['instagram_url'] = $this->instagramURL;
+					$this->json['last_modified'] = $this->lastModified;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1432,6 +1328,7 @@ class Brewer {
 					$this->json['facebook_url'] = $this->facebookURL;
 					$this->json['twitter_url'] = $this->twitterURL;
 					$this->json['instagram_url'] = $this->instagramURL;
+					$this->json['last_modified'] = $this->lastModified;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
