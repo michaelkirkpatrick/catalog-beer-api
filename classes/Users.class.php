@@ -598,45 +598,19 @@ class Users {
 	}
 	
 	public function delete($userID){
-		/*--
-		This function will delete a user from the 'users', 'api_keys', and 'privileges' tables.
-		Broken links to their userID or API Key will remain in 'error_log', 'api_logging', and 'api_usage'.
-		--*/
-		
-		// Delete Brewery Privileges
-		$privileges = new Privileges();
-		$privileges->deleteUser($userID);
-		if($privileges->error){
-			$this->error = true;
-			$this->errorMsg = $privileges->errorMsg;
-			$this->responseCode = $privileges->responseCode;
-		}
-		
-		// Delete API Keys
-		$apiKeys = new apiKeys();
-		$apiKeys->deleteUser($userID);
-		if($apiKeys->error){
-			$this->error = true;
-			$this->errorMsg = $apiKeys->errorMsg;
-			$this->responseCode = $apiKeys->responseCode;
-		}
-		
-		if(!$this->error){
-			// Delete user
-			// Prep for Database
-			$db = new Database();
-			$dbUserID = $db->escape($userID);
+		// Prep for Database
+		$db = new Database();
+		$dbUserID = $db->escape($userID);
 
-			// Delete API Keys for this userID
-			$db->query("DELETE FROM users WHERE id='$dbUserID'");
-			if($db->error){
-				// Database Error
-				$this->error = true;
-				$this->errorMsg = $db->errorMsg;
-				$this->responseCode = $db->responseCode;
-			}
-			$db->close();
+		// Delete API Keys for this userID
+		$db->query("DELETE FROM users WHERE id='$dbUserID'");
+		if($db->error){
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
 		}
+		$db->close();
 	}
 	
 	public function usersAPI($method, $function, $id, $apiKey, $data){
