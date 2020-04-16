@@ -113,87 +113,248 @@ class Users {
 		return $valid;
 	}
 	
-	public function createAccount($name, $email, $password, $termsAgreement, $userID){
-		// Verify Permission to Create Account
-		$this->validate($userID, true);
+	public function createAccount($name, $email, $password, $termsAgreement, $apiKey, $method, $userID, $patchFields){
 		
-		if($this->admin){
-			// Has Permission to Create Accounts
-			$this->resetVars();
+		// Default Values
+		$sendEmailVerification = false;
+		$sql = '';
 		
-			// Save to Class
-			$this->name = $name;
-			$this->email = $email;
-			$this->password = $password;
-
-			// Validate Parameters
-			$this->validateName();
-			$this->validateEmail();
-			if($this->error){
-				//$this->validMsg['email'] .= ' Perhaps you want to [reset your password](/password-reset.php) or [sign in](/login.php)?';
-				$this->validMsg['email'] .= ' Perhaps you want to or [sign in](/login)?';
-			}
-			$this->validatePassword();
-			
-			// Agreed to terms?
-			if($termsAgreement){
-				$this->validState['terms_agreement'] = 'valid';
-			}else{
-				$this->error = true;
-				$this->errorMsg = 'Before we can create your account, you will need to agree to the Terms and Conditions by checking the box below.';
-				$this->validState['terms_agreement'] = 'invalid';
-				$this->responseCode = 400;
-			}
-
-			// Generate userID
-			$uuid = new uuid();
-			$this->userID = $uuid->generate('users');
-			if($uuid->error){
-				// userID Generation Error
-				$this->error = true;
-				$this->errorMsg = $uuid->errorMsg;
-				$this->responseCode = $uuid->responseCode;
-			}
-
-			// Add User to Database
-			if(!$this->error){
-				// Hash Password
-				$passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
-
-				// Clear Saved Password
-				$this->password = '';
-
-				// Prepare for Database
-				$db = new Database();
-				$dbUserID = $db->escape($this->userID);
-				$dbName = $db->escape($this->name);
-				$dbEmail = $db->escape($this->email);
-				$dbPasswordHash = $db->escape($passwordHash);
-
-				// Add to Database
-				$db->query("INSERT INTO users (id, email, passwordHash, name, admin, emailVerified) VALUES ('$dbUserID', '$dbEmail', '$dbPasswordHash', '$dbName', '0', '0')");
-				if(!$db->error){
-					// Send email confirmation
-					$sendEmail = new SendEmail();
-					$this->emailAuth = $sendEmail->verifyEmail($this->email);
-					$this->emailAuthSent = time();
-
-					if(!$sendEmail->error){
-						// Update Database
-						$dbEmailAuth = $db->escape($this->emailAuth);
-						$dbEmailAuthSent = $db->escape($this->emailAuthSent);
-						$db->query("UPDATE users SET emailAuth='$dbEmailAuth', emailAuthSent='$dbEmailAuthSent' WHERE id='$dbUserID'");
-						if($db->error){
-							// Error Updating Email Info
+		// Required Classes
+		$apiKeys = new apiKeys();
+		$db = new Database();
+		$privileges = new Privileges();
+		
+		// Validate $apiKey & get user info for $apiKey
+		$apiKeys->validate($apiKey, true);
+		$this->validate($apiKeys->userID, true);
+		
+		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
+		if($this->admin || $userID == $apiKeys->userID){
+			switch($method){
+				case 'POST':
+					// Verify Admin
+					if($this->admin){
+						// Reset Variables
+						$this->resetVars();
+						
+						// Generate new userID
+						$uuid = new uuid();
+						$this->userID = $uuid->generate('users');
+						if($uuid->error){
+							// userID Generation Error
 							$this->error = true;
-							$this->errorMsg = $db->errorMsg;
-							$this->responseCode = $db->responseCode;
+							$this->errorMsg = $uuid->errorMsg;
+							$this->responseCode = $uuid->responseCode;
+						}
+						
+						// Agreed to terms?
+						if($termsAgreement){
+							$this->validState['terms_agreement'] = 'valid';
+						}else{
+							$this->error = true;
+							$this->errorMsg = 'Before we can create your account, you will need to agree to the Terms and Conditions by checking the box below.';
+							$this->validState['terms_agreement'] = 'invalid';
+							$this->responseCode = 400;
+						}
+						
+						// Save to Class
+						$this->name = $name;
+						$this->email = $email;
+						$this->password = $password;
+
+						// Validate Parameters
+						$this->validateName();
+						$this->validateEmail();
+						$this->validatePassword();
+						
+						// Hash Password
+						$passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
+						
+						// Clear Saved Password
+						$this->password = '';
+						
+						// Send Email Verification
+						$sendEmailVerification = true;
+						
+						// Prepare for Database
+						$db = new Database();
+						$dbUserID = $db->escape($this->userID);
+						$dbName = $db->escape($this->name);
+						$dbEmail = $db->escape($this->email);
+						$dbPasswordHash = $db->escape($passwordHash);
+						$sql = "INSERT INTO users (id, email, passwordHash, name, admin, emailVerified) VALUES ('$dbUserID', '$dbEmail', '$dbPasswordHash', '$dbName', b'0', b'0')";
+					}else{
+						// Not Authorized
+						$this->error = true;
+						$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+						$this->responseCode = 403;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 175;
+						$errorLog->errorMsg = 'Non-Admin trying to create an account.';
+						$errorLog->badData = "userID: $apiKeys->userID";
+						$errorLog->filename = 'API / Users.class.php';
+						$errorLog->write();
+					}
+					break;
+				case 'PATCH':
+					if($this->validate($userID, true)){
+						// Save Variables
+						$originalEmail = $this->email;
+						$originalEmailDomainName = $this->emailDomainName($originalEmail);
+						
+						// Reset Variables
+						$this->resetVars();
+						
+						// SQL Update
+						$sqlArray = array();
+
+						// Validate Name
+						if(in_array('name', $patchFields)){
+							$this->name = $name;
+							$this->validateName();
+							if(!$this->error){
+								$dbName = $db->escape($this->name);
+								$sqlArray[] = "name='$dbName'";
+							}
+						}
+						
+						// Validate Email
+						if(in_array('email', $patchFields)){
+							// Validate Email
+							$this->email = $email;
+							$this->validateEmail();
+							
+							// Different Domain?
+							$emailDomainName = $this->emailDomainName($this->email);
+							if($originalEmailDomainName != $emailDomainName){
+								// New Domain Name, Reset Brewery Privileges, Email Verification, API Key
+								// Remove API Keys
+								$apiKeys->deleteUser($userID);
+								if($apiKeys->error){
+									$this->error = true;
+									$this->errorMsg = $apiKeys->errorMsg;
+									$this->responseCode = $apiKeys->responseCode;
+								}
+								
+								// Remove Brewery Privileges
+								$privileges->deleteUser($userID);
+								if($privileges->error){
+									$this->error = true;
+									$this->errorMsg = $privileges->errorMsg;
+									$this->responseCode = $privileges->responseCode;
+								}
+								
+								// Send New Email Verification
+								$sendEmailVerification = true;
+								
+								// SQL - Update Email Verification
+								$sqlArray[] = "emailVerified=b'0'";
+							}
+							if(!$this->error){
+								// Update Email Address
+								$dbEmail = $db->escape($this->email);
+								$sqlArray[] = "email='$dbEmail'";
+							}
+						}
+						
+						// Validate Password
+						if(in_array('password', $patchFields)){
+							// Validate Password
+							$this->password = $password;
+							$this->validateEmail();
+							if(!$this->error){
+								// Hash Password
+								$passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
+								
+								// Clear Saved Password
+								$this->password = '';
+								
+								// Update Password
+								$dbPasswordHash = $db->escape($passwordHash);
+								$sqlArray[] = "passwordHash='$dbPasswordHash'";
+							}
+						}
+						
+						if(!$this->error && !empty($sqlArray)){
+							// Prep for Database
+							$dbUserID = $db->escape($userID);
+
+							// Construct SQL Statement
+							$sql = "UPDATE users SET";
+
+							$totalUpdates = count($sqlArray);
+							if($totalUpdates > 0){$sql .= ", ";}
+							$lastUpdate = $totalUpdates - 1;
+							for($i=0;$i<$totalUpdates; $i++){
+								if($i == $lastUpdate){
+									$sql .= $sqlArray[$i];
+								}else{
+									$sql .= $sqlArray[$i] . ", ";
+								}
+							}
+							$sql .= " WHERE id='$dbUserID'";
 						}
 					}else{
-						// Email Verification Error
+						// $userID is invalid -- can't update it
 						$this->error = true;
-						$this->errorMsg = $sendEmail->errorMsg;
-						$this->responseCode = $sendEmail->responseCode;
+						$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+						$this->responseCode = 403;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 176;
+						$errorLog->errorMsg = 'Invalid $userID for PATCH method.';
+						$errorLog->badData = "userID: $userID";
+						$errorLog->filename = 'API / Users.class.php';
+						$errorLog->write();
+					}
+					break;
+				default:
+					// Invalid Method
+					$this->error = true;
+					$this->errorMsg = 'Invalid Method.';
+					$this->responseCode = 405;
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 174;
+					$errorLog->errorMsg = 'Invalid Method';
+					$errorLog->badData = $method;
+					$errorLog->filename = 'API / Users.class.php';
+					$errorLog->write();
+					break;
+			}
+			
+			
+			// Update Database
+			if(!$this->error){
+				$db->query($sql);
+				if(!$db->error){
+					if($sendEmailVerification){
+						// Send email confirmation
+						$sendEmail = new SendEmail();
+						$this->emailAuth = $sendEmail->verifyEmail($this->email);
+						$this->emailAuthSent = time();
+
+						if(!$sendEmail->error){
+							// Update Database
+							$dbEmailAuth = $db->escape($this->emailAuth);
+							$dbEmailAuthSent = $db->escape($this->emailAuthSent);
+							$db->query("UPDATE users SET emailAuth='$dbEmailAuth', emailAuthSent=$dbEmailAuthSent WHERE id='$dbUserID'");
+							if($db->error){
+								// Error Updating Email Info
+								$this->error = true;
+								$this->errorMsg = $db->errorMsg;
+								$this->responseCode = $db->responseCode;
+							}
+						}else{
+							// Email Verification Error
+							$this->error = true;
+							$this->errorMsg = $sendEmail->errorMsg;
+							$this->responseCode = $sendEmail->responseCode;
+						}
 					}
 				}else{
 					// Query Error
@@ -204,7 +365,6 @@ class Users {
 				
 				// Close Database Connection
 				$db->close();
-				
 			}
 		}else{
 			// Not an admin, can't create new account
@@ -215,7 +375,7 @@ class Users {
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 35;
-			$errorLog->errorMsg = 'Non-Admin trying to create account';
+			$errorLog->errorMsg = 'Unauthorized person trying to create or update an account';
 			$errorLog->badData = "UserID: $userID";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
@@ -278,19 +438,11 @@ class Users {
 			$db->query("SELECT id FROM users WHERE email='$dbEmail'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
-					// Email exists
-					$emailUserID = $db->singleResult('id');
-					
-					if($this->userID == $emailUserID){
-						// Email assigned to this user, valid
-						$this->validState['email'] = 'valid';
-					}else{
-						// Someone else has already registered this email
-						$this->error = true;
-						$this->validState['email'] = 'invalid';
-						$this->validMsg['email'] = 'Sorry, someone has already created an account with this email addresses.';
-						$this->responseCode = 400;
-					}
+					// Someone else has already registered this email
+					$this->error = true;
+					$this->validState['email'] = 'invalid';
+					$this->validMsg['email'] = 'Sorry, someone has already created an account with this email addresses.';
+					$this->responseCode = 400;
 				}elseif($db->result->num_rows == 0){
 					// Valid, new email address
 					$this->validState['email'] = 'valid';
@@ -314,9 +466,6 @@ class Users {
 	}
 	
 	private function validatePassword(){
-		// Trim
-		$this->password = trim($this->password);
-		
 		// Check Password
 		if(!empty($this->password)){
 			if(strlen($this->password) >= 8){
@@ -490,81 +639,101 @@ class Users {
 		return $success;
 	}
 	
-	public function verifyEmail($emailAuth){
-		if(!empty($emailAuth)){
-			$db = new Database();
-			$dbEmailAuth = $db->escape($emailAuth);
-			$db->query("SELECT id, email FROM users WHERE emailAuth='$dbEmailAuth'");
-			if(!$db->error){
-				if($db->result->num_rows == 1){
-					// Valid Email Auth, Update Database
-					$resultArray = $db->resultArray();
-					$userID = $resultArray['id'];
-					$dbUserID = $db->escape($userID);
-					$db->query("UPDATE users SET emailVerified='1', emailAuth='', emailAuthSent='0' WHERE id='$dbUserID'");
-					if(!$db->error){
-						// Validate User
-						$this->validate($userID, true);
-						
-						// Create API Key
-						$apiKeys = new apiKeys();
-						$apiKeys->add($userID);
-						
-						// Give user Brewer privileges?
-						$emailDomainName = $this->emailDomainName($this->email);
-						// To be continued...
-					}else{
-						// Query Error
+	public function verifyEmail($emailAuth, $apiKey){
+		// Verify Admin is performing this function
+		$apiKeys = new apiKeys();
+		$apiKeys->validate($apiKey, true);
+		$this->validate($apiKeys->userID, true);
+		
+		if($this->admin){
+			if(!empty($emailAuth)){
+				$db = new Database();
+				$dbEmailAuth = $db->escape($emailAuth);
+				$db->query("SELECT id, email FROM users WHERE emailAuth='$dbEmailAuth'");
+				if(!$db->error){
+					if($db->result->num_rows == 1){
+						// Valid Email Auth, Update Database
+						$resultArray = $db->resultArray();
+						$userID = $resultArray['id'];
+						$dbUserID = $db->escape($userID);
+						$db->query("UPDATE users SET emailVerified=b'1', emailAuth='', emailAuthSent=0 WHERE id='$dbUserID'");
+						if(!$db->error){
+							// Validate User
+							$this->validate($userID, true);
+
+							// Create API Key
+							$apiKeys = new apiKeys();
+							$apiKeys->add($userID);
+
+							// Give user Brewer privileges?
+							$emailDomainName = $this->emailDomainName($this->email);
+							// To be continued...
+						}else{
+							// Query Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+					}elseif($db->result->num_rows > 1){
 						$this->error = true;
-						$this->errorMsg = $db->errorMsg;
-						$this->responseCode = $db->responseCode;
+						$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+						$this->responseCode = 500;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 84;
+						$errorLog->errorMsg = 'Duplicate emailAuth';
+						$errorLog->badData = "emailAuth: $emailAuth";
+						$errorLog->filename = 'API / Users.class.php';
+						$errorLog->write();
+					}else{
+						// Invalid Email Authentication Code
+						$this->error = true;
+						$this->errorMsg = 'Sorry, this appears to be an invalid email verification code. Please double check that you have clicked on the link in your email or have copy and pasted the entirety of the link into your browser.';
+						$this->responseCode = 400;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 83;
+						$errorLog->errorMsg = 'Invalid emailAuth';
+						$errorLog->badData = "emailAuth: $emailAuth";
+						$errorLog->filename = 'API / Users.class.php';
+						$errorLog->write();
 					}
-				}elseif($db->result->num_rows > 1){
-					$this->error = true;
-					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-					$this->responseCode = 500;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 84;
-					$errorLog->errorMsg = 'Duplicate emailAuth';
-					$errorLog->badData = "emailAuth: $emailAuth";
-					$errorLog->filename = 'API / Users.class.php';
-					$errorLog->write();
 				}else{
-					// Invalid Email Authentication Code
+					// Query Error
 					$this->error = true;
-					$this->errorMsg = 'Sorry, this appears to be an invalid email verification code. Please double check that you have clicked on the link in your email or have copy and pasted the entirety of the link into your browser.';
-					$this->responseCode = 400;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 83;
-					$errorLog->errorMsg = 'Invalid emailAuth';
-					$errorLog->badData = "emailAuth: $emailAuth";
-					$errorLog->filename = 'API / Users.class.php';
-					$errorLog->write();
+					$this->errorMsg = $db->errorMsg;
+					$this->errorMsg = $db->responseCode;
 				}
+
+				// Close Database Connection
+				$db->close();
 			}else{
-				// Query Error
+				// Missing Email Authentication Code
 				$this->error = true;
-				$this->errorMsg = $db->errorMsg;
-				$this->errorMsg = $db->responseCode;
+				$this->errorMsg = 'Sorry, we seem to be missing your email authentication code. Try clicking on the link in your email again.';
+				$this->responseCode = 400;
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 82;
+				$errorLog->errorMsg = 'Missing emailAuth';
+				$errorLog->badData = '';
+				$errorLog->filename = 'API / Users.class.php';
+				$errorLog->write();
 			}
-			
-			// Close Database Connection
-			$db->close();
 		}else{
-			// Missing Email Authentication Code
+			// Not an admin, not allowed to verify emails
 			$this->error = true;
-			$this->errorMsg = 'Sorry, we seem to be missing your email authentication code. Try clicking on the link in your email again.';
-			$this->responseCode = 400;
+			$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+			$this->responseCode = 403;
 			
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = 82;
-			$errorLog->errorMsg = 'Missing emailAuth';
-			$errorLog->badData = '';
+			$errorLog->errorNumber = 171;
+			$errorLog->errorMsg = 'Non-Admin trying to verify email';
+			$errorLog->badData = "userID: $userID attempting to confirm email_auth: $emailAuth";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -575,42 +744,52 @@ class Users {
 		return $matches[0];
 	}
 	
-	public function getAdminEmails(){
-		// Email Array
-		$emails = array();
+	public function delete($userID, $apiKey){
+		// Validate $apiKey & get user info for $apiKey
+		$apiKeys = new apiKeys();
+		$apiKeys->validate($apiKey, true);
+		$this->validate($apiKeys->userID, true);
 		
-		// Connect to Database
-		$db = new Database();
-		$db->query("SELECT email FROM users WHERE admin=1");
-		if(!$db->error){
-			while($array = $db->resultArray()){
-				$emails[] = $array['email'];
+		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
+		if($this->admin || $userID == $apiKeys->userID){
+			// Prep for Database
+			$db = new Database();
+			$dbUserID = $db->escape($userID);
+
+			// Delete API Keys for this userID
+			$db->query("DELETE FROM users WHERE id='$dbUserID'");
+			if($db->error){
+				// Database Error
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
 			}
+			$db->close();
 		}else{
+			// Not Authorized
 			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
+			$this->errorMsg = "Sorry, you do not have permission to perform this action.";
+			$this->responseCode = 403;
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 170;
+			$errorLog->errorMsg = 'Unauthorized attempt to delete user.';
+			$errorLog->badData = "userID $apiKeys->userID is trying to delete userID: $userID";
+			$errorLog->filename = 'API / Users.class.php';
+			$errorLog->write();
 		}
-		$db->close();
-		
-		// Return
-		return $emails;
 	}
 	
-	public function delete($userID){
-		// Prep for Database
-		$db = new Database();
-		$dbUserID = $db->escape($userID);
-
-		// Delete API Keys for this userID
-		$db->query("DELETE FROM users WHERE id='$dbUserID'");
-		if($db->error){
-			// Database Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-		$db->close();
+	private function generateUserObject(){
+		$this->json['id'] = $this->userID;
+		$this->json['object'] = 'users';
+		$this->json['name'] = $this->name;
+		$this->json['email'] = $this->email;
+		$this->json['email_verified'] = $this->emailVerified;
+		$this->json['email_auth'] = $this->emailAuth;
+		$this->json['email_auth_sent'] = $this->emailAuthSent;
+		$this->json['admin'] = $this->admin;
 	}
 	
 	public function usersAPI($method, $function, $id, $apiKey, $data){
@@ -626,189 +805,179 @@ class Users {
 		
 		DELETE https://api.catalog.beer/users/{id}
 		---*/
-		
-		// Validate API Key
+			
+		// Validate $apiKey & get user info for $apiKey
 		$apiKeys = new apiKeys();
 		$apiKeys->validate($apiKey, true);
-		
-		// Validate userID
 		$this->validate($apiKeys->userID, true);
-		if($this->admin){
-			switch($method){
-				case 'GET':
-					if(!empty($id) && empty($function)){
-						// GET https://api.catalog.beer/users/{id}
+		
+		// Switch based on HTTP Method
+		switch($method){
+			case 'GET':
+				if(!empty($id) && empty($function)){
+					// GET https://api.catalog.beer/users/{id}
+					// Only Admins and Users themselves may access this endpoint
+					if($this->admin || $id == $apiKeys->userID){
 						if($this->validate($id, true)){
-							$this->json['id'] = $this->userID;
-							$this->json['object'] = 'users';
-							$this->json['name'] = $this->name;
-							$this->json['email'] = $this->email;
-							$this->json['email_verified'] = $this->emailVerified;
-							$this->json['email_auth'] = $this->emailAuth;
-							$this->json['email_auth_sent'] = $this->emailAuthSent;
-							$this->json['admin'] = $this->admin;
+							$this->generateUserObject();
 						}else{
 							// Invalid User
 							$this->json['error'] = true;
 							$this->json['error_msg'] = $this->errorMsg;
 						}
 					}else{
-						switch($function){
-							// GET https://api.catalog.beer/users/{id}/api-key
-							case 'api-key':
-								if(!empty($id)){
+						// Not Authorized
+						$this->error = true;
+						$this->errorMsg = "Sorry, you do not have permission to perform this action.";
+						$this->responseCode = 403;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 172;
+						$errorLog->errorMsg = 'Unauthorized attempt to get user info.';
+						$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
+						$errorLog->filename = 'API / Users.class.php';
+						$errorLog->write();
+					}
+				}else{
+					switch($function){
+						// GET https://api.catalog.beer/users/{id}/api-key
+						case 'api-key':
+							if(!empty($id)){
+								// Only Admins and Users themselves may access this endpoint
+								if($this->admin || $id == $apiKeys->userID){
 									// Get API Key
 									$userAPIKey = $apiKeys->getKey($id);
-									if(!empty($userAPIKey)){
+									if(!$apiKeys->error){
 										$this->json['object'] = 'api_key';
 										$this->json['user_id'] = $id;
 										$this->json['api_key'] = $userAPIKey;
+										$this->responseCode = $apiKeys->responseCode;
 									}else{
-										// Invalid User
+										// Error getting API Key
 										$this->responseCode = $apiKeys->responseCode;
 										$this->json['error'] = true;
 										$this->json['error_msg'] = $apiKeys->errorMsg;
 									}
 								}else{
-									// Missing userID
-									$this->responseCode = 400;
-									$this->json['error'] = true;
-									$this->json['error_msg'] = 'We seem to be missing the user_id you would like to retreive the api_key for. Please check your submission and try again.';
+									// Not Authorized
+									$this->error = true;
+									$this->errorMsg = "Sorry, you do not have permission to perform this action.";
+									$this->responseCode = 403;
 
 									// Log Error
 									$errorLog = new LogError();
-									$errorLog->errorNumber = 79;
-									$errorLog->errorMsg = 'Missing user_id';
-									$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+									$errorLog->errorNumber = 173;
+									$errorLog->errorMsg = 'Unauthorized attempt to get API Key.';
+									$errorLog->badData = "userID $apiKeys->userID is trying to get the API key for userID: $userID";
 									$errorLog->filename = 'API / Users.class.php';
 									$errorLog->write();
 								}
-								break;
-							default:
-								// Missing Function
-								$this->responseCode = 404;
+							}else{
+								// Missing userID
+								$this->responseCode = 400;
 								$this->json['error'] = true;
-								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+								$this->json['error_msg'] = 'We seem to be missing the user_id you would like to retreive the api_key for. Please check your submission and try again.';
 
 								// Log Error
 								$errorLog = new LogError();
-								$errorLog->errorNumber = 78;
-								$errorLog->errorMsg = 'Invalid Endpoint (/users)';
+								$errorLog->errorNumber = 79;
+								$errorLog->errorMsg = 'Missing user_id';
 								$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
 								$errorLog->filename = 'API / Users.class.php';
-								$errorLog->write();		
-						}
-					}
-					break;
-				case 'POST':
-					if(empty($function)){
-						// POST https://api.catalog.beer/users
-						
-						// Handle Empty Fields
-						if(empty($data->name)){$data->name = '';}
-						if(empty($data->email)){$data->email = '';}
-						if(empty($data->password)){$data->password = '';}
-						if(empty($data->terms_agreement)){$data->terms_agreement = '';}
-						
-						// Create Account
-						$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKeys->userID);
-						if(!$this->error){
-							$this->json['id'] = $this->userID;
-							$this->json['object'] = 'users';
-							$this->json['name'] = $this->name;
-							$this->json['email'] = $this->email;
-							$this->json['email_verified'] = $this->emailVerified;
-							$this->json['email_auth'] = $this->emailAuth;
-							$this->json['email_auth_sent'] = $this->emailAuthSent;
-							$this->json['admin'] = $this->admin;
-						}else{
+								$errorLog->write();
+							}
+							break;
+						default:
+							// Missing Function
+							$this->responseCode = 404;
 							$this->json['error'] = true;
-							$this->json['error_msg'] = $this->errorMsg;
-							$this->json['valid_state'] = $this->validState;
-							$this->json['valid_msg'] = $this->validMsg;
-						}
-					}else{
-						switch($function){
-							case 'verify-email':
-								// POST https://api.catalog.beer/users/verify-email/{email_auth}
-								$this->verifyEmail($id);
-								if(!$this->error){
-									$this->json['id'] = $this->userID;
-									$this->json['object'] = 'users';
-									$this->json['name'] = $this->name;
-									$this->json['email'] = $this->email;
-									$this->json['email_verified'] = $this->emailVerified;
-									$this->json['email_auth'] = $this->emailAuth;
-									$this->json['email_auth_sent'] = $this->emailAuthSent;
-									$this->json['admin'] = $this->admin;
-								}else{
-									$this->json['error'] = true;
-									$this->json['error_msg'] = $this->errorMsg;
-								}
-								break;
-							default:
-								// Missing Function
-								$this->responseCode = 404;
-								$this->json['error'] = true;
-								$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+							$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
 
-								// Log Error
-								$errorLog = new LogError();
-								$errorLog->errorNumber = 80;
-								$errorLog->errorMsg = 'Invalid Endpoint (/users)';
-								$errorLog->badData = "UserID: $apiKeys->userID / function: $function / id: $id";
-								$errorLog->filename = 'API / Users.class.php';
-								$errorLog->write();	
-						}
+							// Log Error
+							$errorLog = new LogError();
+							$errorLog->errorNumber = 78;
+							$errorLog->errorMsg = 'Invalid Endpoint (/users)';
+							$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+							$errorLog->filename = 'API / Users.class.php';
+							$errorLog->write();		
 					}
-					break;
-				case 'DELETE':
-					// DELETE https://api.catalog.beer/users/{id}
-					if($this->validate($id, true)){
-						// Delete a User
-						$this->delete($id);
-						if(!$this->error){
-							// Successful
-							$this->responseCode = 204;
-						}else{
-							// Error
-							$this->json['error'] = true;
-							$this->json['error_msg'] = $this->errorMsg;
-						}
+				}
+				break;
+			case 'POST':
+				if(empty($function)){
+					// POST https://api.catalog.beer/users
+
+					// Handle Empty Fields
+					if(empty($data->name)){$data->name = '';}
+					if(empty($data->email)){$data->email = '';}
+					if(empty($data->password)){$data->password = '';}
+					if(empty($data->terms_agreement)){$data->terms_agreement = '';}
+
+					// Create Account
+					$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKey);
+					if(!$this->error){
+						$this->generateUserObject();
 					}else{
-						// Invalid User
 						$this->json['error'] = true;
 						$this->json['error_msg'] = $this->errorMsg;
+						$this->json['valid_state'] = $this->validState;
+						$this->json['valid_msg'] = $this->validMsg;
 					}
-					break;
-				default:
-					// Invalid Method
-					$this->responseCode = 405;
+				}else{
+					switch($function){
+						case 'verify-email':
+							// POST https://api.catalog.beer/users/verify-email/{email_auth}
+							$this->verifyEmail($id);
+							if(!$this->error){
+								$this->generateUserObject();
+							}else{
+								$this->json['error'] = true;
+								$this->json['error_msg'] = $this->errorMsg;
+							}
+							break;
+						default:
+							// Missing Function
+							$this->responseCode = 404;
+							$this->json['error'] = true;
+							$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
+
+							// Log Error
+							$errorLog = new LogError();
+							$errorLog->errorNumber = 80;
+							$errorLog->errorMsg = 'Invalid Endpoint (/users)';
+							$errorLog->badData = "UserID: $apiKeys->userID / function: $function / id: $id";
+							$errorLog->filename = 'API / Users.class.php';
+							$errorLog->write();	
+					}
+				}
+				break;
+			case 'DELETE':
+				// DELETE https://api.catalog.beer/users/{id}
+				$this->delete($id, $apiKey);
+				if(!$this->error){
+					// Successful
+					$this->responseCode = 204;
+				}else{
+					// Error
 					$this->json['error'] = true;
-					$this->json['error_msg'] = 'Invalid HTTP method for this endpoint.';
-					$this->responseHeader = 'Allow: GET, POST, DELETE';
+					$this->json['error_msg'] = $this->errorMsg;
+				}
+				break;
+			default:
+				// Invalid Method
+				$this->responseCode = 405;
+				$this->json['error'] = true;
+				$this->json['error_msg'] = 'Invalid HTTP method for this endpoint.';
+				$this->responseHeader = 'Allow: GET, POST, PATCH, DELETE';
 
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 72;
-					$errorLog->errorMsg = 'Invalid Method (/users)';
-					$errorLog->badData = $method;
-					$errorLog->filename = 'API / Users.class.php';
-					$errorLog->write();
-			}
-		}else{
-			// Not an Admin
-			$this->responseCode = 403;
-			$this->json['error'] = true;
-			$this->json['error_msg'] = 'Sorry, your account does not have permission to perform this action.';
-
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 37;
-			$errorLog->errorMsg = 'Non-Admin trying to get account info';
-			$errorLog->badData = "UserID: $apiKeys->userID / id: $id / function: $function";
-			$errorLog->filename = 'API / Users.class.php';
-			$errorLog->write();
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 72;
+				$errorLog->errorMsg = 'Invalid Method (/users)';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Users.class.php';
+				$errorLog->write();
 		}
 	}
 	
