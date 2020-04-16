@@ -168,7 +168,8 @@ class apiKeys {
 						$errorLog->write();
 					}else{
 						// This user doesn't have an API Key yet
-						// Return default empty $apiKey = '';
+						// Return default empty $apiKey = ''; 
+						$this->responseCode = 404;
 					}
 				}else{
 					// Database Error
