@@ -180,22 +180,22 @@ class Brewer {
 
 				// ----- Verification Badges -----
 				$this->cbVerified = false;
-				$dbCBV = 0;
+				$dbCBV = b'0';
 				$this->brewerVerified = false;
-				$dbBV = 0;
+				$dbBV = b'0';
 
 				// Get User Info
 				if($users->admin){
 					// Catalog.beer Verified
 					$this->cbVerified = true;
-					$dbCBV = 1;
+					$dbCBV = b'1';
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($this->domainName)){
 						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
-							$dbBV = 1;
+							$dbBV = b'1';
 
 							if(!in_array($this->brewerID, $userBrewerPrivileges)){
 								// Give user privileges for this brewer
@@ -252,9 +252,9 @@ class Brewer {
 
 					// Construct SQL Statement
 					if($newBrewer){
-						$sql = "INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', '$dbCBV', '$dbBV', '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', '$dbLastModified')";
+						$sql = "INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', $dbCBV, $dbBV, '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', $dbLastModified)";
 					}else{
-						$sql = "UPDATE brewer SET name='$dbName', description='$dbDescription', shortDescription='$dbShortDescription', url='$dbURL', domainName='$dbDomainName', cbVerified='$dbCBV', brewerVerified='$dbBV', facebookURL='$dbFacebookURL', twitterURL='$dbTwitterURL', instagramURL='$dbInstagramURL', lastModified='$dbLastModified' WHERE id='$dbBrewerID'";
+						$sql = "UPDATE brewer SET name='$dbName', description='$dbDescription', shortDescription='$dbShortDescription', url='$dbURL', domainName='$dbDomainName', cbVerified=$dbCBV, brewerVerified=$dbBV, facebookURL='$dbFacebookURL', twitterURL='$dbTwitterURL', instagramURL='$dbInstagramURL', lastModified=$dbLastModified WHERE id='$dbBrewerID'";
 					}
 				}
 			}elseif($method == 'PATCH'){
@@ -348,7 +348,7 @@ class Brewer {
 					$dbLastModified = $db->escape(time());
 					
 					// Construct SQL Statement
-					$sql = "UPDATE brewer SET lastModified='$dbLastModified', cbVerified='$dbCBV', brewerVerified='$dbBV'";
+					$sql = "UPDATE brewer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
 					
 					$totalUpdates = count($sqlArray);
 					if($totalUpdates > 0){$sql .= ", ";}
