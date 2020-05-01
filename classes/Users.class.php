@@ -9,6 +9,8 @@ class Users {
 	public $emailAuth = '';
 	public $emailAuthSent = 0;
 	public $emailVerified = false;
+	public $passwordResetSent = 0;
+	public $passwordResetKey = '';
 	public $admin = false;
 	
 	// Validation
@@ -263,7 +265,7 @@ class Users {
 						if(in_array('password', $patchFields)){
 							// Validate Password
 							$this->password = $password;
-							$this->validateEmail();
+							$this->validatePassword();
 							if(!$this->error){
 								// Hash Password
 								$passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
@@ -282,10 +284,9 @@ class Users {
 							$dbUserID = $db->escape($userID);
 
 							// Construct SQL Statement
-							$sql = "UPDATE users SET";
+							$sql = "UPDATE users SET ";
 
 							$totalUpdates = count($sqlArray);
-							if($totalUpdates > 0){$sql .= ", ";}
 							$lastUpdate = $totalUpdates - 1;
 							for($i=0;$i<$totalUpdates; $i++){
 								if($i == $lastUpdate){
@@ -310,6 +311,7 @@ class Users {
 						$errorLog->filename = 'API / Users.class.php';
 						$errorLog->write();
 					}
+										
 					break;
 				default:
 					// Invalid Method
@@ -333,14 +335,17 @@ class Users {
 				$db->query($sql);
 				if(!$db->error){
 					if($sendEmailVerification){
+						// Generate Email Auth Code
+						$uuid = new uuid();
+						$this->emailAuth = $uuid->createCode();
+						
 						// Send email confirmation
 						$sendEmail = new SendEmail();
-						$this->emailAuth = $sendEmail->verifyEmail($this->email);
-						$this->emailAuthSent = time();
-
+						$sendEmail->verifyEmail($this->email, $this->emailAuth);
 						if(!$sendEmail->error){
 							// Update Database
 							$dbEmailAuth = $db->escape($this->emailAuth);
+							$this->emailAuthSent = time();
 							$dbEmailAuthSent = $db->escape($this->emailAuthSent);
 							$db->query("UPDATE users SET emailAuth='$dbEmailAuth', emailAuthSent=$dbEmailAuthSent WHERE id='$dbUserID'");
 							if($db->error){
@@ -367,7 +372,7 @@ class Users {
 				$db->close();
 			}
 		}else{
-			// Not an admin, can't create new account
+			// Not an admin or user, can't create new account
 			$this->error = true;
 			$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
 			$this->responseCode = 403;
@@ -375,8 +380,8 @@ class Users {
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 35;
-			$errorLog->errorMsg = 'Unauthorized person trying to create or update an account';
-			$errorLog->badData = "UserID: $userID";
+			$errorLog->errorMsg = 'Unauthorized attempt to create or update an account';
+			$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -733,7 +738,7 @@ class Users {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 171;
 			$errorLog->errorMsg = 'Non-Admin trying to verify email';
-			$errorLog->badData = "userID: $userID attempting to confirm email_auth: $emailAuth";
+			$errorLog->badData = "userID: $apiKeys->userID attempting to confirm email_auth: $emailAuth";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -781,6 +786,193 @@ class Users {
 		}
 	}
 	
+	private function sendPasswordResetKey($userID, $apiKey){
+		// Default Value
+		$okayToSend = false;
+		
+		// Validate $apiKey & get user info for $apiKey
+		$apiKeys = new apiKeys();
+		$apiKeys->validate($apiKey, true);
+		$this->validate($apiKeys->userID, true);
+		
+		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
+		if($this->admin || $userID == $apiKeys->userID){
+			if($this->emailVerified){
+				// Verified email, okay to send password reset
+				
+				// When was the last password reset sent?
+				$db = new Database();
+				$dbUserID = $db->escape($userID);
+				$db->query("SELECT passwordResetSent FROM users WHERE id='$dbUserID'");
+				if(!$db->error){
+					// Get Timestamp of last Password Reset Sent
+					$passwordResetSent = $db->singleResult('passwordResetSent');
+
+					// Limit requests
+					if(!empty($passwordResetSent)){
+						// Next attempt allowed in 15 minutes
+						$minutesBetweenAttempts = 15;
+						$nextAttempt = $passwordResetSent + (60 * $minutesBetweenAttempts);
+						if(time() > $nextAttempt){
+							// Okay to send a password reset email (enough time has elapsed between requests)
+							$okayToSend = true;
+						}else{
+							// Need to wait to send
+							$sentMinutesAgo = round((time() - $passwordResetSent)/60,0);
+							$minutesUntilAttemptAgain = $minutesBetweenAttempts - $sentMinutesAgo;
+							$this->error = true;
+							$this->errorMsg = "We sent you a password reset email $sentMinutesAgo minutes ago. Please wait at least $minutesUntilAttemptAgain minutes for that email to arrive before requesting another password reset email.";
+							$this->responseCode = 400;
+
+							// Log Error
+							$errorLog = new LogError();
+							$errorLog->errorNumber = 178;
+							$errorLog->errorMsg = 'Too frequent password reset requests.';
+							$errorLog->badData = "userID $apiKeys->userID is trying to send another password reset for userID: $userID";
+							$errorLog->filename = 'API / Users.class.php';
+							$errorLog->write();
+						}
+					}else{
+						// Haven't sent password reset email yet
+						$okayToSend = true;
+					}
+					
+					if($okayToSend){
+						// Generate Password Reset Code
+						$uuid = new uuid();
+						$this->passwordResetKey = $uuid->createCode();
+						$this->passwordResetSent = time();
+
+						// Update Database
+						$dbPasswordResetKey = $db->escape($this->passwordResetKey);
+						$dbPasswordResetSent = $db->escape($this->passwordResetSent);
+						$db->query("UPDATE users SET passwordResetKey='$dbPasswordResetKey', passwordResetSent='$dbPasswordResetSent' WHERE id='$dbUserID'");
+						if(!$db->error){
+							// Send Email to User
+							$sendEmail = new SendEmail();
+							$sendEmail->passwordResetEmail($this->email, $this->passwordResetKey);
+							if($sendEmail->error){
+								// Error Sending Email
+								$this->error = true;
+								$this->errorMsg = $sendEmail->errorMsg;
+								$this->responseCode = $sendEmail->responseCode;
+							}
+						}else{
+							// Database Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+					}
+				}else{
+					// Database Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
+				}
+
+				// Close Database Connection
+				$db->close();
+			}else{
+				// Haven't verified email, not allowed to reset password
+				$this->error = true;
+				$this->errorMsg = "Before we can reset your password, you will need to confirm your email address. Please check your email inbox for a confirmation message from Catalog.beer.";
+				$this->responseCode = 400;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 179;
+				$errorLog->errorMsg = 'Attempting password reset before their email has been verified.';
+				$errorLog->badData = "userID: $this->userID";
+				$errorLog->filename = 'API / Users.class.php';
+				$errorLog->write();
+			}
+		}else{
+			// Not an admin or user, can't create new account
+			$this->error = true;
+			$this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+			$this->responseCode = 403;
+			
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 177;
+			$errorLog->errorMsg = 'Unauthorized person trying to send password reset';
+			$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
+			$errorLog->filename = 'API / Users.class.php';
+			$errorLog->write();
+		}
+	}
+	
+	private function resetPassword($passwordResetKey, $password){
+		// Validate Password Reset Key
+		$db = new Database();
+		$dbPasswordResetKey = $db->escape($passwordResetKey);
+		$db->query("SELECT id FROM users WHERE passwordResetKey='$dbPasswordResetKey'");
+		if(!$db->error){
+			if($db->result->num_rows == 1){
+				// Password Key Found
+				// Validate Password
+				$this->password = $password;
+				$this->validatePassword();
+				if(!$this->error){
+					// Get userID
+					$userID = $db->singleResult('id');
+					$dbUserID = $db->escape($userID);
+					
+					// Hash Password
+					$passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
+
+					// Clear Saved Password
+					$this->password = '';
+					
+					// Update Password in Database
+					$dbPasswordHash = $db->escape($passwordHash);
+					$db->query("UPDATE users SET passwordHash='$dbPasswordHash', passwordResetKey=NULL, passwordResetSent=NULL WHERE id='$dbUserID'");
+					if($db->error){
+						// Database Error
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
+				}
+			}elseif($db->result->num_rows == 0){
+				// Invalid Password Reset Key
+				$this->error = true;
+				$this->errorMsg = 'Sorry, we are unable to process your password reset request. Your password reset link may have expired.';
+				$this->responseCode = 400;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 180;
+				$errorLog->errorMsg = 'Password reset key not found';
+				$errorLog->badData = "Password Reset Key: $passwordResetKey";
+				$errorLog->filename = 'API / Users.class.php';
+				$errorLog->write();
+			}else{
+				// More than one result
+				$this->error = true;
+				$this->errorMsg = "Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.";
+				$this->responseCode = 500;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 181;
+				$errorLog->errorMsg = 'Duplicate Password Reset Keys';
+				$errorLog->badData = "Password Reset Key: $passwordResetKey";
+				$errorLog->filename = 'API / Users.class.php';
+				$errorLog->write();
+			}
+		}else{
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		
+		// Close Database Connection
+		$db->close();
+	}
+	
 	private function generateUserObject(){
 		$this->json['id'] = $this->userID;
 		$this->json['object'] = 'users';
@@ -800,8 +992,10 @@ class Users {
 		GET https://api.catalog.beer/users/{id}
 		GET https://api.catalog.beer/users/{id}/api-key
 		
-		POST https://api.catalog.beer/users/verify-email/{email_auth}
 		POST https://api.catalog.beer/users
+		POST https://api.catalog.beer/users/verify-email/{email_auth}
+		
+		PATCH https://api.catalog.beer/users/{id}
 		
 		DELETE https://api.catalog.beer/users/{id}
 		---*/
@@ -827,15 +1021,15 @@ class Users {
 						}
 					}else{
 						// Not Authorized
-						$this->error = true;
-						$this->errorMsg = "Sorry, you do not have permission to perform this action.";
+						$this->json['error'] = true;
+						$this->json['error_msg'] = "Sorry, you do not have permission to perform this action.";
 						$this->responseCode = 403;
 
 						// Log Error
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 172;
 						$errorLog->errorMsg = 'Unauthorized attempt to get user info.';
-						$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
+						$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $id";
 						$errorLog->filename = 'API / Users.class.php';
 						$errorLog->write();
 					}
@@ -898,7 +1092,7 @@ class Users {
 							$errorLog = new LogError();
 							$errorLog->errorNumber = 78;
 							$errorLog->errorMsg = 'Invalid Endpoint (/users)';
-							$errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+							$errorLog->badData = "Method: $method / UserID: $apiKeys->userID / function: $function / userID: $id";
 							$errorLog->filename = 'API / Users.class.php';
 							$errorLog->write();		
 					}
@@ -915,7 +1109,7 @@ class Users {
 					if(empty($data->terms_agreement)){$data->terms_agreement = '';}
 
 					// Create Account
-					$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKey);
+					$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKey, 'POST', '', array());
 					if(!$this->error){
 						$this->generateUserObject();
 					}else{
@@ -926,9 +1120,38 @@ class Users {
 					}
 				}else{
 					switch($function){
+						case 'password-reset':
+							// POST https://api.catalog.beer/users/password-rest/{id}
+							
+							// Handle Empty Fields
+							if(empty($data->password)){$data->password = '';}
+							
+							// Reset Password
+							$this->resetPassword($id, $data->password);
+							if(!$this->error){
+								// Successfully Reset Password
+								// Return 204 - No Content
+								$this->responseCode = 204;
+							}else{
+								$this->json['error'] = true;
+								$this->json['error_msg'] = $this->errorMsg;
+							}
+							break;
+						case 'reset-password':
+							// POST https://api.catalog.beer/users/{id}/reset-password
+							$this->sendPasswordResetKey($id, $apiKey);
+							if(!$this->error){
+								// Successfully Sent Email
+								// Return 204 - No Content
+								$this->responseCode = 204;
+							}else{
+								$this->json['error'] = true;
+								$this->json['error_msg'] = $this->errorMsg;
+							}
+							break;
 						case 'verify-email':
 							// POST https://api.catalog.beer/users/verify-email/{email_auth}
-							$this->verifyEmail($id);
+							$this->verifyEmail($id, $apiKey);
 							if(!$this->error){
 								$this->generateUserObject();
 							}else{
@@ -951,6 +1174,36 @@ class Users {
 							$errorLog->write();	
 					}
 				}
+				break;
+			case 'PATCH':
+				// Which fields are we updating?
+				$patchFields = array();
+				
+				if(isset($data->name)){$patchFields[] = 'name';}
+				else{$data->name = '';}
+				
+				if(isset($data->email)){$patchFields[] = 'email';}
+				else{$data->email = '';}
+				
+				if(isset($data->password)){$patchFields[] = 'password';}
+				else{$data->password = '';}
+				
+				// Update User Info
+				$this->createAccount($data->name, $data->email, $data->password, true, $apiKey, 'PATCH', $id, $patchFields);
+				if(!$this->error){
+					// Get Updated User Info
+					$this->validate($id, true);
+					
+					// Generate Brewer Object JSON
+					$this->generateUserObject();
+				}else{
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					unset($this->validState['terms_agreement']);
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				
 				break;
 			case 'DELETE':
 				// DELETE https://api.catalog.beer/users/{id}

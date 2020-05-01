@@ -38,4 +38,6 @@ RewriteRule ^usage/?$ index.php?endpoint=usage [L]
 
 RewriteRule ^users(\/[-0-9a-f]{36})/api-key$ index.php?endpoint=users&id=$1&function=api-key [L]
 RewriteRule ^users/verify-email(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1&function=verify-email [L]
+RewriteRule ^users(\/[-0-9a-f]{36})/reset-password$ index.php?endpoint=users&id=$1&function=reset-password [L]
+RewriteRule ^users/password-reset(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1&function=password-reset [L]
 RewriteRule ^users(\/[-0-9a-f]{36})?$ index.php?endpoint=users&id=$1 [L]
