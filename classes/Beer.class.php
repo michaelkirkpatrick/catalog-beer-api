@@ -112,6 +112,9 @@ class Beer {
 			$this->validState['brewer_id'] = 'invalid';
 			$this->responseCode = $brewer->responseCode;
 			$this->validMsg['brewer_id'] = $brewer->errorMsg;
+			
+			// Clear general errorMsg if it's the same
+			if($this->errorMsg == 'Whoops, we seem to be missing the beer_id for the beer. Please check your request and try again.');
 		}
 		
 		// ----- Permissions & Validation Badge -----
@@ -333,10 +336,13 @@ class Beer {
 				}
 				
 				if(!$this->error && !empty($sqlArray)){
-					// Construct SQL Statement
+					// Prep for Database
 					$dbLastModified = $db->escape(time());
 					$dbBeerID = $db->escape($this->beerID);
+					
+					// Construct SQL Statement
 					$sql = "UPDATE beer SET lastModified='$dbLastModified', cbVerified='$dbCBV', brewerVerified='$dbBV'";
+					
 					$totalUpdates = count($sqlArray);
 					if($totalUpdates > 0){$sql .= ", ";}
 					$lastUpdate = $totalUpdates - 1;
@@ -809,17 +815,10 @@ class Beer {
 				$beerInfo['object'] = 'list';
 				$beerInfo['url'] = '/brewer/' . $brewerID . '/beer';
 				$beerInfo['has_more'] = false;
-				$beerInfo['brewer']['id'] = $brewer->brewerID;
-				$beerInfo['brewer']['object'] = 'brewer';
-				$beerInfo['brewer']['name'] = $brewer->name;
-				$beerInfo['brewer']['description'] = $brewer->description;
-				$beerInfo['brewer']['short_description'] = $brewer->shortDescription;
-				$beerInfo['brewer']['url'] = $brewer->url;
-				$beerInfo['brewer']['cb_verified'] = $brewer->cbVerified;
-				$beerInfo['brewer']['brewer_verified'] = $brewer->brewerVerified;
-				$beerInfo['brewer']['facebook_url'] = $brewer->facebookURL;
-				$beerInfo['brewer']['twitter_url'] = $brewer->twitterURL;
-				$beerInfo['brewer']['instagram_url'] = $brewer->instagramURL;
+				
+				// Generate Brewer Object JSON
+				$brewer->generateBrewerObject();
+				$beerInfo['brewer'][] = $brewer->json;
 				$beerInfo['data'] = array();
 				
 				// Prep for Query
@@ -981,6 +980,9 @@ class Beer {
 		
 		DELETE https://api.catalog.beer/beer/{beer_id}
 		---*/
+		
+		$brewer = new Brewer();
+		
 		switch($method){
 			case 'GET':
 				if(!empty($id) && empty($function)){
@@ -988,7 +990,6 @@ class Beer {
 					// Validate ID
 					if($this->validate($id, true)){
 						// Validate Brewery
-						$brewer = new Brewer();
 						if($brewer->validate($this->brewerID, true)){
 							// Beer Info
 							$this->json['id'] = $this->beerID;
@@ -1001,18 +1002,9 @@ class Beer {
 							$this->json['cb_verified'] = $this->cbVerified;
 							$this->json['brewer_verified'] = $this->brewerVerified;
 
-							// Brewer Info
-							$this->json['brewer']['id'] = $brewer->brewerID;
-							$this->json['brewer']['object'] = 'brewer';
-							$this->json['brewer']['name'] = $brewer->name;
-							$this->json['brewer']['description'] = $brewer->description;
-							$this->json['brewer']['short_description'] = $brewer->shortDescription;
-							$this->json['brewer']['url'] = $brewer->url;
-							$this->json['brewer']['cb_verified'] = $brewer->cbVerified;
-							$this->json['brewer']['brewer_verified'] = $brewer->brewerVerified;
-							$this->json['brewer']['facebook_url'] = $brewer->facebookURL;
-							$this->json['brewer']['twitter_url'] = $brewer->twitterURL;
-							$this->json['brewer']['instagram_url'] = $brewer->instagramURL;
+							// Generate Brewer Object JSON
+							$brewer->generateBrewerObject();
+							$beerInfo['brewer'][] = $brewer->json;
 						}else{
 							// Brewer Validation Error
 							$this->responseCode = $brewer->responseCode;
@@ -1138,6 +1130,7 @@ class Beer {
 				// Add Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
+					// Beer Info
 					$this->json['id'] = $this->beerID;
 					$this->json['object'] = 'beer';
 					$this->json['name'] = $this->name;
@@ -1147,6 +1140,13 @@ class Beer {
 					$this->json['ibu'] = intval($this->ibu);
 					$this->json['cb_verified'] = $this->cbVerified;
 					$this->json['brewer_verified'] = $this->brewerVerified;
+					
+					// Get Brewer Info
+					$brewer->validate($this->brewerID, true);
+					
+					// Generate Brewer Object JSON
+					$brewer->generateBrewerObject();
+					$beerInfo['brewer'][] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1188,6 +1188,7 @@ class Beer {
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
+					// Beer Info
 					$this->json['id'] = $this->beerID;
 					$this->json['object'] = 'beer';
 					$this->json['name'] = $this->name;
@@ -1197,6 +1198,13 @@ class Beer {
 					$this->json['ibu'] = intval($this->ibu);
 					$this->json['cb_verified'] = $this->cbVerified;
 					$this->json['brewer_verified'] = $this->brewerVerified;
+					
+					// Brewer Info
+					$brewer->validate($this->brewerID, true);
+					
+					// Generate Brewer Object JSON
+					$brewer->generateBrewerObject();
+					$beerInfo['brewer'][] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1235,6 +1243,7 @@ class Beer {
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
+					// Beer Info
 					$this->json['id'] = $this->beerID;
 					$this->json['object'] = 'beer';
 					$this->json['name'] = $this->name;
@@ -1244,6 +1253,13 @@ class Beer {
 					$this->json['ibu'] = intval($this->ibu);
 					$this->json['cb_verified'] = $this->cbVerified;
 					$this->json['brewer_verified'] = $this->brewerVerified;
+					
+					// Brewer Info
+					$brewer->validate($this->brewerID, true);
+					
+					// Generate Brewer Object JSON
+					$brewer->generateBrewerObject();
+					$beerInfo['brewer'][] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
