@@ -863,56 +863,6 @@ class Beer {
 		return $beerInfo;
 	}
 	
-	// Last Modified
-	public function latestModified(){
-		// Return
-		$lastModified = 0;
-		
-		// Connect to Database
-		$db = new Database();
-		$db->query("SELECT MAX(lastModified) AS lastModified FROM beer");
-		if(!$db->error){
-			// Save Last Modified
-			$lastModified = intval($db->singleResult('lastModified'));
-		}else{
-			// Query Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-		$db->close();
-		
-		// Return
-		return $lastModified;
-	}
-	
-	public function lastModified($beerID){
-		// Return
-		$lastModified = 0;
-		
-		if(!empty($beerID)){
-			if($this->validate($beerID, true)){
-				$lastModified = $this->lastModified;
-			}
-		}else{
-			// Missing BrewerID
-			$this->error = true;
-			$this->errorMsg = 'Missing beerID';
-			$this->responseCode = 400;
-			
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 102;
-			$errorLog->errorMsg = 'Missing beerID';
-			$errorLog->badData = '';
-			$errorLog->filename = 'API / Beer.class.php';
-			$errorLog->write();
-		}
-		
-		// Return
-		return $lastModified;
-	}
-	
 	public function deleteBeer($beerID, $userID){
 		if($this->validate($beerID, false)){
 			$users = new Users();
@@ -971,6 +921,7 @@ class Beer {
 		$this->json['ibu'] = intval($this->ibu);
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
+		$this->json['last_modified'] = $this->lastModified;
 	}
 	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
@@ -980,9 +931,7 @@ class Beer {
 		
 		GET https://api.catalog.beer/beer
 		GET https://api.catalog.beer/beer/count
-		GET https://api.catalog.beer/beer/last-modified
 		GET https://api.catalog.beer/beer/{beer_id}
-		GET https://api.catalog.beer/beer/{beer_id}/last-modified
 		
 		POST https://api.catalog.beer/beer
 		
@@ -1033,34 +982,6 @@ class Beer {
 								}else{
 									$this->json['error'] = true;
 									$this->json['error_msg'] = $this->errorMsg;
-								}
-								break;
-							case 'last-modified':
-								if(!empty($id)){
-									// GET https://api.catalog.beer/beer/{beer_id}/last-modified
-									// Individual Brewer
-									$lastModified = $this->lastModified($id);
-									if(!$this->error){
-										$this->json['object'] = 'timestamp';
-										$this->json['url'] = '/beer/' . $id . '/last-modified';
-										$this->json['beer_id'] = $id;
-										$this->json['last_modified'] = $lastModified;
-									}else{
-										$this->json['error'] = true;
-										$this->json['error_msg'] = $this->errorMsg;
-									}
-								}else{
-									// GET https://api.catalog.beer/beer/last-modified
-									// All Brewers
-									$latestModified = $this->latestModified();
-									if(!$this->error){
-										$this->json['object'] = 'timestamp';
-										$this->json['url'] = '/beer/last-modified';
-										$this->json['last_modified'] = $latestModified;
-									}else{
-										$this->json['error'] = true;
-										$this->json['error_msg'] = $this->errorMsg;
-									}
 								}
 								break;
 							default:
