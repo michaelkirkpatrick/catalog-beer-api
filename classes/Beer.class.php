@@ -961,6 +961,18 @@ class Beer {
 		$db->close();
 	}
 	
+	public function generateBeerObject(){
+		$this->json['id'] = $this->beerID;
+		$this->json['object'] = 'beer';
+		$this->json['name'] = $this->name;
+		$this->json['style'] = $this->style;
+		$this->json['description'] = $this->description;
+		$this->json['abv'] = floatval($this->abv);
+		$this->json['ibu'] = intval($this->ibu);
+		$this->json['cb_verified'] = $this->cbVerified;
+		$this->json['brewer_verified'] = $this->brewerVerified;
+	}
+	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/beer/{function}
@@ -992,15 +1004,7 @@ class Beer {
 						// Validate Brewery
 						if($brewer->validate($this->brewerID, true)){
 							// Beer Info
-							$this->json['id'] = $this->beerID;
-							$this->json['object'] = 'beer';
-							$this->json['name'] = $this->name;
-							$this->json['style'] = $this->style;
-							$this->json['description'] = $this->description;
-							$this->json['abv'] = $this->abv;
-							$this->json['ibu'] = $this->ibu;
-							$this->json['cb_verified'] = $this->cbVerified;
-							$this->json['brewer_verified'] = $this->brewerVerified;
+							$this->generateBeerObject();
 
 							// Generate Brewer Object JSON
 							$brewer->generateBrewerObject();
@@ -1131,15 +1135,7 @@ class Beer {
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					// Beer Info
-					$this->json['id'] = $this->beerID;
-					$this->json['object'] = 'beer';
-					$this->json['name'] = $this->name;
-					$this->json['style'] = $this->style;
-					$this->json['description'] = $this->description;
-					$this->json['abv'] = floatval($this->abv);
-					$this->json['ibu'] = intval($this->ibu);
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
+					$this->generateBeerObject();
 					
 					// Get Brewer Info
 					$brewer->validate($this->brewerID, true);
@@ -1189,15 +1185,7 @@ class Beer {
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
 					// Beer Info
-					$this->json['id'] = $this->beerID;
-					$this->json['object'] = 'beer';
-					$this->json['name'] = $this->name;
-					$this->json['style'] = $this->style;
-					$this->json['description'] = $this->description;
-					$this->json['abv'] = floatval($this->abv);
-					$this->json['ibu'] = intval($this->ibu);
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
+					$this->generateBeerObject();
 					
 					// Brewer Info
 					$brewer->validate($this->brewerID, true);
@@ -1244,15 +1232,7 @@ class Beer {
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
 					// Beer Info
-					$this->json['id'] = $this->beerID;
-					$this->json['object'] = 'beer';
-					$this->json['name'] = $this->name;
-					$this->json['style'] = $this->style;
-					$this->json['description'] = $this->description;
-					$this->json['abv'] = floatval($this->abv);
-					$this->json['ibu'] = intval($this->ibu);
-					$this->json['cb_verified'] = $this->cbVerified;
-					$this->json['brewer_verified'] = $this->brewerVerified;
+					$this->generateBeerObject();
 					
 					// Brewer Info
 					$brewer->validate($this->brewerID, true);
