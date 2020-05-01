@@ -846,7 +846,7 @@ class Users {
 						// Update Database
 						$dbPasswordResetKey = $db->escape($this->passwordResetKey);
 						$dbPasswordResetSent = $db->escape($this->passwordResetSent);
-						$db->query("UPDATE users SET passwordResetKey='$dbPasswordResetKey', passwordResetSent='$dbPasswordResetSent' WHERE id='$dbUserID'");
+						$db->query("UPDATE users SET passwordResetKey='$dbPasswordResetKey', passwordResetSent=$dbPasswordResetSent WHERE id='$dbUserID'");
 						if(!$db->error){
 							// Send Email to User
 							$sendEmail = new SendEmail();
