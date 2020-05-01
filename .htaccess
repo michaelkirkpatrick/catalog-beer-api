@@ -16,17 +16,12 @@ RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&function=locations [L]
-RewriteRule ^brewer(\/[-0-9a-f]{36})/last-modified$ index.php?endpoint=brewer&function=last-modified&id=$1 [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
-RewriteRule ^brewer/last-modified$ index.php?endpoint=brewer&function=last-modified [L]
 
 RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
-RewriteRule ^beer(\/[-0-9a-f]{36})/last-modified$ index.php?endpoint=beer&function=last-modified&id=$1 [L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
-RewriteRule ^beer/last-modified$ index.php?endpoint=beer&function=last-modified [L]
-
 
 RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
