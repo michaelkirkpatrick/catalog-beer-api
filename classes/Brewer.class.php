@@ -238,7 +238,7 @@ class Brewer {
 				$this->validateShortDescription();
 
 				if(!$this->error){
-					// Prep for Database
+					// Escape for Database
 					$dbBrewerID = $db->escape($this->brewerID);
 					$dbName = $db->escape($this->name);
 					$dbDescription = $db->escape($this->description);
@@ -248,13 +248,63 @@ class Brewer {
 					$dbFacebookURL = $db->escape($this->facebookURL);
 					$dbTwitterURL = $db->escape($this->twitterURL);
 					$dbInstagramURL = $db->escape($this->instagramURL);
-					$dbLastModified = $db->escape(time());
+					$this->lastModified = time();
+					$dbLastModified = $db->escape($this->lastModified);
 
 					// Construct SQL Statement
 					if($newBrewer){
-						$sql = "INSERT INTO brewer (id, name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified) VALUES ('$dbBrewerID', '$dbName', '$dbDescription', '$dbShortDescription', '$dbURL', '$dbDomainName', $dbCBV, $dbBV, '$dbFacebookURL', '$dbTwitterURL', '$dbInstagramURL', $dbLastModified)";
+						$columns = '';
+						$values = ") VALUES ('$dbBrewerID', '$dbName', $dbCBV, $dbBV, $dbLastModified, ";
+						if(!empty($dbDescription)){
+							$columns .= 'description, ';
+							$values .= "'$dbDescription', ";
+						}
+						if(!empty($dbShortDescription)){
+							$columns .= 'shortDescription, ';
+							$values .= "'$dbShortDescription', ";
+						}
+						if(!empty($dbURL)){
+							$columns .= 'url, domainName, ';
+							$values .= "'$dbURL', '$dbDomainName', ";
+						}
+						if(!empty($dbFacebookURL)){
+							$columns .= 'facebookURL, ';
+							$values .= "'$dbFacebookURL', ";
+						}
+						if(!empty($dbTwitterURL)){
+							$columns .= 'twitterURL, ';
+							$values .= "'$dbTwitterURL', ";
+						}
+						if(!empty($dbInstagramURL)){
+							$columns .= 'instagramURL, ';
+							$values .= "'$dbInstagramURL', ";
+						}
+						if(!empty($columns)){
+							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified, " . substr($columns, 0, strlen($columns)-2) . substr($values, 0, strlen($values)-2) . ")";
+						}else{
+							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
+						}
 					}else{
-						$sql = "UPDATE brewer SET name='$dbName', description='$dbDescription', shortDescription='$dbShortDescription', url='$dbURL', domainName='$dbDomainName', cbVerified=$dbCBV, brewerVerified=$dbBV, facebookURL='$dbFacebookURL', twitterURL='$dbTwitterURL', instagramURL='$dbInstagramURL', lastModified=$dbLastModified WHERE id='$dbBrewerID'";
+						$sqlUpdate = '';
+						if(!empty($dbDescription)){
+							$sqlUpdate .= "description='$dbDescription', ";
+						}
+						if(!empty($dbShortDescription)){
+							$sqlUpdate .= "shortDescription='$dbShortDescription', ";
+						}
+						if(!empty($dbURL)){
+							$sqlUpdate .= "url='$dbURL', domainName='$dbDomainName,' ";
+						}
+						if(!empty($dbFacebookURL)){
+							$sqlUpdate .= "facebookURL='$dbFacebookURL', ";
+						}
+						if(!empty($dbTwitterURL)){
+							$sqlUpdate .= "twitterURL='$dbTwitterURL', ";
+						}
+						if(!empty($dbInstagramURL)){
+							$sqlUpdate .= "instagramURL='$dbInstagramURL', ";
+						}
+						$sql = "UPDATE brewer SET name='$dbName', cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified, " . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBrewerID'";
 					}
 				}
 			}elseif($method == 'PATCH'){
@@ -707,6 +757,26 @@ class Brewer {
 				if($stringPrefix == "www."){
 					$urlDomainName = substr($urlDomainName, 4);
 				}
+				
+				// Check for Duplicate Domain Names
+				$db = new Database();
+				$dbDomainName = $db->escape($urlDomainName);
+				$db->query("SELECT id FROM brewer WHERE domainName='$dbDomainName'");
+				if($db->result->num_rows == 1){
+					// Duplicate Domain Name - Not Acceptable
+					$this->error = true;
+					$this->validState['url'] = 'invalid';
+					$this->validMsg['url'] = "Sorry, there is already a brewery in our database with the domain name: $urlDomainName. We require that breweries have unique URLs so can't add this entry to our database on your behalf. If you'd like help resolving this issue, please [contact us](/contact)";
+					$this->responseCode = 400;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 182;
+					$errorLog->errorMsg = 'Attempt to add duplicate URL';
+					$errorLog->badData = "URL: $url / Domain Name: $urlDomainName";
+					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->write();
+				}
 			}else{
 				// Error with hostname
 				$this->error = true;
@@ -1062,6 +1132,16 @@ class Brewer {
 	public function generateBrewerObject(){
 		// Generates the Brewer Object
 		// Generally returned as part of the API output
+		
+		// Optional Values that may be stored as null, return as empty ("")
+		if(is_null($this->description)){$this->description = '';}
+		if(is_null($this->shortDescription)){$this->shortDescription = '';}
+		if(is_null($this->url)){$this->url = '';}
+		if(is_null($this->facebookURL)){$this->facebookURL = '';}
+		if(is_null($this->twitterURL)){$this->twitterURL = '';}
+		if(is_null($this->instagramURL)){$this->instagramURL = '';}
+		
+		// Known Values - Required
 		$this->json['id'] = $this->brewerID;
 		$this->json['object'] = 'brewer';
 		$this->json['name'] = $this->name;
