@@ -52,7 +52,7 @@ class Location {
 		$this->validateName();
 
 		// Validate URL
-		$this->url = $brewer->validateURL($this->url, 'url');
+		$this->url = $brewer->validateURL($this->url, 'url', 'location');
 		if(!$brewer->error){
 			// Valid URL
 			if(!empty($this->url)){
