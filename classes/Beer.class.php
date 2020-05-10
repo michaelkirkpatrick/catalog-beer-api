@@ -995,7 +995,7 @@ class Beer {
 
 							// Generate Brewer Object JSON
 							$brewer->generateBrewerObject();
-							$beerInfo['brewer'][] = $brewer->json;
+							$this->json['brewer'] = $brewer->json;
 						}else{
 							// Brewer Validation Error
 							$this->responseCode = $brewer->responseCode;
