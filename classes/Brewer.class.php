@@ -44,7 +44,7 @@ class Brewer {
 				$this->brewerID = $uuid->generate('brewer');
 				if(!$uuid->error){
 					// Get Brewer domain name for brewerVerified by validating URL
-					$this->url = $this->validateURL($url, 'url');
+					$this->url = $this->validateURL($url, 'url', 'brewer');
 				}else{
 					// UUID Generation Error
 					$this->error = true;
@@ -83,7 +83,7 @@ class Brewer {
 						$this->brewerID = $brewerID;
 						
 						// Get Brewer domain name for brewerVerified by validating URL
-						$this->url = $this->validateURL($url, 'url');
+						$this->url = $this->validateURL($url, 'url', 'brewer');
 					}else{
 						// Invalid UUID Submission
 						$this->error = true;
@@ -224,10 +224,10 @@ class Brewer {
 				$this->validateName();
 
 				// Validate URLs
-				$this->url = $this->validateURL($url, 'url');
-				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
-				$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
-				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
+				$this->url = $this->validateURL($url, 'url', 'brewer');
+				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
+				$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url', 'brewer');
+				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
 
 				// Validate Description
 				$this->description = $description;
@@ -332,7 +332,7 @@ class Brewer {
 				// Validate URLs
 				if(in_array('url', $patchFields)){
 					if($url != $this->url){
-						$this->url = $this->validateURL($url, 'url');
+						$this->url = $this->validateURL($url, 'url', 'brewer');
 						if(!$this->error){
 							$dbURL = $db->escape($this->url);
 							$dbDomainName = $db->escape($this->domainName);
@@ -342,7 +342,7 @@ class Brewer {
 				}
 				if(in_array('facebook_url', $patchFields)){
 					if($facebookURL != $this->facebookURL){
-						$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url');
+						$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
 						if(!$this->error){
 							$dbFacebookURL = $db->escape($this->facebookURL);
 							$sqlArray[] = "facebookURL='$dbFacebookURL'";
@@ -351,7 +351,7 @@ class Brewer {
 				}
 				if(in_array('twitter_url', $patchFields)){
 					if($twitterURL != $this->twitterURL){
-						$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url');
+						$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url', 'brewer');
 						if(!$this->error){
 							$dbTwitterURL = $db->escape($this->twitterURL);
 							$sqlArray[] = "twitterURL='$dbTwitterURL'";
@@ -360,7 +360,7 @@ class Brewer {
 				}
 				if(in_array('instagram_url', $patchFields)){
 					if($instagramURL != $this->instagramURL){
-						$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url');
+						$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
 						if(!$this->error){
 							$dbInstagramURL = $db->escape($this->instagramURL);
 							$sqlArray[] = "instagramURL='$dbInstagramURL'";
@@ -535,7 +535,7 @@ class Brewer {
 		}
 	}
 
-	public function validateURL($url, $type){
+	public function validateURL($url, $type, $class){
 		// Return
 		$returnURL = '';
 
@@ -728,8 +728,10 @@ class Brewer {
 					}
 					break;
 				case 'url':
-					// Get Domain name from Brewery URL
-					$this->domainName = $this->urlDomainName($returnURL);
+					if($class == 'brewer'){
+						// Get Domain name from Brewery URL
+						$this->domainName = $this->urlDomainName($returnURL);
+					}
 					break;
 			}
 		}
