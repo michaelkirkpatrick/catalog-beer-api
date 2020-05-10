@@ -110,7 +110,13 @@ class Beer {
 			// Invalid Brewer
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
-			$this->responseCode = $brewer->responseCode;
+			
+			// Correct 404 (Not Found) to 400 (Bad Request) for Brewer Not Found
+			if($brewer->responseCode === 404){
+				$this->responseCode = 400;
+			}else{
+				$this->responseCode = $brewer->responseCode;
+			}
 			$this->validMsg['brewer_id'] = $brewer->errorMsg;
 			
 			// Clear general errorMsg if it's the same
