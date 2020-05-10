@@ -189,22 +189,22 @@ class Beer {
 
 				// ----- Verification Badges -----
 				$this->cbVerified = false;
-				$dbCBV = 0;
+				$dbCBV = b'0';
 				$this->brewerVerified = false;
-				$dbBV = 0;
+				$dbBV = b'0';
 
 				// Get User Info
 				if($users->admin){
 					// Catalog.beer Verified
 					$this->cbVerified = true;
-					$dbCBV = 1;
+					$dbCBV = b'1';
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($brewer->domainName)){
 						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
-							$dbBV = 1;
+							$dbBV = b'1';
 
 							if(!in_array($this->brewerID, $userBrewerPrivileges)){
 								// Give user privileges for this brewer
@@ -252,13 +252,36 @@ class Beer {
 					$dbDescription = $db->escape($this->description);
 					$dbABV = $db->escape($this->abv);
 					$dbIBU = $db->escape($this->ibu);
-					$dbLastModified = $db->escape(time());
+					
+					$this->lastModified = time();
+					$dbLastModified = $db->escape($this->lastModified);
 					
 					// Construct SQL Statement
 					if($newBeer){
-						$sql = "INSERT INTO beer (id, brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified) VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', '$dbDescription', '$dbABV', '$dbIBU', '$dbCBV', '$dbBV', '$dbLastModified')";
+						$columns = '';
+						$values = ") VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', $dbABV, $dbCBV, $dbBV, $dbLastModified, ";
+						if(!empty($dbDescription)){
+							$columns .= 'description, ';
+							$values .= "'$dbDescription', ";
+						}
+						if(!empty($dbIBU)){
+							$columns .= 'ibu, ';
+							$values .= "$dbIBU, ";
+						}
+						if(!empty($columns)){
+							$sql = "INSERT INTO beer (id, brewerID, name, style, abv, cbVerified, brewerVerified, lastModified, " . substr($columns, 0, strlen($columns)-2) . substr($values, 0, strlen($values)-2) . ")";
+						}else{
+							$sql = "INSERT INTO beer (id, brewerID, name, style, abv, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
+						}
 					}else{
-						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', description='$dbDescription', abv='$dbABV', ibu='$dbIBU', cbVerified='$dbCBV', brewerVerified='$dbBV', lastModified='$dbLastModified' WHERE id='$dbBeerID'";
+						$sqlUpdate = '';
+						if(!empty($dbDescription)){
+							$sqlUpdate .= "description='$dbDescription', ";
+						}
+						if(!empty($dbIBU)){
+							$sqlUpdate .= "ibu=$dbIBU, ";
+						}
+						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified, " . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBeerID'";
 					}
 				}
 			}elseif($method == 'PATCH'){
@@ -323,7 +346,7 @@ class Beer {
 						$this->validateABV();
 						if(!$this->error){
 							$dbABV = $db->escape($this->abv);
-							$sqlArray[] = "abv='$dbABV'";
+							$sqlArray[] = "abv=$dbABV";
 						}
 					}
 				}
@@ -336,18 +359,19 @@ class Beer {
 						$this->validateIBU();
 						if(!$this->error){
 							$dbIBU = $db->escape($this->ibu);
-							$sqlArray[] = "ibu='$dbIBU'";
+							$sqlArray[] = "ibu=$dbIBU";
 						}
 					}
 				}
 				
 				if(!$this->error && !empty($sqlArray)){
 					// Prep for Database
-					$dbLastModified = $db->escape(time());
+					$this->lastModified = time();
+					$dbLastModified = $db->escape($this->lastModified);
 					$dbBeerID = $db->escape($this->beerID);
 					
 					// Construct SQL Statement
-					$sql = "UPDATE beer SET lastModified='$dbLastModified', cbVerified='$dbCBV', brewerVerified='$dbBV'";
+					$sql = "UPDATE beer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
 					
 					$totalUpdates = count($sqlArray);
 					if($totalUpdates > 0){$sql .= ", ";}
@@ -918,6 +942,14 @@ class Beer {
 	}
 	
 	public function generateBeerObject(){
+		// Generates the Brewer Object
+		// Generally returned as part of the API output
+		
+		// Optional Values that may be stored as null, return as empty ("")
+		if(is_null($this->description)){$this->description = '';}
+		if(is_null($this->ibu)){$this->ibu = 0;}
+		
+		// Known Values - Required
 		$this->json['id'] = $this->beerID;
 		$this->json['object'] = 'beer';
 		$this->json['name'] = $this->name;
@@ -1069,7 +1101,7 @@ class Beer {
 					
 					// Generate Brewer Object JSON
 					$brewer->generateBrewerObject();
-					$beerInfo['brewer'][] = $brewer->json;
+					$this->json['brewer']= $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1119,7 +1151,7 @@ class Beer {
 					
 					// Generate Brewer Object JSON
 					$brewer->generateBrewerObject();
-					$beerInfo['brewer'][] = $brewer->json;
+					$this->json['brewer'] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1166,7 +1198,7 @@ class Beer {
 					
 					// Generate Brewer Object JSON
 					$brewer->generateBrewerObject();
-					$beerInfo['brewer'][] = $brewer->json;
+					$this->json['brewer'] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
