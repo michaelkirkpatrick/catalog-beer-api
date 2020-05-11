@@ -6,9 +6,9 @@ class Beer {
 	public $brewerID = '';
 	public $name = '';
 	public $style = '';
-	public $description = '';
+	public $description = '';			// Optional
 	public $abv = 0;
-	public $ibu = 0;
+	public $ibu = 0;					// Optional
 	public $cbVerified = false;
 	public $brewerVerified = false;
 	public $lastModified = 0;
@@ -36,9 +36,9 @@ class Beer {
 		$db = new Database();
 		$privileges = new Privileges();
 		$users = new Users();
+		$uuid = new uuid();
 				
 		// ----- beerID -----
-		$uuid = new uuid();
 		$newBeer = false;
 		switch($method){
 			case 'POST':
@@ -78,7 +78,7 @@ class Beer {
 				break;
 			case 'PATCH':
 				if($this->validate($beerID, true)){
-					// Valid Beer - Update Existing Entry
+					// Valid Beer - Update Existing Entry (Reference #1)
 					$this->beerID = $beerID;
 					if(!in_array('brewerID', $patchFields)){
 						// Not updating brewer. Retain current brewerID
@@ -110,6 +110,7 @@ class Beer {
 			// Invalid Brewer
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
+			$this->validMsg['brewer_id'] = $brewer->errorMsg;
 			
 			// Correct 404 (Not Found) to 400 (Bad Request) for Brewer Not Found
 			if($brewer->responseCode === 404){
@@ -117,10 +118,6 @@ class Beer {
 			}else{
 				$this->responseCode = $brewer->responseCode;
 			}
-			$this->validMsg['brewer_id'] = $brewer->errorMsg;
-			
-			// Clear general errorMsg if it's the same
-			if($this->errorMsg == 'Whoops, we seem to be missing the beer_id for the beer. Please check your request and try again.');
 		}
 		
 		// ----- Permissions & Validation Badge -----
@@ -175,10 +172,10 @@ class Beer {
 
 										// Log Error
 										$errorLog = new LogError();
-										$errorLog->errorNumber = 167;
+										$errorLog->errorNumber = 186;
 										$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
 										$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-										$errorLog->filename = 'API / Brewer.class.php';
+										$errorLog->filename = 'API / Beer.class.php';
 										$errorLog->write();
 									}
 								}
@@ -244,7 +241,6 @@ class Beer {
 
 				if(!$this->error){
 					// Prep for Database
-					$db = new Database();
 					$dbBeerID = $db->escape($this->beerID);
 					$dbBrewerID = $db->escape($this->brewerID);
 					$dbName = $db->escape($this->name);
@@ -258,6 +254,7 @@ class Beer {
 					
 					// Construct SQL Statement
 					if($newBeer){
+						// Add Beer (POST/PUT)
 						$columns = '';
 						$values = ") VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', $dbABV, $dbCBV, $dbBV, $dbLastModified, ";
 						if(!empty($dbDescription)){
@@ -274,6 +271,7 @@ class Beer {
 							$sql = "INSERT INTO beer (id, brewerID, name, style, abv, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
 						}
 					}else{
+						// Update Beer (PUT)
 						$sqlUpdate = '';
 						if(!empty($dbDescription)){
 							$sqlUpdate .= "description='$dbDescription', ";
@@ -287,7 +285,7 @@ class Beer {
 			}elseif($method == 'PATCH'){
 				/*-- 
 				Validate the field if it's different than what is currently stored.
-				Check against the $this->{var} which we have from performing a $this->validate($beerID, true) in the beerID flow above for PATCH.
+				Check against the $this->{var} which we have from performing a $this->validate($beerID, true) in the beerID flow above for PATCH (Reference #1).
 				--*/
 				
 				// SQL Update
@@ -942,12 +940,17 @@ class Beer {
 	}
 	
 	public function generateBeerObject(){
-		// Generates the Brewer Object
+		// Generates the Beer Object
 		// Generally returned as part of the API output
 		
 		// Optional Values that may be stored as null, return as empty ("")
 		if(is_null($this->description)){$this->description = '';}
 		if(is_null($this->ibu)){$this->ibu = 0;}
+		
+		// Get Brewery Data
+		$brewer = new Brewer();
+		$brewer->validate($this->brewerID, true);
+		$brewer->generateBrewerObject();		
 		
 		// Known Values - Required
 		$this->json['id'] = $this->beerID;
@@ -960,6 +963,7 @@ class Beer {
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
 		$this->json['last_modified'] = $this->lastModified;
+		$this->json['brewer'] = $brewer->json;
 	}
 	
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
@@ -988,20 +992,8 @@ class Beer {
 					// GET https://api.catalog.beer/beer/{beer_id}
 					// Validate ID
 					if($this->validate($id, true)){
-						// Validate Brewery
-						if($brewer->validate($this->brewerID, true)){
-							// Beer Info
-							$this->generateBeerObject();
-
-							// Generate Brewer Object JSON
-							$brewer->generateBrewerObject();
-							$this->json['brewer'] = $brewer->json;
-						}else{
-							// Brewer Validation Error
-							$this->responseCode = $brewer->responseCode;
-							$this->json['error'] = true;
-							$this->json['error_msg'] = $brewer->errorMsg;
-						}
+						// Beer Object JSON
+						$this->generateBeerObject();
 					}else{
 						// Beer Validation Error
 						$this->json['error'] = true;
@@ -1093,15 +1085,8 @@ class Beer {
 				// Add Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
-					// Beer Info
+					// Beer Object JSON
 					$this->generateBeerObject();
-					
-					// Get Brewer Info
-					$brewer->validate($this->brewerID, true);
-					
-					// Generate Brewer Object JSON
-					$brewer->generateBrewerObject();
-					$this->json['brewer']= $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1143,15 +1128,8 @@ class Beer {
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
-					// Beer Info
+					// Beer Object JSON
 					$this->generateBeerObject();
-					
-					// Brewer Info
-					$brewer->validate($this->brewerID, true);
-					
-					// Generate Brewer Object JSON
-					$brewer->generateBrewerObject();
-					$this->json['brewer'] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1190,15 +1168,8 @@ class Beer {
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
-					// Beer Info
+					// Beer Object JSON
 					$this->generateBeerObject();
-					
-					// Brewer Info
-					$brewer->validate($this->brewerID, true);
-					
-					// Generate Brewer Object JSON
-					$brewer->generateBrewerObject();
-					$this->json['brewer'] = $brewer->json;
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
