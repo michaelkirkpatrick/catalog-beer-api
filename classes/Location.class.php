@@ -3,14 +3,17 @@
 class Location {
 
 	// Properties
-	public $id = '';
+	public $locationID = '';
 	public $brewerID = '';
 	public $name = '';
-	public $url = '';
-	public $countryCode = '';
+	public $url = '';			// Optional
+	public $countryCode = '';	
 	public $countryShortName = 'United States of America';
-	public $latitude = 0;
-	public $longitude = 0;
+	public $latitude = 0;		// Optional
+	public $longitude = 0;		// Optional
+	public $cbVerified = false;
+	public $brewerVerified = false;
+	public $lastModified = 0;
 
 	// Error Handling
 	public $error = false;
@@ -28,75 +31,342 @@ class Location {
 	private $gAPIKey = '';
 
 	// Add Functions
-	public function add($brewerID, $name, $url, $countryCode){
-		// Save to Class
-		$this->brewerID = $brewerID;
-		$this->name = $name;
-		$this->url = $url;
-		$this->countryCode = $countryCode;
-
-		// Validate brewerID
+	public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields){
+		
+		// Required Classes
 		$brewer = new Brewer();
-		if($brewer->validate($this->brewerID, false)){
+		$db = new Database();
+		$privileges = new Privileges();
+		$users = new Users();
+		$uuid = new uuid();
+		
+		// ----- locationID -----
+		$newLocation = false;
+		switch($method){
+			case 'POST':
+				// Generate a new location_id
+				$newLocation = true;
+				$this->locationID = $uuid->generate('location');
+				if($uuid->error){
+					// UUID Generation Error
+					$this->error = true;
+					$this->errorMsg = $uuid->errorMsg;
+					$this->responseCode = $uuid->responseCode;
+				}
+				break;
+			case 'PUT':
+				if($this->validate($locationID, false)){
+					// Valid Location - Update Existing Entry
+					$this->locationID = $locationID;
+				}else{
+					// Location doesn't exist, they'd like to add it
+					// Reset Errors from $this->validate()
+					$this->error = false;
+					$this->errorMsg = '';
+					$this->responseCode = 200;
+					
+					// Validate UUID
+					if($uuid->validate($locationID)){
+						// Save submitted UUID as locationID
+						$newLocation = true;
+						$this->locationID = $locationID;
+					}else{
+						// Invalid UUID Submission
+						$this->error = true;
+						$this->errorMsg = $uuid->errorMsg;
+						$this->responseCode = $uuid->responseCode;
+					}
+				}
+				break;
+			case 'PATCH':
+				if($this->validate($locationID, true)){
+					// Valid Location - Update Existing Entry (Reference #1)
+					$this->locationID = $locationID;
+					if(!in_array('brewerID', $patchFields)){
+						// Not updating brewer. Retain current brewerID
+						$brewerID = $this->brewerID;
+					}
+				}
+				break;
+			default:
+				// Invalid Method
+				$this->error = true;
+				$this->errorMsg = 'Invalid Method.';
+				$this->responseCode = 405;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 184;
+				$errorLog->errorMsg = 'Invalid Method';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / Location.class.php';
+				$errorLog->write();
+		}
+		
+		// ----- Validate brewerID -----
+		
+		if($brewer->validate($brewerID, false)){
 			// Valid BrewerID
+			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
 		}else{
 			// Invalid Brewer
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
 			$this->validMsg['brewer_id'] = $brewer->errorMsg;
-			$this->responseCode = $brewer->responseCode;
-		}
-
-		// Validate Name
-		$this->validateName();
-
-		// Validate URL
-		$this->url = $brewer->validateURL($this->url, 'url', 'location');
-		if(!$brewer->error){
-			// Valid URL
-			if(!empty($this->url)){
-				$this->validState['url'] = 'valid';
+			
+			// Correct 404 (Not Found) to 400 (Bad Request) for Brewer Not Found
+			if($brewer->responseCode === 404){
+				$this->responseCode = 400;
+			}else{
+				$this->responseCode = $brewer->responseCode;
 			}
-		}else{
-			// Invalid URL
-			$this->error = true;
-			$this->validState['url'] = $brewer->validState['url'];
-			$this->validMsg['url'] = $brewer->validMsg['url'];
-			$this->responseCode = $brewer->responseCode;
 		}
-
-		// Validate Country Code
-		$this->validateCC();
-
-		// Generate LocationID
-		$uuid = new uuid();
-		$this->id = $uuid->generate('location');
-		if($uuid->error){
-			// locationID Generation Error
-			$this->error = true;
-			$this->errorMsg = $uuid->errorMsg;
-			$this->responseCode = $uuid->responseCode;
-		}
-
+		
+		// ----- Permissions & Validation Badge -----
+		
 		if(!$this->error){
-			// Prep for Database
-			$db = new Database();
-			$dbLocationID = $db->escape($this->id);
-			$dbBrewerID = $db->escape($this->brewerID);
-			$dbName = $db->escape($this->name);
-			$dbURL = $db->escape($this->url);
-			$dbCC = $db->escape($this->countryCode);
+			if($users->validate($userID, true)){
+				// Get User's Email Domain Name
+				$userEmailDomain = $users->emailDomainName($users->email);
 
-			// Add to Database
-			$db->query("INSERT INTO location (id, brewerID, name, url, countryCode) VALUES ('$dbLocationID', '$dbBrewerID', '$dbName', '$dbURL', '$dbCC')");
-			if($db->error){
-				// Query Error
+				// Get User Privileges
+				$userBrewerPrivileges = $privileges->brewerList($userID);
+
+				// ----- Permissions Check -----
+				if($method == 'PUT' || $method == 'PATCH'){
+					if(!$newLocation){
+						// Attempting to PUT or PATCH existing Location
+						// Get cb_verified and brewer_verified flags
+						$dbLocationID = $db->escape($this->locationID);
+						$db->query("SELECT cbVerified, brewerVerified FROM location WHERE id='$dbLocationID'");
+						$cbVerified = $db->singleResult('cbVerified');
+						$brewerVerified = $db->singleResult('brewerVerified');
+
+						if($cbVerified){
+							if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+								// Allow PUT/PATCH. User is brewery staff.
+							}else{
+								if(!$users->admin){
+									// Deny
+									$this->error = true;
+									$this->errorMsg = 'Sorry, because this location is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+									$this->responseCode = 403;
+
+									// Log Error
+									$errorLog = new LogError();
+									$errorLog->errorNumber = 185;
+									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, cb_verified';
+									$errorLog->badData = "User: $userID / Location: $this->locationID";
+									$errorLog->filename = 'API / Location.class.php';
+									$errorLog->write();
+								}
+							}
+						}else{
+							if($brewerVerified){
+								if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+									// Allow PUT/PATCH. User is brewery staff.
+								}else{
+									if(!$users->admin){
+										// Deny
+										$this->error = true;
+										$this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+										$this->responseCode = 403;
+
+										// Log Error
+										$errorLog = new LogError();
+										$errorLog->errorNumber = 187;
+										$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
+										$errorLog->badData = "User: $userID / Location: $this->locationID";
+										$errorLog->filename = 'API / Location.class.php';
+										$errorLog->write();
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// ----- Verification Badges -----
+				$this->cbVerified = false;
+				$dbCBV = b'0';
+				$this->brewerVerified = false;
+				$dbBV = b'0';
+
+				// Get User Info
+				if($users->admin){
+					// Catalog.beer Verified
+					$this->cbVerified = true;
+					$dbCBV = b'1';
+				}else{
+					// Not Catalog.beer Verified
+					if(!empty($this->domainName)){
+						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							// User has email associated with the brewery, give breweryValidated flag.
+							$this->brewerVerified = true;
+							$dbBV = b'1';
+
+							if(!in_array($this->brewerID, $userBrewerPrivileges)){
+								// Give user privileges for this brewer
+								$privileges->add($userID, $this->brewerID, true);
+							}
+						}
+					}
+				}
+			}else{
+				// User Validation Error
 				$this->error = true;
-				$this->errorMsg = $db->errorMsg;
-				$this->responseCode = $db->responseCode;
+				$this->errorMsg = $users->errorMsg;
+				$this->responseCode = $users->responseCode;
 			}
-			$db->close();
+		}
+		
+		// ----- Validate Fields -----
+		// Don't waste processing resources if there's been an error in the steps above.
+		if(!$this->error){
+			// Default SQL
+			$sql = '';
+			
+			if($method == 'POST' || $method == 'PUT'){
+				// Validate Name
+				$this->name = $name;
+				$this->validateName();
+
+				// Validate URL
+				$this->url = $brewer->validateURL($url, 'url', 'location');
+				if(!$brewer->error){
+					// Valid URL
+					if(!empty($this->url)){
+						$this->validState['url'] = 'valid';
+					}
+				}else{
+					// Invalid URL
+					$this->error = true;
+					$this->validState['url'] = $brewer->validState['url'];
+					$this->validMsg['url'] = $brewer->validMsg['url'];
+					$this->responseCode = $brewer->responseCode;
+				}
+
+				// Validate Country Code
+				$this->countryCode = $countryCode;
+				$this->validateCC();
+				
+				if(!$this->error){
+					// Last Modified
+					$this->lastModified = time();
+					
+					// Prep for Database
+					$dbLocationID = $db->escape($this->locationID);
+					$dbBrewerID = $db->escape($this->brewerID);
+					$dbName = $db->escape($this->name);
+					$dbURL = $db->escape($this->url);
+					$dbCC = $db->escape($this->countryCode);
+					$dbLastModified = $db->escape($this->lastModified);
+					
+					// SQL Query
+					if($newLocation){
+						// Add Location (POST/PUT)
+						$urlSQL1 = '';
+						$urlSQL2 = '';
+						if(!empty($this->url)){
+							$urlSQL1 = ", url";
+							$urlSQL2 = ", '$dbURL'";
+						}
+						$sql = "INSERT INTO location (id, brewerID, name, countryCode, cbVerified, brewerVerified, lastModified" . $urlSQL1 . ") VALUES ('$dbLocationID', '$dbBrewerID', '$dbName', '$dbCC', $dbCBV, $dbBV, $dbLastModified" . $urlSQL2 . ")";
+					}else{
+						// Update Location (PUT)
+						$urlSQL = '';
+						if(!empty($this->url)){
+							$urlSQL = ", url='$dbURL'";
+						}
+						$sql = "UPDATE location SET brewerID='$dbBrewerID', name='$dbName', countryCode='$dbCC', cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . $urlSQL . " WHERE id='$dbLocationID'";
+					}					
+				}
+			}
+			elseif($method == 'PATCH'){
+				/*-- 
+				Validate the field if it's different than what is currently stored.
+				Check against the $this->{var} which we have from performing a $this->validate($locationID, true) in the locationID flow above for PATCH (Reference #1).
+				--*/
+				
+				// SQL Update
+				$sqlArray = array();
+				
+				// brewerID
+				if(in_array('brewerID', $patchFields)){
+					$dbBrewerID = $db->escape($this->brewerID);
+					$sqlArray[] = "brewerID='$dbBrewerID'";
+				}
+				
+				// Name
+				if(in_array('name', $patchFields)){
+					$dbName = $db->escape($this->name);
+					$sqlArray[] = "name='$dbName'";
+				}
+				
+				// URL
+				if(in_array('url', $patchFields)){
+					$dbURL = $db->escape($this->url);
+					$sqlArray[] = "url='$dbURL'";
+				}
+				
+				// Country Code
+				if(in_array('countryCode', $patchFields)){
+					$dbCC = $db->escape($this->countryCode);
+					$sqlArray[] = "countryCode='$dbCC'";
+				}
+				
+				if(!$this->error && !empty($sqlArray)){
+					// Last Modified
+					$this->lastModified = time();
+
+					// Prep for Database
+					$dbLocationID = $db->escape($this->locationID);
+					$dbLastModified = $db->escape($this->lastModified);
+					
+					// Construct SQL Statement
+					$sql = "UPDATE location SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
+					
+					$totalUpdates = count($sqlArray);
+					if($totalUpdates > 0){$sql .= ", ";}
+					$lastUpdate = $totalUpdates - 1;
+					for($i=0;$i<$totalUpdates; $i++){
+						if($i == $lastUpdate){
+							$sql .= $sqlArray[$i];
+						}else{
+							$sql .= $sqlArray[$i] . ", ";
+						}
+					}
+					$sql .= " WHERE id='$dbLocationID'";
+				}
+			}
+			
+			if(!$this->error && !empty($sql)){
+				// Update Database
+				$db->query($sql);
+				if(!$db->error){
+					if($newLocation){
+						// Successfully Added
+						$this->responseCode = 201;
+
+						// Response Header
+						$responseHeaderString = 'Location: https://';
+						if(ENVIRONMENT == 'staging'){
+							$responseHeaderString .= 'staging.';
+						}
+						$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->locationID;
+					}else{
+						// Success
+						$this->responseCode = 200;
+					}
+				}else{
+					// Query Error
+					$this->error = true;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
+				}
+				$db->close();
+			}
 		}
 	}
 
@@ -131,7 +401,7 @@ class Location {
 			$errorLog->errorNumber = 111;
 			$errorLog->errorMsg = 'cURL Error';
 			$errorLog->badData = $err;
-			$errorLog->filename = 'Location.class.php';
+			$errorLog->filename = 'API / Location.class.php';
 			$errorLog->write();
 		}else{
 			// Get Latitude and Longitude
@@ -159,7 +429,7 @@ class Location {
 						$errorLog->errorNumber = 114;
 						$errorLog->errorMsg = 'Invalid locationID';
 						$errorLog->badData = $locationID;
-						$errorLog->filename = 'Location.class.php';
+						$errorLog->filename = 'API / Location.class.php';
 						$errorLog->write();
 					}
 				}else{
@@ -168,7 +438,7 @@ class Location {
 					$errorLog->errorNumber = 113;
 					$errorLog->errorMsg = 'Multiple Google Maps API Results';
 					$errorLog->badData = $jsonResponse;
-					$errorLog->filename = 'Location.class.php';
+					$errorLog->filename = 'API / Location.class.php';
 					$errorLog->write();
 				}
 			}else{
@@ -177,7 +447,7 @@ class Location {
 				$errorLog->errorNumber = 112;
 				$errorLog->errorMsg = 'Google Maps Error';
 				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . $jsonResponse->error_message;
-				$errorLog->filename = 'Location.class.php';
+				$errorLog->filename = 'API / Location.class.php';
 				$errorLog->write();
 			}
 		}
@@ -292,7 +562,7 @@ class Location {
 					// Save to Class?
 					if($saveToClass){
 						$array = $db->resultArray();
-						$this->id = $locationID;
+						$this->locationID = $locationID;
 						$this->brewerID = $array['brewerID'];
 						$this->name = stripcslashes($array['name']);
 						$this->url = $array['url'];
@@ -694,209 +964,76 @@ class Location {
 		}
 	}
 	
-	public function deleteBrewerLocations($brewerID){
-		/*---
-		Assume the following for this function
-		1) Brewer has been validated
-		2) User has been validated and has permission to perform this action
-		This function does not perform this validation so as to not do it every time.
-		---*/
+	public function generateLocationObject(){
+		// Generates the Location Object
+		// Generally returned as part of the API output
 		
-		// Prep for Database
-		$db = new Database();
-		$db2 = new Database();
-		$dbBrewerID = $db->escape($brewerID);
+		// Optional Values that may be stored as null, return as empty ("")
+		if(is_null($this->url)){$this->url = '';}
+		if(is_null($this->latitude)){$this->latitude = 0;}
+		if(is_null($this->longitude)){$this->longitude = 0;}
 		
-		// Get US Addresses Class
+		// Get Brewery Data
+		$brewer = new Brewer();
+		$brewer->validate($this->brewerID, true);
+		$brewer->generateBrewerObject();
+		
+		// Address Data
 		$usAddresses = new USAddresses();
 		
-		// Get locationID's for this brewerID
-		$db->query("SELECT id FROM location WHERE brewerID='$dbBrewerID'");
-		if(!$db->error){
-			if($db->result->num_rows > 0){
-				// Loop through locations
-				while($array = $db->resultArray()){
-					// Get LocationID
-					$locationID = $array['id'];
-					
-					// Delete US Addresses
-					$usAddresses->delete($locationID);
-					if(!$usAddresses->error){
-						// Delete Location
-						$dbLocationID = $db->escape($locationID);
-						$db2->query("DELETE FROM location WHERE id='$dbLocationID'");
-						if($db2->error){
-							// Database Error
-							$this->error = true;
-							$this->errorMsg = $db->errorMsg;
-							$this->responseCode = $db->responseCode;
-							break;
-						}
-					}else{
-						// Error Deleting Address
-						$this->error = true;
-						$this->errorMsg = $usAddresses->errorMsg;
-						$this->responseCode = $usAddresses->responseCode;
-						break;
-					}
-				}
-			}
-		}else{
-			// Database Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
+		// Generate JSON
+		$this->json['id'] = $this->locationID;
+		$this->json['object'] = 'location';
+		$this->json['name'] = $this->name;
+		$this->json['url'] = $this->url;
+		$this->json['country_code'] = $this->countryCode;
+		$this->json['country_short_name'] = $this->countryShortName;
+		$this->json['latitude'] = $this->latitude;
+		$this->json['longitude'] = $this->longitude;
+		$this->json['cb_verified'] = $this->cbVerified;
+		$this->json['brewer_verified'] = $this->brewerVerified;
+		$this->json['last_modified'] = $this->lastModified;
+		if($usAddresses->validate($this->locationID, true)){
+			$this->json['address']['address1'] = $usAddresses->address1;
+			$this->json['address']['address2'] = $usAddresses->address2;
+			$this->json['address']['city'] = $usAddresses->city;
+			$this->json['address']['sub_code'] = $usAddresses->sub_code;
+			$this->json['address']['state_short'] = $usAddresses->stateShort;
+			$this->json['address']['state_long'] = $usAddresses->stateLong;
+			$this->json['address']['zip5'] = $usAddresses->zip5;
+			$this->json['address']['zip4'] = $usAddresses->zip4;
+			$this->json['address']['telephone'] = $usAddresses->telephone;
 		}
-		
-		// Close Database Connections
-		$db->close();
-		$db2->close();
+		$this->json['brewer'] = $brewer->json;
 	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
+		{METHOD} https://api.catalog.beer/location/{function}
+		{METHOD} https://api.catalog.beer/location/{id}/{function}
+		
 		GET https://api.catalog.beer/location/{location_id}
 		GET https://api.catalog.beer/location/nearby
 
 		POST https://api.catalog.beer/location
-		POST https://api.catalog.beer/location/{location_id}
+		
+		PUT https://api.catalog.beer/location/{location_id}
+		
+		PATCH https://api.catalog.beer/location/{location_id}
+		
+		DELETE https://api.catalog.beer/location/{location_id}
 		---*/
 		// Connect to Class
-		$usAddresses = new USAddresses();
+		
 
 		switch($method){
-			case 'POST':
-				if(!empty($id)){
-					if($this->validate($id, true)){
-						// POST https://api.catalog.beer/location/{location_id}
-						// Add Address for Location
-
-						// Handle Empty Fields
-						if(empty($data->address1)){$data->address1 = '';}
-						if(empty($data->address2)){$data->address2 = '';}
-						if(empty($data->city)){$data->city = '';}
-						if(empty($data->sub_code)){$data->sub_code = '';}
-						if(empty($data->zip5)){$data->zip5 = '';}
-						if(empty($data->zip4)){$data->zip4 = '';}
-						if(empty($data->telephone)){$data->telephone = '';}
-
-						$usAddresses->add($this->id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone);
-						if(!$usAddresses->error){
-							// Successfully Added
-							$this->responseCode = 201;
-
-							// Response Header
-							$responseHeaderString = 'Location: https://';
-							if(ENVIRONMENT == 'staging'){
-								$responseHeaderString .= 'staging.';
-							}
-							$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->id;
-
-							// Validate Location to get latitude and longitude
-							$this->validate($this->id, true);
-
-							// JSON Response
-							$this->json['id'] = $this->id;
-							$this->json['object'] = 'location';
-							$this->json['name'] = $this->name;
-							$this->json['brewer_id'] = $this->brewerID;
-							$this->json['url'] = $this->url;
-							$this->json['country_code'] = $this->countryCode;
-							$this->json['country_short_name'] = $this->countryShortName;
-							$this->json['latitude'] = $this->latitude;
-							$this->json['longitude'] = $this->longitude;
-
-							$this->json['telephone'] = $usAddresses->telephone;
-							$this->json['address']['address1'] = $usAddresses->address1;
-							$this->json['address']['address2'] = $usAddresses->address2;
-							$this->json['address']['city'] = $usAddresses->city;
-							$this->json['address']['sub_code'] = $usAddresses->sub_code;
-							$this->json['address']['state_short'] = $usAddresses->stateShort;
-							$this->json['address']['state_long'] = $usAddresses->stateLong;
-							$this->json['address']['zip5'] = $usAddresses->zip5;
-							$this->json['address']['zip4'] = $usAddresses->zip4;
-						}else{
-							// Error Adding Address
-							$this->responseCode = $usAddresses->responseCode;
-							$this->json['error'] = true;
-							$this->json['error_msg'] = $usAddresses->errorMsg;
-							$this->json['valid_state'] = $usAddresses->validState;
-							$this->json['valid_msg'] = $usAddresses->validMsg;
-						}
-					}else{
-						// Invalid Location
-						$this->json['error'] = true;
-						$this->json['error_msg'] = $this->errorMsg;
-					}
-				}else{
-					// POST https://api.catalog.beer/location
-					// Add Location
-
-					// Handle Empty Fields
-					if(empty($data->brewer_id)){$data->brewer_id = '';}
-					if(empty($data->name)){$data->name = '';}
-					if(empty($data->url)){$data->url = '';}
-					if(empty($data->country_code)){$data->country_code = '';}
-
-					$this->add($data->brewer_id, $data->name, $data->url, $data->country_code);
-					if(!$this->error){
-						// Successfully Added
-						$this->responseCode = 201;
-
-						// Response Header
-						$responseHeaderString = 'Location: https://';
-						if(ENVIRONMENT == 'staging'){
-							$responseHeaderString .= 'staging.';
-						}
-						$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->id;
-
-						// JSON Response
-						$this->json['id'] = $this->id;
-						$this->json['object'] = 'location';
-						$this->json['name'] = $this->name;
-						$this->json['brewer_id'] = $this->brewerID;
-						$this->json['url'] = $this->url;
-						$this->json['country_code'] = $this->countryCode;
-						$this->json['country_short_name'] = $this->countryShortName;
-						$this->json['latitude'] = $this->latitude;
-						$this->json['longitude'] = $this->longitude;
-					}else{
-						// Error Adding Location
-						$this->json['error'] = true;
-						$this->json['error_msg'] = $this->errorMsg;
-						$this->json['valid_state'] = $this->validState;
-						$this->json['valid_msg'] = $this->validMsg;
-					}
-				}
-				break;
 			case 'GET':
 				if(!empty($id) && empty($function)){
 					// GET https://api.catalog.beer/location/{location_id}
 					// Validate ID
 					if($this->validate($id, true)){
 						// Valid Location
-						$this->json['id'] = $this->id;
-						$this->json['object'] = 'location';
-						$this->json['name'] = $this->name;
-						$this->json['brewer_id'] = $this->brewerID;
-						$this->json['url'] = $this->url;
-						$this->json['country_code'] = $this->countryCode;
-						$this->json['country_short_name'] = $this->countryShortName;
-						$this->json['latitude'] = $this->latitude;
-						$this->json['longitude'] = $this->longitude;
-
-						// Check for Address
-						if($usAddresses->validate($this->id, true)){
-							$this->json['telephone'] = $usAddresses->telephone;
-							$this->json['address']['address1'] = $usAddresses->address1;
-							$this->json['address']['address2'] = $usAddresses->address2;
-							$this->json['address']['city'] = $usAddresses->city;
-							$this->json['address']['sub_code'] = $usAddresses->sub_code;
-							$this->json['address']['state_short'] = $usAddresses->stateShort;
-							$this->json['address']['state_long'] = $usAddresses->stateLong;
-							$this->json['address']['zip5'] = $usAddresses->zip5;
-							$this->json['address']['zip4'] = $usAddresses->zip4;
-						}
+						$this->generateLocationObject();
 					}else{
 						// Invalid Location
 						$this->json['error'] = true;
@@ -940,8 +1077,93 @@ class Location {
 					$errorLog->write();
 				}
 				break;
+			case 'POST':
+				// POST https://api.catalog.beer/location
+				// Add Location
+
+				// Handle Empty Fields
+				if(empty($data->brewer_id)){$data->brewer_id = '';}
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->url)){$data->url = '';}
+				if(empty($data->country_code)){$data->country_code = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'POST', '', array());
+				if(!$this->error){
+					// JSON Response
+					$this->generateLocationObject();
+				}else{
+					// Error Adding Location
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			case 'PUT':
+				// PUT https://api.catalog.beer/location/{location_id}
+
+				// Handle Empty Fields
+				if(empty($data->brewer_id)){$data->brewer_id = '';}
+				if(empty($data->name)){$data->name = '';}
+				if(empty($data->url)){$data->url = '';}
+				if(empty($data->country_code)){$data->country_code = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PUT', $id, array());
+				if(!$this->error){
+					// JSON Response
+					$this->generateLocationObject();
+				}else{
+					// Error Adding Location
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
+			case 'PATCH':
+				// PATCH https://api.catalog.beer/location/{location_id}
+				// Which fields are we updating?
+				$patchFields = array();
+
+				// Handle Empty Fields
+				if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
+				else{$data->brewer_id = '';}
+				
+				if(isset($data->name)){$patchFields[] = 'name';}
+				else{$data->name = '';}
+				
+				if(isset($data->url)){$patchFields[] = 'url';}
+				else{$data->url = '';}
+				
+				if(isset($data->country_code)){$patchFields[] = 'countryCode';}
+				else{$data->country_code = '';}
+				
+				// Validate API Key for userID
+				$apiKeys = new apiKeys();
+				$apiKeys->validate($apiKey, true);
+
+				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PATCH', $id, $patchFields);
+				if(!$this->error){
+					// JSON Response
+					$this->generateLocationObject();
+				}else{
+					// Error Adding Location
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+					$this->json['valid_state'] = $this->validState;
+					$this->json['valid_msg'] = $this->validMsg;
+				}
+				break;
 			case 'DELETE':
-				// DELETE https://api.catalog.beer/location/{{location_id}}
+				// DELETE https://api.catalog.beer/location/{location_id}
 				// Get userID
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
