@@ -253,6 +253,7 @@ class Brewer {
 
 					// Construct SQL Statement
 					if($newBrewer){
+						// Add Brewer (POST/PUT)
 						$columns = '';
 						$values = ") VALUES ('$dbBrewerID', '$dbName', $dbCBV, $dbBV, $dbLastModified, ";
 						if(!empty($dbDescription)){
@@ -285,6 +286,7 @@ class Brewer {
 							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
 						}
 					}else{
+						// Update Brewer (PUT)
 						$sqlUpdate = '';
 						if(!empty($dbDescription)){
 							$sqlUpdate .= "description='$dbDescription', ";
@@ -463,7 +465,7 @@ class Brewer {
 				$errorLog->errorNumber = 21;
 				$errorLog->errorMsg = 'Brewery name too long (>255 Characters)';
 				$errorLog->badData = $this->name;
-				$errorLog->filename = 'API / Beer.class.php';
+				$errorLog->filename = 'API / Brewer.class.php';
 				$errorLog->write();
 			}
 		}else{
@@ -503,7 +505,7 @@ class Brewer {
 				$errorLog->errorNumber = 20;
 				$errorLog->errorMsg = 'Brewery description too long (>65536 Characters)';
 				$errorLog->badData = $this->description;
-				$errorLog->filename = 'API / Beer.class.php';
+				$errorLog->filename = 'API / Brewer.class.php';
 				$errorLog->write();
 			}
 		}
