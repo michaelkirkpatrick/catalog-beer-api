@@ -2,15 +2,15 @@
 class USAddresses {
 
 	// Properties
-	public $locationID = '';
-	public $address1 = '';
-	public $address2 = '';
-	public $city = '';
-	public $sub_code = '';
+	public $locationID = '';	// Required
+	public $address1 = '';		
+	public $address2 = '';		// Required
+	public $city = '';			// City + Sub Code OR zip5
+	public $sub_code = '';		// City + Sub Code OR zip5
 	public $stateShort = '';
 	public $stateLong = '';
-	public $zip5 = 0;
-	public $zip4 = 0;
+	public $zip5 = 0;			// City + Sub Code OR zip5
+	public $zip4 = 0;			
 	public $telephone = 0;
 
 	// Error Handling
@@ -19,99 +19,242 @@ class USAddresses {
 	public $validState = array('address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $validMsg = array('address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
 	public $responseCode = 200;
+	public $json = array();
 
 	// USPS API Key
 	private $usps = '';
 
-	// Adding an address to a location?
-	private $addNewAddress = false;
-
 	// Add Address
-	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone){
-		// Adding a new address
-		$this->addNewAddress = true;
-
-		// Address Already Exists?
-		if(!$this->validate($locationID, false)){
-			// Save to Class
-			$this->locationID = $locationID;
-			$this->address1 = $address1;
-			$this->address2 = $address2;
-			$this->city = $city;
-			$this->sub_code = $sub_code;
-			$this->zip5 = $zip5;
-			$this->zip4 = $zip4;
-			$this->telephone = $telephone;
-
-			// Validate Location
-			$location = new Location();
-			if(!$location->validate($this->locationID, true)){
-				// Invalid Location
-				$this->error = true;
-				$this->errorMsg = $location->errorMsg;
-				$this->responseCode = $location->responseCode;
-
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 57;
-				$errorLog->errorMsg = 'Invalid location_id';
-				$errorLog->badData = "locationID: $locationID";
-				$errorLog->filename = 'API / USAddresses.class.php';
-				$errorLog->write();
+	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $method, $patchFields){
+		// Required Classes
+		$location = new Location();
+		$db = new Database();
+		
+		// Validate Location
+		if($location->validate($locationID, true)){
+			// location_id is valid, proceed
+			// Does an address already exist for this location?
+			if($this->validate($locationID, false)){
+				$addressOnFile = true;
+				$newAddress = false;
+			}else{
+				$addressOnFile = false;
+				$newAddress = true;
 			}
+			
+			switch($method){
+				case 'POST':
+					if($addressOnFile){
+						// Address already exists, can't POST
+						$this->error = true;
+						$this->errorMsg = "This location already has an address associated with it, so we can't add one. Try a PUT or PATCH request instead.";
+						$this->responseCode = 405;
 
-			// Validate Address
-			$this->validateAddress();
-
-			// Validate Telephone
-			$this->validateTelephone();
-
-			// Add to Database?
-			if(!$this->error){
-				// Prep for database
-				$db = new Database();
-				$dbLocationID = $db->escape($this->locationID);
-				$dbAddress1 = $db->escape($this->address1);
-				$dbAddress2 = $db->escape($this->address2);
-				$dbCity = $db->escape($this->city);
-				$dbSubCode = $db->escape($this->sub_code);
-				$dbZip5 = $db->escape($this->zip5);
-				$dbZip4 = $db->escape($this->zip4);
-				$dbTelephone = $db->escape($this->telephone);
-
-				$db->query("INSERT INTO US_addresses (locationID, address1, address2, city, sub_code, zip5, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress1', '$dbAddress2', '$dbCity', '$dbSubCode', '$dbZip5', '$dbZip4', '$dbTelephone')");
-				if(!$db->error){
-					// Address String
-					$addressString = $this->address2;
-					if(!empty($this->address1)){
-						$addressString .= ' ' . $this->address1;
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 189;
+						$errorLog->errorMsg = 'Unable to POST. Address already exists.';
+						$errorLog->badData = "LocationID: $locationID";
+						$errorLog->filename = 'API / USAddresses.class.php';
+						$errorLog->write();
 					}
-					$addressString .= ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5;
+					break;
+				case 'PATCH':
+					if(!$addressOnFile){
+						// Address doesn't exists, can't PATCH
+						$this->error = true;
+						$this->errorMsg = "This location does not have has an address associated with it, so we can't update it. Try a PUT or POST request instead.";
+						$this->responseCode = 405;
 
-					// Get Latitude and Longitude
-					$location->addLatLong($this->locationID, $addressString);
-				}else{
-					// Query Error
-					$this->error = true;
-					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = $db->responseCode;
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 190;
+						$errorLog->errorMsg = 'Unable to PATCH. Address doesn\'t exist.';
+						$errorLog->badData = "LocationID: $locationID";
+						$errorLog->filename = 'API / USAddresses.class.php';
+						$errorLog->write();
+					}
+					break;
+			}
+			
+			if(!$this->error){
+				// Save to Class
+				$this->locationID = $locationID;
+				$this->address1 = $address1;
+				$this->address2 = $address2;
+				$this->city = $city;
+				$this->sub_code = $sub_code;
+				$this->zip5 = $zip5;
+				$this->zip4 = $zip4;
+				$this->telephone = $telephone;
+				
+				if($method == 'POST' || $method == 'PUT'){
+					// Validate Address
+					$this->validateAddress();
+
+					// Validate Telephone
+					$this->validateTelephone();
+
+					if(!$this->error){
+						// Prep for database
+						$dbLocationID = $db->escape($this->locationID);
+						$dbAddress1 = $db->escape($this->address1);
+						$dbAddress2 = $db->escape($this->address2);
+						$dbCity = $db->escape($this->city);
+						$dbSubCode = $db->escape($this->sub_code);
+						$dbZip5 = $db->escape($this->zip5);
+						$dbZip4 = $db->escape($this->zip4);
+						$dbTelephone = $db->escape($this->telephone);
+						
+						if($newAddress){
+							// Add New Address (POST/PUT)
+							$sql1 = '';
+							$sql2 = '';
+							if(!empty($dbAddress1)){
+								$sql1 .= ", address1";
+								$sql2 .= ", '$dbAddress1'";
+							}
+							if(!empty($dbZip4)){
+								$sql1 .= ", zip4";
+								$sql2 .= ", '$dbZip4'";
+							}
+							if(!empty($dbTelephone)){
+								$sql1 .= ", telephone";
+								$sql2 .= ", '$dbTelephone'";
+							}
+							$sql = "INSERT INTO US_addresses (locationID, address2, city, sub_code, zip5" . $sql1 . ") VALUES ('$dbLocationID', '$dbAddress2', '$dbCity', '$dbSubCode', $dbZip5" . $sql2 . ")";
+						}else{
+							// Update Address (PUT)
+							$sql1 = '';
+							if(!empty($dbAddress1)){
+								$sql1 .= ", address1='$dbAddress1'";
+							}
+							if(!empty($dbZip4)){
+								$sql1 .= ", zip4='$dbZip4'";
+							}
+							if(!empty($dbTelephone)){
+								$sql1 .= ", telephone='$dbTelephone'";
+							}
+							$sql = "UPDATE US_addresses SET address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5='$dbZip5', $dbTelephone" . $sql1 . " WHERE locationID='$dbLocationID'";
+						}
+
+						$db->query($sql);
+						if(!$db->error){
+							// Address String
+							$addressString = $this->address2;
+							if(!empty($this->address1)){
+								$addressString .= ' ' . $this->address1;
+							}
+							$addressString .= ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5;
+
+							// Get Latitude and Longitude
+							$location->addLatLong($this->locationID, $addressString);
+						}else{
+							// Query Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+					}
 				}
-				$db->close();
+				elseif($method == 'PATCH'){
+					// What's getting updated?
+					$patchAddress = false;
+					$patchTelephone = false;
+					
+					if(in_array('telephone', $patchFields)){
+						// Validate Telephone
+						$this->validateTelephone();
+						$patchTelephone = true;
+					}
+					if(count($patchFields) > 1){
+						// They'd like to update something about the address, validate it
+						$this->validateAddress();
+						$patchAddress = true;
+					}
+					if(!$this->error){						
+						// Prep for database
+						$dbLocationID = $db->escape($this->locationID);
+						$sql = "UPDATE US_addresses SET ";
+						
+						if($patchTelephone){
+							$dbTelephone = $db->escape($this->telephone);
+							if(!empty($dbTelephone)){
+								$sql .= " telephone='$dbTelephone'";
+							}
+						}
+						
+						if($patchAddress){
+							// Escape Fields
+							$dbAddress1 = $db->escape($this->address1);
+							$dbAddress2 = $db->escape($this->address2);
+							$dbCity = $db->escape($this->city);
+							$dbSubCode = $db->escape($this->sub_code);
+							$dbZip5 = $db->escape($this->zip5);
+							$dbZip4 = $db->escape($this->zip4);
+							
+							// Add Comma?
+							if($patchTelephone){
+								$sql .= ", ";
+							}
+							$sql .= "address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5='$dbZip5'";
+							
+							// Optional Fields
+							if(!empty($dbAddress1)){
+								$sql .= ", address1='$dbAddress1'";
+							}
+							if(!empty($dbZip4)){
+								$sql .= ", zip4='$dbZip4'";
+							}
+						}
+						
+						$sql .= " WHERE locationID='$dbLocationID'";
+
+						// Run Query
+						$db->query($sql);
+						if(!$db->error){
+							if($patchAddress){
+								// Address String
+								$addressString = $this->address2;
+								if(!empty($this->address1)){
+									$addressString .= ' ' . $this->address1;
+								}
+								$addressString .= ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5;
+
+								// Get Latitude and Longitude
+								$location->addLatLong($this->locationID, $addressString);
+							}
+						}else{
+							// Query Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+					}
+				}
 			}
 		}else{
-			// Location Already Has Address
+			// Invalid Location
 			$this->error = true;
-			$this->errorMsg = 'Sorry, this location already has an address. Perhaps you meant to edit the address?';
-			$this->responseCode = 400;
+			$this->errorMsg = $location->errorMsg;
+			// Correct 404 (Not Found) to 400 (Bad Request) for Location Not Found
+			if($brewer->responseCode === 404){
+				$this->responseCode = 400;
+			}else{
+				$this->responseCode = $location->responseCode;
+			}
 
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = 76;
-			$errorLog->errorMsg = 'Location already has address';
+			$errorLog->errorNumber = 57;
+			$errorLog->errorMsg = 'Invalid location_id';
 			$errorLog->badData = "locationID: $locationID";
 			$errorLog->filename = 'API / USAddresses.class.php';
 			$errorLog->write();
 		}
+		
+		// Close Database Connection
+		$db->close();
 	}
 
 	// Validate Address
@@ -497,20 +640,98 @@ class USAddresses {
 		// Return
 		return $valid;
 	}
+	
+	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
+		/*---
+		{METHOD} https://api.catalog.beer/address/{function}
+		{METHOD} https://api.catalog.beer/address/{id}/{function}
+		
+		GET https://api.catalog.beer/address/{location_id}
 
-	public function delete($locationID){
-		if($this->validate($locationID, false)){
-			// Valid Location, Delete It
-			$db = new Database();
-			$dbLocationID = $db->escape($locationID);
-			$db->query("DELETE FROM US_addresses WHERE locationID='$dbLocationID'");
-			if($db->error){
-				// Database Error
-				$this->error = true;
-				$this->errorMsg = $db->errorMsg;
-				$this->responseCode = $db->responseCode;
-			}
-			$db->close();
+		POST https://api.catalog.beer/address/{location_id}
+				
+		PATCH https://api.catalog.beer/address/{location_id}
+		---*/
+		
+		// Required Classes
+		$location = new Location();
+		
+		switch($method){
+			case 'GET':
+				
+				break;
+			case 'PATCH':
+				
+				break;
+			case 'POST':
+				if($location->validate($id, true)){
+					// POST https://api.catalog.beer/location/{location_id}
+					// Add Address for Location
+
+					// Handle Empty Fields
+					if(empty($data->address1)){$data->address1 = '';}
+					if(empty($data->address2)){$data->address2 = '';}
+					if(empty($data->city)){$data->city = '';}
+					if(empty($data->sub_code)){$data->sub_code = '';}
+					if(empty($data->zip5)){$data->zip5 = '';}
+					if(empty($data->zip4)){$data->zip4 = '';}
+					if(empty($data->telephone)){$data->telephone = '';}
+
+					$usAddresses->add($this->locationID, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone);
+					if(!$usAddresses->error){
+						// Successfully Added
+						$this->responseCode = 201;
+
+						// Response Header
+						$responseHeaderString = 'Location: https://';
+						if(ENVIRONMENT == 'staging'){
+							$responseHeaderString .= 'staging.';
+						}
+						$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->locationID;
+
+						// Validate Location to get latitude and longitude
+						$this->validate($this->locationID, true);
+
+						// JSON Response
+						$this->generateLocationObject();
+
+						$this->json['telephone'] = $usAddresses->telephone;
+						$this->json['address']['address1'] = $usAddresses->address1;
+						$this->json['address']['address2'] = $usAddresses->address2;
+						$this->json['address']['city'] = $usAddresses->city;
+						$this->json['address']['sub_code'] = $usAddresses->sub_code;
+						$this->json['address']['state_short'] = $usAddresses->stateShort;
+						$this->json['address']['state_long'] = $usAddresses->stateLong;
+						$this->json['address']['zip5'] = $usAddresses->zip5;
+						$this->json['address']['zip4'] = $usAddresses->zip4;
+					}else{
+						// Error Adding Address
+						$this->responseCode = $usAddresses->responseCode;
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $usAddresses->errorMsg;
+						$this->json['valid_state'] = $usAddresses->validState;
+						$this->json['valid_msg'] = $usAddresses->validMsg;
+					}
+				}else{
+					// Invalid Location
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+				}
+				break;
+			default:
+				// Unsupported Method - Method Not Allowed
+				$this->json['error'] = true;
+				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+				$this->responseCode = 405;
+				$this->responseHeader = 'Allow: GET, POST, PATCH';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 183;
+				$errorLog->errorMsg = 'Invalid Method (/address)';
+				$errorLog->badData = $method;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
 		}
 	}
 }
