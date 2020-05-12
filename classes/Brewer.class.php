@@ -781,6 +781,7 @@ class Brewer {
 					$errorLog->filename = 'API / Brewer.class.php';
 					$errorLog->write();
 				}
+				$db->close();
 			}else{
 				// Error with hostname
 				$this->error = true;
