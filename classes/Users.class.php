@@ -15,9 +15,9 @@ class Users {
 	
 	// Validation
 	public $error = false;
-	public $errorMsg = '';
-	public $validState = array('name'=>'', 'email'=>'', 'password'=>'', 'terms_agreement'=>'');
-	public $validMsg = array('name'=>'', 'email'=>'', 'password'=>'');
+	public $errorMsg = null;
+	public $validState = array('name'=>null, 'email'=>null, 'password'=>null, 'terms_agreement'=>null);
+	public $validMsg = array('name'=>null, 'email'=>null, 'password'=>null);
 	
 	// API Response
 	public $responseHeader = '';
@@ -974,6 +974,11 @@ class Users {
 	}
 	
 	private function generateUserObject(){
+		if(empty($this->emailAuth)){$this->emailAuth = null;}
+		if(empty($this->emailAuthSent)){$this->emailAuthSent = null;}
+		if(empty($this->passwordResetSent)){$this->passwordResetSent = null;}
+		if(empty($this->passwordResetKey)){$this->passwordResetKey = null;}
+	
 		$this->json['id'] = $this->userID;
 		$this->json['object'] = 'users';
 		$this->json['name'] = $this->name;
@@ -1042,6 +1047,7 @@ class Users {
 								if($this->admin || $id == $apiKeys->userID){
 									// Get API Key
 									$userAPIKey = $apiKeys->getKey($id);
+									if(empty($userAPIKey)){$userAPIKey = null;}
 									if(!$apiKeys->error){
 										$this->json['object'] = 'api_key';
 										$this->json['user_id'] = $id;
