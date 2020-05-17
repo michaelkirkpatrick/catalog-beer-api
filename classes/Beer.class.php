@@ -15,9 +15,9 @@ class Beer {
 	
 	// Error Handling
 	public $error = false;
-	public $errorMsg = '';
-	public $validState = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
-	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'style'=>'', 'description'=>'', 'abv'=>'', 'ibu'=>'');
+	public $errorMsg = null;
+	public $validState = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
+	public $validMsg = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
 	
 	// API Response
 	public $responseHeader = '';
@@ -60,7 +60,7 @@ class Beer {
 					// Beer doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
 					$this->error = false;
-					$this->errorMsg = '';
+					$this->errorMsg = null;
 					$this->responseCode = 200;
 					
 					// Validate UUID
@@ -83,6 +83,12 @@ class Beer {
 					if(!in_array('brewerID', $patchFields)){
 						// Not updating brewer. Retain current brewerID
 						$brewerID = $this->brewerID;
+					}else{
+						// Check to ensure it's a new brewer_id
+						if($this->brewerID == $brewerID){
+							// Same brewer_id, not changing. Remove from $patchFields
+							unset($patchFields['brewerID']);
+						}
 					}
 				}
 				break;
@@ -137,8 +143,9 @@ class Beer {
 						// Get cb_verified and brewer_verified flags
 						$dbBeerID = $db->escape($this->beerID);
 						$db->query("SELECT cbVerified, brewerVerified FROM beer WHERE id='$dbBeerID'");
-						$cbVerified = $db->singleResult('cbVerified');
-						$brewerVerified = $db->singleResult('brewerVerified');
+						$resultArray = $db->resultArray();
+						$cbVerified = $resultArray['cbVerified'];
+						$brewerVerified = $resultArray['brewerVerified'];
 
 						if($cbVerified){
 							if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
@@ -845,8 +852,8 @@ class Beer {
 				$beerInfo['has_more'] = false;
 				
 				// Generate Brewer Object JSON
-				$brewer->generateBrewerObject();
-				$beerInfo['brewer'][] = $brewer->json;
+				$brewer->generateBrewerObject(true);
+				$beerInfo['brewer'] = $brewer->json;
 				$beerInfo['data'] = array();
 				
 				// Prep for Query
@@ -944,13 +951,13 @@ class Beer {
 		// Generally returned as part of the API output
 		
 		// Optional Values that may be stored as null, return as empty ("")
-		if(is_null($this->description)){$this->description = '';}
-		if(is_null($this->ibu)){$this->ibu = 0;}
+		if(empty($this->description)){$this->description = null;}
+		if(empty($this->ibu)){$this->ibu = null;}
 		
 		// Get Brewery Data
 		$brewer = new Brewer();
 		$brewer->validate($this->brewerID, true);
-		$brewer->generateBrewerObject();		
+		$brewer->generateBrewerObject(true);		
 		
 		// Known Values - Required
 		$this->json['id'] = $this->beerID;
