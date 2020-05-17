@@ -227,9 +227,15 @@ if($_SERVER['HTTPS'] == 'on'){
 }
 
 /* - - - - - Process Based on Endpoint - - - - - */
-
 if(!$error){
 	switch($endpoint){
+		case 'address':
+			$usAddresses = new USAddresses();
+			$usAddresses->api($method, $id, $apiKey, $data);
+			$json = $usAddresses->json;
+			$responseCode = $usAddresses->responseCode;
+			$responseHeader = '';
+			break;
 		case 'beer':
 			$beer = new Beer();
 			$beer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
