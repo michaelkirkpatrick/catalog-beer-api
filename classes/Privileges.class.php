@@ -177,29 +177,6 @@ class Privileges {
 		return $userIDs;
 	}
 	
-	public function deleteBrewer($brewerID){
-		/*---
-		Assume the following for this function
-		1) brewerID has been validated
-		2) User calling this function has been validated and has permission to perform this action.
-		This function does not perform this validation so as to not do it every time.
-		---*/
-		
-		// Prep for Database
-		$db = new Database();
-		$dbBrewerID = $db->escape($brewerID);
-		
-		// Delete this brewerID and associated user privileges
-		$db->query("DELETE FROM privileges WHERE brewerID='$dbBrewerID'");
-		if($db->error){
-			// Database Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-		$db->close();
-	}
-	
 	public function deleteUser($userID){
 		/*---
 		Assume the following for this function
