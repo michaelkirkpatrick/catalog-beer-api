@@ -17,9 +17,9 @@ class Location {
 
 	// Error Handling
 	public $error = false;
-	public $errorMsg = '';
-	public $validState = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
-	public $validMsg = array('brewer_id'=>'', 'name'=>'', 'url'=>'', 'country_code'=>'');
+	public $errorMsg = null;
+	public $validState = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null);
+	public $validMsg = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null);
 
 	// API Response
 	public $responseHeader = '';
@@ -32,7 +32,7 @@ class Location {
 
 	// Add Functions
 	public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields){
-		
+			
 		// Required Classes
 		$brewer = new Brewer();
 		$db = new Database();
@@ -62,7 +62,7 @@ class Location {
 					// Location doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
 					$this->error = false;
-					$this->errorMsg = '';
+					$this->errorMsg = null;
 					$this->responseCode = 200;
 					
 					// Validate UUID
@@ -85,6 +85,12 @@ class Location {
 					if(!in_array('brewerID', $patchFields)){
 						// Not updating brewer. Retain current brewerID
 						$brewerID = $this->brewerID;
+					}else{
+						// Check to ensure it's a new brewer_id
+						if($this->brewerID == $brewerID){
+							// Same brewer_id, not changing. Remove from $patchFields
+							unset($patchFields['brewerID']);
+						}
 					}
 				}
 				break;
@@ -105,7 +111,7 @@ class Location {
 		
 		// ----- Validate brewerID -----
 		
-		if($brewer->validate($brewerID, false)){
+		if($brewer->validate($brewerID, true)){
 			// Valid BrewerID
 			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
@@ -140,11 +146,12 @@ class Location {
 						// Get cb_verified and brewer_verified flags
 						$dbLocationID = $db->escape($this->locationID);
 						$db->query("SELECT cbVerified, brewerVerified FROM location WHERE id='$dbLocationID'");
-						$cbVerified = $db->singleResult('cbVerified');
-						$brewerVerified = $db->singleResult('brewerVerified');
+						$resultArray = $db->resultArray();
+						$cbVerified = $resultArray['cbVerified'];
+						$brewerVerified = $resultArray['brewerVerified'];
 
 						if($cbVerified){
-							if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 								// Allow PUT/PATCH. User is brewery staff.
 							}else{
 								if(!$users->admin){
@@ -164,7 +171,7 @@ class Location {
 							}
 						}else{
 							if($brewerVerified){
-								if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+								if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 									// Allow PUT/PATCH. User is brewery staff.
 								}else{
 									if(!$users->admin){
@@ -200,8 +207,8 @@ class Location {
 					$dbCBV = b'1';
 				}else{
 					// Not Catalog.beer Verified
-					if(!empty($this->domainName)){
-						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+					if(!empty($brewer->domainName)){
+						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
 							$dbBV = b'1';
@@ -294,26 +301,58 @@ class Location {
 				
 				// brewerID
 				if(in_array('brewerID', $patchFields)){
+					// Validated brewerID above, and checked to ensure new, no need to re-validate
 					$dbBrewerID = $db->escape($this->brewerID);
 					$sqlArray[] = "brewerID='$dbBrewerID'";
 				}
 				
 				// Name
 				if(in_array('name', $patchFields)){
-					$dbName = $db->escape($this->name);
-					$sqlArray[] = "name='$dbName'";
+					if($this->name != $name){
+						// Validate Name
+						$this->name = $name;
+						$this->validateName();
+						if(!$this->error){
+							$this->validState['name'] = 'valid';
+							$dbName = $db->escape($this->name);
+							$sqlArray[] = "name='$dbName'";
+						}
+					}
 				}
 				
 				// URL
 				if(in_array('url', $patchFields)){
-					$dbURL = $db->escape($this->url);
-					$sqlArray[] = "url='$dbURL'";
+					if($this->url != $url){
+						// Validate URL
+						$this->url = $brewer->validateURL($url, 'url', 'location');
+						if(!$brewer->error){
+							// Valid URL
+							if(!empty($this->url)){
+								$this->validState['url'] = 'valid';
+								$dbURL = $db->escape($this->url);
+								$sqlArray[] = "url='$dbURL'";
+							}
+						}else{
+							// Invalid URL
+							$this->error = true;
+							$this->validState['url'] = $brewer->validState['url'];
+							$this->validMsg['url'] = $brewer->validMsg['url'];
+							$this->responseCode = $brewer->responseCode;
+						}
+					}
 				}
 				
 				// Country Code
 				if(in_array('countryCode', $patchFields)){
-					$dbCC = $db->escape($this->countryCode);
-					$sqlArray[] = "countryCode='$dbCC'";
+					if($this->countryCode != $countryCode){
+						// Validate Country Code
+						$this->countryCode = $countryCode;
+						$this->validateCC();
+						if(!$this->error){
+							$dbCC = $db->escape($this->countryCode);
+							$sqlArray[] = "countryCode='$dbCC'";
+						}
+					}
 				}
 				
 				if(!$this->error && !empty($sqlArray)){
@@ -366,89 +405,6 @@ class Location {
 					$this->responseCode = $db->responseCode;
 				}
 				$db->close();
-			}
-		}
-	}
-
-	public function addLatLong($locationID, $addressString){
-
-		// Request Parameters
-		$address = urlencode($addressString);
-
-		// Headers & Options
-		$headerArray = array(
-			"accept: application/json"
-		);
-
-		$optionsArray = array(
-			CURLOPT_URL => 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . $this->gAPIKey,
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_TIMEOUT => 30,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_HTTPHEADER => $headerArray
-		);
-
-		// Create cURL Request
-		$curl = curl_init();
-		curl_setopt_array($curl, $optionsArray);
-		$response = curl_exec($curl);
-		$err = curl_error($curl);
-		curl_close($curl);
-
-		if(!empty($err)){
-			// cURL Error -- Log It
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 111;
-			$errorLog->errorMsg = 'cURL Error';
-			$errorLog->badData = $err;
-			$errorLog->filename = 'API / Location.class.php';
-			$errorLog->write();
-		}else{
-			// Get Latitude and Longitude
-			$jsonResponse = json_decode($response);
-			if($jsonResponse->status == 'OK'){
-				if(count($jsonResponse->results) == 1){
-					// Valid Request
-					$this->latitude = $jsonResponse->results[0]->geometry->location->lat;
-					$this->longitude = $jsonResponse->results[0]->geometry->location->lng;
-
-					// Add to Database
-					if($this->validate($locationID, false)){
-						// Valid Location, Prep for Database
-						$db = new Database();
-						$dbLocationID = $db->escape($locationID);
-						$dbLatitude = $db->escape($this->latitude);
-						$dbLongitude = $db->escape($this->longitude);
-
-						// Update Query
-						$db->query("UPDATE location SET latitude='$dbLatitude', longitude='$dbLongitude' WHERE id='$dbLocationID'");
-						$db->close();
-					}else{
-						// Invalid Location ID
-						$errorLog = new LogError();
-						$errorLog->errorNumber = 114;
-						$errorLog->errorMsg = 'Invalid locationID';
-						$errorLog->badData = $locationID;
-						$errorLog->filename = 'API / Location.class.php';
-						$errorLog->write();
-					}
-				}else{
-					// More than one result, ambiguous
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 113;
-					$errorLog->errorMsg = 'Multiple Google Maps API Results';
-					$errorLog->badData = $jsonResponse;
-					$errorLog->filename = 'API / Location.class.php';
-					$errorLog->write();
-				}
-			}else{
-				// Google Maps API Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 112;
-				$errorLog->errorMsg = 'Google Maps Error';
-				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . $jsonResponse->error_message;
-				$errorLog->filename = 'API / Location.class.php';
-				$errorLog->write();
 			}
 		}
 	}
@@ -553,7 +509,7 @@ class Location {
 			$dbLocationID = $db->escape($locationID);
 
 			// Query
-			$db->query("SELECT brewerID, name, url, countryCode, latitude, longitude FROM location WHERE id='$dbLocationID'");
+			$db->query("SELECT brewerID, name, url, countryCode, latitude, longitude, cbVerified, brewerVerified, lastModified FROM location WHERE id='$dbLocationID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid Location
@@ -569,6 +525,12 @@ class Location {
 						$this->countryCode = $array['countryCode'];
 						$this->latitude = floatval($array['latitude']);
 						$this->longitude = floatval($array['longitude']);
+						if($array['cbVerified']){
+							$this->cbVerified = true;
+						}if($array['brewerVerified']){
+							$this->brewerVerified = true;
+						}
+						$this->lastModified = intval($array['lastModified']);
 					}
 				}elseif($db->result->num_rows > 1){
 					// Too Many Rows
@@ -934,32 +896,171 @@ class Location {
 			$users = new Users();
 			$users->validate($userID, true);
 			if($users->admin){
-				// Delete the Location and US Address
-				$usAddresses = new USAddresses();
-				$usAddresses->delete($locationID);
-				if(!$usAddresses->error){
-					// Delete Location
-					$db = new Database();
-					$dbLocationID = $db->escape($locationID);
-					$db->query("DELETE FROM location WHERE id='$dbLocationID'");
-					if($db->error){
-						// Database Error
-						$this->error = true;
-						$this->errorMsg = $db->errorMsg;
-						$this->responseCode = $db->responseCode;
-					}
-					$db->close();
-				}else{
-					// Error Deleting Address
+				// Delete Location
+				$db = new Database();
+				$dbLocationID = $db->escape($locationID);
+				$db->query("DELETE FROM location WHERE id='$dbLocationID'");
+				if($db->error){
+					// Database Error
 					$this->error = true;
-					$this->errorMsg = $usAddresses->errorMsg;
-					$this->responseCode = $usAddresses->responseCode;
+					$this->errorMsg = $db->errorMsg;
+					$this->responseCode = $db->responseCode;
 				}
+				$db->close();
 			}else{
 				// Not an Admin - Not Allowed to Delete
 				$this->error = true;
-				$this->errorMsg = 'Sorry, you do not have permission to delete a location.';
+				$this->errorMsg = 'Sorry, you do not have permission to delete this location.';
 				$this->responseCode = 403;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 193;
+				$errorLog->errorMsg = 'Non-Admin user a';
+				$errorLog->badData = '';
+				$errorLog->filename = '';
+				$errorLog->write();
+			}
+		}
+	}
+	
+	public function updateLastModified($locationID){
+		// Validate Location
+		if($this->validate($locationID, true)){
+			// Update Last Modified Timestamp
+			$db = new Database();
+			$this->lastModified = time();
+			$dbLastModified = $db->escape($this->lastModified);
+			$dbLocationID = $db->escape($locationID);
+			$db->query("UPDATE location SET lastModified=$dbLastModified WHERE id='$dbLocationID'");
+			if($db->error){
+				// Database Error
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+			}
+		}
+	}
+	
+	public function googleMapsAPI($locationID, $addressString, $googleAPI){
+		// Request Parameters
+		$address = urlencode($addressString);
+
+		// Headers & Options
+		$headerArray = array(
+			"accept: application/json"
+		);
+		
+		// URL
+		switch($googleAPI){
+			case 'geocode':
+				$url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . $this->gAPIKey;
+				$arrayName = 'results';
+				break;
+			case 'findplacefromtext':
+				$url = 'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' . $address . '&key=' . $this->gAPIKey . '&inputtype=textquery&language=en&fields=formatted_address,geometry';
+					$arrayName = 'candidates';
+				break;
+		}
+
+		$optionsArray = array(
+			CURLOPT_URL => $url,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_HTTPHEADER => $headerArray
+		);
+
+		// Create cURL Request
+		$curl = curl_init();
+		curl_setopt_array($curl, $optionsArray);
+		$response = curl_exec($curl);
+		$err = curl_error($curl);
+		curl_close($curl);
+
+		if(!empty($err)){
+			// cURL Error -- Log It
+			$this->error = true;
+			$this->errorMsg = 'Looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
+			
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 194;
+			$errorLog->errorMsg = 'Google Maps API cURL Error';
+			$errorLog->badData = $err;
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+		}else{
+			// Get Latitude and Longitude
+			$jsonResponse = json_decode($response);
+			if($jsonResponse->status == 'OK'){	
+				if(count($jsonResponse->$arrayName) == 1){
+					// Valid Request, store Latitude and Longitude
+					$this->latitude = $jsonResponse->$arrayName[0]->geometry->location->lat;
+					$this->longitude = $jsonResponse->$arrayName[0]->geometry->location->lng;
+
+					// Add to Database
+					if($this->validate($locationID, false)){
+						// Valid Location, Prep for Database
+						$db = new Database();
+						$dbLocationID = $db->escape($locationID);
+						$dbLatitude = $db->escape($this->latitude);
+						$dbLongitude = $db->escape($this->longitude);
+
+						// Update Query
+						$db->query("UPDATE location SET latitude='$dbLatitude', longitude='$dbLongitude' WHERE id='$dbLocationID'");
+						if($db->error){
+							// Database Error
+							$this->error = true;
+							$this->errorMsg = $db->errorMsg;
+							$this->responseCode = $db->responseCode;
+						}
+						$db->close();
+					}
+					
+					// Find Place From Text?
+					if($googleAPI == 'findplacefromtext'){
+						return $jsonResponse->$arrayName[0]->formatted_address;
+					}
+				}else{
+					// More than one result, ambiguous
+					$this->error = true;
+					$this->errorMsg = "We found multiple locations based on the address you provided. Can you be more specific in your street address?";
+					$this->responseCode = 400;
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 197;
+					$errorLog->errorMsg = 'Multiple Google Maps API Results';
+					$errorLog->badData = $jsonResponse;
+					$errorLog->filename = 'API / Location.class.php';
+					$errorLog->write();
+				}
+			}elseif($jsonResponse->status == 'ZERO_RESULTS'){
+				// The search was successful but returned no results
+				$this->error = true;
+				$this->errorMsg = "We were not able to find a location based on the address you provided.";
+				$this->responseCode = 400;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 196;
+				$errorLog->errorMsg = 'Unable to find location (Google Places API)';
+				$errorLog->badData = "LocationID: $locationID / Address String: $addressString / Status: $jsonResponse->status / Error Message: $jsonResponse->error_message";
+				$errorLog->filename = 'API / Location.class.php';
+				$errorLog->write();
+			}else{
+				// Google Maps API Error
+				$this->error = true;
+				$this->errorMsg = 'Sorry, we were not able to find an address for you. We have logged the error and our support team will look into it.';
+				$this->responseCode = 500;
+				
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 195;
+				$errorLog->errorMsg = 'Google Maps Error';
+				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . $jsonResponse->error_message;
+				$errorLog->filename = 'API / Location.class.php';
+				$errorLog->write();
 			}
 		}
 	}
@@ -969,14 +1070,14 @@ class Location {
 		// Generally returned as part of the API output
 		
 		// Optional Values that may be stored as null, return as empty ("")
-		if(is_null($this->url)){$this->url = '';}
-		if(is_null($this->latitude)){$this->latitude = 0;}
-		if(is_null($this->longitude)){$this->longitude = 0;}
+		if(empty($this->url)){$this->url = null;}
+		if(empty($this->latitude)){$this->latitude = null;}
+		if(empty($this->longitude)){$this->longitude = null;}
 		
 		// Get Brewery Data
 		$brewer = new Brewer();
 		$brewer->validate($this->brewerID, true);
-		$brewer->generateBrewerObject();
+		$brewer->generateBrewerObject(true);
 		
 		// Address Data
 		$usAddresses = new USAddresses();
@@ -994,6 +1095,10 @@ class Location {
 		$this->json['brewer_verified'] = $this->brewerVerified;
 		$this->json['last_modified'] = $this->lastModified;
 		if($usAddresses->validate($this->locationID, true)){
+			if(empty($usAddresses->address1)){$usAddresses->address1 = null;}
+			if(empty($usAddresses->zip4)){$usAddresses->zip4 = null;}
+			if(empty($usAddresses->telephone)){$usAddresses->telephone = null;}
+			
 			$this->json['address']['address1'] = $usAddresses->address1;
 			$this->json['address']['address2'] = $usAddresses->address2;
 			$this->json['address']['city'] = $usAddresses->city;
