@@ -11,7 +11,7 @@ class Usage {
 	
 	// Validation
 	public $error = false;
-	public $errorMsg = '';
+	public $errorMsg = null;
 	
 	// API Response
 	public $responseHeader = '';

@@ -7,7 +7,7 @@ class apiKeys {
 	
 	// Error Handling
 	public $error = false;
-	public $errorMsg = '';
+	public $errorMsg = null;
 	public $responseCode = 200;
 	
 	public function add($userID){

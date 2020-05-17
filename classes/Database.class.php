@@ -6,7 +6,7 @@ class Database {
 	public $insertID;
 	
 	public $error = false;
-	public $errorMsg = '';
+	public $errorMsg = null;
 	public $responseCode = 200;
 	
 	// Private Variables

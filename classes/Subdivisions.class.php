@@ -6,7 +6,7 @@ class Subdivisions {
 	public $sub_name = '';
 	
 	public $error = false;
-	public $errorMsg = '';
+	public $errorMsg = null;
 	public $responseCode = 200;
 	
 	public function validate($sub_code, $saveToClass){
