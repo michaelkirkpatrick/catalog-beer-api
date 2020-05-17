@@ -898,11 +898,17 @@ class Beer {
 		return $beerInfo;
 	}
 	
-	public function deleteBeer($beerID, $userID){
-		if($this->validate($beerID, false)){
+	public function delete($beerID, $userID){
+		if($this->validate($beerID, true)){
+			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
-			if($users->admin){
+			
+			// Get Brewer Privileges
+			$privileges = new Privileges();
+			$brewerPrivilegesList = $privileges->brewerList($userID);
+			
+			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
 				// Delete Beer
 				$db = new Database();
 				$dbBeerID = $db->escape($beerID);
@@ -915,35 +921,20 @@ class Beer {
 				}
 				$db->close();
 			}else{
-				// Not an Admin - Not Allowed to Delete
+				// Not Allowed to Delete
 				$this->error = true;
-				$this->errorMsg = 'Sorry, you do not have permission to delete a beer.';
+				$this->errorMsg = 'Sorry, you do not have permission to delete this beer.';
 				$this->responseCode = 403;
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 199;
+				$errorLog->errorMsg = 'Forbidden: DELETE, /beer';
+				$errorLog->badData = "User: $userID / brewerID: $this->brewerID / beerID: $beerID";
+				$errorLog->filename = 'API / Beer.class.php';
+				$errorLog->write();
 			}
 		}
-	}
-	
-	public function deleteBrewerBeers($brewerID){
-		/*---
-		Assume the following for this function
-		1) Brewer has been validated
-		2) User has been validated and has permission to perform this action
-		This function does not perform this validation so as to not do it every time.
-		---*/
-		
-		// Prep for Database
-		$db = new Database();
-		$dbBrewerID = $db->escape($brewerID);
-		
-		// Delete Beers
-		$db->query("DELETE FROM beer WHERE brewerID='$dbBrewerID'");
-		if($db->error){
-			// Database Error
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-		$db->close();
 	}
 	
 	public function generateBeerObject(){
@@ -1108,7 +1099,7 @@ class Beer {
 				$apiKeys->validate($apiKey, true);
 
 				// Delete Location
-				$this->deleteBeer($id, $apiKeys->userID);
+				$this->delete($id, $apiKeys->userID);
 				if(!$this->error){
 					// Successful Delete
 					$this->responseCode = 204;
