@@ -15,20 +15,24 @@ class USAddresses {
 
 	// Error Handling
 	public $error = false;
-	public $errorMsg = '';
-	public $validState = array('address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
-	public $validMsg = array('address1'=>'', 'address2'=>'', 'city'=>'', 'sub_code'=>'', 'zip5'=>'', 'zip4'=>'', 'telephone'=>'');
+	public $errorMsg = null;
+	public $validState = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null);
+	public $validMsg = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null);
 	public $responseCode = 200;
 	public $json = array();
+	private $latLongFound = false;
 
 	// USPS API Key
 	private $usps = '';
 
 	// Add Address
-	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $method, $patchFields){
+	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $userID, $method, $patchFields){
 		// Required Classes
-		$location = new Location();
+		$brewer = new Brewer();
 		$db = new Database();
+		$location = new Location();
+		$privileges = new Privileges();
+		$users = new Users();
 		
 		// Validate Location
 		if($location->validate($locationID, true)){
@@ -42,6 +46,66 @@ class USAddresses {
 				$newAddress = true;
 			}
 			
+			// ----- Permissions Check -----
+			if($users->validate($userID, true)){
+				// Get User's Email Domain Name
+				$userEmailDomain = $users->emailDomainName($users->email);
+
+				// Get User Privileges
+				$userBrewerPrivileges = $privileges->brewerList($userID);
+				
+				// Get Brewer Domain Name
+				$brewer->validate($location->brewerID, true);
+
+				if($location->cbVerified){
+					if($userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
+						// Allow PUT/PATCH. User is brewery staff.
+					}else{
+						if(!$users->admin){
+							// Deny
+							$this->error = true;
+							$this->errorMsg = 'Sorry, because this location is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+							$this->responseCode = 403;
+
+							// Log Error
+							$errorLog = new LogError();
+							$errorLog->errorNumber = 191;
+							$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /address, cb_verified';
+							$errorLog->badData = "User: $userID / Location: $locationID";
+							$errorLog->filename = 'API / USAddresses.class.php';
+							$errorLog->write();
+						}
+					}
+				}else{
+					if($location->brewerVerified){
+						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							// Allow PUT/PATCH. User is brewery staff.
+						}else{
+							if(!$users->admin){
+								// Deny
+								$this->error = true;
+								$this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+								$this->responseCode = 403;
+
+								// Log Error
+								$errorLog = new LogError();
+								$errorLog->errorNumber = 192;
+								$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
+								$errorLog->badData = "User: $userID / Location: $this->locationID";
+								$errorLog->filename = 'API / USAddresses.class.php';
+								$errorLog->write();
+							}
+						}
+					}
+				}
+			}else{
+				// User Validation Error
+				$this->error = true;
+				$this->errorMsg = $users->errorMsg;
+				$this->responseCode = $users->responseCode;
+			}
+			
+			// ----- Check Method -----
 			switch($method){
 				case 'POST':
 					if($addressOnFile){
@@ -77,6 +141,7 @@ class USAddresses {
 					break;
 			}
 			
+			
 			if(!$this->error){
 				// Save to Class
 				$this->locationID = $locationID;
@@ -91,6 +156,41 @@ class USAddresses {
 				if($method == 'POST' || $method == 'PUT'){
 					// Validate Address
 					$this->validateAddress();
+					if($this->error && $this->responseCode == 404){
+						// USPS API Not able to find address	
+						// Clear Error Messages
+						$this->error = false;
+						$this->responseCode = 200;
+						$this->errorMsg = null;
+										
+						// Try Google Places API
+						$formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
+						if(!$location->error){
+							// Latitude and Longitude Found
+							$this->latLongFound = true;
+						
+							// Parse the formatted address 
+							$this->parseGoogleAddressString($formattedAddress);
+							
+							// Retry USPS Address Validation
+							$this->validateAddress();
+							
+							if($this->error && $this->responseCode == 404){
+								// USPS API Failed Again, Save Google API Results
+								$this->parseGoogleAddressString($formattedAddress);
+							}
+							
+							// Clear Error Messages
+							$this->error = false;
+							$this->responseCode = 200;
+							$this->errorMsg = null;
+						}else{
+							// Location Error
+							$this->error= true;
+							$this->errorMsg = $location->errorMsg;
+							$this->responseCode = $location->responseCode;
+						}
+					}
 
 					// Validate Telephone
 					$this->validateTelephone();
@@ -140,15 +240,18 @@ class USAddresses {
 
 						$db->query($sql);
 						if(!$db->error){
-							// Address String
-							$addressString = $this->address2;
-							if(!empty($this->address1)){
-								$addressString .= ' ' . $this->address1;
-							}
-							$addressString .= ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5;
-
 							// Get Latitude and Longitude
-							$location->addLatLong($this->locationID, $addressString);
+							if(!$this->latLongFound){
+								$location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
+							}
+							
+							// Update Last Modified
+							$location->updateLastModified($this->locationID);
+							if($location->error){
+								$this->error = true;
+								$this->errorMsg = $location->errorMsg;
+								$this->responseCode = $location->responseCode;
+							}
 						}else{
 							// Query Error
 							$this->error = true;
@@ -171,6 +274,41 @@ class USAddresses {
 						// They'd like to update something about the address, validate it
 						$this->validateAddress();
 						$patchAddress = true;
+						if($this->error && $this->responseCode == 404){
+							// USPS API Not able to find address	
+							// Clear Error Messages
+							$this->error = false;
+							$this->responseCode = 200;
+							$this->errorMsg = null;
+										
+							// Try Google Places API
+							$formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
+							if(!$location->error){
+								// Latitude and Longitude Found
+								$this->latLongFound = true;
+						
+								// Parse the formatted address 
+								$this->parseGoogleAddressString($formattedAddress);
+							
+								// Retry USPS Address Validation
+								$this->validateAddress();
+							
+								if($this->error && $this->responseCode == 404){
+									// USPS API Failed Again, Save Google API Results
+									$this->parseGoogleAddressString($formattedAddress);
+								}
+							
+								// Clear Error Messages
+								$this->error = false;
+								$this->responseCode = 200;
+								$this->errorMsg = null;
+							}else{
+								// Location Error
+								$this->error= true;
+								$this->errorMsg = $location->errorMsg;
+								$this->responseCode = $location->responseCode;
+							}
+						}
 					}
 					if(!$this->error){						
 						// Prep for database
@@ -214,15 +352,18 @@ class USAddresses {
 						$db->query($sql);
 						if(!$db->error){
 							if($patchAddress){
-								// Address String
-								$addressString = $this->address2;
-								if(!empty($this->address1)){
-									$addressString .= ' ' . $this->address1;
-								}
-								$addressString .= ', ' . $this->city . ', ' . $this->stateShort . ' ' . $this->zip5;
-
 								// Get Latitude and Longitude
-								$location->addLatLong($this->locationID, $addressString);
+								if(!$this->latLongFound){
+									$location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
+								}
+							}
+							
+							// Update Last Modified
+							$location->updateLastModified($this->locationID);
+							if($location->error){
+								$this->error = true;
+								$this->errorMsg = $location->errorMsg;
+								$this->responseCode = $location->responseCode;
 							}
 						}else{
 							// Query Error
@@ -238,7 +379,7 @@ class USAddresses {
 			$this->error = true;
 			$this->errorMsg = $location->errorMsg;
 			// Correct 404 (Not Found) to 400 (Bad Request) for Location Not Found
-			if($brewer->responseCode === 404){
+			if($location->responseCode === 404){
 				$this->responseCode = 400;
 			}else{
 				$this->responseCode = $location->responseCode;
@@ -281,6 +422,7 @@ class USAddresses {
 		// Address Line 2 - Street Address
 		if(!empty($this->address2)){
 			$xmlBody .= '<Address2>' . $this->address2 . '</Address2>';
+			$this->validState['address2'] = 'valid';
 		}else{
 			// Missing Address Line
 			$this->error = true;
@@ -356,6 +498,7 @@ class USAddresses {
 			// Check City
 			if(!empty($this->city)){
 				$xmlBody .= '<City>' . $this->city . '</City>';
+				$this->validState['city'] = 'valid';
 			}else{
 				// Missing City
 				$this->error = true;
@@ -382,6 +525,7 @@ class USAddresses {
 
 					// XML
 					$xmlBody .= '<State>' . $this->stateShort . '</State>';
+					$this->validState['sub_code'] = 'valid';
 				}else{
 					// Invalid Subdivision
 					$this->error = true;
@@ -481,6 +625,11 @@ class USAddresses {
 					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
 					$errorLog->filename = 'API / USAddresses.class.php';
 					$errorLog->write();
+				}elseif(trim($responseObj->Address->Error->Description) == 'Address Not Found.'){
+					// Not Found
+					$this->error = true;
+					$this->responseCode = 404;
+					$this->errorMsg = 'Address Not Found.';
 				}else{
 					// Other Error
 					$this->error = true;
@@ -563,14 +712,60 @@ class USAddresses {
 			$this->telephone = 0;
 		}
 	}
+	
+	// Generate Google API Address String
+	private function generateGoogleAddressString(){
+		// Address2
+		$addressString = $this->address2;
+		
+		// Address1
+		if(!empty($this->address1)){
+			$addressString .= ' ' . $this->address1;
+		}
+		
+		$addressString .= ', ';
+		
+		// City
+		if(!empty($this->city)){
+			$addressString .= $this->city . ', ';
+		}
+		
+		// State
+		if(!empty($this->stateShort)){
+			$addressString .= $this->stateShort;
+		}
+		
+		// ZIP Code
+		if(!empty($this->zip5)){
+			$addressString .= ' ' . $this->zip5;
+			if(!empty($this->zip4)){
+				$addressString .= '-' . $this->zip4;
+			}
+		}
+		
+		// Add United States of America
+		$addressString .= ', USA';
+		
+		return $addressString;
+	}
+	
+	// Parse Google Formatted Address String
+	private function parseGoogleAddressString($addressString){	
+		// Regular Expression
+		$regex = '/([[:alnum:] ]+)([#0-9]+)?, ([[:alnum:] ]+), ([A-Z]{2}) ([0-9]{5})(-[0-9]{4})?/m';
+		preg_match_all($regex, $addressString, $matches, PREG_SET_ORDER, 0);
+				
+		// Match to the class
+		$this->address1 = $matches[0][2];
+		$this->address2 = $matches[0][1];
+		$this->city = $matches[0][3];
+		$this->sub_code = 'US-' . $matches[0][4];
+		$this->zip5 = $matches[0][5];
+	}
 
 	// Validate
 	public function validate($locationID, $saveToClass){
-		// Valid
 		$valid = false;
-
-		// Trim
-		$locationID = trim($locationID);
 
 		if(!empty($locationID)){
 			// Prep for Database
@@ -601,19 +796,6 @@ class USAddresses {
 							$this->stateLong = $subdivisions->sub_name;
 						}
 					}
-				}elseif($db->result->num_rows > 1){
-					// Too Many Results
-					$this->error = true;
-					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-					$this->responseCode = 500;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 67;
-					$errorLog->errorMsg = 'Duplicate locationIDs';
-					$errorLog->badData = '';
-					$errorLog->filename = 'API / USAddresses.class.php';
-					$errorLog->write();
 				}
 			}else{
 				// Query Error
@@ -641,7 +823,7 @@ class USAddresses {
 		return $valid;
 	}
 	
-	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
+	public function api($method, $id, $apiKey, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/address/{function}
 		{METHOD} https://api.catalog.beer/address/{id}/{function}
@@ -655,75 +837,54 @@ class USAddresses {
 		
 		// Required Classes
 		$location = new Location();
+		$apiKeys = new apiKeys();
+		
+		// Validate API Key for userID
+		$apiKeys->validate($apiKey, true);
+		
+		// Handle Empty Fields
+		$patchFields = array();
+		
+		if(isset($data->address1)){$patchFields[] = 'address1';}
+		else{$data->address1 = '';}
+
+		if(isset($data->address2)){$patchFields[] = 'address2';}
+		else{$data->address2 = '';}
+
+		if(isset($data->city)){$patchFields[] = 'city';}
+		else{$data->city = '';}
+
+		if(isset($data->sub_code)){$patchFields[] = 'sub_code';}
+		else{$data->sub_code = '';}
+
+		if(isset($data->zip5)){$patchFields[] = 'zip5';}
+		else{$data->zip5 = '';}
+
+		if(isset($data->zip4)){$patchFields[] = 'zip4';}
+		else{$data->zip4 = '';}
+
+		if(isset($data->telephone)){$patchFields[] = 'telephone';}
+		else{$data->telephone = '';}
 		
 		switch($method){
-			case 'GET':
-				
-				break;
 			case 'PATCH':
-				
+				// PATCH https://api.catalog.beer/address/{location_id}
+				$this->add($id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone, $apiKeys->userID, 'PATCH', $patchFields);
 				break;
 			case 'POST':
-				if($location->validate($id, true)){
-					// POST https://api.catalog.beer/location/{location_id}
-					// Add Address for Location
-
-					// Handle Empty Fields
-					if(empty($data->address1)){$data->address1 = '';}
-					if(empty($data->address2)){$data->address2 = '';}
-					if(empty($data->city)){$data->city = '';}
-					if(empty($data->sub_code)){$data->sub_code = '';}
-					if(empty($data->zip5)){$data->zip5 = '';}
-					if(empty($data->zip4)){$data->zip4 = '';}
-					if(empty($data->telephone)){$data->telephone = '';}
-
-					$usAddresses->add($this->locationID, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone);
-					if(!$usAddresses->error){
-						// Successfully Added
-						$this->responseCode = 201;
-
-						// Response Header
-						$responseHeaderString = 'Location: https://';
-						if(ENVIRONMENT == 'staging'){
-							$responseHeaderString .= 'staging.';
-						}
-						$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->locationID;
-
-						// Validate Location to get latitude and longitude
-						$this->validate($this->locationID, true);
-
-						// JSON Response
-						$this->generateLocationObject();
-
-						$this->json['telephone'] = $usAddresses->telephone;
-						$this->json['address']['address1'] = $usAddresses->address1;
-						$this->json['address']['address2'] = $usAddresses->address2;
-						$this->json['address']['city'] = $usAddresses->city;
-						$this->json['address']['sub_code'] = $usAddresses->sub_code;
-						$this->json['address']['state_short'] = $usAddresses->stateShort;
-						$this->json['address']['state_long'] = $usAddresses->stateLong;
-						$this->json['address']['zip5'] = $usAddresses->zip5;
-						$this->json['address']['zip4'] = $usAddresses->zip4;
-					}else{
-						// Error Adding Address
-						$this->responseCode = $usAddresses->responseCode;
-						$this->json['error'] = true;
-						$this->json['error_msg'] = $usAddresses->errorMsg;
-						$this->json['valid_state'] = $usAddresses->validState;
-						$this->json['valid_msg'] = $usAddresses->validMsg;
-					}
-				}else{
-					// Invalid Location
-					$this->json['error'] = true;
-					$this->json['error_msg'] = $this->errorMsg;
-				}
+				// POST https://api.catalog.beer/address/{location_id}
+				$this->add($id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone, $apiKeys->userID, 'POST', array());
+				break;
+			case 'PUT':
+				// PUT https://api.catalog.beer/address/{location_id}
+				$this->add($id, $data->address1, $data->address2, $data->city, $data->sub_code, $data->zip5, $data->zip4, $data->telephone, $apiKeys->userID, 'PUT', array());
 				break;
 			default:
 				// Unsupported Method - Method Not Allowed
-				$this->json['error'] = true;
-				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
+				$this->error = true;
+				$this->errorMsg = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: GET, POST, PATCH';
+				$this->responseHeader = 'Allow: POST, PUT, PATCH';
 
 				// Log Error
 				$errorLog = new LogError();
@@ -732,6 +893,20 @@ class USAddresses {
 				$errorLog->badData = $method;
 				$errorLog->filename = 'API / USAddresses.class.php';
 				$errorLog->write();
+		}
+		
+		if(!$this->error){
+			// Return Location Object
+			$location = new Location();
+			$location->validate($this->locationID, true);
+			$location->generateLocationObject();
+			$this->json = $location->json;
+		}else{
+			// Error Adding Address
+			$this->json['error'] = true;
+			$this->json['error_msg'] = $this->errorMsg;
+			$this->json['valid_state'] = $this->validState;
+			$this->json['valid_msg'] = $this->validMsg;
 		}
 	}
 }
