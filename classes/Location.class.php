@@ -891,11 +891,17 @@ class Location {
 		return $count;
 	}
 
-	public function deleteLocation($locationID, $userID){
-		if($this->validate($locationID, false)){
+	public function delete($locationID, $userID){
+		if($this->validate($locationID, true)){
+			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
-			if($users->admin){
+			
+			// Get Brewer Privileges
+			$privileges = new Privileges();
+			$brewerPrivilegesList = $privileges->brewerList($userID);
+			
+			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
 				// Delete Location
 				$db = new Database();
 				$dbLocationID = $db->escape($locationID);
@@ -908,17 +914,17 @@ class Location {
 				}
 				$db->close();
 			}else{
-				// Not an Admin - Not Allowed to Delete
+				// Not Allowed to Delete
 				$this->error = true;
 				$this->errorMsg = 'Sorry, you do not have permission to delete this location.';
 				$this->responseCode = 403;
 				
 				// Log Error
 				$errorLog = new LogError();
-				$errorLog->errorNumber = 193;
-				$errorLog->errorMsg = 'Non-Admin user a';
-				$errorLog->badData = '';
-				$errorLog->filename = '';
+				$errorLog->errorNumber = 200;
+				$errorLog->errorMsg = 'Forbidden: DELETE, /location';
+				$errorLog->badData = "User: $userID / brewerID: $this->brewerID / locationID: $locationID";
+				$errorLog->filename = 'API / Location.class.php';
 				$errorLog->write();
 			}
 		}
@@ -1274,7 +1280,7 @@ class Location {
 				$apiKeys->validate($apiKey, true);
 
 				// Delete Location
-				$this->deleteLocation($id, $apiKeys->userID);
+				$this->delete($id, $apiKeys->userID);
 				if(!$this->error){
 					// Successful Delete
 					$this->responseCode = 204;
