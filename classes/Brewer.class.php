@@ -17,9 +17,9 @@ class Brewer {
 
 	// Error Handling
 	public $error = false;
-	public $errorMsg = '';
-	public $validState = array('name'=>'', 'url'=>'', 'description'=>'', 'short_description'=>'', 'facebook_url'=>'', 'twitter_url'=>'', 'instagram_url'=>'');
-	public $validMsg = array('name'=>'', 'url'=>'', 'description'=>'', 'short_description'=>'', 'facebook_url'=>'', 'twitter_url'=>'', 'instagram_url'=>'');
+	public $errorMsg = null;
+	public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
+	public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
 
 	// API Response
 	public $responseHeader = '';
@@ -73,7 +73,7 @@ class Brewer {
 					// Brewer doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
 					$this->error = false;
-					$this->errorMsg = '';
+					$this->errorMsg = null;
 					$this->responseCode = 200;
 					
 					// Validate UUID
@@ -131,8 +131,9 @@ class Brewer {
 						// Get cb_verified and brewer_verified flags
 						$dbBrewerID = $db->escape($this->brewerID);
 						$db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id='$dbBrewerID'");
-						$cbVerified = $db->singleResult('cbVerified');
-						$brewerVerified = $db->singleResult('brewerVerified');
+						$resultArray = $db->resultArray();
+						$cbVerified = $resultArray['cbVerified'];
+						$brewerVerified = $resultArray['brewerVerified'];
 
 						if($cbVerified){
 							if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
@@ -1134,31 +1135,45 @@ class Brewer {
 		}
 	}
 	
-	public function generateBrewerObject(){
-		// Generates the Brewer Object
-		// Generally returned as part of the API output
+	public function generateBrewerObject($json){
+		/*---
+		Generates the Brewer Object
+		Generally returned as part of the API output
+		$json = true or false
+			true = return data in $this->json[];
+			false = return data in an array();
+		---*/
 		
 		// Optional Values that may be stored as null, return as empty ("")
-		if(is_null($this->description)){$this->description = '';}
-		if(is_null($this->shortDescription)){$this->shortDescription = '';}
-		if(is_null($this->url)){$this->url = '';}
-		if(is_null($this->facebookURL)){$this->facebookURL = '';}
-		if(is_null($this->twitterURL)){$this->twitterURL = '';}
-		if(is_null($this->instagramURL)){$this->instagramURL = '';}
+		if(empty($this->description)){$this->description = null;}
+		if(empty($this->shortDescription)){$this->shortDescription = null;}
+		if(empty($this->url)){$this->url = null;}
+		if(empty($this->facebookURL)){$this->facebookURL = null;}
+		if(empty($this->twitterURL)){$this->twitterURL = null;}
+		if(empty($this->instagramURL)){$this->instagramURL = null;}
 		
 		// Known Values - Required
-		$this->json['id'] = $this->brewerID;
-		$this->json['object'] = 'brewer';
-		$this->json['name'] = $this->name;
-		$this->json['description'] = $this->description;
-		$this->json['short_description'] = $this->shortDescription;
-		$this->json['url'] = $this->url;
-		$this->json['cb_verified'] = $this->cbVerified;
-		$this->json['brewer_verified'] = $this->brewerVerified;
-		$this->json['facebook_url'] = $this->facebookURL;
-		$this->json['twitter_url'] = $this->twitterURL;
-		$this->json['instagram_url'] = $this->instagramURL;
-		$this->json['last_modified'] = $this->lastModified;
+		$array = array();
+		$array['id'] = $this->brewerID;
+		$array['object'] = 'brewer';
+		$array['name'] = $this->name;
+		$array['description'] = $this->description;
+		$array['short_description'] = $this->shortDescription;
+		$array['url'] = $this->url;
+		$array['cb_verified'] = $this->cbVerified;
+		$array['brewer_verified'] = $this->brewerVerified;
+		$array['facebook_url'] = $this->facebookURL;
+		$array['twitter_url'] = $this->twitterURL;
+		$array['instagram_url'] = $this->instagramURL;
+		$array['last_modified'] = $this->lastModified;
+		
+		if($json){
+			// Add to JSON Output
+			$this->json = $array;
+		}else{
+			// Return as array
+			return $array;
+		}
 	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
@@ -1187,7 +1202,7 @@ class Brewer {
 					// GET https://api.catalog.beer/brewer/{brewer_id}
 					if($this->validate($id, true)){
 						// Generate Brewer Object JSON
-						$this->generateBrewerObject();
+						$this->generateBrewerObject(true);
 					}else{
 						// Brewer Validation Error
 						$this->json['error'] = true;
@@ -1223,9 +1238,11 @@ class Brewer {
 								$location = new Location();
 								$locationArray = $location->brewerLocations($id);
 								if(!$location->error){
+									$this->validate($id, true);
 									$this->json['object'] = 'list';
 									$this->json['url'] = '/brewer/' . $id . '/locations';
 									$this->json['has_more'] = false;
+									$this->json['brewer'] = $this->generateBrewerObject(false);
 									$this->json['data'] = $locationArray;
 								}else{
 									$this->responseCode = $location->responseCode;
@@ -1292,7 +1309,7 @@ class Brewer {
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					// Generate Brewer Object JSON
-					$this->generateBrewerObject();
+					$this->generateBrewerObject(true);
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1321,7 +1338,7 @@ class Brewer {
 					$this->validate($id, true);
 					
 					// Generate Brewer Object JSON
-					$this->generateBrewerObject();
+					$this->generateBrewerObject(true);
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
@@ -1365,7 +1382,7 @@ class Brewer {
 					$this->validate($id, true);
 					
 					// Generate Brewer Object JSON
-					$this->generateBrewerObject();
+					$this->generateBrewerObject(true);
 				}else{
 					$this->json['error'] = true;
 					$this->json['error_msg'] = $this->errorMsg;
