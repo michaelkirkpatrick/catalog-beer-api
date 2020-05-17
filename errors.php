@@ -31,6 +31,18 @@ switch($code){
 		$errorLog->filename = 'API / errors.php';
 		$errorLog->write();
 		break;
+	case 405:
+		// Show Error Message
+		$json['error'] = true;
+		$json['error_msg'] = "Method Not Allowed - The requested method is not allowed for this URL. We've logged the error so our support team is aware of it. If you believe you shoudn't be seeing a 405 error for your request, please contact us: https://catalog.beer/contact";
+		
+		// Log Error
+		$errorLog = new LogError();
+		$errorLog->errorNumber = 405;
+		$errorLog->errorMsg = '404 Error';
+		$errorLog->filename = 'API / errors.php';
+		$errorLog->write();
+		break;
 	case 500:
 		// Show Error Message
 		$json['error'] = true;
@@ -58,9 +70,9 @@ switch($code){
 }
 
 /* - - - - - RESPONSE - - - - - */
-
+	
 // HTTP Status Code
-http_response_code(404);
+http_response_code($code);
 
 // Header Type
 header('Content-Type: application/json');
