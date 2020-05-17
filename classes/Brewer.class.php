@@ -1104,9 +1104,15 @@ class Brewer {
 	
 	public function delete($brewerID, $userID){
 		if($this->validate($brewerID, false)){
+			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
-			if($users->admin){
+			
+			// Get Brewer Privileges
+			$privileges = new Privileges();
+			$brewerPrivilegesList = $privileges->brewerList($userID);
+			
+			if($users->admin || in_array($brewerID, $brewerPrivilegesList)){
 				// Delete Brewer
 				$db = new Database();
 				$dbBrewerID = $db->escape($brewerID);
@@ -1119,7 +1125,7 @@ class Brewer {
 				}
 				$db->close();
 			}else{
-				// Not an Admin - Not Allowed to Delete
+				// Not Allowed to Delete
 				$this->error = true;
 				$this->errorMsg = 'Sorry, you do not have permission to delete this brewery.';
 				$this->responseCode = 403;
