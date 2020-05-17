@@ -8,10 +8,13 @@ Header set Strict-Transport-Security "max-age=31415926; includeSubDomains; prelo
 # Redirect Error Pages
 ErrorDocument 403 /errors.php?code=403
 ErrorDocument 404 /errors.php?code=404
+ErrorDocument 405 /errors.php?code=405
 ErrorDocument 500 /errors.php?code=500
 ErrorDocument 503 /errors.php?code=503
 
 # API Endpoints
+RewriteRule ^address(\/[-0-9a-f]{36})?$ index.php?endpoint=address&id=$1 [L]
+
 RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
