@@ -95,7 +95,7 @@ class Brewer {
 			case 'PATCH':
 				if($this->validate($brewerID, true)){
 					// Valid Brewer - Update Existing Entry
-					// Note $this->domainName saved via $this->validate() function above
+					// $this->domainName saved via $this->validate() function above
 					$this->brewerID = $brewerID;
 				}
 				break;
@@ -296,7 +296,7 @@ class Brewer {
 							$sqlUpdate .= "shortDescription='$dbShortDescription', ";
 						}
 						if(!empty($dbURL)){
-							$sqlUpdate .= "url='$dbURL', domainName='$dbDomainName,' ";
+							$sqlUpdate .= "url='$dbURL', domainName='$dbDomainName', ";
 						}
 						if(!empty($dbFacebookURL)){
 							$sqlUpdate .= "facebookURL='$dbFacebookURL', ";
