@@ -607,8 +607,8 @@ class Beer {
 				$errorLog->write();
 			}
 		}else{
-			// Empty, IBU not provided, input zero
-			$this->ibu = 0;
+			// Empty, IBU not provided, input null
+			$this->ibu = null;
 		}
 	}
 	
@@ -944,6 +944,7 @@ class Beer {
 		// Optional Values that may be stored as null, return as empty ("")
 		if(empty($this->description)){$this->description = null;}
 		if(empty($this->ibu)){$this->ibu = null;}
+		else{$this->ibu = intval($this->ibu);}
 		
 		// Get Brewery Data
 		$brewer = new Brewer();
@@ -957,7 +958,7 @@ class Beer {
 		$this->json['style'] = $this->style;
 		$this->json['description'] = $this->description;
 		$this->json['abv'] = floatval($this->abv);
-		$this->json['ibu'] = intval($this->ibu);
+		$this->json['ibu'] = $this->ibu;
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
 		$this->json['last_modified'] = $this->lastModified;
