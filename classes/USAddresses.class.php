@@ -190,7 +190,7 @@ class USAddresses {
 							$this->errorMsg = $location->errorMsg;
 							$this->responseCode = $location->responseCode;
 						}
-					}
+					}	
 
 					// Validate Telephone
 					$this->validateTelephone();
@@ -209,33 +209,41 @@ class USAddresses {
 						if($newAddress){
 							// Add New Address (POST/PUT)
 							$sql1 = '';
-							$sql2 = '';
-							if(!empty($dbAddress1)){
-								$sql1 .= ", address1";
-								$sql2 .= ", '$dbAddress1'";
+							if(empty($dbAddress1)){
+								$sql1 .= ", null";
+							}else{
+								$sql1 .= ", '$dbAddress1'";
 							}
-							if(!empty($dbZip4)){
-								$sql1 .= ", zip4";
-								$sql2 .= ", '$dbZip4'";
+							if(empty($dbZip4)){
+								$sql1 .= ", null";
+							}else{
+								$sql1 .= ", '$dbZip4'";
 							}
-							if(!empty($dbTelephone)){
-								$sql1 .= ", telephone";
-								$sql2 .= ", '$dbTelephone'";
+							if(empty($dbTelephone)){
+								$sql1 .= ", null";
+							}else{
+								$sql1 .= ", '$dbTelephone'";
 							}
-							$sql = "INSERT INTO US_addresses (locationID, address2, city, sub_code, zip5" . $sql1 . ") VALUES ('$dbLocationID', '$dbAddress2', '$dbCity', '$dbSubCode', $dbZip5" . $sql2 . ")";
+							$sql = "INSERT INTO US_addresses (locationID, address2, city, sub_code, zip5, address1, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress2', '$dbCity', '$dbSubCode', $dbZip5" . $sql1 . ")";
 						}else{
 							// Update Address (PUT)
 							$sql1 = '';
-							if(!empty($dbAddress1)){
+							if(empty($dbAddress1)){
+								$sql1 .= ", address1=null";
+							}else{
 								$sql1 .= ", address1='$dbAddress1'";
 							}
-							if(!empty($dbZip4)){
-								$sql1 .= ", zip4='$dbZip4'";
+							if(empty($dbZip4)){
+								$sql1 .= ", zip4=null";
+							}else{
+								$sql1 .= ", zip4=$dbZip4";
 							}
-							if(!empty($dbTelephone)){
-								$sql1 .= ", telephone='$dbTelephone'";
+							if(empty($dbTelephone)){
+								$sql1 .= ", telephone=null";
+							}else{
+								$sql1 .= ", telephone=$dbTelephone";
 							}
-							$sql = "UPDATE US_addresses SET address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5='$dbZip5', $dbTelephone" . $sql1 . " WHERE locationID='$dbLocationID'";
+							$sql = "UPDATE US_addresses SET address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5=$dbZip5" . $sql1 . " WHERE locationID='$dbLocationID'";
 						}
 
 						$db->query($sql);
@@ -318,7 +326,7 @@ class USAddresses {
 						if($patchTelephone){
 							$dbTelephone = $db->escape($this->telephone);
 							if(!empty($dbTelephone)){
-								$sql .= " telephone='$dbTelephone'";
+								$sql .= " telephone=$dbTelephone";
 							}
 						}
 						
@@ -335,14 +343,18 @@ class USAddresses {
 							if($patchTelephone){
 								$sql .= ", ";
 							}
-							$sql .= "address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5='$dbZip5'";
+							$sql .= "address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5=$dbZip5";
 							
 							// Optional Fields
-							if(!empty($dbAddress1)){
+							if(empty($dbAddress1)){
+								$sql .= ", address1=null";
+							}else{
 								$sql .= ", address1='$dbAddress1'";
 							}
-							if(!empty($dbZip4)){
-								$sql .= ", zip4='$dbZip4'";
+							if(empty($dbZip4)){
+								$sql .= ", zip4=null";
+							}else{
+								$sql .= ", zip4=$dbZip4";
 							}
 						}
 						
@@ -422,7 +434,6 @@ class USAddresses {
 		// Address Line 2 - Street Address
 		if(!empty($this->address2)){
 			$xmlBody .= '<Address2>' . $this->address2 . '</Address2>';
-			$this->validState['address2'] = 'valid';
 		}else{
 			// Missing Address Line
 			$this->error = true;
@@ -498,7 +509,6 @@ class USAddresses {
 			// Check City
 			if(!empty($this->city)){
 				$xmlBody .= '<City>' . $this->city . '</City>';
-				$this->validState['city'] = 'valid';
 			}else{
 				// Missing City
 				$this->error = true;
@@ -558,6 +568,7 @@ class USAddresses {
 	}
 
 	private function uspsAPI($xmlBody){
+	
 		// Build XML
 		$xml = '<AddressValidateRequest USERID="' . $this->usps . '"><Address ID=\'1\'>' . $xmlBody . '</Address></AddressValidateRequest>';
 
@@ -616,7 +627,7 @@ class USAddresses {
 					$this->error = true;
 					$this->validState['city'] = 'invalid';
 					$this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
-					$this->responseCode = 400;
+					$this->responseCode = 404;
 
 					// Log Error
 					$errorLog = new LogError();
@@ -630,6 +641,14 @@ class USAddresses {
 					$this->error = true;
 					$this->responseCode = 404;
 					$this->errorMsg = 'Address Not Found.';
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 201;
+					$errorLog->errorMsg = 'Address Not Found - USPS Address Validation Error';
+					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
 				}else{
 					// Other Error
 					$this->error = true;
@@ -645,7 +664,7 @@ class USAddresses {
 					$errorLog->write();
 				}
 			}else{
-				// Success
+				// Success	
 				if(isset($responseObj->Address->Address1)){
 					$this->address1 = ucwords(strtolower($responseObj->Address->Address1));
 				}else{
