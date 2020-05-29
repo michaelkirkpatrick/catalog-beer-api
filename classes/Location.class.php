@@ -1027,6 +1027,14 @@ class Location {
 					// Find Place From Text?
 					if($googleAPI == 'findplacefromtext'){
 						return $jsonResponse->$arrayName[0]->formatted_address;
+						
+						// Log as Found in error_log for later troubleshooting
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 202;
+						$errorLog->errorMsg = 'Address Found by Google';
+						$errorLog->badData = 'Address String: ' . $addressString . ' // Response: ' . $jsonResponse->$arrayName[0]->formatted_address;
+						$errorLog->filename = 'API / USAddresses.class.php';
+						$errorLog->write();
 					}
 				}else{
 					// More than one result, ambiguous
