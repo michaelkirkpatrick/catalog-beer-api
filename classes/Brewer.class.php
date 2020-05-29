@@ -37,6 +37,7 @@ class Brewer {
 		// ----- brewerID -----
 		$uuid = new uuid();
 		$newBrewer = false;
+		$urlVerified = false;
 		switch($method){
 			case 'POST':
 				// Generate a new brewer_id
@@ -45,6 +46,7 @@ class Brewer {
 				if(!$uuid->error){
 					// Get Brewer domain name for brewerVerified by validating URL
 					$this->url = $this->validateURL($url, 'url', 'brewer');
+					$urlVerified = true;
 				}else{
 					// UUID Generation Error
 					$this->error = true;
@@ -84,6 +86,7 @@ class Brewer {
 						
 						// Get Brewer domain name for brewerVerified by validating URL
 						$this->url = $this->validateURL($url, 'url', 'brewer');
+						$urlVerified = true;
 					}else{
 						// Invalid UUID Submission
 						$this->error = true;
@@ -184,6 +187,7 @@ class Brewer {
 				$dbCBV = b'0';
 				$this->brewerVerified = false;
 				$dbBV = b'0';
+				$addPrivileges = false;
 
 				// Get User Info
 				if($users->admin){
@@ -200,7 +204,8 @@ class Brewer {
 
 							if(!in_array($this->brewerID, $userBrewerPrivileges)){
 								// Give user privileges for this brewer
-								$privileges->add($userID, $this->brewerID, true);
+								// Added after brewerID created.
+								$addPrivileges = true;
 							}
 						}
 					}
@@ -225,7 +230,9 @@ class Brewer {
 				$this->validateName();
 
 				// Validate URLs
-				$this->url = $this->validateURL($url, 'url', 'brewer');
+				if(!$urlVerified){
+					$this->url = $this->validateURL($url, 'url', 'brewer');
+				}
 				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
 				$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url', 'brewer');
 				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
@@ -433,6 +440,11 @@ class Brewer {
 					}else{
 						$this->responseCode = 200;
 					}
+					
+					// Add Privileges?
+					if($addPrivileges){
+						$privileges->add($userID, $this->brewerID, true);
+					}
 				}else{
 					// Query Error
 					$this->error = true;
@@ -553,6 +565,14 @@ class Brewer {
 				// Add HTTP
 				$url = 'http://' . $url;
 			}
+			
+			// Add HTTPS for Facebook, Twitter, and Instagram
+			if($type == 'instagram_url' || $type == 'facebook_url' || $type == 'twitter_url'){
+				if(!preg_match('/^https:\/\//', $url)){
+					// Add HTTPS
+					$url = 	str_replace('http://', 'https://', $url);
+				}
+			}
 
 			// Check URL Symantics
 			if(filter_var($url, FILTER_VALIDATE_URL)){
@@ -597,6 +617,31 @@ class Brewer {
 							// Stop Loop
 							$continue = false;
 						}
+					}elseif($curlResponse['httpCode'] == 301){
+						// Moved Permanently. Save new location.
+						$returnURL = $curlResponse['url'];
+						$this->validState[$type] = 'valid';
+
+						// Stop Loop
+						$continue = false;
+					}elseif($curlResponse['httpCode'] == 302 && $type == 'instagram_url'){
+						// Found, Redirect to Login Page
+						if(preg_match('/next=(.+)/', $curlResponse['url'], $matches)){
+							// Rewrite without login page
+							$returnURL = 'https://www.instagram.com' . $matches[1];
+						}else{
+							$returnURL = $curlResponse['url'];
+						}
+						
+						// Stop Loop
+						$continue = false;
+					}elseif($curlResponse['httpCode'] == 405 && $type == 'instagram_url'){
+						// Instagram doesn't like HEAD and prefers GET
+						// Assume Valid
+						$returnURL = $url;
+						
+						// Stop Loop
+						$continue = false;
 					}else{
 						// Invalid URL
 						$this->error = true;
@@ -828,10 +873,6 @@ class Brewer {
 
 		// Response HTTP Code
 		$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		if($type == 'instagram_url' && $httpCode == 405){
-			// Override HTTP Code
-			$httpCode = 200;
-		}
 
 		if(curl_errno($curl)){
 			// cURL Error
@@ -846,12 +887,12 @@ class Brewer {
 
 		// Process Output?
 		if(gettype($output) == 'string'){
-			$exploded = explode("\n", $output);
-			foreach($exploded as &$returnLine){
-				if(preg_match('/^[lL]ocation: (.+)/', $returnLine, $matches)){
-					$newLineChars = array("\n", "\r");
-					$returnURL = str_replace($newLineChars, '', $matches[1]);
-				}
+			if(preg_match('/[lL]ocation: (.+)/', $output, $matches)){
+				$newLineChars = array("\n", "\r");
+				$returnURL = str_replace($newLineChars, '', $matches[1]);
+			}
+			if(preg_match('/HTTP\/1.1 ([0-9]{3})/', $output, $matches)){
+				$httpCode = intval($matches[1]);
 			}
 		}
 
