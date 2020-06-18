@@ -115,6 +115,23 @@ class Location {
 			// Valid BrewerID
 			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
+			
+			// Which brewer is this beer currently associated with?
+			if($method == 'PUT' || $method == 'PATCH'){
+				// Get the brewerID currenlty associated with this beer
+				$dbLocationID = $db->escape($this->locationID);
+				$db->query("SELECT brewerID FROM location WHERE id='$dbLocationID'");
+				if($db->result->num_rows > 0){
+					// Brewer currently associated with this beer
+					$permissionsBrewerID = $db->singleResult('brewerID');
+				}else{
+					// No brewer currently associated with this beer (e.g. PUT)
+					$permissionsBrewerID = $this->brewerID;
+				}
+			}else{
+				// Non PUT/PATCH Request, use $this->brewerID
+				$permissionsBrewerID = $this->brewerID;
+			}
 		}else{
 			// Invalid Brewer
 			$this->error = true;
@@ -151,7 +168,7 @@ class Location {
 						$brewerVerified = $resultArray['brewerVerified'];
 
 						if($cbVerified){
-							if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+							if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
 								// Allow PUT/PATCH. User is brewery staff.
 							}else{
 								if(!$users->admin){
@@ -171,7 +188,7 @@ class Location {
 							}
 						}else{
 							if($brewerVerified){
-								if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+								if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
 									// Allow PUT/PATCH. User is brewery staff.
 								}else{
 									if(!$users->admin){
