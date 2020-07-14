@@ -45,6 +45,7 @@ class Brewer {
 				$this->brewerID = $uuid->generate('brewer');
 				if(!$uuid->error){
 					// Get Brewer domain name for brewerVerified by validating URL
+					// Populates $this->domainName
 					$this->url = $this->validateURL($url, 'url', 'brewer');
 					$urlVerified = true;
 				}else{
@@ -85,6 +86,7 @@ class Brewer {
 						$this->brewerID = $brewerID;
 						
 						// Get Brewer domain name for brewerVerified by validating URL
+						// Populates $this->domainName
 						$this->url = $this->validateURL($url, 'url', 'brewer');
 						$urlVerified = true;
 					}else{
@@ -188,6 +190,7 @@ class Brewer {
 				$this->brewerVerified = false;
 				$dbBV = b'0';
 				$addPrivileges = false;
+				$removePrivileges = false;
 
 				// Get User Info
 				if($users->admin){
@@ -197,15 +200,54 @@ class Brewer {
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($this->domainName)){
-						if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
-							// User has email associated with the brewery, give breweryValidated flag.
-							$this->brewerVerified = true;
-							$dbBV = b'1';
-
-							if(!in_array($this->brewerID, $userBrewerPrivileges)){
-								// Give user privileges for this brewer
-								// Added after brewerID created.
+						// URL/Domain Name Present
+						if($newBrewer){
+							if($userEmailDomain == $this->domainName){
+								// User has email associated with the brewery, give breweryValidated flag.
+								$this->brewerVerified = true;
+								$dbBV = b'1';
 								$addPrivileges = true;
+							}
+						}else{
+							if(!empty($url)){
+								// Current Domain Name: $this->domainName
+								// Get Domain Name for: $url
+								$newDomainName = $this->urlDomainName($url);
+								if($newDomainName == $this->domainName){
+									// Domain Name is staying the same
+									if(in_array($this->brewerID, $userBrewerPrivileges)){
+										// User has Brewery Privileges, add breweryValidate flag
+										$this->brewerVerified = true;
+										$dbBV = b'1';
+									}elseif($userEmailDomain == $this->domainName){
+										// User has email associated with the brewery, give breweryValidated flag.
+										$this->brewerVerified = true;
+										$dbBV = b'1';
+										$addPrivileges = true;
+									}
+								}else{
+									// New Domain Name
+									if($userEmailDomain == $newDomainName){
+										// Retain Brewer Privileges
+										$this->brewerVerified = true;
+										$dbBV = b'1';
+									}else{
+										// Remove Brewer Privileges
+										$removePrivileges = true;
+									}
+								}
+							}else{
+								// URL Not being Updated
+								if(in_array($this->brewerID, $userBrewerPrivileges)){
+									// User has Brewery Privileges, add breweryValidate flag
+									$this->brewerVerified = true;
+									$dbBV = b'1';
+								}elseif($userEmailDomain == $this->domainName){
+									// User has email associated with the brewery, give breweryValidated flag.
+									$this->brewerVerified = true;
+									$dbBV = b'1';
+									$addPrivileges = true;
+								}
 							}
 						}
 					}
@@ -444,6 +486,8 @@ class Brewer {
 					// Add Privileges?
 					if($addPrivileges){
 						$privileges->add($userID, $this->brewerID, true);
+					}elseif($removePrivileges){
+						$privileges->remove($userID, $this->brewerID);
 					}
 				}else{
 					// Query Error
