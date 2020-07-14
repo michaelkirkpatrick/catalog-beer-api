@@ -78,7 +78,7 @@ class USAddresses {
 					}
 				}else{
 					if($location->brewerVerified){
-						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
+						if($userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
 							// Allow PUT/PATCH. User is brewery staff.
 						}else{
 							if(!$users->admin){
