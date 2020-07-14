@@ -177,6 +177,23 @@ class Privileges {
 		return $userIDs;
 	}
 	
+	public function remove($userID, $brewerID){
+		// Prep for Database
+		$db = new Database();
+		$dbUserID = $db->escape($userID);
+		$dbBrewerID = $db->escape($brewerID);
+		
+		// Delete all brewery privileges for this user
+		$db->query("DELETE FROM privileges WHERE userID='$dbUserID' AND brewerID='$dbBrewerID'");
+		if($db->error){
+			// Database Error
+			$this->error = true;
+			$this->errorMsg = $db->errorMsg;
+			$this->responseCode = $db->responseCode;
+		}
+		$db->close();
+	}
+	
 	public function deleteUser($userID){
 		/*---
 		Assume the following for this function
