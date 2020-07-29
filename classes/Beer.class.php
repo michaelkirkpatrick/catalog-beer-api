@@ -298,12 +298,12 @@ class Beer {
 						// Update Beer (PUT)
 						$sqlUpdate = '';
 						if(!empty($dbDescription)){
-							$sqlUpdate .= "description='$dbDescription', ";
+							$sqlUpdate .= ", description='$dbDescription', ";
 						}
 						if(!empty($dbIBU)){
-							$sqlUpdate .= "ibu=$dbIBU, ";
+							$sqlUpdate .= ", ibu=$dbIBU, ";
 						}
-						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified, " . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBeerID'";
+						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBeerID'";
 					}
 				}
 			}elseif($method == 'PATCH'){
@@ -687,14 +687,6 @@ class Beer {
 					$this->error = true;
 					$this->errorMsg = "Sorry, we couldn't find a beer with the beer_id you provided.";
 					$this->responseCode = 404;
-					
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 137;
-					$errorLog->errorMsg = 'beerID Not Found';
-					$errorLog->badData = $beerID;
-					$errorLog->filename = 'API / Beer.class.php';
-					$errorLog->write();
 				}
 			}else{
 				// Query Error
