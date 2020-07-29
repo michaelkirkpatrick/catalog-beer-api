@@ -661,7 +661,7 @@ class Users {
 						$resultArray = $db->resultArray();
 						$userID = $resultArray['id'];
 						$dbUserID = $db->escape($userID);
-						$db->query("UPDATE users SET emailVerified=b'1', emailAuth='', emailAuthSent=0 WHERE id='$dbUserID'");
+						$db->query("UPDATE users SET emailVerified=b'1', emailAuth=NULL, emailAuthSent=NULL WHERE id='$dbUserID'");
 						if(!$db->error){
 							// Validate User
 							$this->validate($userID, true);
