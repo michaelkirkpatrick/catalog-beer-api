@@ -214,7 +214,7 @@ class Brewer {
 								// Get Domain Name for: $url
 								$newDomainName = $this->urlDomainName($url);
 								if($newDomainName == $this->domainName){
-									// Domain Name is staying the same
+									// Domain Name is staying the same	
 									if(in_array($this->brewerID, $userBrewerPrivileges)){
 										// User has Brewery Privileges, add breweryValidate flag
 										$this->brewerVerified = true;
@@ -273,6 +273,7 @@ class Brewer {
 
 				// Validate URLs
 				if(!$urlVerified){
+					// Validate Submitted URL
 					$this->url = $this->validateURL($url, 'url', 'brewer');
 				}
 				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
@@ -857,19 +858,27 @@ class Brewer {
 				$dbDomainName = $db->escape($urlDomainName);
 				$db->query("SELECT id FROM brewer WHERE domainName='$dbDomainName'");
 				if($db->result->num_rows == 1){
-					// Duplicate Domain Name - Not Acceptable
-					$this->error = true;
-					$this->validState['url'] = 'invalid';
-					$this->validMsg['url'] = "Sorry, there is already a brewery in our database with the domain name: $urlDomainName. We require that breweries have unique URLs so can't add this entry to our database on your behalf. If you'd like help resolving this issue, please [contact us](/contact)";
-					$this->responseCode = 400;
+					// Get brewerID
+					$brewerID = $db->singleResult('id');
 					
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 182;
-					$errorLog->errorMsg = 'Attempt to add duplicate URL';
-					$errorLog->badData = "URL: $url / Domain Name: $urlDomainName";
-					$errorLog->filename = 'API / Brewer.class.php';
-					$errorLog->write();
+					if($brewerID == $this->brewerID){
+						// They may be updating their brewery URL, no duplicate will be created
+						// No need to throw an error
+					}else{
+						// Duplicate Domain Name - Not Acceptable
+						$this->error = true;
+						$this->validState['url'] = 'invalid';
+						$this->validMsg['url'] = "Sorry, there is already a brewery in our database with the domain name: $urlDomainName. We require that breweries have unique URLs so can't add this entry to our database on your behalf. If you'd like help resolving this issue, please [contact us](/contact)";
+						$this->responseCode = 400;
+
+						// Log Error
+						$errorLog = new LogError();
+						$errorLog->errorNumber = 182;
+						$errorLog->errorMsg = 'Attempt to add duplicate URL';
+						$errorLog->badData = "URL: $url / Domain Name: $urlDomainName";
+						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->write();
+					}
 				}
 				$db->close();
 			}else{
@@ -1005,14 +1014,6 @@ class Brewer {
 					$this->error = true;
 					$this->errorMsg = "Sorry, we couldn't find a brewer with the brewer_id you provided.";
 					$this->responseCode = 404;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 133;
-					$errorLog->errorMsg = 'brewerID Not Found';
-					$errorLog->badData = $brewerID;
-					$errorLog->filename = 'API / Brewer.class.php';
-					$errorLog->write();
 				}
 			}else{
 				// Query Error
