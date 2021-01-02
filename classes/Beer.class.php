@@ -298,12 +298,15 @@ class Beer {
 						// Update Beer (PUT)
 						$sqlUpdate = '';
 						if(!empty($dbDescription)){
-							$sqlUpdate .= ", description='$dbDescription', ";
+							$sqlUpdate .= "description='$dbDescription', ";
 						}
 						if(!empty($dbIBU)){
-							$sqlUpdate .= ", ibu=$dbIBU, ";
+							$sqlUpdate .= "ibu=$dbIBU, ";
 						}
-						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBeerID'";
+						if(!empty($sqlUpdate)){
+							$sqlUpdate = ', ' . substr($sqlUpdate, 0, strlen($sqlUpdate)-2);
+						}
+						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . $sqlUpdate . " WHERE id='$dbBeerID'";
 					}
 				}
 			}elseif($method == 'PATCH'){
