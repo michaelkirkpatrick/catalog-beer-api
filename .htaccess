@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Deny Access to Folder Indexes
+Options -Indexes
+
 # Redirect to HTTPS
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
