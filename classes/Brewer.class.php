@@ -20,6 +20,10 @@ class Brewer {
 	public $errorMsg = null;
 	public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
 	public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
+	private $filename = 'API / Brewer.class.php';
+	
+	// Social Media Keys
+	private $twitterBearerToken = '';
 
 	// API Response
 	public $responseHeader = '';
@@ -115,7 +119,7 @@ class Brewer {
 				$errorLog->errorNumber = 160;
 				$errorLog->errorMsg = 'Invalid Method';
 				$errorLog->badData = $method;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 		}
 		
@@ -155,7 +159,7 @@ class Brewer {
 									$errorLog->errorNumber = 161;
 									$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, cb_verified';
 									$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-									$errorLog->filename = 'API / Brewer.class.php';
+									$errorLog->filename = $this->filename;
 									$errorLog->write();
 								}
 							}
@@ -175,7 +179,7 @@ class Brewer {
 										$errorLog->errorNumber = 168;
 										$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
 										$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-										$errorLog->filename = 'API / Brewer.class.php';
+										$errorLog->filename = $this->filename;
 										$errorLog->write();
 									}
 								}
@@ -277,7 +281,7 @@ class Brewer {
 					$this->url = $this->validateURL($url, 'url', 'brewer');
 				}
 				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
-				$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url', 'brewer');
+				$this->validateTwitterUsername($twitterURL);
 				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
 
 				// Validate Description
@@ -404,7 +408,7 @@ class Brewer {
 				}
 				if(in_array('twitter_url', $patchFields)){
 					if($twitterURL != $this->twitterURL){
-						$this->twitterURL = $this->validateURL($twitterURL, 'twitter_url', 'brewer');
+						$this->validateTwitterUsername($twitterURL);
 						if(!$this->error){
 							$dbTwitterURL = $db->escape($this->twitterURL);
 							$sqlArray[] = "twitterURL='$dbTwitterURL'";
@@ -523,7 +527,7 @@ class Brewer {
 				$errorLog->errorNumber = 21;
 				$errorLog->errorMsg = 'Brewery name too long (>255 Characters)';
 				$errorLog->badData = $this->name;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}else{
@@ -538,7 +542,7 @@ class Brewer {
 			$errorLog->errorNumber = 1;
 			$errorLog->errorMsg = 'Missing brewery name';
 			$errorLog->badData = '';
-			$errorLog->filename = 'API / Brewer.class.php';
+			$errorLog->filename = $this->filename;
 			$errorLog->write();
 		}
 	}
@@ -563,7 +567,7 @@ class Brewer {
 				$errorLog->errorNumber = 20;
 				$errorLog->errorMsg = 'Brewery description too long (>65536 Characters)';
 				$errorLog->badData = $this->description;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}
@@ -589,9 +593,92 @@ class Brewer {
 				$errorLog->errorNumber = 92;
 				$errorLog->errorMsg = 'Short description too long';
 				$errorLog->badData = $this->shortDescription;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
+		}
+	}
+	
+	public function validateTwitterUsername($username){
+		// Cleanup Username
+		$username = trim($username);
+		if(!empty($username)){
+			
+			// URL Included?
+			if(preg_match('/https?:\/\/([w\.]{4})?twitter\.com\/([A-Za-z0-9_]+)/m', $username, $matches)){
+				// Remove URL
+				$usernameArrayValue = count($matches) - 1;
+				$username = $matches[$usernameArrayValue];
+			}
+			
+			// Query Twitter API
+			$curl = curl_init();
+			
+			curl_setopt_array($curl, array(
+			  CURLOPT_URL => 'https://api.twitter.com/2/users/by/username/' . $username,
+			  CURLOPT_RETURNTRANSFER => true,
+			  CURLOPT_MAXREDIRS => 10,
+			  CURLOPT_TIMEOUT => 0,
+			  CURLOPT_FOLLOWLOCATION => true,
+			  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			  CURLOPT_CUSTOMREQUEST => 'GET',
+			  CURLOPT_HTTPHEADER => array($this->twitterBearerToken),
+			  CURLOPT_USERAGENT, 'api.catalog.beer/1.0'
+			));
+			
+			$response = curl_exec($curl);
+			$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+			
+			curl_close($curl);
+			
+			if($httpCode == 200){
+				// Decode JSON
+				$json = json_decode($response);
+				
+				if(isset($json->data)){
+					// Valid Twitter username
+					$this->twitterURL = 'https://twitter.com/' . $json->data->username;
+				}elseif(isset($json->errors)){
+					// Return Blank Username
+					$this->twitterURL = '';
+					
+					// API Error
+					$this->error = true;
+					if($json->errors[0]->title == 'Not Found Error'){
+						// For User
+						$this->responseCode = 404;
+						$this->errorMsg = 'Sorry, we could not find a Twitter user with the username: ' . $username;
+					}else{
+						$this->responseCode = 500;
+						$this->errorMsg = 'Sorry, there was an error validating your Twitter username. We have logged the error for our support team to investigate.';
+					}
+					
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 204;
+					$errorLog->errorMsg = 'Twitter API Error';
+					$errorLog->badData = $response;
+					$errorLog->filename = $this->filename;
+					$errorLog->write();
+				}
+			}else{
+				//echo $response;
+				// Twitter API Error
+				$this->error = true;
+				$this->responseCode = 500;
+				$this->errorMsg = 'Sorry, there was an error validating your Twitter username. We have logged the error for our support team to investigate.';
+				
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 203;
+				$errorLog->errorMsg = 'Twitter API Error';
+				$errorLog->badData = $response;
+				$errorLog->filename = $this->filename;
+				$errorLog->write();
+			}
+		}else{
+			// No Username Submitted
+			$this->twitterURL = null;
 		}
 	}
 
@@ -611,8 +698,8 @@ class Brewer {
 				$url = 'http://' . $url;
 			}
 			
-			// Add HTTPS for Facebook, Twitter, and Instagram
-			if($type == 'instagram_url' || $type == 'facebook_url' || $type == 'twitter_url'){
+			// Add HTTPS for Facebook and Instagram
+			if($type == 'instagram_url' || $type == 'facebook_url'){
 				if(!preg_match('/^https:\/\//', $url)){
 					// Add HTTPS
 					$url = 	str_replace('http://', 'https://', $url);
@@ -700,7 +787,7 @@ class Brewer {
 						$errorLog->errorNumber = 107;
 						$errorLog->errorMsg = 'Invalid URL / Failed cURL http';
 						$errorLog->badData = 'URL: ' . $url . ' / HTTP Response Code: ' . $curlResponse['httpCode'];
-						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->filename = $this->filename;
 						$errorLog->write();
 
 						// Stop Loop
@@ -720,7 +807,7 @@ class Brewer {
 						$errorLog->errorNumber = 98;
 						$errorLog->errorMsg = 'Too many redirects (+30)';
 						$errorLog->badData = $url;
-						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->filename = $this->filename;
 						$errorLog->write();
 
 						// Stop Loop
@@ -741,7 +828,7 @@ class Brewer {
 					$errorLog->errorNumber = 147;
 					$errorLog->errorMsg = 'URL Too Long';
 					$errorLog->badData = $url;
-					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->filename = $this->filename;
 					$errorLog->write();
 				}
 			}else{
@@ -756,7 +843,7 @@ class Brewer {
 				$errorLog->errorNumber = 13;
 				$errorLog->errorMsg = 'Invalid URL';
 				$errorLog->badData = $url;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}else{
@@ -780,25 +867,11 @@ class Brewer {
 						$errorLog->errorNumber = 144;
 						$errorLog->errorMsg = 'Invalid Facebook URL';
 						$errorLog->badData = $returnURL;
-						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->filename = $this->filename;
 						$errorLog->write();
-					}
-					break;
-				case 'twitter_url':
-					if(substr($returnURL, 0, 20) != 'https://twitter.com/'){
-						// Invalid Twitter URL
-						$this->error = true;
-						$this->validState['twitter_url'] = 'invalid';
-						$this->validMsg['twitter_url'] = 'We were expecting the Twitter URL to start with "https://twitter.com/". Please double check the Twitter URL you submitted.';
-						$this->responseCode = 400;
-
-						// Log Error
-						$errorLog = new LogError();
-						$errorLog->errorNumber = 145;
-						$errorLog->errorMsg = 'Invalid Twitter URL';
-						$errorLog->badData = $returnURL;
-						$errorLog->filename = 'API / Brewer.class.php';
-						$errorLog->write();
+					}elseif(preg_match('/https:\/\/www\.facebook\.com\/login\/\?next=(.+)/m', $returnURL, $matches)){
+						// Remove Login String
+						$returnURL = urldecode($matches[1]);
 					}
 					break;
 				case 'instagram_url':
@@ -815,9 +888,12 @@ class Brewer {
 							$errorLog->errorNumber = 146;
 							$errorLog->errorMsg = 'Invalid Instagram URL';
 							$errorLog->badData = $returnURL;
-							$errorLog->filename = 'API / Brewer.class.php';
+							$errorLog->filename = $this->filename;
 							$errorLog->write();
 						}
+					}elseif(preg_match('/https:\/\/www\.instagram\.com\/accounts\/login\/\?next=(.+)/m', $returnURL, $matches)){
+						// Remove Login String
+						$returnURL = 'https://www.instagram.com' . urldecode($matches[1]);
 					}
 					break;
 				case 'url':
@@ -876,7 +952,7 @@ class Brewer {
 						$errorLog->errorNumber = 182;
 						$errorLog->errorMsg = 'Attempt to add duplicate URL';
 						$errorLog->badData = "URL: $url / Domain Name: $urlDomainName";
-						$errorLog->filename = 'API / Brewer.class.php';
+						$errorLog->filename = $this->filename;
 						$errorLog->write();
 					}
 				}
@@ -892,7 +968,7 @@ class Brewer {
 				$errorLog->errorNumber = 155;
 				$errorLog->errorMsg = 'Brewer Domain Parsing Error';
 				$errorLog->badData = "URL: $url / Host: $host";
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}
@@ -918,7 +994,7 @@ class Brewer {
 		curl_setopt($curl, CURLOPT_HEADER, true);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($curl, CURLOPT_USERAGENT, 'curl/7.53.1');
+		curl_setopt($curl, CURLOPT_USERAGENT, 'api.catalog.beer/1.0');
 		curl_setopt($curl, CURLOPT_TIMEOUT, 30);
 
 		// Send Request, Get Output
@@ -934,7 +1010,7 @@ class Brewer {
 			$errorLog->errorNumber = 16;
 			$errorLog->errorMsg = 'cURL Error';
 			$errorLog->badData = "URL: $url / cURL Error: " . curl_error($curl);
-			$errorLog->filename = 'API / Brewer.class.php';
+			$errorLog->filename = $this->filename;
 			$errorLog->write();
 		}
 
@@ -1007,7 +1083,7 @@ class Brewer {
 					$errorLog->errorNumber = 19;
 					$errorLog->errorMsg = 'Unexpected number of results';
 					$errorLog->badData = "brewerID: $brewerID";
-					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->filename = $this->filename;
 					$errorLog->write();
 				}else{
 					// Brewer Does Not Exist
@@ -1033,7 +1109,7 @@ class Brewer {
 			$errorLog->errorNumber = 169;
 			$errorLog->errorMsg = 'Missing brewer ID';
 			$errorLog->badData = '';
-			$errorLog->filename = 'API / Brewer.class.php';
+			$errorLog->filename = $this->filename;
 			$errorLog->write();
 		}
 
@@ -1062,7 +1138,7 @@ class Brewer {
 					$errorLog->errorNumber = 96;
 					$errorLog->errorMsg = 'Offset value outside range';
 					$errorLog->badData = "Offset: $offset / numBrewers: $numBrewers";
-					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->filename = $this->filename;
 					$errorLog->write();
 				}
 
@@ -1077,7 +1153,7 @@ class Brewer {
 					$errorLog->errorNumber = 97;
 					$errorLog->errorMsg = 'Count value outside range';
 					$errorLog->badData = $count;
-					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->filename = $this->filename;
 					$errorLog->write();
 				}
 			}else{
@@ -1091,7 +1167,7 @@ class Brewer {
 				$errorLog->errorNumber = 95;
 				$errorLog->errorMsg = 'Non-integer count value';
 				$errorLog->badData = $count;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}else{
@@ -1105,7 +1181,7 @@ class Brewer {
 			$errorLog->errorNumber = 94;
 			$errorLog->errorMsg = 'Invalid cursor value';
 			$errorLog->badData = $offset;
-			$errorLog->filename = 'API / Brewer.class.php';
+			$errorLog->filename = $this->filename;
 			$errorLog->write();
 		}
 
@@ -1221,7 +1297,7 @@ class Brewer {
 				$errorLog->errorNumber = 163;
 				$errorLog->errorMsg = 'Forbidden: Non-Admin, DELETE, /brewer';
 				$errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 			}
 		}
@@ -1353,7 +1429,7 @@ class Brewer {
 								$errorLog->errorNumber = 69;
 								$errorLog->errorMsg = 'Invalid function (/brewer)';
 								$errorLog->badData = $function;
-								$errorLog->filename = 'API / Brewer.class.php';
+								$errorLog->filename = $this->filename;
 								$errorLog->write();
 						}
 					}else{
@@ -1511,7 +1587,7 @@ class Brewer {
 				$errorLog->errorNumber = 142;
 				$errorLog->errorMsg = 'Invalid Method (/brewer)';
 				$errorLog->badData = $method;
-				$errorLog->filename = 'API / Brewer.class.php';
+				$errorLog->filename = $this->filename;
 				$errorLog->write();
 		}
 	}
