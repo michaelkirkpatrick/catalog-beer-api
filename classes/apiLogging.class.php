@@ -67,7 +67,7 @@ class apiLogging {
 				$db->close();
 			}
 		}else{
-			// Missing required attrribute
+			// Missing required attribute
 			$this->error = true;
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 48;
