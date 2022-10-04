@@ -657,7 +657,11 @@ class Beer {
 						$this->brewerID = $array['brewerID'];
 						$this->name = stripcslashes($array['name']);
 						$this->style = stripcslashes($array['style']);
-						$this->description = stripcslashes($array['description']);
+						if(is_null($array['description'])){
+							$this->description = null;
+						}else{
+							$this->description = stripcslashes($array['description']);	
+						}
 						$this->abv = floatval($array['abv']);
 						$this->ibu = intval($array['ibu']);
 						$this->lastModified = intval($array['lastModified']);
