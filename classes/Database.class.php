@@ -105,13 +105,18 @@ class Database {
 	
 	// ----- Escape -----
 	public function escape($string){
-		$escaped = $this->mysqli->real_escape_string($string);
+		if(is_null($string)){
+			// Null value doesn't need to be escaped, return
+			$escaped = null;
+		}else{
+			$escaped = $this->mysqli->real_escape_string($string);
+		}
 		//$escaped = str_replace("%", "\%", $escaped);
 		//$escaped = str_replace("_", "\_", $escaped);
 		return $escaped;
 	}
 	
-	// ----- Result Arra -----
+	// ----- Result Array -----
 	public function resultArray(){
 		$array = $this->result->fetch_array(MYSQLI_ASSOC);
 		return $array;
