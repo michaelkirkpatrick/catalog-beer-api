@@ -550,9 +550,9 @@ class Brewer {
 	private function validateDescription(){
 		// Must set $this->description
 		$this->description = trim($this->description);
-
+		
 		if(!empty($this->description)){
-			if(strlen($this->description <= 65536)){
+			if(strlen($this->description) <= 65536){
 				// Valid
 				$this->validState['description'] = 'valid';
 			}else{
@@ -578,7 +578,7 @@ class Brewer {
 		$this->shortDescription = trim($this->shortDescription);
 
 		if(!empty($this->shortDescription)){
-			if(strlen($this->shortDescription <= 160)){
+			if(strlen($this->shortDescription) <= 160){
 				// Valid
 				$this->validState['short_description'] = 'valid';
 			}else{
@@ -623,7 +623,7 @@ class Brewer {
 			  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 			  CURLOPT_CUSTOMREQUEST => 'GET',
 			  CURLOPT_HTTPHEADER => array($this->twitterBearerToken),
-			  CURLOPT_USERAGENT, 'api.catalog.beer/1.0'
+			  //CURLOPT_USERAGENT, 'api.catalog.beer/1.0'
 			));
 			
 			$response = curl_exec($curl);
@@ -1057,8 +1057,16 @@ class Brewer {
 						// Save to Class
 						$this->brewerID = $brewerID;
 						$this->name = stripcslashes($array['name']);
-						$this->description = stripcslashes($array['description']);
-						$this->shortDescription = stripcslashes($array['shortDescription']);
+						if(is_null($array['description'])){
+							$this->description = null;
+						}else{
+							$this->description = stripcslashes($array['description']);	
+						}
+						if(is_null($array['shortDescription'])){
+							$this->shortDescription = null;
+						}else{
+							$this->shortDescription = stripcslashes($array['shortDescription']);	
+						}
 						$this->url = $array['url'];
 						$this->domainName = $array['domainName'];
 						$this->facebookURL = $array['facebookURL'];
