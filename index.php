@@ -172,56 +172,63 @@ if(in_array($method, $contentTypeMethods)){
 }
 
 // ----- HTTPS & Authorization  -----
-
-if($_SERVER['HTTPS'] == 'on'){
-	// Check Authorization Header
-	if(isset($_SERVER['PHP_AUTH_USER'])){
-		// Get Submitted Username and Password
-		$apiKey = $_SERVER['PHP_AUTH_USER'];
-
-		if(!empty($apiKey)){
-			$apiKeys = new apiKeys();
-			if(!$apiKeys->validate($apiKey, true)){
-				// Invalid User
+if(isset($_SERVER['HTTPS'])){
+	if($_SERVER['HTTPS'] == 'on'){
+		// Check Authorization Header
+		if(isset($_SERVER['PHP_AUTH_USER'])){
+			// Get Submitted Username and Password
+			$apiKey = $_SERVER['PHP_AUTH_USER'];
+	
+			if(!empty($apiKey)){
+				$apiKeys = new apiKeys();
+				if(!$apiKeys->validate($apiKey, true)){
+					// Invalid User
+					$error = true;
+					$responseCode = 401;
+					$json['error'] = true;
+					$json['error_msg'] = 'Sorry to say this, but your API key appears to be invalid. Please contact Catalog.beer support if you believe you have received this message in error; we will help you figure it out.';
+				}
+			}else{
+				// Missing Username
 				$error = true;
 				$responseCode = 401;
 				$json['error'] = true;
-				$json['error_msg'] = 'Sorry to say this, but your API key appears to be invalid. Please contact Catalog.beer support if you believe you have received this message in error; we will help you figure it out.';
+				$json['error_msg'] = 'We are missing your API Key. This key should be submitted in the username field of your API request using HTTP Basic Auth. No password is required.';
+	
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 7;
+				$errorLog->errorMsg = 'Missing username';
+				$errorLog->badData = '';
+				$errorLog->filename = 'API / index.php';
+				$errorLog->write();
 			}
 		}else{
-			// Missing Username
+			// Invalid Authentication
 			$error = true;
 			$responseCode = 401;
 			$json['error'] = true;
-			$json['error_msg'] = 'We are missing your API Key. This key should be submitted in the username field of your API request using HTTP Basic Auth. No password is required.';
-
+			$json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
+	
 			// Log Error
 			$errorLog = new LogError();
-			$errorLog->errorNumber = 7;
-			$errorLog->errorMsg = 'Missing username';
+			$errorLog->errorNumber = 6;
+			$errorLog->errorMsg = 'No credentials submitted';
 			$errorLog->badData = '';
 			$errorLog->filename = 'API / index.php';
 			$errorLog->write();
 		}
 	}else{
-		// Invalid Authentication
+		// No HTTPS
 		$error = true;
-		$responseCode = 401;
+		$responseCode = 400;
 		$json['error'] = true;
-		$json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
-
-		// Log Error
-		$errorLog = new LogError();
-		$errorLog->errorNumber = 6;
-		$errorLog->errorMsg = 'No credentials submitted';
-		$errorLog->badData = '';
-		$errorLog->filename = 'API / index.php';
-		$errorLog->write();
+		$json['error_msg'] = 'In order to connect to the Catalog.beer API, you will need to connect using a secure connection (HTTPS). Please try your request again.';
 	}
 }else{
-	// No HTTPS
+	// No HTTPS Variable Set
 	$error = true;
-	$responseCode = 400;
+	$responseCode = 500;
 	$json['error'] = true;
 	$json['error_msg'] = 'In order to connect to the Catalog.beer API, you will need to connect using a secure connection (HTTPS). Please try your request again.';
 }
