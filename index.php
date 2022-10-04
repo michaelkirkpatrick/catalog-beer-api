@@ -332,7 +332,10 @@ if($json_encoded = json_encode($json)){
 	$errorLog->write();
 }
 
-// Log
-$apiLogging = new apiLogging();
-$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded, $responseCode);
+$masterKeys = array();
+if(!in_array($apiKey, $masterKeys)){
+	// Log Request
+	$apiLogging = new apiLogging();
+	$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded, $responseCode);	
+}
 ?>
