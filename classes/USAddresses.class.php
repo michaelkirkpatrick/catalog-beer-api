@@ -847,8 +847,6 @@ class USAddresses {
 		{METHOD} https://api.catalog.beer/address/{function}
 		{METHOD} https://api.catalog.beer/address/{id}/{function}
 		
-		GET https://api.catalog.beer/address/{location_id}
-
 		POST https://api.catalog.beer/address/{location_id}
 				
 		PATCH https://api.catalog.beer/address/{location_id}
