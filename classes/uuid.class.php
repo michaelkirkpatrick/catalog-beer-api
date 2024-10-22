@@ -47,73 +47,16 @@ class uuid {
 
 	// ----- Generate Code -----
 	public function createCode(){
-		/*---
-		RFC 4122 Compliant Version 4 UUID Generator
-		https://tools.ietf.org/html/rfc4122
-		---*/
-		$string = '';
-		$uuid = '';
-		$bitCount = 1;
-		$charCount = 1;
-		for($i=1;$i<=128;$i++){
-			/*--
-			Generate Bit
-			Bits 6 & 7 are 0 and 1 respectively
-			Bits 12-15 are 0100, representing a "Version 4" UUID
-			See Section 4.4 of RFC 4122
-			--*/
-			switch($i){
-				case 49:
-					$string .= '0';
-				break;
-				case 50:
-					$string .= '1';
-				break;
-				case 51:
-					$string .= '0';
-				break;
-				case 52:
-					$string .= '0';
-				break;
-				case 65:
-					$string .= '1';
-				break;
-				case 66:
-					$string .= '0';
-				break;
-				default:
-					$string .= rand(0, 1);
-			}
+		// Generate 16 random bytes
+		$data = random_bytes(16);
 
-			if($bitCount === 4){
-				// Generate Character
-				$uuid .= base_convert($string, 2, 16);
-				$string = '';
+		// Set version to 0100
+		$data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+		// Set bits 6-7 to 10
+		$data[8] = chr(ord($data[8]) & 0x3f | 0x80);
 
-				// Reset Bit Count
-				$bitCount = 1;
-
-				// Add Dashes
-				switch($charCount){
-					case 8:
-						$uuid .= '-';
-						break;
-					case 12:
-						$uuid .= '-';
-						break;
-					case 16:
-						$uuid .= '-';
-						break;
-					case 20:
-						$uuid .= '-';
-						break;
-				}
-				$charCount++;
-			}else{
-				$bitCount++;
-			}
-		}
-		$this->uuid = $uuid;
+		// Convert to hexadecimal representation
+		$this->uuid = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 
 		return $this->uuid;
 	}
