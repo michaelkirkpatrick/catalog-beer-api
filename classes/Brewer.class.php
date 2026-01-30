@@ -605,7 +605,7 @@ class Brewer {
 		$username = trim($username);
 		if(!empty($username)){
 			// Assume Valid
-			$this->twitterURL = 'https://twitter.com/' . $json->data->username;
+			$this->twitterURL = 'https://twitter.com/' . $username;
 		}else{
 			// No Username Submitted
 			$this->twitterURL = null;
@@ -749,7 +749,7 @@ class Brewer {
 				if(strlen($url) > 255){
 					// URL Too Long
 					$this->error = true;
-					$this->validStatee[$type] = 'invalid';
+					$this->validState[$type] = 'invalid';
 					$this->validMsg[$type] = 'Sorry, but URL strings are limited to 255 bytes in length. Any chance there is a shorter URL you can use?';
 					$this->responseCode = 400;
 
