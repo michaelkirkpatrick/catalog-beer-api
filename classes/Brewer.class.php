@@ -10,16 +10,13 @@ class Brewer {
 	public $domainName = '';			// Optional
 	public $cbVerified = false;
 	public $brewerVerified = false;
-	public $facebookURL = '';			// Optional
-	public $twitterURL = '';			// Optional
-	public $instagramURL = '';			// Optional
 	public $lastModified = 0;
 
 	// Error Handling
 	public $error = false;
 	public $errorMsg = null;
-	public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
-	public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
+	public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null);
+	public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null);
 	private $filename = 'API / Brewer.class.php';
 
 	// API Response
@@ -28,7 +25,7 @@ class Brewer {
 	public $json = array();
 
 	// Add Brewer
-	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $method, $brewerID, $patchFields){
+	public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields){
 
 		// Required Classes
 		$db = new Database();
@@ -277,9 +274,6 @@ class Brewer {
 					// Validate Submitted URL
 					$this->url = $this->validateURL($url, 'url', 'brewer');
 				}
-				$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
-				$this->validateTwitterUsername($twitterURL);
-				$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
 
 				// Validate Description
 				$this->description = $description;
@@ -297,9 +291,6 @@ class Brewer {
 					$dbShortDescription = $db->escape($this->shortDescription);
 					$dbURL = $db->escape($this->url);
 					$dbDomainName = $db->escape($this->domainName);
-					$dbFacebookURL = $db->escape($this->facebookURL);
-					$dbTwitterURL = $db->escape($this->twitterURL);
-					$dbInstagramURL = $db->escape($this->instagramURL);
 					$this->lastModified = time();
 					$dbLastModified = $db->escape($this->lastModified);
 
@@ -320,18 +311,6 @@ class Brewer {
 							$columns .= 'url, domainName, ';
 							$values .= "'$dbURL', '$dbDomainName', ";
 						}
-						if(!empty($dbFacebookURL)){
-							$columns .= 'facebookURL, ';
-							$values .= "'$dbFacebookURL', ";
-						}
-						if(!empty($dbTwitterURL)){
-							$columns .= 'twitterURL, ';
-							$values .= "'$dbTwitterURL', ";
-						}
-						if(!empty($dbInstagramURL)){
-							$columns .= 'instagramURL, ';
-							$values .= "'$dbInstagramURL', ";
-						}
 						if(!empty($columns)){
 							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified, " . substr($columns, 0, strlen($columns)-2) . substr($values, 0, strlen($values)-2) . ")";
 						}else{
@@ -348,15 +327,6 @@ class Brewer {
 						}
 						if(!empty($dbURL)){
 							$sqlUpdate .= "url='$dbURL', domainName='$dbDomainName', ";
-						}
-						if(!empty($dbFacebookURL)){
-							$sqlUpdate .= "facebookURL='$dbFacebookURL', ";
-						}
-						if(!empty($dbTwitterURL)){
-							$sqlUpdate .= "twitterURL='$dbTwitterURL', ";
-						}
-						if(!empty($dbInstagramURL)){
-							$sqlUpdate .= "instagramURL='$dbInstagramURL', ";
 						}
 						$sql = "UPDATE brewer SET name='$dbName', cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified, " . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBrewerID'";
 					}
@@ -391,33 +361,6 @@ class Brewer {
 							$dbURL = $db->escape($this->url);
 							$dbDomainName = $db->escape($this->domainName);
 							$sqlArray[] = "url='$dbURL', domainName='$dbDomainName'";
-						}
-					}
-				}
-				if(in_array('facebook_url', $patchFields)){
-					if($facebookURL != $this->facebookURL){
-						$this->facebookURL = $this->validateURL($facebookURL, 'facebook_url', 'brewer');
-						if(!$this->error){
-							$dbFacebookURL = $db->escape($this->facebookURL);
-							$sqlArray[] = "facebookURL='$dbFacebookURL'";
-						}
-					}
-				}
-				if(in_array('twitter_url', $patchFields)){
-					if($twitterURL != $this->twitterURL){
-						$this->validateTwitterUsername($twitterURL);
-						if(!$this->error){
-							$dbTwitterURL = $db->escape($this->twitterURL);
-							$sqlArray[] = "twitterURL='$dbTwitterURL'";
-						}
-					}
-				}
-				if(in_array('instagram_url', $patchFields)){
-					if($instagramURL != $this->instagramURL){
-						$this->instagramURL = $this->validateURL($instagramURL, 'instagram_url', 'brewer');
-						if(!$this->error){
-							$dbInstagramURL = $db->escape($this->instagramURL);
-							$sqlArray[] = "instagramURL='$dbInstagramURL'";
 						}
 					}
 				}
@@ -600,18 +543,6 @@ class Brewer {
 		}
 	}
 
-	public function validateTwitterUsername($username){
-		// Cleanup Username
-		$username = trim($username);
-		if(!empty($username)){
-			// Assume Valid
-			$this->twitterURL = 'https://twitter.com/' . $username;
-		}else{
-			// No Username Submitted
-			$this->twitterURL = null;
-		}
-	}
-
 	public function validateURL($url, $type, $class){
 		// Return
 		$returnURL = '';
@@ -626,14 +557,6 @@ class Brewer {
 			if(!preg_match('/^https?:\/\//', $url)){
 				// Add HTTP
 				$url = 'http://' . $url;
-			}
-
-			// Add HTTPS for Facebook and Instagram
-			if($type == 'instagram_url' || $type == 'facebook_url'){
-				if(!preg_match('/^https:\/\//', $url)){
-					// Add HTTPS
-					$url = 	str_replace('http://', 'https://', $url);
-				}
 			}
 
 			// Check URL Symantics
@@ -683,24 +606,6 @@ class Brewer {
 						// Moved Permanently. Save new location.
 						$returnURL = $curlResponse['url'];
 						$this->validState[$type] = 'valid';
-
-						// Stop Loop
-						$continue = false;
-					}elseif($curlResponse['httpCode'] == 302 && $type == 'instagram_url'){
-						// Found, Redirect to Login Page
-						if(preg_match('/next=(.+)/', $curlResponse['url'], $matches)){
-							// Rewrite without login page
-							$returnURL = 'https://www.instagram.com' . $matches[1];
-						}else{
-							$returnURL = $curlResponse['url'];
-						}
-
-						// Stop Loop
-						$continue = false;
-					}elseif($curlResponse['httpCode'] == 405 && $type == 'instagram_url'){
-						// Instagram doesn't like HEAD and prefers GET
-						// Assume Valid
-						$returnURL = $url;
 
 						// Stop Loop
 						$continue = false;
@@ -783,55 +688,9 @@ class Brewer {
 
 		// Validate URLs
 		if(!empty($returnURL)){
-			switch($type){
-				case 'facebook_url':
-					if(substr($returnURL, 0, 25) != 'https://www.facebook.com/'){
-						// Invalid Facebook URL
-						$this->error = true;
-						$this->validState['facebook_url'] = 'invalid';
-						$this->validMsg['facebook_url'] = 'We were expecting the Facebook URL to start with "https://www.facebook.com/". Please double check the Facebook URL you submitted.';
-						$this->responseCode = 400;
-
-						// Log Error
-						$errorLog = new LogError();
-						$errorLog->errorNumber = 144;
-						$errorLog->errorMsg = 'Invalid Facebook URL';
-						$errorLog->badData = $returnURL;
-						$errorLog->filename = $this->filename;
-						$errorLog->write();
-					}elseif(preg_match('/https:\/\/www\.facebook\.com\/login\/\?next=(.+)/m', $returnURL, $matches)){
-						// Remove Login String
-						$returnURL = urldecode($matches[1]);
-					}
-					break;
-				case 'instagram_url':
-					if(substr($returnURL, 0, 26) != 'https://www.instagram.com/'){
-						if(substr($returnURL, 0, 22) != 'https://instagram.com/'){
-							// Invalid Instagram URL
-							$this->error = true;
-							$this->validState['instagram_url'] = 'invalid';
-							$this->validMsg['instagram_url'] = 'We were expecting the Instagram URL to start with "https://www.instagram.com/". Please double check the Instagram URL you submitted.';
-							$this->responseCode = 400;
-
-							// Log Error
-							$errorLog = new LogError();
-							$errorLog->errorNumber = 146;
-							$errorLog->errorMsg = 'Invalid Instagram URL';
-							$errorLog->badData = $returnURL;
-							$errorLog->filename = $this->filename;
-							$errorLog->write();
-						}
-					}elseif(preg_match('/https:\/\/www\.instagram\.com\/accounts\/login\/\?next=(.+)/m', $returnURL, $matches)){
-						// Remove Login String
-						$returnURL = 'https://www.instagram.com' . urldecode($matches[1]);
-					}
-					break;
-				case 'url':
-					if($class == 'brewer'){
-						// Get Domain name from Brewery URL
-						$this->domainName = $this->urlDomainName($returnURL);
-					}
-					break;
+			if($type == 'url' && $class == 'brewer'){
+				// Get Domain name from Brewery URL
+				$this->domainName = $this->urlDomainName($returnURL);
 			}
 		}
 
@@ -974,7 +833,7 @@ class Brewer {
 			// Prep for Database
 			$db = new Database();
 			$dbBrewerID = $db->escape($brewerID);
-			$db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, facebookURL, twitterURL, instagramURL, lastModified FROM brewer WHERE id='$dbBrewerID'");
+			$db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, lastModified FROM brewer WHERE id='$dbBrewerID'");
 			if(!$db->error){
 				if($db->result->num_rows == 1){
 					// Valid
@@ -999,9 +858,6 @@ class Brewer {
 						}
 						$this->url = $array['url'];
 						$this->domainName = $array['domainName'];
-						$this->facebookURL = $array['facebookURL'];
-						$this->twitterURL = $array['twitterURL'];
-						$this->instagramURL = $array['instagramURL'];
 						$this->lastModified = intval($array['lastModified']);
 
 						if($array['cbVerified']){
@@ -1254,9 +1110,6 @@ class Brewer {
 		if(empty($this->description)){$this->description = null;}
 		if(empty($this->shortDescription)){$this->shortDescription = null;}
 		if(empty($this->url)){$this->url = null;}
-		if(empty($this->facebookURL)){$this->facebookURL = null;}
-		if(empty($this->twitterURL)){$this->twitterURL = null;}
-		if(empty($this->instagramURL)){$this->instagramURL = null;}
 
 		// Known Values - Required
 		$array = array();
@@ -1268,9 +1121,6 @@ class Brewer {
 		$array['url'] = $this->url;
 		$array['cb_verified'] = $this->cbVerified;
 		$array['brewer_verified'] = $this->brewerVerified;
-		$array['facebook_url'] = $this->facebookURL;
-		$array['twitter_url'] = $this->twitterURL;
-		$array['instagram_url'] = $this->instagramURL;
 		$array['last_modified'] = $this->lastModified;
 
 		if($json){
@@ -1430,12 +1280,9 @@ class Brewer {
 				if(empty($data->description)){$data->description = '';}
 				if(empty($data->short_description)){$data->short_description = '';}
 				if(empty($data->url)){$data->url = '';}
-				if(empty($data->facebook_url)){$data->facebook_url = '';}
-				if(empty($data->twitter_url)){$data->twitter_url = '';}
-				if(empty($data->instagram_url)){$data->instagram_url = '';}
 
 				// Add Brewer
-				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'POST', '', array());
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					// Generate Brewer Object JSON
 					$this->generateBrewerObject(true);
@@ -1456,12 +1303,9 @@ class Brewer {
 				if(empty($data->description)){$data->description = '';}
 				if(empty($data->short_description)){$data->short_description = '';}
 				if(empty($data->url)){$data->url = '';}
-				if(empty($data->facebook_url)){$data->facebook_url = '';}
-				if(empty($data->twitter_url)){$data->twitter_url = '';}
-				if(empty($data->instagram_url)){$data->instagram_url = '';}
 
 				// Update Brewer
-				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'PUT', $id, array());
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
@@ -1495,17 +1339,8 @@ class Brewer {
 				if(isset($data->url)){$patchFields[] = 'url';}
 				else{$data->url = '';}
 
-				if(isset($data->facebook_url)){$patchFields[] = 'facebook_url';}
-				else{$data->facebook_url = '';}
-
-				if(isset($data->twitter_url)){$patchFields[] = 'twitter_url';}
-				else{$data->twitter_url = '';}
-
-				if(isset($data->instagram_url)){$patchFields[] = 'instagram_url';}
-				else{$data->instagram_url = '';}
-
 				// Update Brewer
-				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'PATCH', $id, $patchFields);
+				$this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
