@@ -21,9 +21,6 @@ class Brewer {
 	public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
 	public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'facebook_url'=>null, 'twitter_url'=>null, 'instagram_url'=>null);
 	private $filename = 'API / Brewer.class.php';
-	
-	// Social Media Keys
-	private $twitterBearerToken = '';
 
 	// API Response
 	public $responseHeader = '';
@@ -32,12 +29,12 @@ class Brewer {
 
 	// Add Brewer
 	public function add($name, $description, $shortDescription, $url, $facebookURL, $twitterURL, $instagramURL, $userID, $method, $brewerID, $patchFields){
-		
+
 		// Required Classes
 		$db = new Database();
 		$users = new Users();
 		$privileges = new Privileges();
-		
+
 		// ----- brewerID -----
 		$uuid = new uuid();
 		$newBrewer = false;
@@ -63,7 +60,7 @@ class Brewer {
 				if($this->validate($brewerID, false)){
 					// Valid Brewer - Update Existing Entry
 					$this->brewerID = $brewerID;
-					
+
 					// Get Brewer domain name for brewerVerified by querying database
 					$dbBrewerID = $db->escape($brewerID);
 					$db->query("SELECT domainName FROM brewer WHERE id='$dbBrewerID'");
@@ -82,13 +79,13 @@ class Brewer {
 					$this->error = false;
 					$this->errorMsg = null;
 					$this->responseCode = 200;
-					
+
 					// Validate UUID
 					if($uuid->validate($brewerID)){
 						// Save submitted UUID as brewerID
 						$newBrewer = true;
 						$this->brewerID = $brewerID;
-						
+
 						// Get Brewer domain name for brewerVerified by validating URL
 						// Populates $this->domainName
 						$this->url = $this->validateURL($url, 'url', 'brewer');
@@ -113,7 +110,7 @@ class Brewer {
 				$this->error = true;
 				$this->errorMsg = 'Invalid Method.';
 				$this->responseCode = 405;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 160;
@@ -122,9 +119,9 @@ class Brewer {
 				$errorLog->filename = $this->filename;
 				$errorLog->write();
 		}
-		
+
 		// ----- Permissions & Validation Badge -----
-		
+
 		if(!$this->error){
 			if($users->validate($userID, true)){
 				// Get User's Email Domain Name
@@ -218,7 +215,7 @@ class Brewer {
 								// Get Domain Name for: $url
 								$newDomainName = $this->urlDomainName($url);
 								if($newDomainName == $this->domainName){
-									// Domain Name is staying the same	
+									// Domain Name is staying the same
 									if(in_array($this->brewerID, $userBrewerPrivileges)){
 										// User has Brewery Privileges, add breweryValidate flag
 										$this->brewerVerified = true;
@@ -263,13 +260,13 @@ class Brewer {
 				$this->responseCode = $users->responseCode;
 			}
 		}
-		
+
 		// ----- Validate Fields -----
 		// Don't waste processing resources if there's been an error in the steps above.
 		if(!$this->error){
 			// Default SQL
 			$sql = '';
-			
+
 			if($method == 'POST' || $method == 'PUT'){
 				// Validate Name
 				$this->name = $name;
@@ -365,14 +362,14 @@ class Brewer {
 					}
 				}
 			}elseif($method == 'PATCH'){
-				/*-- 
+				/*--
 				Validate the field if it's different than what is currently stored.
 				Check against the $this->{var} which we have from performing a $this->validate($brewerID, true) in the brewerID flow above for PATCH.
 				--*/
-				
+
 				// SQL Update
 				$sqlArray = array();
-				
+
 				// Validate Name
 				if(in_array('name', $patchFields)){
 					if($name != $this->name){
@@ -448,15 +445,15 @@ class Brewer {
 						}
 					}
 				}
-				
+
 				if(!$this->error && !empty($sqlArray)){
 					// Prep for Database
 					$dbBrewerID = $db->escape($this->brewerID);
 					$dbLastModified = $db->escape(time());
-					
+
 					// Construct SQL Statement
 					$sql = "UPDATE brewer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
-					
+
 					$totalUpdates = count($sqlArray);
 					if($totalUpdates > 0){$sql .= ", ";}
 					$lastUpdate = $totalUpdates - 1;
@@ -470,7 +467,7 @@ class Brewer {
 					$sql .= " WHERE id='$dbBrewerID'";
 				}
 			}
-			
+
 			if(!$this->error && !empty($sql)){
 				// Query
 				$db->query($sql);
@@ -484,10 +481,14 @@ class Brewer {
 							$responseHeaderString .= 'staging.';
 						}
 						$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
+
+						// Create Algolia ID
+						$algolia = new Algolia();
+						$algolia->add('brewer', $this->brewerID);
 					}else{
 						$this->responseCode = 200;
 					}
-					
+
 					// Add Privileges?
 					if($addPrivileges){
 						$privileges->add($userID, $this->brewerID, true);
@@ -550,7 +551,7 @@ class Brewer {
 	private function validateDescription(){
 		// Must set $this->description
 		$this->description = trim($this->description);
-		
+
 		if(!empty($this->description)){
 			if(strlen($this->description) <= 65536){
 				// Valid
@@ -598,84 +599,13 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	public function validateTwitterUsername($username){
 		// Cleanup Username
 		$username = trim($username);
 		if(!empty($username)){
-			
-			// URL Included?
-			if(preg_match('/https?:\/\/([w\.]{4})?twitter\.com\/([A-Za-z0-9_]+)/m', $username, $matches)){
-				// Remove URL
-				$usernameArrayValue = count($matches) - 1;
-				$username = $matches[$usernameArrayValue];
-			}
-			
-			// Query Twitter API
-			$curl = curl_init();
-			
-			curl_setopt_array($curl, array(
-			  CURLOPT_URL => 'https://api.twitter.com/2/users/by/username/' . $username,
-			  CURLOPT_RETURNTRANSFER => true,
-			  CURLOPT_MAXREDIRS => 10,
-			  CURLOPT_TIMEOUT => 0,
-			  CURLOPT_FOLLOWLOCATION => true,
-			  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			  CURLOPT_CUSTOMREQUEST => 'GET',
-			  CURLOPT_HTTPHEADER => array($this->twitterBearerToken),
-			  //CURLOPT_USERAGENT, 'api.catalog.beer/1.0'
-			));
-			
-			$response = curl_exec($curl);
-			$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-			
-			curl_close($curl);
-			
-			if($httpCode == 200){
-				// Decode JSON
-				$json = json_decode($response);
-				
-				if(isset($json->data)){
-					// Valid Twitter username
-					$this->twitterURL = 'https://twitter.com/' . $json->data->username;
-				}elseif(isset($json->errors)){
-					// Return Blank Username
-					$this->twitterURL = '';
-					
-					// API Error
-					$this->error = true;
-					if($json->errors[0]->title == 'Not Found Error'){
-						// For User
-						$this->responseCode = 404;
-						$this->errorMsg = 'Sorry, we could not find a Twitter user with the username: ' . $username;
-					}else{
-						$this->responseCode = 500;
-						$this->errorMsg = 'Sorry, there was an error validating your Twitter username. We have logged the error for our support team to investigate.';
-					}
-					
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 204;
-					$errorLog->errorMsg = 'Twitter API Error';
-					$errorLog->badData = $response;
-					$errorLog->filename = $this->filename;
-					$errorLog->write();
-				}
-			}else{
-				//echo $response;
-				// Twitter API Error
-				$this->error = true;
-				$this->responseCode = 500;
-				$this->errorMsg = 'Sorry, there was an error validating your Twitter username. We have logged the error for our support team to investigate.';
-				
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 203;
-				$errorLog->errorMsg = 'Twitter API Error';
-				$errorLog->badData = $response;
-				$errorLog->filename = $this->filename;
-				$errorLog->write();
-			}
+			// Assume Valid
+			$this->twitterURL = 'https://twitter.com/' . $json->data->username;
 		}else{
 			// No Username Submitted
 			$this->twitterURL = null;
@@ -697,7 +627,7 @@ class Brewer {
 				// Add HTTP
 				$url = 'http://' . $url;
 			}
-			
+
 			// Add HTTPS for Facebook and Instagram
 			if($type == 'instagram_url' || $type == 'facebook_url'){
 				if(!preg_match('/^https:\/\//', $url)){
@@ -764,14 +694,14 @@ class Brewer {
 						}else{
 							$returnURL = $curlResponse['url'];
 						}
-						
+
 						// Stop Loop
 						$continue = false;
 					}elseif($curlResponse['httpCode'] == 405 && $type == 'instagram_url'){
 						// Instagram doesn't like HEAD and prefers GET
 						// Assume Valid
 						$returnURL = $url;
-						
+
 						// Stop Loop
 						$continue = false;
 					}else{
@@ -928,7 +858,7 @@ class Brewer {
 				if($stringPrefix == "www."){
 					$urlDomainName = substr($urlDomainName, 4);
 				}
-				
+
 				// Check for Duplicate Domain Names
 				$db = new Database();
 				$dbDomainName = $db->escape($urlDomainName);
@@ -936,7 +866,7 @@ class Brewer {
 				if($db->result->num_rows == 1){
 					// Get brewerID
 					$brewerID = $db->singleResult('id');
-					
+
 					if($brewerID == $this->brewerID){
 						// They may be updating their brewery URL, no duplicate will be created
 						// No need to throw an error
@@ -1060,12 +990,12 @@ class Brewer {
 						if(is_null($array['description'])){
 							$this->description = null;
 						}else{
-							$this->description = stripcslashes($array['description']);	
+							$this->description = stripcslashes($array['description']);
 						}
 						if(is_null($array['shortDescription'])){
 							$this->shortDescription = null;
 						}else{
-							$this->shortDescription = stripcslashes($array['shortDescription']);	
+							$this->shortDescription = stripcslashes($array['shortDescription']);
 						}
 						$this->url = $array['url'];
 						$this->domainName = $array['domainName'];
@@ -1271,17 +1201,17 @@ class Brewer {
 
 		return $count;
 	}
-	
+
 	public function delete($brewerID, $userID){
 		if($this->validate($brewerID, false)){
 			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
-			
+
 			// Get Brewer Privileges
 			$privileges = new Privileges();
 			$brewerPrivilegesList = $privileges->brewerList($userID);
-			
+
 			if($users->admin || in_array($brewerID, $brewerPrivilegesList)){
 				// Delete Brewer
 				$db = new Database();
@@ -1299,7 +1229,7 @@ class Brewer {
 				$this->error = true;
 				$this->errorMsg = 'Sorry, you do not have permission to delete this brewery.';
 				$this->responseCode = 403;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 163;
@@ -1310,7 +1240,7 @@ class Brewer {
 			}
 		}
 	}
-	
+
 	public function generateBrewerObject($json){
 		/*---
 		Generates the Brewer Object
@@ -1319,7 +1249,7 @@ class Brewer {
 			true = return data in $this->json[];
 			false = return data in an array();
 		---*/
-		
+
 		// Optional Values that may be stored as null, return as empty ("")
 		if(empty($this->description)){$this->description = null;}
 		if(empty($this->shortDescription)){$this->shortDescription = null;}
@@ -1327,7 +1257,7 @@ class Brewer {
 		if(empty($this->facebookURL)){$this->facebookURL = null;}
 		if(empty($this->twitterURL)){$this->twitterURL = null;}
 		if(empty($this->instagramURL)){$this->instagramURL = null;}
-		
+
 		// Known Values - Required
 		$array = array();
 		$array['id'] = $this->brewerID;
@@ -1342,7 +1272,7 @@ class Brewer {
 		$array['twitter_url'] = $this->twitterURL;
 		$array['instagram_url'] = $this->instagramURL;
 		$array['last_modified'] = $this->lastModified;
-		
+
 		if($json){
 			// Add to JSON Output
 			$this->json = $array;
@@ -1350,6 +1280,29 @@ class Brewer {
 			// Return as array
 			return $array;
 		}
+	}
+
+	public function generateBrewerSearchObject(){
+		// Generates the Brewer Object for Algolia
+
+		// Setup Return Array
+		$array = array();
+
+		// Get Algolia ID
+		$algolia = new Algolia();
+		$array['objectID'] = $algolia->getAlgoliaIdByRecord('brewer', $this->brewerID);
+
+		// Known Values - Required
+		$array['brewerID'] = $this->brewerID;
+		$array['name'] = $this->name;
+
+		// Optional Values that may be stored as null
+		if(!empty($this->description)){$array['description'] = $this->description;}
+		if(!empty($this->shortDescription)){$array['short_description'] = $this->shortDescription;}
+		if(!empty($this->url)){$array['url'] = $this->url;}
+
+		// Return as array
+		return $array;
 	}
 
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
@@ -1366,9 +1319,9 @@ class Brewer {
 		POST https://api.catalog.beer/brewer
 
 		PUT https://api.catalog.beer/brewer/{brewer_id}
-		
+
 		PATCH https://api.catalog.beer/brewer/{brewer_id}
-		
+
 		DELETE https://api.catalog.beer/brewer/{brewer_id}
 		---*/
 		switch($method){
@@ -1512,7 +1465,7 @@ class Brewer {
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
-					
+
 					// Generate Brewer Object JSON
 					$this->generateBrewerObject(true);
 				}else{
@@ -1529,34 +1482,34 @@ class Brewer {
 
 				// Which fields are we updating?
 				$patchFields = array();
-				
+
 				if(isset($data->name)){$patchFields[] = 'name';}
 				else{$data->name = '';}
-				
+
 				if(isset($data->description)){$patchFields[] = 'description';}
 				else{$data->description = '';}
-				
+
 				if(isset($data->short_description)){$patchFields[] = 'short_description';}
 				else{$data->short_description = '';}
-				
+
 				if(isset($data->url)){$patchFields[] = 'url';}
 				else{$data->url = '';}
-				
+
 				if(isset($data->facebook_url)){$patchFields[] = 'facebook_url';}
 				else{$data->facebook_url = '';}
-				
+
 				if(isset($data->twitter_url)){$patchFields[] = 'twitter_url';}
 				else{$data->twitter_url = '';}
-				
+
 				if(isset($data->instagram_url)){$patchFields[] = 'instagram_url';}
 				else{$data->instagram_url = '';}
-				
+
 				// Update Brewer
 				$this->add($data->name, $data->description, $data->short_description, $data->url, $data->facebook_url, $data->twitter_url, $data->instagram_url, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
 					// Get Updated Brewer Info
 					$this->validate($id, true);
-					
+
 					// Generate Brewer Object JSON
 					$this->generateBrewerObject(true);
 				}else{

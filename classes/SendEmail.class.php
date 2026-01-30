@@ -9,7 +9,7 @@ class SendEmail {
 
 	// Variables
 	public $email;
-	private $postmarkServerToken = '';
+	private $postmarkServerToken = 'fea7e7dc-d52d-4924-9074-71fddfb3a8ba';
 	private $testing = false;
 
 	// Validation

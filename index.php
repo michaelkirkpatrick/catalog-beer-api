@@ -134,7 +134,7 @@ if(in_array($method, $contentTypeMethods)){
 			$responseCode = 415;
 			$json['error'] = true;
 			$json['error_msg'] = 'Our API only accepts JSON data at this time. Based on your \'Content-Type\' header, it doesn\'t appear that you are sending us \'application/json\' data.';
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 157;
@@ -159,7 +159,7 @@ if(in_array($method, $contentTypeMethods)){
 			$responseCode = 406;
 			$json['error'] = true;
 			$json['error_msg'] = 'At this time our API only sends data in a JSON format. Based on your \'Accept\' header, it appears that you would like us to send you data in a format other than \'application/json\'.';
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 158;
@@ -178,7 +178,7 @@ if(isset($_SERVER['HTTPS'])){
 		if(isset($_SERVER['PHP_AUTH_USER'])){
 			// Get Submitted Username and Password
 			$apiKey = $_SERVER['PHP_AUTH_USER'];
-	
+
 			if(!empty($apiKey)){
 				$apiKeys = new apiKeys();
 				if(!$apiKeys->validate($apiKey, true)){
@@ -194,7 +194,7 @@ if(isset($_SERVER['HTTPS'])){
 				$responseCode = 401;
 				$json['error'] = true;
 				$json['error_msg'] = 'We are missing your API Key. This key should be submitted in the username field of your API request using HTTP Basic Auth. No password is required.';
-	
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 7;
@@ -209,7 +209,7 @@ if(isset($_SERVER['HTTPS'])){
 			$responseCode = 401;
 			$json['error'] = true;
 			$json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
-	
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 6;
@@ -272,6 +272,13 @@ if(!$error){
 			$responseCode = $users->responseCode;
 			$responseHeader = $users->responseHeader;
 			break;
+		case 'query':
+			$algolia = new Algolia();
+			$algolia->api($method, $function, $data);
+			$json = $algolia->json;
+			$responseCode = $algolia->responseCode;
+			$responseHeader = $algolia->responseHeader;
+			break;
 		case 'usage':
 			$usage = new Usage();
 			$usage->api($method, $function, $id, $apiKey);
@@ -332,10 +339,10 @@ if($json_encoded = json_encode($json)){
 	$errorLog->write();
 }
 
-$masterKeys = array();
+$masterKeys = array('5f8358b8-4036-4ea2-97ce-a992677efb67', '8f610e88-da70-4ff5-9102-eb524e25db76');
 if(!in_array($apiKey, $masterKeys)){
 	// Log Request
 	$apiLogging = new apiLogging();
-	$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded, $responseCode);	
+	$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded, $responseCode);
 }
 ?>

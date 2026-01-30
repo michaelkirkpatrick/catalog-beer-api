@@ -1,28 +1,28 @@
 <?php
 class Database {
-	
+
 	// Public Variables
 	public $result;
 	public $insertID;
-	
+
 	public $error = false;
 	public $errorMsg = null;
 	public $responseCode = 200;
-	
+
 	// Private Variables
-	private $mysqli;	
-	
+	public $mysqli;
+
 	function __construct(){
 		// Establish Environment
 		if(defined('ENVIRONMENT')){
 			if(ENVIRONMENT == 'staging'){
-				$password = '';
+				$password = 'xk6Lo*ae/Xa4Js=9CNaRwP7Z#8ax@A';
 			}elseif(ENVIRONMENT == 'production'){
-				$password = '';
+				$password = 'jdtFE8arkL}fCcjmn993A^tU=8KG^}';
 			}
-			
+
 			// Connect to Server
-			$this->mysqli = new mysqli('', '', $password, '');
+			$this->mysqli = new mysqli('localhost', 'catalogadmin', $password, 'catalogbeer');
 			if($this->mysqli->connect_error){
 				//die('Connect Error (' . $this->mysqli->connect_errno . ') ' . $this->mysqli->connect_error);
 				$this->responseCode = 500;
@@ -44,7 +44,7 @@ class Database {
 			exit();
 		}
 	}
-	
+
 	// ----- Query -----
 	public function query($query){
 		if(isset($this->mysqli)){
@@ -66,7 +66,7 @@ class Database {
 				if($this->mysqli->query($query) === true){
 					// Successful Query
 					if($exploded[0] == 'INSERT'){
-						$this->insertID = $this->mysqli->insert_id;	
+						$this->insertID = $this->mysqli->insert_id;
 					}
 				}else{
 					// Query Error
@@ -92,7 +92,7 @@ class Database {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 2;
@@ -102,7 +102,7 @@ class Database {
 			$errorLog->write();
 		}
 	}
-	
+
 	// ----- Escape -----
 	public function escape($string){
 		if(is_null($string)){
@@ -115,19 +115,19 @@ class Database {
 		//$escaped = str_replace("_", "\_", $escaped);
 		return $escaped;
 	}
-	
+
 	// ----- Result Array -----
 	public function resultArray(){
 		$array = $this->result->fetch_array(MYSQLI_ASSOC);
 		return $array;
 	}
-	
+
 	// ----- Single Result -----
 	public function singleResult($key){
 		$array = $this->result->fetch_array(MYSQLI_ASSOC);
 		return $array[$key];
 	}
-	
+
 	// ----- Close Connection -----
 	public function close(){
 		if(!$this->mysqli->close()){
@@ -137,7 +137,7 @@ class Database {
 			$errorLog->errorNumber = 124;
 			$errorLog->filename = 'API / Database.class.php';
 			$errorLog->errorMsg = 'Database Error';
-			$errorLog->badData = 'Unable to close database connection';;
+			$errorLog->badData = 'Unable to close database connection';
 			$errorLog->write();
 		}
 	}

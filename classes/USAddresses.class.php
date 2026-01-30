@@ -23,7 +23,7 @@ class USAddresses {
 	private $latLongFound = false;
 
 	// USPS API Key
-	private $usps = '';
+	private $usps = '541INTER2750';
 
 	// Add Address
 	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $userID, $method, $patchFields){

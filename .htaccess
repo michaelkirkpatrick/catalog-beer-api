@@ -4,9 +4,9 @@ RewriteEngine On
 Options -Indexes
 
 # Redirect to HTTPS
-RewriteCond %{HTTPS} !=on
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-Header set Strict-Transport-Security "max-age=31415926; includeSubDomains; preload" env=HTTPS
+#RewriteCond %{HTTPS} !=on
+#RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+#Header set Strict-Transport-Security "max-age=31415926; includeSubDomains; preload" env=HTTPS
 
 # Redirect Error Pages
 ErrorDocument 403 /errors.php?code=403
@@ -33,6 +33,8 @@ RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]
+
+#RewriteRule ^query\/([a-zA-Z]{4,8})$ index.php?endpoint=query&function=$1 [L]
 
 RewriteRule ^usage/currentMonth/?(\/[-0-9a-f]{36})?$ index.php?endpoint=usage&function=currentMonth&id=$1 [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]

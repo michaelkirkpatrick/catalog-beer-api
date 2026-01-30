@@ -1,6 +1,6 @@
 <?php
 class Beer {
-	
+
 	// Properties
 	public $beerID = '';
 	public $brewerID = '';
@@ -12,32 +12,32 @@ class Beer {
 	public $cbVerified = false;
 	public $brewerVerified = false;
 	public $lastModified = 0;
-	
+
 	// Error Handling
 	public $error = false;
 	public $errorMsg = null;
 	public $validState = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
 	public $validMsg = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
-	
+
 	// API Response
 	public $responseHeader = '';
 	public $responseCode = 200;
 	public $json = array();
-	
+
 	// Verification
 	private $isBV = false;	// Is the brewery, brewerVerified?
 	private $isCBV = false;	// Is the brewery, catalog.beer verified (cbVerified)?
-	
-	
+
+
 	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
-		
+
 		// Required Classes
 		$brewer = new Brewer();
 		$db = new Database();
 		$privileges = new Privileges();
 		$users = new Users();
 		$uuid = new uuid();
-				
+
 		// ----- beerID -----
 		$newBeer = false;
 		switch($method){
@@ -62,7 +62,7 @@ class Beer {
 					$this->error = false;
 					$this->errorMsg = null;
 					$this->responseCode = 200;
-					
+
 					// Validate UUID
 					if($uuid->validate($beerID)){
 						// Save submitted UUID as beerID
@@ -97,7 +97,7 @@ class Beer {
 				$this->error = true;
 				$this->errorMsg = 'Invalid Method.';
 				$this->responseCode = 405;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 165;
@@ -106,13 +106,13 @@ class Beer {
 				$errorLog->filename = 'API / Beer.class.php';
 				$errorLog->write();
 		}
-		
+
 		// ----- Validate Brewery -----
 		if($brewer->validate($brewerID, true)){
 			// Valid Brewer
 			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
-			
+
 			// Which brewer is this beer currently associated with?
 			if($method == 'PUT' || $method == 'PATCH'){
 				// Get the brewerID currenlty associated with this beer
@@ -134,7 +134,7 @@ class Beer {
 			$this->error = true;
 			$this->validState['brewer_id'] = 'invalid';
 			$this->validMsg['brewer_id'] = $brewer->errorMsg;
-			
+
 			// Correct 404 (Not Found) to 400 (Bad Request) for Brewer Not Found
 			if($brewer->responseCode === 404){
 				$this->responseCode = 400;
@@ -142,9 +142,9 @@ class Beer {
 				$this->responseCode = $brewer->responseCode;
 			}
 		}
-		
+
 		// ----- Permissions & Validation Badge -----
-		
+
 		if(!$this->error){
 			if($users->validate($userID, true)){
 				// Get User's Email Domain Name
@@ -241,13 +241,13 @@ class Beer {
 				$this->responseCode = $users->responseCode;
 			}
 		}
-		
+
 		// ----- Validate Fields -----
 		// Don't waste processing resources if there's been an error in the steps above.
 		if(!$this->error){
 			// Default SQL
 			$sql = '';
-			
+
 			if($method == 'POST' || $method == 'PUT'){
 				// Save to Class
 				$this->name = $name;
@@ -272,10 +272,10 @@ class Beer {
 					$dbDescription = $db->escape($this->description);
 					$dbABV = $db->escape($this->abv);
 					$dbIBU = $db->escape($this->ibu);
-					
+
 					$this->lastModified = time();
 					$dbLastModified = $db->escape($this->lastModified);
-					
+
 					// Construct SQL Statement
 					if($newBeer){
 						// Add Beer (POST/PUT)
@@ -310,20 +310,20 @@ class Beer {
 					}
 				}
 			}elseif($method == 'PATCH'){
-				/*-- 
+				/*--
 				Validate the field if it's different than what is currently stored.
 				Check against the $this->{var} which we have from performing a $this->validate($beerID, true) in the beerID flow above for PATCH (Reference #1).
 				--*/
-				
+
 				// SQL Update
 				$sqlArray = array();
-				
+
 				// brewerID
 				if(in_array('brewerID', $patchFields)){
 					$dbBrewerID = $db->escape($this->brewerID);
 					$sqlArray[] = "brewerID='$dbBrewerID'";
 				}
-				
+
 				// Validate Name
 				if(in_array('name', $patchFields)){
 					if($name != $this->name){
@@ -336,7 +336,7 @@ class Beer {
 						}
 					}
 				}
-				
+
 				// Validate Style
 				if(in_array('style', $patchFields)){
 					if($style != $this->style){
@@ -349,7 +349,7 @@ class Beer {
 						}
 					}
 				}
-				
+
 				// Validate Description
 				if(in_array('description', $patchFields)){
 					if($description != $this->description){
@@ -362,7 +362,7 @@ class Beer {
 						}
 					}
 				}
-				
+
 				// Validate ABV
 				if(in_array('abv', $patchFields)){
 					if($abv != $this->abv){
@@ -375,7 +375,7 @@ class Beer {
 						}
 					}
 				}
-				
+
 				// Validate IBU
 				if(in_array('ibu', $patchFields)){
 					if($ibu != $this->ibu){
@@ -388,16 +388,16 @@ class Beer {
 						}
 					}
 				}
-				
+
 				if(!$this->error && !empty($sqlArray)){
 					// Prep for Database
 					$this->lastModified = time();
 					$dbLastModified = $db->escape($this->lastModified);
 					$dbBeerID = $db->escape($this->beerID);
-					
+
 					// Construct SQL Statement
 					$sql = "UPDATE beer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
-					
+
 					$totalUpdates = count($sqlArray);
 					if($totalUpdates > 0){$sql .= ", ";}
 					$lastUpdate = $totalUpdates - 1;
@@ -411,7 +411,7 @@ class Beer {
 					$sql .= " WHERE id='$dbBeerID'";
 				}
 			}
-			
+
 			if(!$this->error && !empty($sql)){
 				// Query
 				$db->query($sql);
@@ -425,6 +425,10 @@ class Beer {
 							$responseHeaderString .= 'staging.';
 						}
 						$this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
+
+						// Create Algolia ID
+						$algolia = new Algolia();
+						$algolia->add('beer', $this->beerID);
 					}else{
 						$this->responseCode = 200;
 					}
@@ -440,11 +444,11 @@ class Beer {
 			}
 		}
 	}
-	
+
 	private function validateName(){
 		// Trim
 		$this->name = trim($this->name);
-		
+
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
 				// Valid Name
@@ -455,7 +459,7 @@ class Beer {
 				$this->validState['name'] = 'invalid';
 				$this->validMsg['name'] = 'We hate to say it but your beer name is too long for our database. Beer names are limited to 255 bytes. Any chance you can shorten it?';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 15;
@@ -470,7 +474,7 @@ class Beer {
 			$this->validState['name'] = 'invalid';
 			$this->validMsg['name'] = 'What\'s the name of this beer? We seem to be missing the name.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 12;
@@ -480,11 +484,11 @@ class Beer {
 			$errorLog->write();
 		}
 	}
-	
+
 	private function validateStyle(){
 		// Trim
 		$this->style = trim($this->style);
-		
+
 		if(!empty($this->style)){
 			if(strlen($this->style) <= 255){
 				// Valid Style
@@ -495,7 +499,7 @@ class Beer {
 				$this->validState['style'] = 'invalid';
 				$this->validMsg['style'] = 'We hate to say it but this beer style is too long for our database. Style names are limited to 255 bytes. Any chance you can shorten it?';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 16;
@@ -510,7 +514,7 @@ class Beer {
 			$this->validState['style'] = 'invalid';
 			$this->validMsg['style'] = 'What\'s the style of this beer? We seem to be missing its style.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 17;
@@ -520,11 +524,11 @@ class Beer {
 			$errorLog->write();
 		}
 	}
-	
+
 	private function validateDescription(){
 		// Trim
 		$this->description = trim($this->description);
-		
+
 		if(!empty($this->description)){
 			if(strlen($this->description) <= 65536){
 				// Valid Style
@@ -535,7 +539,7 @@ class Beer {
 				$this->validState['description'] = 'invalid';
 				$this->validMsg['description'] = 'We hate to say it but this beer description is too long for our database. Descriptions are limited to 65,536 bytes. Any chance you can shorten it?';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 18;
@@ -546,7 +550,7 @@ class Beer {
 			}
 		}
 	}
-	
+
 	private function validateABV(){
 		// Validate ABV
 		if(is_numeric($this->abv)){
@@ -563,7 +567,7 @@ class Beer {
 				$this->validState['abv'] = 'invalid';
 				$this->validMsg['abv'] = 'ABV must be between 0 and 99.9.';
 				$this->responseCode = 400;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 22;
@@ -587,13 +591,13 @@ class Beer {
 			$errorLog->write();
 		}
 	}
-	
+
 	private function validateIBU(){
 		// Validate IBU
 		if(!empty($this->ibu)){
 			// Save as integer
 			$this->ibu = intval($this->ibu);
-			
+
 			// Process
 			if(is_int($this->ibu)){
 				if($this->ibu > 0 && $this->ibu <= 9999){
@@ -631,15 +635,15 @@ class Beer {
 			$this->ibu = null;
 		}
 	}
-	
+
 	// Validate Beer
 	public function validate($beerID, $saveToClass){
 		// Valid
 		$valid = false;
-		
+
 		// Trim
 		$beerID = trim($beerID);
-		
+
 		if(!empty($beerID)){
 			// Prep for Database
 			$db = new Database();
@@ -649,10 +653,10 @@ class Beer {
 				if($db->result->num_rows == 1){
 					// Valid Result
 					$valid = true;
-					
+
 					if($saveToClass){
 						$array = $db->resultArray();
-						
+
 						$this->beerID = $beerID;
 						$this->brewerID = $array['brewerID'];
 						$this->name = stripcslashes($array['name']);
@@ -660,7 +664,7 @@ class Beer {
 						if(is_null($array['description'])){
 							$this->description = null;
 						}else{
-							$this->description = stripcslashes($array['description']);	
+							$this->description = stripcslashes($array['description']);
 						}
 						$this->abv = floatval($array['abv']);
 						$this->ibu = intval($array['ibu']);
@@ -681,7 +685,7 @@ class Beer {
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 					$this->responseCode = 500;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 136;
@@ -707,7 +711,7 @@ class Beer {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, we seem to be missing the beer_id for the beer. Please check your request and try again.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 52;
@@ -716,19 +720,19 @@ class Beer {
 			$errorLog->filename = 'API / Beer.class.php';
 			$errorLog->write();
 		}
-		
+
 		return $valid;
 	}
-	
+
 	// Get Beer IDs
 	public function getBeers($cursor, $count){
 		// Return Array
 		$beerArray = array();
-		
+
 		// Prep Variables
 		$offset = intval(base64_decode($cursor));
 		$count = intval($count);
-		
+
 		if(is_int($offset) && $offset >= 0){
 			if(is_int($count)){
 				// Within Limits?
@@ -747,7 +751,7 @@ class Beer {
 					$errorLog->filename = 'API / Beer.class.php';
 					$errorLog->write();
 				}
-				
+
 				if($count > 1000000 || $count < 1){
 					// Outside Range
 					$this->error = true;
@@ -781,7 +785,7 @@ class Beer {
 			$this->error = true;
 			$this->errorMsg = 'Sorry, the cursor value you supplied is invalid.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 94;
@@ -790,7 +794,7 @@ class Beer {
 			$errorLog->filename = 'API / Beer.class.php';
 			$errorLog->write();
 		}
-		
+
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
@@ -810,19 +814,19 @@ class Beer {
 			}
 			$db->close();
 		}
-		
+
 		// Return
 		return $beerArray;
 	}
-	
+
 	public function nextCursor($cursor, $count){
 		// Number of Beers
 		$numBeers = $this->countBeers();
-		
+
 		// Next Cursor
 		$offset = base64_decode($cursor);
 		$nextCursor = $offset + $count;
-		
+
 		if($nextCursor <= $numBeers){
 			// Return Next Page
 			return base64_encode($nextCursor);
@@ -830,12 +834,12 @@ class Beer {
 			return '';
 		}
 	}
-	
+
 	// Number of Beers
 	public function countBeers(){
 		// Return
 		$count = 0;
-		
+
 		// Query Database
 		$db = new Database();
 		$db->query("SELECT COUNT('id') AS numBeers FROM beer");
@@ -849,15 +853,15 @@ class Beer {
 			$this->responseCode = $db->responseCode;
 		}
 		$db->close();
-		
+
 		return $count;
 	}
-	
+
 	// Beers by Brewer
 	public function brewerBeers($brewerID){
 		// Return Array
 		$beerInfo = array();
-		
+
 		if(!empty($brewerID)){
 			// Validate Brewer ID
 			$brewer = new Brewer();
@@ -866,12 +870,12 @@ class Beer {
 				$beerInfo['object'] = 'list';
 				$beerInfo['url'] = '/brewer/' . $brewerID . '/beer';
 				$beerInfo['has_more'] = false;
-				
+
 				// Generate Brewer Object JSON
 				$brewer->generateBrewerObject(true);
 				$beerInfo['brewer'] = $brewer->json;
 				$beerInfo['data'] = array();
-				
+
 				// Prep for Query
 				$db = new Database();
 				$dbBrewerID = $db->escape($brewerID);
@@ -900,7 +904,7 @@ class Beer {
 			$this->error = true;
 			$this->errorMsg = 'Sorry, we seem to be missing the brewer_id. Please check your request and try again.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 46;
@@ -909,21 +913,21 @@ class Beer {
 			$errorLog->filename = 'API / Beer.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $beerInfo;
 	}
-	
+
 	public function delete($beerID, $userID){
 		if($this->validate($beerID, true)){
 			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
-			
+
 			// Get Brewer Privileges
 			$privileges = new Privileges();
 			$brewerPrivilegesList = $privileges->brewerList($userID);
-			
+
 			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
 				// Delete Beer
 				$db = new Database();
@@ -941,7 +945,7 @@ class Beer {
 				$this->error = true;
 				$this->errorMsg = 'Sorry, you do not have permission to delete this beer.';
 				$this->responseCode = 403;
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 199;
@@ -952,21 +956,21 @@ class Beer {
 			}
 		}
 	}
-	
+
 	public function generateBeerObject(){
 		// Generates the Beer Object
 		// Generally returned as part of the API output
-		
+
 		// Optional Values that may be stored as null, return as empty ("")
 		if(empty($this->description)){$this->description = null;}
 		if(empty($this->ibu)){$this->ibu = null;}
 		else{$this->ibu = intval($this->ibu);}
-		
+
 		// Get Brewery Data
 		$brewer = new Brewer();
 		$brewer->validate($this->brewerID, true);
-		$brewer->generateBrewerObject(true);		
-		
+		$brewer->generateBrewerObject(true);
+
 		// Known Values - Required
 		$this->json['id'] = $this->beerID;
 		$this->json['object'] = 'beer';
@@ -980,27 +984,56 @@ class Beer {
 		$this->json['last_modified'] = $this->lastModified;
 		$this->json['brewer'] = $brewer->json;
 	}
-	
+
+	public function generateBeerSearchObject(){
+		// Generates the Beer Object for Algolia
+		$array = array();
+
+		// Get Brewery Data
+		$brewer = new Brewer();
+		$brewer->validate($this->brewerID, true);
+
+		// Get Algolia ID
+		$algolia = new Algolia();
+		$array['objectID'] = $algolia->getAlgoliaIdByRecord('beer', $this->beerID);
+
+		// Create Output Array
+		$array['beerID'] = $this->beerID;
+		$array['name'] = $this->name;
+		$array['style'] = $this->style;
+		if(!empty($this->description)){$array['description'] = $this->description;}
+		$array['abv'] = floatval($this->abv);
+		if(empty($this->ibu)){
+			$this->ibu = intval($this->ibu);
+			$array['ibu'] = $this->ibu;
+		}
+		$array['brewer']['brewerID'] = $brewer->brewerID;
+		$array['brewer']['name'] = $brewer->name;
+
+		// Return
+		return $array;
+	}
+
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/beer/{function}
 		{METHOD} https://api.catalog.beer/beer/{id}/{function}
-		
+
 		GET https://api.catalog.beer/beer
 		GET https://api.catalog.beer/beer/count
 		GET https://api.catalog.beer/beer/{beer_id}
-		
+
 		POST https://api.catalog.beer/beer
-		
+
 		PUT https://api.catalog.beer/beer/{beer_id}
-		
+
 		PATCH https://api.catalog.beer/beer/{beer_id}
-		
+
 		DELETE https://api.catalog.beer/beer/{beer_id}
 		---*/
-		
+
 		$brewer = new Brewer();
-		
+
 		switch($method){
 			case 'GET':
 				if(!empty($id) && empty($function)){
@@ -1092,11 +1125,11 @@ class Beer {
 				if(empty($data->description)){$data->description = '';}
 				if(empty($data->abv)){$data->abv = '';}
 				if(empty($data->ibu)){$data->ibu = '';}
-				
+
 				// Validate API Key for userID
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
-				
+
 				// Add Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
@@ -1135,11 +1168,11 @@ class Beer {
 				if(empty($data->description)){$data->description = '';}
 				if(empty($data->abv)){$data->abv = '';}
 				if(empty($data->ibu)){$data->ibu = '';}
-				
+
 				// Validate API Key for userID
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
-				
+
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
@@ -1156,30 +1189,30 @@ class Beer {
 				// PATCH https://api.catalog.beer/beer/{beer_id}
 				// Which fields are we updating?
 				$patchFields = array();
-				
+
 				// Handle Empty Fields
 				if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
 				else{$data->brewer_id = '';}
-				
+
 				if(isset($data->name)){$patchFields[] = 'name';}
 				else{$data->name = '';}
-				
+
 				if(isset($data->style)){$patchFields[] = 'style';}
 				else{$data->style = '';}
-				
+
 				if(isset($data->description)){$patchFields[] = 'description';}
 				else{$data->description = '';}
-				
+
 				if(isset($data->abv)){$patchFields[] = 'abv';}
 				else{$data->abv = '';}
-				
+
 				if(isset($data->ibu)){$patchFields[] = 'ibu';}
 				else{$data->ibu = '';}
-				
+
 				// Validate API Key for userID
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);
-				
+
 				// Add/Update/Replace Beer
 				$this->add($data->brewer_id, $data->name, $data->style, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
