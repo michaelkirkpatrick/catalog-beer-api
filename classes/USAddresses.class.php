@@ -22,9 +22,6 @@ class USAddresses {
 	public $json = array();
 	private $latLongFound = false;
 
-	// USPS API Key
-	private $usps = '541INTER2750';
-
 	// Add Address
 	public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $userID, $method, $patchFields){
 		// Required Classes
@@ -570,7 +567,7 @@ class USAddresses {
 	private function uspsAPI($xmlBody){
 	
 		// Build XML
-		$xml = '<AddressValidateRequest USERID="' . $this->usps . '"><Address ID=\'1\'>' . $xmlBody . '</Address></AddressValidateRequest>';
+		$xml = '<AddressValidateRequest USERID="' . USPS_API_KEY . '"><Address ID=\'1\'>' . $xmlBody . '</Address></AddressValidateRequest>';
 
 		// Start cURL
 		$curl = curl_init();

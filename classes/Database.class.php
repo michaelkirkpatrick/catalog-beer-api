@@ -18,14 +18,8 @@ class Database {
 
 		// Establish Environment
 		if(defined('ENVIRONMENT')){
-			if(ENVIRONMENT == 'staging'){
-				$password = 'xk6Lo*ae/Xa4Js=9CNaRwP7Z#8ax@A';
-			}elseif(ENVIRONMENT == 'production'){
-				$password = 'jdtFE8arkL}fCcjmn993A^tU=8KG^}';
-			}
-
 			// Connect to Server
-			$this->mysqli = new mysqli('localhost', 'catalogadmin', $password, 'catalogbeer');
+			$this->mysqli = new mysqli('localhost', 'catalogadmin', DB_PASSWORD, 'catalogbeer');
 			if($this->mysqli->connect_error){
 				//die('Connect Error (' . $this->mysqli->connect_errno . ') ' . $this->mysqli->connect_error);
 				$this->responseCode = 500;

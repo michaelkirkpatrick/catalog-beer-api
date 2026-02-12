@@ -14,6 +14,9 @@ if($serverName[0] == 'api-staging'){
 	define('ENVIRONMENT', 'production');
 }
 
+// Load Passwords
+require_once ROOT . '/common/passwords.php';
+
 // Set Timezone
 date_default_timezone_set('America/Los_Angeles');
 

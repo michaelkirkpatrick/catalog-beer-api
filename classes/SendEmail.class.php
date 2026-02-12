@@ -9,7 +9,7 @@ class SendEmail {
 
 	// Variables
 	public $email;
-	private $postmarkServerToken = 'fea7e7dc-d52d-4924-9074-71fddfb3a8ba';
+
 	private $testing = false;
 
 	// Validation
@@ -141,7 +141,7 @@ class SendEmail {
 					"Accept: application/json",
 					"cache-control: no-cache",
 					"Content-Type: application/json",
-					"X-Postmark-Server-Token: " . $this->postmarkServerToken
+					"X-Postmark-Server-Token: " . POSTMARK_SERVER_TOKEN
 				),
 				CURLOPT_POSTFIELDS => "$json"
 			));

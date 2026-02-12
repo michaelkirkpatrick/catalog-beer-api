@@ -339,7 +339,7 @@ if($json_encoded = json_encode($json)){
 	$errorLog->write();
 }
 
-$masterKeys = array('5f8358b8-4036-4ea2-97ce-a992677efb67', '8f610e88-da70-4ff5-9102-eb524e25db76');
+$masterKeys = unserialize(MASTER_API_KEYS);
 if(!in_array($apiKey, $masterKeys)){
 	// Log Request
 	$apiLogging = new apiLogging();

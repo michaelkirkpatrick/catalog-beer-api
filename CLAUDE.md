@@ -71,7 +71,7 @@ All errors are logged to the `error_log` database table via `LogError` class. Ea
 - `resultArray($result)` — Fetch all rows as array
 - `singleResult($result)` — Fetch single row
 
-SQL is built as concatenated strings (not prepared statements). Database credentials are hardcoded in the class with staging/production conditionals.
+SQL is built as concatenated strings (not prepared statements). Database credentials are loaded from `common/passwords.php` (gitignored).
 
 ## API Endpoints
 
@@ -86,10 +86,12 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 
 ## External Services
 
-- **USPS API** — Address validation (`USAddresses.class.php`)
-- **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`)
-- **Algolia** — Search indexing; API keys via `getenv()` environment variables (`APPLICATION_ID`, `SEARCH_API_KEY`, `WRITE_API_KEY`)
-- **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`)
+- **USPS API** — Address validation (`USAddresses.class.php`); API key via `USPS_API_KEY` constant
+- **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`); API key via `GOOGLE_MAPS_API_KEY` constant
+- **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (sourced from environment variables)
+- **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant
+
+All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `classes/initialize.php` after the `ENVIRONMENT` constant is set.
 
 ## Code Conventions
 

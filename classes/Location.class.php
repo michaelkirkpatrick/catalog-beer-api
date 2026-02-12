@@ -26,10 +26,6 @@ class Location {
 	public $responseCode = 200;
 	public $json = array();
 
-	// Google Maps Geocoding API
-	// https://cloud.google.com/console/google/maps-apis/overview
-	private $gAPIKey = 'AIzaSyCOjTU32b-S9s245APxInLwXWLUMJ93Ink';
-
 	// Add Functions
 	public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields){
 
@@ -981,11 +977,11 @@ class Location {
 		// URL
 		switch($googleAPI){
 			case 'geocode':
-				$url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . $this->gAPIKey;
+				$url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_MAPS_API_KEY;
 				$arrayName = 'results';
 				break;
 			case 'findplacefromtext':
-				$url = 'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' . $address . '&key=' . $this->gAPIKey . '&inputtype=textquery&language=en&fields=formatted_address,geometry';
+				$url = 'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' . $address . '&key=' . GOOGLE_MAPS_API_KEY . '&inputtype=textquery&language=en&fields=formatted_address,geometry';
 					$arrayName = 'candidates';
 				break;
 		}

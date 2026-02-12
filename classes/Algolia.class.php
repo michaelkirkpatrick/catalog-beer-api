@@ -7,11 +7,6 @@ class Algolia {
 	public $brewer_id = null;
 	public $location_id = null;
 
-	// API Keys
-	private $algolia_application_id = null;
-	private $algolia_search_api_key = null;
-	private $algolia_write_api_key = null;
-
 	// Catalog.beer API Response
 	public $responseHeader = '';
 	public $responseCode = 200;
@@ -20,13 +15,6 @@ class Algolia {
 	// Error Variables
 	public $error = false;
 	public $errorMsg = null;
-
-	function __construct(){
-		// Set API Keys
-		$this->algolia_application_id = getenv('ALGOLIA_APPLICATION_ID');
-		$this->algolia_search_api_key = getenv('ALGOLIA_SEARCH_API_KEY');
-		$this->algolia_write_api_key = getenv('ALGOLIA_WRITE_API_KEY');
-	}
 
 	/**
 	 * Add a new Algolia record
@@ -289,7 +277,7 @@ class Algolia {
 
 		if(!$this->error){
 			// Algolia API Endpoint
-			$url = "https://{$this->algolia_application_id}.algolia.net/1/indexes/{$indexName}/query";
+			$url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/query";
 
 			// URL-encode the query string
 			$encodedQuery = urlencode($query);
@@ -307,8 +295,8 @@ class Algolia {
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return the response as a string
 			curl_setopt($ch, CURLOPT_POST, true);           // Use POST method
 			curl_setopt($ch, CURLOPT_HTTPHEADER, [
-				"x-algolia-application-id: {$this->algolia_application_id}",
-				"x-algolia-api-key: {$this->algolia_search_api_key}",
+				"x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
+				"x-algolia-api-key: " . ALGOLIA_SEARCH_API_KEY,
 				"Accept: application/json",
 				"Content-Type: application/json"
 			]);
