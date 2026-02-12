@@ -23,6 +23,8 @@ class uuid {
 	public $errorMsg = null;
 	public $responseCode = 200;
 
+	// Valid tables for UUID uniqueness check
+	private $validTables = ['beer', 'brewer', 'location', 'users', 'error_log', 'api_keys', 'api_logging', 'privileges', 'algolia', 'api_usage'];
 
 	// ----- Generate Unique UUID -----
 	public function generate($table){
@@ -66,15 +68,19 @@ class uuid {
 		// Default Return
 		$unique = false;
 
+		// Validate table name against whitelist
+		if(!in_array($table, $this->validTables)){
+			$this->error = true;
+			$this->errorMsg = 'Invalid table name.';
+			$this->responseCode = 500;
+			return false;
+		}
+
 		// Connect to database
 		$db = new Database();
-		$dbTable = $db->escape($table);
-		$dbUUID = $db->escape($this->uuid);
-
-		// Query
-		$db->query("SELECT id FROM $table WHERE id='$dbUUID'");
+		$result = $db->query("SELECT id FROM $table WHERE id=?", [$this->uuid]);
 		if(!$db->error){
-			if($db->result->num_rows == 0){
+			if($result->num_rows == 0){
 				$unique = true;
 			}
 		}else{

@@ -5,7 +5,7 @@ $apiLogging->add($apiKey, $method, $uri, $body, $response, $responseCode);
 */
 
 class apiLogging {
-	
+
 	// Variables
 	public $id = '';
 	public $apiKey = '';
@@ -16,11 +16,11 @@ class apiLogging {
 	public $body = '';
 	public $response = '';
 	public $responseCode = 0;
-	
+
 	// Error Handling
 	private $error = false;
-	
-	public function add($apiKey, $method, $uri, $body, $response, $responseCode){		
+
+	public function add($apiKey, $method, $uri, $body, $response, $responseCode){
 		// Check for missing variables
 		if(!empty($apiKey) && !empty($method) && !empty($uri)){
 			// Generate UUID
@@ -47,20 +47,9 @@ class apiLogging {
 			$this->responseCode = $responseCode;
 
 			if(!$this->error){
-				// Prep for Database
-				$db = new Database();
-				$dbAPILogID = $db->escape($this->id);
-				$dbAPIKey = $db->escape($this->apiKey);
-				$dbTimestamp = $db->escape($this->timestamp);
-				$dbIPAddress = $db->escape($this->ipAddress);
-				$dbMethod = $db->escape($this->method);
-				$dbURI = $db->escape($this->uri);
-				$dbBody = $db->escape($this->body);
-				$dbResponse = $db->escape($this->response);
-				$dbResponseCode = $db->escape($this->responseCode);
-
 				// Insert
-				$db->query("INSERT INTO api_logging (id, apiKey, timestamp, ipAddress, method, uri, body, response, responseCode) VALUES ('$dbAPILogID', '$dbAPIKey', '$dbTimestamp', '$dbIPAddress', '$dbMethod', '$dbURI', '$dbBody', '$dbResponse', '$dbResponseCode')");
+				$db = new Database();
+				$db->query("INSERT INTO api_logging (id, apiKey, timestamp, ipAddress, method, uri, body, response, responseCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [$this->id, $this->apiKey, $this->timestamp, $this->ipAddress, $this->method, $this->uri, $this->body, $this->response, $this->responseCode]);
 				if($db->error){
 					$this->error = true;
 				}

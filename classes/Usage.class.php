@@ -1,34 +1,34 @@
 <?php
 
 class Usage {
-	
+
 	public $id = '';
 	public $apiKey = '';
 	public $year = 0;
 	public $month = 0;
 	public $count = 0;
 	public $lastUpdated = 0;
-	
+
 	// Validation
 	public $error = false;
 	public $errorMsg = null;
-	
+
 	// API Response
 	public $responseHeader = '';
 	public $responseCode = 200;
 	public $json = array();
-	
+
 	public function currentUsage($apiKey, $apiKeyInUse){
 		// Get usage for API Key ($apiKey)
 		// The request comes from $apiKeyInUse
 		// Usage for Current Month
-		
+
 		$apiKey = trim($apiKey ?? '');
 		if(!empty($apiKey)){
 			// Required Classes
 			$apiKeys = new apiKeys();
 			if($apiKeys->validate($apiKey, true)){
-				
+
 				$users = new Users();
 				$users->validate($apiKeys->userID, true);
 
@@ -39,7 +39,7 @@ class Usage {
 						$this->responseCode = 401;
 						$this->error = true;
 						$this->errorMsg = 'Unauthorized: API Key mismatch. In order to retreive API usage for your account, you must make the API request using your API Key.';
-						
+
 						// Log Error
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 164;
@@ -55,25 +55,24 @@ class Usage {
 					$year = date('Y', time());
 					$month = date('n', time());
 
-					// Required Class
+					// Query Database
 					$db = new Database();
+					$result = $db->query("SELECT id, count, lastUpdated FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, $year, $month]);
+					if(!$db->error){
+						$array = $result->fetch_assoc();
 
-					// Prep for Database
-					$dbAPIKey = $db->escape($apiKey);
-					$dbYear = $db->escape($year);
-					$dbMonth = $db->escape($month);
-
-					// Query
-					$db->query("SELECT id, count, lastUpdated FROM api_usage WHERE apiKey='$dbAPIKey' AND year='$dbYear' AND month='$dbMonth'");
-					$array = $db->resultArray();
-
-					// Save to Class
-					$this->id = $array['id'];
-					$this->apiKey = $apiKey;
-					$this->year = $year;
-					$this->month = $month;
-					$this->count = $array['count'];
-					$this->lastUpdated = $array['lastUpdated'];
+						// Save to Class
+						$this->id = $array['id'];
+						$this->apiKey = $apiKey;
+						$this->year = $year;
+						$this->month = $month;
+						$this->count = $array['count'];
+						$this->lastUpdated = $array['lastUpdated'];
+					}else{
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
 
 					// Close Database Connection
 					$db->close();
@@ -96,7 +95,7 @@ class Usage {
 			$this->error = true;
 			$this->errorMsg = 'Missing API Key. Ensure your request includes the API key in the URL: /usage/currentMonth/{api_key}';
 			$this->responseCode = 400;
-			
+
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 131;
 			$errorLog->errorMsg = 'Missing API Key';
@@ -105,7 +104,7 @@ class Usage {
 			$errorLog->write();
 		}
 	}
-	
+
 	public function api($method, $function, $id, $apiKey){
 		/*-----
 		/{endpoint}/{function}/{api_key}
@@ -133,7 +132,7 @@ class Usage {
 						$this->json['error'] = true;
 						$this->json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
 						$this->responseCode = 404;
-						
+
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 130;
 						$errorLog->errorMsg = 'Invalid function (/usage)';
@@ -148,7 +147,7 @@ class Usage {
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
 				$this->responseHeader = 'Allow: GET';
-				
+
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 141;

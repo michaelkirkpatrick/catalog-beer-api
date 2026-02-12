@@ -54,6 +54,7 @@ class Algolia {
 			$errorLog->errorMsg = $this->errorMsg;
 			$errorLog->badData = $type;
 			$errorLog->write();
+			return;
 		}
 
 		// Prepare the data for insertion
@@ -65,82 +66,35 @@ class Algolia {
 		];
 		$data[$foreignKeyColumn] = $record_id;
 
-		// Build the SQL statement with placeholders
-		$sql = "INSERT INTO `algolia` (`algolia_id`, `beer_id`, `brewer_id`, `location_id`)
-				VALUES (?, ?, ?, ?)";
-
-		// Prepare the statement
-		$stmt = $db->mysqli->prepare($sql);
-		if (!$stmt) {
-			// DB Prepare Failed
-			$this->error = true;
-			$this->errorMsg = "There was an error processing your request.";
-
-			// Log Error
-			$errorLog->errorNumber = 206;
-			$errorLog->errorMsg = "Prepare failed";
-			$errorLog->badData = $db->mysqli->error;
-			$errorLog->write();
-		}
-
 		// Attempt insertion with retries in case of UUID collision
 		$maxRetries = 5;
 		for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
 			// Generate a unique algolia_id
 			$algolia_id = $uuid->createCode();
 
-			// Bind parameters (s = string)
-			if (!$stmt->bind_param(
-				"ssss",
-				$algolia_id,
-				$data['beer_id'],
-				$data['brewer_id'],
-				$data['location_id']
-			)) {
-				// Unable to Bind Parameters
-				$this->error = true;
-				$this->errorMsg = "There was an error processing your request.";
+			// Insert using prepared statement
+			$db->query("INSERT INTO `algolia` (`algolia_id`, `beer_id`, `brewer_id`, `location_id`) VALUES (?, ?, ?, ?)", [$algolia_id, $data['beer_id'], $data['brewer_id'], $data['location_id']]);
 
-				// Log Error
-				$errorLog->errorNumber = 207;
-				$errorLog->errorMsg = "Binding parameters failed";
-				$errorLog->badData = $stmt->error;
-				$errorLog->write();
-			}
-
-			// Execute the statement
-			if ($stmt->execute()) {
+			if (!$db->error) {
 				// Successful insertion
-				$stmt->close();
+				$db->close();
 				return $algolia_id;
 			} else {
-				// Check if the error is due to duplicate entry (UUID collision)
-				if ($stmt->errno === 1062) { // 1062 = Duplicate entry
-					// Log the collision occurrence (optional)
-					$errorLog->errorNumber = 208;
-					$errorLog->errorMsg = "UUID collision detected on attempt. Retrying...";
-					$errorLog->badData = $attempt + 1;
-					$errorLog->write();
-					// Continue to retry
-				} else {
-					// For other errors, close the statement and throw an exception
-					$this->error = true;
-					$this->errorMsg = "There was an error processing your request.";
+				// Check if it might be a duplicate key error, reset error for retry
+				$db->error = false;
+				$db->errorMsg = null;
+				$db->responseCode = 200;
 
-					// Log Error
-					$errorLog->errorNumber = 209;
-					$errorLog->errorMsg = "Error processing $stmt";
-					$errorLog->badData = $stmt->error;
-					$errorLog->write();
-
-					// Close $stmt
-					$stmt->close();
-				}
+				// Log the collision occurrence
+				$errorLog->errorNumber = 208;
+				$errorLog->errorMsg = "UUID collision detected on attempt. Retrying...";
+				$errorLog->badData = $attempt + 1;
+				$errorLog->write();
 			}
 		}
 
-		// If all retries fail, close the statement and throw an exception
-		$stmt->close();
+		// If all retries fail
+		$db->close();
 
 		// Error
 		$this->error = true;
@@ -190,60 +144,30 @@ class Algolia {
 			$errorLog->errorMsg = $this->errorMsg;
 			$errorLog->badData = $type;
 			$errorLog->write();
+			return null;
 		}
 
 		// Determine the column based on type
 		$column = $validTypes[$type];
 
-		// Build the SQL statement
-		$sql = "SELECT `algolia_id` FROM `algolia` WHERE `{$column}` = ? LIMIT 1";
-
-		// Prepare the statement
-		$stmt = $db->mysqli->prepare($sql);
-		if (!$stmt) {
-			// DB Prepare Failed
-			$this->error = true;
-			$this->errorMsg = "There was an error processing your request.";
-
-			// Log Error
-			$errorLog->errorNumber = 212;
-			$errorLog->errorMsg = "Prepare failed";
-			$errorLog->badData = $db->mysqli->error;
-			$errorLog->write();
-		}
-
-		// Bind the record_id parameter
-		if (!$stmt->bind_param("s", $record_id)) {
-			// Unable to Bind Parameters
-			$this->error = true;
-			$this->errorMsg = "There was an error processing your request.";
-
-			// Log Error
-			$errorLog->errorNumber = 213;
-			$errorLog->errorMsg = "Binding parameters failed";
-			$errorLog->badData = $stmt->error;
-			$errorLog->write();
-		}
-
-		// Execute the statement
-		if (!$stmt->execute()) {
-			// Execution Failed
+		// Query using prepared statement (column name is from whitelist, safe to interpolate)
+		$result = $db->query("SELECT `algolia_id` FROM `algolia` WHERE `{$column}` = ? LIMIT 1", [$record_id]);
+		if($db->error){
+			// Query Error
 			$this->error = true;
 			$this->errorMsg = "There was an error processing your request.";
 
 			// Log Error
 			$errorLog->errorNumber = 214;
 			$errorLog->errorMsg = "Execution error.";
-			$errorLog->badData = $stmt->error;
+			$errorLog->badData = $db->errorMsg;
 			$errorLog->write();
+			$db->close();
+			return null;
 		}
 
-		// Get the result
-		$result = $stmt->get_result();
 		$record = $result->fetch_assoc();
-
-		// Close the statement
-		$stmt->close();
+		$db->close();
 
 		// Return the algolia_id or null if not found
 		return $record ? $record['algolia_id'] : null;

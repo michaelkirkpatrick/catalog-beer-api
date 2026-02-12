@@ -1,25 +1,25 @@
 <?php
 class apiKeys {
-	
+
 	// Variables
 	public $apiKey = '';
 	public $userID = '';
-	
+
 	// Error Handling
 	public $error = false;
 	public $errorMsg = null;
 	public $responseCode = 200;
-	
+
 	public function add($userID){
 		// Already have a key?
 		$apiKey = $this->getKey($userID);
-		
+
 		if(!$this->error){
 			if(empty($apiKey)){
 				// Has the users's email been verified?
 				$users = new Users();
 				$users->validate($userID, true);
-				
+
 				if($users->emailVerified){
 					// Generate API Key
 					$uuid = new uuid();
@@ -27,9 +27,7 @@ class apiKeys {
 					if(!$uuid->error){
 						// Add to Database
 						$db = new Database();
-						$dbAPIKey = $db->escape($apiKey);
-						$dbUserID = $db->escape($userID);
-						$db->query("INSERT INTO api_keys (id, userID) VALUES ('$dbAPIKey', '$dbUserID')");
+						$db->query("INSERT INTO api_keys (id, userID) VALUES (?, ?)", [$apiKey, $userID]);
 						if(!$db->error){
 							// Successfully added apiKey
 							$this->userID = $userID;
@@ -52,7 +50,7 @@ class apiKeys {
 					$this->error = true;
 					$this->errorMsg = 'Before we can provide you with an API key, you will need to validate your email address.';
 					$this->responseCode = 403;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 150;
@@ -69,35 +67,32 @@ class apiKeys {
 			}
 		}
 	}
-	
+
 	public function validate($apiKey, $saveToClass){
 		// Setup Variables
 		$valid = false;
-		
+
 		if(!empty($apiKey)){
 			// Connect to Database
 			$db = new Database();
-			$dbApiKey = $db->escape($apiKey);
-			
-			// Query Database
-			$db->query("SELECT userID FROM api_keys WHERE id='$dbApiKey'");
+			$result = $db->query("SELECT userID FROM api_keys WHERE id=?", [$apiKey]);
 			if(!$db->error){
-				if($db->result->num_rows == 1){
+				if($result->num_rows == 1){
 					// Valid API Key
 					$valid = true;
-					
+
 					// Save to Class?
 					if($saveToClass){
-						$array = $db->resultArray();
+						$array = $result->fetch_assoc();
 						$this->apiKey = $apiKey;
 						$this->userID = $array['userID'];
 					}
-				}elseif($db->result->num_rows > 1){
+				}elseif($result->num_rows > 1){
 					// Duplicate API Keys
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 					$this->responseCode = 500;
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 148;
@@ -122,7 +117,7 @@ class apiKeys {
 			$this->error = true;
 			$this->errorMsg = 'We seem to be missing your API key. Please try your request again and ensure you have included your API key.';
 			$this->responseCode = 400;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 10;
@@ -131,29 +126,26 @@ class apiKeys {
 			$errorLog->filename = 'API / apiKeys.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $valid;
 	}
-	
+
 	public function getKey($userID){
 		// Return
 		$apiKey = '';
-		
+
 		if(!empty($userID)){
 			$users = new Users();
 			if($users->validate($userID, false)){
 				// Connect to Database
 				$db = new Database();
-				$dbUserID = $db->escape($userID);
-
-				// Query Database
-				$db->query("SELECT id FROM api_keys WHERE userID='$dbUserID'");
+				$result = $db->query("SELECT id FROM api_keys WHERE userID=?", [$userID]);
 				if(!$db->error){
-					if($db->result->num_rows == 1){
-						$array = $db->resultArray();
+					if($result->num_rows == 1){
+						$array = $result->fetch_assoc();
 						$apiKey = $array['id'];
-					}elseif($db->result->num_rows > 1){
+					}elseif($result->num_rows > 1){
 						// Duplicate API Keys for userID
 						$this->error = true;
 						$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
@@ -168,7 +160,7 @@ class apiKeys {
 						$errorLog->write();
 					}else{
 						// This user doesn't have an API Key yet
-						// Return default empty $apiKey = ''; 
+						// Return default empty $apiKey = '';
 						$this->responseCode = 404;
 					}
 				}else{
@@ -189,7 +181,7 @@ class apiKeys {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 77;
@@ -198,11 +190,11 @@ class apiKeys {
 			$errorLog->filename = 'API / apiKeys.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $apiKey;
 	}
-	
+
 	public function deleteUser($userID){
 		/*--
 		Assume the following for this function
@@ -210,13 +202,10 @@ class apiKeys {
 		2) User calling this function has been validated and has permission to perform this action.
 		This function does not perform this validation so as to not do it every time.
 		--*/
-		
-		// Prep for Database
-		$db = new Database();
-		$dbUserID = $db->escape($userID);
-		
+
 		// Delete API Keys for this userID
-		$db->query("DELETE FROM api_keys WHERE userID='$dbUserID'");
+		$db = new Database();
+		$db->query("DELETE FROM api_keys WHERE userID=?", [$userID]);
 		if($db->error){
 			// Database Error
 			$this->error = true;

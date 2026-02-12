@@ -115,11 +115,11 @@ class Location {
 			// Which brewer is this beer currently associated with?
 			if($method == 'PUT' || $method == 'PATCH'){
 				// Get the brewerID currenlty associated with this beer
-				$dbLocationID = $db->escape($this->locationID);
-				$db->query("SELECT brewerID FROM location WHERE id='$dbLocationID'");
-				if($db->result->num_rows > 0){
+				$result = $db->query("SELECT brewerID FROM location WHERE id=?", [$this->locationID]);
+				if($result->num_rows > 0){
 					// Brewer currently associated with this beer
-					$permissionsBrewerID = $db->singleResult('brewerID');
+					$row = $result->fetch_assoc();
+					$permissionsBrewerID = $row['brewerID'];
 				}else{
 					// No brewer currently associated with this beer (e.g. PUT)
 					$permissionsBrewerID = $this->brewerID;
@@ -157,9 +157,8 @@ class Location {
 					if(!$newLocation){
 						// Attempting to PUT or PATCH existing Location
 						// Get cb_verified and brewer_verified flags
-						$dbLocationID = $db->escape($this->locationID);
-						$db->query("SELECT cbVerified, brewerVerified FROM location WHERE id='$dbLocationID'");
-						$resultArray = $db->resultArray();
+						$result = $db->query("SELECT cbVerified, brewerVerified FROM location WHERE id=?", [$this->locationID]);
+						$resultArray = $result->fetch_assoc();
 						$cbVerified = $resultArray['cbVerified'];
 						$brewerVerified = $resultArray['brewerVerified'];
 
@@ -275,31 +274,27 @@ class Location {
 					// Last Modified
 					$this->lastModified = time();
 
-					// Prep for Database
-					$dbLocationID = $db->escape($this->locationID);
-					$dbBrewerID = $db->escape($this->brewerID);
-					$dbName = $db->escape($this->name);
-					$dbURL = $db->escape($this->url);
-					$dbCC = $db->escape($this->countryCode);
-					$dbLastModified = $db->escape($this->lastModified);
-
 					// SQL Query
 					if($newLocation){
 						// Add Location (POST/PUT)
-						$urlSQL1 = '';
-						$urlSQL2 = '';
+						$columns = ['id', 'brewerID', 'name', 'countryCode', 'cbVerified', 'brewerVerified', 'lastModified'];
+						$params = [$this->locationID, $this->brewerID, $this->name, $this->countryCode, $dbCBV, $dbBV, $this->lastModified];
 						if(!empty($this->url)){
-							$urlSQL1 = ", url";
-							$urlSQL2 = ", '$dbURL'";
+							$columns[] = 'url';
+							$params[] = $this->url;
 						}
-						$sql = "INSERT INTO location (id, brewerID, name, countryCode, cbVerified, brewerVerified, lastModified" . $urlSQL1 . ") VALUES ('$dbLocationID', '$dbBrewerID', '$dbName', '$dbCC', $dbCBV, $dbBV, $dbLastModified" . $urlSQL2 . ")";
+						$placeholders = implode(', ', array_fill(0, count($columns), '?'));
+						$sql = "INSERT INTO location (" . implode(', ', $columns) . ") VALUES ($placeholders)";
 					}else{
 						// Update Location (PUT)
-						$urlSQL = '';
+						$setClauses = ['brewerID=?', 'name=?', 'countryCode=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
+						$params = [$this->brewerID, $this->name, $this->countryCode, $dbCBV, $dbBV, $this->lastModified];
 						if(!empty($this->url)){
-							$urlSQL = ", url='$dbURL'";
+							$setClauses[] = 'url=?';
+							$params[] = $this->url;
 						}
-						$sql = "UPDATE location SET brewerID='$dbBrewerID', name='$dbName', countryCode='$dbCC', cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . $urlSQL . " WHERE id='$dbLocationID'";
+						$sql = "UPDATE location SET " . implode(', ', $setClauses) . " WHERE id=?";
+						$params[] = $this->locationID;
 					}
 				}
 			}
@@ -310,13 +305,14 @@ class Location {
 				--*/
 
 				// SQL Update
-				$sqlArray = array();
+				$setClauses = array();
+				$setParams = array();
 
 				// brewerID
 				if(in_array('brewerID', $patchFields)){
 					// Validated brewerID above, and checked to ensure new, no need to re-validate
-					$dbBrewerID = $db->escape($this->brewerID);
-					$sqlArray[] = "brewerID='$dbBrewerID'";
+					$setClauses[] = 'brewerID=?';
+					$setParams[] = $this->brewerID;
 				}
 
 				// Name
@@ -327,8 +323,8 @@ class Location {
 						$this->validateName();
 						if(!$this->error){
 							$this->validState['name'] = 'valid';
-							$dbName = $db->escape($this->name);
-							$sqlArray[] = "name='$dbName'";
+							$setClauses[] = 'name=?';
+							$setParams[] = $this->name;
 						}
 					}
 				}
@@ -342,8 +338,8 @@ class Location {
 							// Valid URL
 							if(!empty($this->url)){
 								$this->validState['url'] = 'valid';
-								$dbURL = $db->escape($this->url);
-								$sqlArray[] = "url='$dbURL'";
+								$setClauses[] = 'url=?';
+								$setParams[] = $this->url;
 							}
 						}else{
 							// Invalid URL
@@ -362,40 +358,31 @@ class Location {
 						$this->countryCode = $countryCode;
 						$this->validateCC();
 						if(!$this->error){
-							$dbCC = $db->escape($this->countryCode);
-							$sqlArray[] = "countryCode='$dbCC'";
+							$setClauses[] = 'countryCode=?';
+							$setParams[] = $this->countryCode;
 						}
 					}
 				}
 
-				if(!$this->error && !empty($sqlArray)){
+				if(!$this->error && !empty($setClauses)){
 					// Last Modified
 					$this->lastModified = time();
 
-					// Prep for Database
-					$dbLocationID = $db->escape($this->locationID);
-					$dbLastModified = $db->escape($this->lastModified);
-
 					// Construct SQL Statement
-					$sql = "UPDATE location SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
-
-					$totalUpdates = count($sqlArray);
-					if($totalUpdates > 0){$sql .= ", ";}
-					$lastUpdate = $totalUpdates - 1;
-					for($i=0;$i<$totalUpdates; $i++){
-						if($i == $lastUpdate){
-							$sql .= $sqlArray[$i];
-						}else{
-							$sql .= $sqlArray[$i] . ", ";
-						}
+					$sql = "UPDATE location SET lastModified=?, cbVerified=?, brewerVerified=?";
+					$params = [$this->lastModified, $dbCBV, $dbBV];
+					if(!empty($setClauses)){
+						$sql .= ", " . implode(", ", $setClauses);
+						$params = array_merge($params, $setParams);
 					}
-					$sql .= " WHERE id='$dbLocationID'";
+					$sql .= " WHERE id=?";
+					$params[] = $this->locationID;
 				}
 			}
 
 			if(!$this->error && !empty($sql)){
 				// Update Database
-				$db->query($sql);
+				$db->query($sql, $params);
 				if(!$db->error){
 					if($newLocation){
 						// Successfully Added
@@ -521,20 +508,17 @@ class Location {
 		$locationID = trim($locationID ?? '');
 
 		if(!empty($locationID)){
-			// Prep for Database
-			$db = new Database();
-			$dbLocationID = $db->escape($locationID);
-
 			// Query
-			$db->query("SELECT brewerID, name, url, countryCode, latitude, longitude, cbVerified, brewerVerified, lastModified FROM location WHERE id='$dbLocationID'");
+			$db = new Database();
+			$result = $db->query("SELECT brewerID, name, url, countryCode, latitude, longitude, cbVerified, brewerVerified, lastModified FROM location WHERE id=?", [$locationID]);
 			if(!$db->error){
-				if($db->result->num_rows == 1){
+				if($result->num_rows == 1){
 					// Valid Location
 					$valid = true;
 
 					// Save to Class?
 					if($saveToClass){
-						$array = $db->resultArray();
+						$array = $result->fetch_assoc();
 						$this->locationID = $locationID;
 						$this->brewerID = $array['brewerID'];
 						$this->name = stripcslashes($array['name']);
@@ -549,7 +533,7 @@ class Location {
 						}
 						$this->lastModified = intval($array['lastModified']);
 					}
-				}elseif($db->result->num_rows > 1){
+				}elseif($result->num_rows > 1){
 					// Too Many Rows
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
@@ -611,12 +595,11 @@ class Location {
 		// Validate BrewerID
 		$brewer = new Brewer();
 		if($brewer->validate($brewerID, false)){
-			// Prep for Database
+			// Query Database
 			$db = new Database();
-			$dbBrewerID = $db->escape($brewerID);
-			$db->query("SELECT id, name FROM location WHERE brewerID='$dbBrewerID' ORDER BY name");
+			$result = $db->query("SELECT id, name FROM location WHERE brewerID=? ORDER BY name", [$brewerID]);
 			if(!$db->error){
-				while($array = $db->resultArray()){
+				while($array = $result->fetch_assoc()){
 					$locationInfo = array('id'=>$array['id'], 'name'=>$array['name']);
 					$locationArray[] = $locationInfo;
 				}
@@ -834,10 +817,9 @@ class Location {
 
 				// Query Database
 				// Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
-				$db->query("SELECT id, brewerID, name, url, countryCode, latitude, longitude, (2 * $radius * ASIN(SQRT(SIN((RADIANS(latitude-$latitude))/2) * SIN((RADIANS(latitude-$latitude))/2) + COS(RADIANS($latitude)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-$longitude)/2) * SIN((RADIANS(longitude-$longitude))/2))))) AS distance FROM location HAVING distance < $searchRadius ORDER BY distance LIMIT $offset, $count");
-				//$db->query("SELECT id, brewerID, name, url, countryCode, latitude, longitude FROM location ORDER BY id LIMIT $offset, $count");
+				$result = $db->query("SELECT id, brewerID, name, url, countryCode, latitude, longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(latitude-?))/2) * SIN((RADIANS(latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-?)/2) * SIN((RADIANS(longitude-?))/2))))) AS distance FROM location HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $count]);
 				if(!$db->error){
-					while($array = $db->resultArray()){
+					while($array = $result->fetch_assoc()){
 						// Get Brewery Info
 						$brewer->validate($array['brewerID'], true);
 
@@ -855,8 +837,8 @@ class Location {
 					}
 
 					// Next Cursor
-					$db->query("SELECT id, (2 * $radius * ASIN(SQRT(SIN((RADIANS(latitude-$latitude))/2) * SIN((RADIANS(latitude-$latitude))/2) + COS(RADIANS($latitude)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-$longitude)/2) * SIN((RADIANS(longitude-$longitude))/2))))) AS distance FROM location HAVING distance < $searchRadius ORDER BY distance LIMIT $offset, 10000");
-					$numResults = $db->result->num_rows;
+					$countResult = $db->query("SELECT id, (2 * ? * ASIN(SQRT(SIN((RADIANS(latitude-?))/2) * SIN((RADIANS(latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-?)/2) * SIN((RADIANS(longitude-?))/2))))) AS distance FROM location HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, 10000]);
+					$numResults = $countResult->num_rows;
 					$nextCursor = $this->nextCursor($cursor, $count, $numResults);
 					$db->close();
 				}else{
@@ -893,9 +875,9 @@ class Location {
 
 		// Query Database
 		$db = new Database();
-		$db->query("SELECT COUNT('id') AS numLocations FROM location");
+		$result = $db->query("SELECT COUNT('id') AS numLocations FROM location");
 		if(!$db->error){
-			$array = $db->resultArray();
+			$array = $result->fetch_assoc();
 			return intval($array['numLocations']);
 		}else{
 			// Query Error
@@ -921,8 +903,7 @@ class Location {
 			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
 				// Delete Location
 				$db = new Database();
-				$dbLocationID = $db->escape($locationID);
-				$db->query("DELETE FROM location WHERE id='$dbLocationID'");
+				$db->query("DELETE FROM location WHERE id=?", [$locationID]);
 				if($db->error){
 					// Database Error
 					$this->error = true;
@@ -953,9 +934,7 @@ class Location {
 			// Update Last Modified Timestamp
 			$db = new Database();
 			$this->lastModified = time();
-			$dbLastModified = $db->escape($this->lastModified);
-			$dbLocationID = $db->escape($locationID);
-			$db->query("UPDATE location SET lastModified=$dbLastModified WHERE id='$dbLocationID'");
+			$db->query("UPDATE location SET lastModified=? WHERE id=?", [$this->lastModified, $locationID]);
 			if($db->error){
 				// Database Error
 				$this->error = true;
@@ -1024,14 +1003,9 @@ class Location {
 
 					// Add to Database
 					if($this->validate($locationID, false)){
-						// Valid Location, Prep for Database
+						// Valid Location, Update Database
 						$db = new Database();
-						$dbLocationID = $db->escape($locationID);
-						$dbLatitude = $db->escape($this->latitude);
-						$dbLongitude = $db->escape($this->longitude);
-
-						// Update Query
-						$db->query("UPDATE location SET latitude='$dbLatitude', longitude='$dbLongitude' WHERE id='$dbLocationID'");
+						$db->query("UPDATE location SET latitude=?, longitude=? WHERE id=?", [$this->latitude, $this->longitude, $locationID]);
 						if($db->error){
 							// Database Error
 							$this->error = true;

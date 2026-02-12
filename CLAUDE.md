@@ -39,7 +39,6 @@ Entity classes (`Beer`, `Brewer`, `Location`, `Users`) share a consistent struct
 
 **Properties:**
 - Entity fields (e.g., `$brewerID`, `$name`)
-- Database-prefixed fields (e.g., `$dbBrewerID`) used during SQL operations
 - Error state: `$error` (bool), `$errorMsg` (string), `$validState` (bool), `$validMsg` (string array)
 - Response: `$responseCode` (int), `$responseHeader` (string), `$json` (array)
 
@@ -65,13 +64,20 @@ Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is 
 All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number.
 
 ### Database Access
-`Database.class.php` wraps mysqli. Key methods:
-- `query($sql)` — Execute query, returns result
-- `escape($string)` — Escape for SQL (uses `real_escape_string`)
-- `resultArray($result)` — Fetch all rows as array
-- `singleResult($result)` — Fetch single row
+`Database.class.php` wraps mysqli with prepared statements. Key methods:
+- `query(string $sql, array $params = []): ?mysqli_result` — Prepare and execute a query with `?` placeholders; auto-detects param types (`i` for int, `d` for float, `s` for string); returns `mysqli_result` or `null` on error
+- `getInsertId(): int` — Returns the last insert ID
+- `getConnection(): mysqli` — Returns the underlying mysqli connection
+- `close()` — Closes the database connection
 
-SQL is built as concatenated strings (not prepared statements). Database credentials are loaded from `common/passwords.php` (gitignored).
+All queries use parameterized `?` placeholders. Table names cannot be parameterized and are validated via whitelists where dynamic (e.g., `uuid.class.php`). Database credentials are loaded from `common/passwords.php` (gitignored) via constants `DB_HOST`, `DB_USER`, `DB_NAME`, `DB_PASSWORD`.
+
+**Query patterns:**
+- Single row: `$result = $db->query("SELECT ... WHERE id=?", [$id]); $row = $result->fetch_assoc();`
+- Loop: `$result = $db->query("SELECT ..."); while($row = $result->fetch_assoc()) { ... }`
+- INSERT/UPDATE/DELETE: `$db->query("INSERT INTO t (...) VALUES (?, ?)", [$a, $b]);`
+- Dynamic PATCH: Build `$setClauses[]` and `$setParams[]` parallel arrays, then `implode(', ', $setClauses)`
+- Optional INSERT fields: Build `$columns[]` and `$params[]` arrays, add optional fields conditionally
 
 ## API Endpoints
 

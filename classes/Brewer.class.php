@@ -59,11 +59,11 @@ class Brewer {
 					$this->brewerID = $brewerID;
 
 					// Get Brewer domain name for brewerVerified by querying database
-					$dbBrewerID = $db->escape($brewerID);
-					$db->query("SELECT domainName FROM brewer WHERE id='$dbBrewerID'");
+					$result = $db->query("SELECT domainName FROM brewer WHERE id=?", [$brewerID]);
 					if(!$db->error){
 						// Save Domain Name
-						$this->domainName = $db->singleResult('domainName');
+						$row = $result->fetch_assoc();
+						$this->domainName = $row['domainName'];
 					}else{
 						// Database Error
 						$this->error = true;
@@ -132,9 +132,8 @@ class Brewer {
 					if(!$newBrewer){
 						// Attempting to PUT or PATCH existing Brewery
 						// Get cb_verified and brewer_verified flags
-						$dbBrewerID = $db->escape($this->brewerID);
-						$db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id='$dbBrewerID'");
-						$resultArray = $db->resultArray();
+						$result = $db->query("SELECT cbVerified, brewerVerified FROM brewer WHERE id=?", [$this->brewerID]);
+						$resultArray = $result->fetch_assoc();
 						$cbVerified = $resultArray['cbVerified'];
 						$brewerVerified = $resultArray['brewerVerified'];
 
@@ -261,8 +260,8 @@ class Brewer {
 		// ----- Validate Fields -----
 		// Don't waste processing resources if there's been an error in the steps above.
 		if(!$this->error){
-			// Default SQL
-			$sql = '';
+			// Track whether we should run the query
+			$runQuery = false;
 
 			if($method == 'POST' || $method == 'PUT'){
 				// Validate Name
@@ -284,52 +283,53 @@ class Brewer {
 				$this->validateShortDescription();
 
 				if(!$this->error){
-					// Escape for Database
-					$dbBrewerID = $db->escape($this->brewerID);
-					$dbName = $db->escape($this->name);
-					$dbDescription = $db->escape($this->description);
-					$dbShortDescription = $db->escape($this->shortDescription);
-					$dbURL = $db->escape($this->url);
-					$dbDomainName = $db->escape($this->domainName);
 					$this->lastModified = time();
-					$dbLastModified = $db->escape($this->lastModified);
 
 					// Construct SQL Statement
 					if($newBrewer){
 						// Add Brewer (POST/PUT)
-						$columns = '';
-						$values = ") VALUES ('$dbBrewerID', '$dbName', $dbCBV, $dbBV, $dbLastModified, ";
-						if(!empty($dbDescription)){
-							$columns .= 'description, ';
-							$values .= "'$dbDescription', ";
+						$columns = ['id', 'name', 'cbVerified', 'brewerVerified', 'lastModified'];
+						$params = [$this->brewerID, $this->name, $dbCBV, $dbBV, $this->lastModified];
+						if(!empty($this->description)){
+							$columns[] = 'description';
+							$params[] = $this->description;
 						}
-						if(!empty($dbShortDescription)){
-							$columns .= 'shortDescription, ';
-							$values .= "'$dbShortDescription', ";
+						if(!empty($this->shortDescription)){
+							$columns[] = 'shortDescription';
+							$params[] = $this->shortDescription;
 						}
-						if(!empty($dbURL)){
-							$columns .= 'url, domainName, ';
-							$values .= "'$dbURL', '$dbDomainName', ";
+						if(!empty($this->url)){
+							$columns[] = 'url';
+							$params[] = $this->url;
+							$columns[] = 'domainName';
+							$params[] = $this->domainName;
 						}
-						if(!empty($columns)){
-							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified, " . substr($columns, 0, strlen($columns)-2) . substr($values, 0, strlen($values)-2) . ")";
-						}else{
-							$sql = "INSERT INTO brewer (id, name, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
-						}
+						$placeholders = implode(', ', array_fill(0, count($columns), '?'));
+						$sql = "INSERT INTO brewer (" . implode(', ', $columns) . ") VALUES ($placeholders)";
+						$db->query($sql, $params);
 					}else{
 						// Update Brewer (PUT)
-						$sqlUpdate = '';
-						if(!empty($dbDescription)){
-							$sqlUpdate .= "description='$dbDescription', ";
+						$setClauses = ['name=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
+						$setParams = [$this->name, $dbCBV, $dbBV, $this->lastModified];
+						if(!empty($this->description)){
+							$setClauses[] = 'description=?';
+							$setParams[] = $this->description;
 						}
-						if(!empty($dbShortDescription)){
-							$sqlUpdate .= "shortDescription='$dbShortDescription', ";
+						if(!empty($this->shortDescription)){
+							$setClauses[] = 'shortDescription=?';
+							$setParams[] = $this->shortDescription;
 						}
-						if(!empty($dbURL)){
-							$sqlUpdate .= "url='$dbURL', domainName='$dbDomainName', ";
+						if(!empty($this->url)){
+							$setClauses[] = 'url=?';
+							$setParams[] = $this->url;
+							$setClauses[] = 'domainName=?';
+							$setParams[] = $this->domainName;
 						}
-						$sql = "UPDATE brewer SET name='$dbName', cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified, " . substr($sqlUpdate, 0, strlen($sqlUpdate)-2) . " WHERE id='$dbBrewerID'";
+						$sql = "UPDATE brewer SET " . implode(', ', $setClauses) . " WHERE id=?";
+						$setParams[] = $this->brewerID;
+						$db->query($sql, $setParams);
 					}
+					$runQuery = true;
 				}
 			}elseif($method == 'PATCH'){
 				/*--
@@ -338,7 +338,8 @@ class Brewer {
 				--*/
 
 				// SQL Update
-				$sqlArray = array();
+				$setClauses = array();
+				$setParams = array();
 
 				// Validate Name
 				if(in_array('name', $patchFields)){
@@ -347,8 +348,8 @@ class Brewer {
 						$this->name = $name;
 						$this->validateName();
 						if(!$this->error){
-							$dbName = $db->escape($this->name);
-							$sqlArray[] = "name='$dbName'";
+							$setClauses[] = "name=?";
+							$setParams[] = $this->name;
 						}
 					}
 				}
@@ -358,9 +359,10 @@ class Brewer {
 					if($url != $this->url){
 						$this->url = $this->validateURL($url, 'url', 'brewer');
 						if(!$this->error){
-							$dbURL = $db->escape($this->url);
-							$dbDomainName = $db->escape($this->domainName);
-							$sqlArray[] = "url='$dbURL', domainName='$dbDomainName'";
+							$setClauses[] = "url=?";
+							$setParams[] = $this->url;
+							$setClauses[] = "domainName=?";
+							$setParams[] = $this->domainName;
 						}
 					}
 				}
@@ -371,8 +373,8 @@ class Brewer {
 						$this->description = $description;
 						$this->validateDescription();
 						if(!$this->error){
-							$dbDescription = $db->escape($this->description);
-							$sqlArray[] = "description='$dbDescription'";
+							$setClauses[] = "description=?";
+							$setParams[] = $this->description;
 						}
 					}
 				}
@@ -383,37 +385,28 @@ class Brewer {
 						$this->shortDescription = $shortDescription;
 						$this->validateShortDescription();
 						if(!$this->error){
-							$dbShortDescription = $db->escape($this->shortDescription);
-							$sqlArray[] = "shortDescription='$dbShortDescription'";
+							$setClauses[] = "shortDescription=?";
+							$setParams[] = $this->shortDescription;
 						}
 					}
 				}
 
-				if(!$this->error && !empty($sqlArray)){
-					// Prep for Database
-					$dbBrewerID = $db->escape($this->brewerID);
-					$dbLastModified = $db->escape(time());
-
-					// Construct SQL Statement
-					$sql = "UPDATE brewer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
-
-					$totalUpdates = count($sqlArray);
-					if($totalUpdates > 0){$sql .= ", ";}
-					$lastUpdate = $totalUpdates - 1;
-					for($i=0;$i<$totalUpdates; $i++){
-						if($i == $lastUpdate){
-							$sql .= $sqlArray[$i];
-						}else{
-							$sql .= $sqlArray[$i] . ", ";
-						}
+				if(!$this->error && !empty($setClauses)){
+					$this->lastModified = time();
+					$sql = "UPDATE brewer SET lastModified=?, cbVerified=?, brewerVerified=?";
+					$params = [$this->lastModified, $dbCBV, $dbBV];
+					if(!empty($setClauses)){
+						$sql .= ", " . implode(", ", $setClauses);
+						$params = array_merge($params, $setParams);
 					}
-					$sql .= " WHERE id='$dbBrewerID'";
+					$sql .= " WHERE id=?";
+					$params[] = $this->brewerID;
+					$db->query($sql, $params);
+					$runQuery = true;
 				}
 			}
 
-			if(!$this->error && !empty($sql)){
-				// Query
-				$db->query($sql);
+			if($runQuery){
 				if(!$db->error){
 					// Successful database operation
 					if($newBrewer){
@@ -720,11 +713,11 @@ class Brewer {
 
 				// Check for Duplicate Domain Names
 				$db = new Database();
-				$dbDomainName = $db->escape($urlDomainName);
-				$db->query("SELECT id FROM brewer WHERE domainName='$dbDomainName'");
-				if($db->result->num_rows == 1){
+				$result = $db->query("SELECT id FROM brewer WHERE domainName=?", [$urlDomainName]);
+				if($result->num_rows == 1){
 					// Get brewerID
-					$brewerID = $db->singleResult('id');
+					$row = $result->fetch_assoc();
+					$brewerID = $row['id'];
 
 					if($brewerID == $this->brewerID){
 						// They may be updating their brewery URL, no duplicate will be created
@@ -832,16 +825,15 @@ class Brewer {
 		if(!empty($brewerID)){
 			// Prep for Database
 			$db = new Database();
-			$dbBrewerID = $db->escape($brewerID);
-			$db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, lastModified FROM brewer WHERE id='$dbBrewerID'");
+			$result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, lastModified FROM brewer WHERE id=?", [$brewerID]);
 			if(!$db->error){
-				if($db->result->num_rows == 1){
+				if($result->num_rows == 1){
 					// Valid
 					$valid = true;
 
 					if($saveToClass){
 						// Get Result Array
-						$array = $db->resultArray();
+						$array = $result->fetch_assoc();
 
 						// Save to Class
 						$this->brewerID = $brewerID;
@@ -866,7 +858,7 @@ class Brewer {
 							$this->brewerVerified = true;
 						}
 					}
-				}elseif($db->result->num_rows > 1){
+				}elseif($result->num_rows > 1){
 					// Unexpected number of results
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
@@ -995,9 +987,9 @@ class Brewer {
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
-			$db->query("SELECT id, name FROM brewer ORDER BY name LIMIT $offset, $count");
+			$result = $db->query("SELECT id, name FROM brewer ORDER BY name LIMIT ?, ?", [$offset, $count]);
 			if(!$db->error){
-				while($array = $db->resultArray()){
+				while($array = $result->fetch_assoc()){
 					$brewerInfo = array('id'=>$array['id'], 'name'=>$array['name']);
 					$brewerArray[] = $brewerInfo;
 				}
@@ -1043,9 +1035,9 @@ class Brewer {
 
 		// Query Database
 		$db = new Database();
-		$db->query("SELECT COUNT('id') AS numBrewers FROM brewer");
+		$result = $db->query("SELECT COUNT('id') AS numBrewers FROM brewer");
 		if(!$db->error){
-			$array = $db->resultArray();
+			$array = $result->fetch_assoc();
 			return intval($array['numBrewers']);
 		}else{
 			// Query Error
@@ -1071,8 +1063,7 @@ class Brewer {
 			if($users->admin || in_array($brewerID, $brewerPrivilegesList)){
 				// Delete Brewer
 				$db = new Database();
-				$dbBrewerID = $db->escape($brewerID);
-				$db->query("DELETE FROM brewer WHERE id='$dbBrewerID'");
+				$db->query("DELETE FROM brewer WHERE id=?", [$brewerID]);
 				if($db->error){
 					// Database Error
 					$this->error = true;

@@ -14,8 +14,8 @@ $brewer_count = 0;
 $location_count = 0;
 
 // Beer
-$db->query("SELECT id FROM beer");
-while($array = $db->resultArray()){
+$result = $db->query("SELECT id FROM beer");
+while($array = $result->fetch_assoc()){
   $algolia_id = $algolia->add('beer', $array['id']);
   if(!$algolia->error){
 	$beer_count++;
@@ -26,8 +26,8 @@ while($array = $db->resultArray()){
 echo "$beer_count Beers added...\n";
 
 // Brewer
-$db->query("SELECT id FROM brewer");
-while($array = $db->resultArray()){
+$result = $db->query("SELECT id FROM brewer");
+while($array = $result->fetch_assoc()){
   $algolia_id = $algolia->add('brewer', $array['id']);
   if(!$algolia->error){
 	$brewer_count++;
@@ -38,8 +38,8 @@ while($array = $db->resultArray()){
 echo "$brewer_count Brewers added...\n";
 
 // Location
-$db->query("SELECT id FROM location");
-while($array = $db->resultArray()){
+$result = $db->query("SELECT id FROM location");
+while($array = $result->fetch_assoc()){
   $algolia_id = $algolia->add('location', $array['id']);
   if(!$algolia->error){
 	$location_count++;

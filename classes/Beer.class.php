@@ -116,11 +116,11 @@ class Beer {
 			// Which brewer is this beer currently associated with?
 			if($method == 'PUT' || $method == 'PATCH'){
 				// Get the brewerID currenlty associated with this beer
-				$dbBeerID = $db->escape($this->beerID);
-				$db->query("SELECT brewerID FROM beer WHERE id='$dbBeerID'");
-				if($db->result->num_rows > 0){
+				$result = $db->query("SELECT brewerID FROM beer WHERE id=?", [$this->beerID]);
+				if($result->num_rows > 0){
 					// Brewer currently associated with this beer
-					$permissionsBrewerID = $db->singleResult('brewerID');
+					$row = $result->fetch_assoc();
+					$permissionsBrewerID = $row['brewerID'];
 				}else{
 					// No brewer currently associated with this beer (e.g. PUT)
 					$permissionsBrewerID = $this->brewerID;
@@ -158,9 +158,8 @@ class Beer {
 					if(!$newBeer){
 						// Attempting to PUT or PATCH existing Beer
 						// Get cb_verified and brewer_verified flags
-						$dbBeerID = $db->escape($this->beerID);
-						$db->query("SELECT cbVerified, brewerVerified FROM beer WHERE id='$dbBeerID'");
-						$resultArray = $db->resultArray();
+						$result = $db->query("SELECT cbVerified, brewerVerified FROM beer WHERE id=?", [$this->beerID]);
+						$resultArray = $result->fetch_assoc();
 						$cbVerified = $resultArray['cbVerified'];
 						$brewerVerified = $resultArray['brewerVerified'];
 
@@ -264,49 +263,38 @@ class Beer {
 				$this->validateIBU();
 
 				if(!$this->error){
-					// Prep for Database
-					$dbBeerID = $db->escape($this->beerID);
-					$dbBrewerID = $db->escape($this->brewerID);
-					$dbName = $db->escape($this->name);
-					$dbStyle = $db->escape($this->style);
-					$dbDescription = $db->escape($this->description);
-					$dbABV = $db->escape($this->abv);
-					$dbIBU = $db->escape($this->ibu);
-
 					$this->lastModified = time();
-					$dbLastModified = $db->escape($this->lastModified);
 
 					// Construct SQL Statement
 					if($newBeer){
 						// Add Beer (POST/PUT)
-						$columns = '';
-						$values = ") VALUES ('$dbBeerID', '$dbBrewerID', '$dbName', '$dbStyle', $dbABV, $dbCBV, $dbBV, $dbLastModified, ";
-						if(!empty($dbDescription)){
-							$columns .= 'description, ';
-							$values .= "'$dbDescription', ";
+						$columns = ['id', 'brewerID', 'name', 'style', 'abv', 'cbVerified', 'brewerVerified', 'lastModified'];
+						$params = [$this->beerID, $this->brewerID, $this->name, $this->style, $this->abv, $dbCBV, $dbBV, $this->lastModified];
+						if(!empty($this->description)){
+							$columns[] = 'description';
+							$params[] = $this->description;
 						}
-						if(!empty($dbIBU)){
-							$columns .= 'ibu, ';
-							$values .= "$dbIBU, ";
+						if(!empty($this->ibu)){
+							$columns[] = 'ibu';
+							$params[] = $this->ibu;
 						}
-						if(!empty($columns)){
-							$sql = "INSERT INTO beer (id, brewerID, name, style, abv, cbVerified, brewerVerified, lastModified, " . substr($columns, 0, strlen($columns)-2) . substr($values, 0, strlen($values)-2) . ")";
-						}else{
-							$sql = "INSERT INTO beer (id, brewerID, name, style, abv, cbVerified, brewerVerified, lastModified" . substr($values, 0, strlen($values)-2) . ")";
-						}
+						$placeholders = implode(', ', array_fill(0, count($columns), '?'));
+						$sql = "INSERT INTO beer (" . implode(', ', $columns) . ") VALUES ($placeholders)";
 					}else{
 						// Update Beer (PUT)
-						$sqlUpdate = '';
-						if(!empty($dbDescription)){
-							$sqlUpdate .= "description='$dbDescription', ";
+						$setClauses = ['brewerID=?', 'name=?', 'style=?', 'abv=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
+						$setParams = [$this->brewerID, $this->name, $this->style, $this->abv, $dbCBV, $dbBV, $this->lastModified];
+						if(!empty($this->description)){
+							$setClauses[] = 'description=?';
+							$setParams[] = $this->description;
 						}
-						if(!empty($dbIBU)){
-							$sqlUpdate .= "ibu=$dbIBU, ";
+						if(!empty($this->ibu)){
+							$setClauses[] = 'ibu=?';
+							$setParams[] = $this->ibu;
 						}
-						if(!empty($sqlUpdate)){
-							$sqlUpdate = ', ' . substr($sqlUpdate, 0, strlen($sqlUpdate)-2);
-						}
-						$sql = "UPDATE beer SET brewerID='$dbBrewerID', name='$dbName', style='$dbStyle', abv=$dbABV, cbVerified=$dbCBV, brewerVerified=$dbBV, lastModified=$dbLastModified" . $sqlUpdate . " WHERE id='$dbBeerID'";
+						$sql = "UPDATE beer SET " . implode(', ', $setClauses) . " WHERE id=?";
+						$setParams[] = $this->beerID;
+						$params = $setParams;
 					}
 				}
 			}elseif($method == 'PATCH'){
@@ -316,12 +304,13 @@ class Beer {
 				--*/
 
 				// SQL Update
-				$sqlArray = array();
+				$setClauses = array();
+				$setParams = array();
 
 				// brewerID
 				if(in_array('brewerID', $patchFields)){
-					$dbBrewerID = $db->escape($this->brewerID);
-					$sqlArray[] = "brewerID='$dbBrewerID'";
+					$setClauses[] = "brewerID=?";
+					$setParams[] = $this->brewerID;
 				}
 
 				// Validate Name
@@ -331,8 +320,8 @@ class Beer {
 						$this->name = $name;
 						$this->validateName();
 						if(!$this->error){
-							$dbName = $db->escape($this->name);
-							$sqlArray[] = "name='$dbName'";
+							$setClauses[] = "name=?";
+							$setParams[] = $this->name;
 						}
 					}
 				}
@@ -344,8 +333,8 @@ class Beer {
 						$this->style = $style;
 						$this->validateStyle();
 						if(!$this->error){
-							$dbStyle = $db->escape($this->style);
-							$sqlArray[] = "style='$dbStyle'";
+							$setClauses[] = "style=?";
+							$setParams[] = $this->style;
 						}
 					}
 				}
@@ -357,8 +346,8 @@ class Beer {
 						$this->description = $description;
 						$this->validateDescription();
 						if(!$this->error){
-							$dbDescription = $db->escape($this->description);
-							$sqlArray[] = "description='$dbDescription'";
+							$setClauses[] = "description=?";
+							$setParams[] = $this->description;
 						}
 					}
 				}
@@ -370,8 +359,8 @@ class Beer {
 						$this->abv = $abv;
 						$this->validateABV();
 						if(!$this->error){
-							$dbABV = $db->escape($this->abv);
-							$sqlArray[] = "abv=$dbABV";
+							$setClauses[] = "abv=?";
+							$setParams[] = $this->abv;
 						}
 					}
 				}
@@ -383,38 +372,31 @@ class Beer {
 						$this->ibu = $ibu;
 						$this->validateIBU();
 						if(!$this->error){
-							$dbIBU = $db->escape($this->ibu);
-							$sqlArray[] = "ibu=$dbIBU";
+							$setClauses[] = "ibu=?";
+							$setParams[] = $this->ibu;
 						}
 					}
 				}
 
-				if(!$this->error && !empty($sqlArray)){
+				if(!$this->error && !empty($setClauses)){
 					// Prep for Database
 					$this->lastModified = time();
-					$dbLastModified = $db->escape($this->lastModified);
-					$dbBeerID = $db->escape($this->beerID);
 
 					// Construct SQL Statement
-					$sql = "UPDATE beer SET lastModified=$dbLastModified, cbVerified=$dbCBV, brewerVerified=$dbBV";
-
-					$totalUpdates = count($sqlArray);
-					if($totalUpdates > 0){$sql .= ", ";}
-					$lastUpdate = $totalUpdates - 1;
-					for($i=0;$i<$totalUpdates; $i++){
-						if($i == $lastUpdate){
-							$sql .= $sqlArray[$i];
-						}else{
-							$sql .= $sqlArray[$i] . ", ";
-						}
+					$sql = "UPDATE beer SET lastModified=?, cbVerified=?, brewerVerified=?";
+					$params = [$this->lastModified, $dbCBV, $dbBV];
+					if(!empty($setClauses)){
+						$sql .= ", " . implode(", ", $setClauses);
+						$params = array_merge($params, $setParams);
 					}
-					$sql .= " WHERE id='$dbBeerID'";
+					$sql .= " WHERE id=?";
+					$params[] = $this->beerID;
 				}
 			}
 
 			if(!$this->error && !empty($sql)){
 				// Query
-				$db->query($sql);
+				$db->query($sql, $params);
 				if(!$db->error){
 					// Successful database operation
 					if($newBeer){
@@ -647,15 +629,14 @@ class Beer {
 		if(!empty($beerID)){
 			// Prep for Database
 			$db = new Database();
-			$dbBeerID = $db->escape($beerID);
-			$db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id='$dbBeerID'");
+			$result = $db->query("SELECT brewerID, name, style, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id=?", [$beerID]);
 			if(!$db->error){
-				if($db->result->num_rows == 1){
+				if($result->num_rows == 1){
 					// Valid Result
 					$valid = true;
 
 					if($saveToClass){
-						$array = $db->resultArray();
+						$array = $result->fetch_assoc();
 
 						$this->beerID = $beerID;
 						$this->brewerID = $array['brewerID'];
@@ -680,7 +661,7 @@ class Beer {
 							$this->brewerVerified = false;
 						}
 					}
-				}elseif($db->result->num_rows > 1){
+				}elseif($result->num_rows > 1){
 					// Duplicate Results
 					$this->error = true;
 					$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
@@ -798,10 +779,9 @@ class Beer {
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
-			$brewer = new Brewer();
-			$db->query("SELECT id, name FROM beer ORDER BY name LIMIT $offset, $count");
+			$result = $db->query("SELECT id, name FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
 			if(!$db->error){
-				while($array = $db->resultArray()){
+				while($array = $result->fetch_assoc()){
 					// Brewer Info
 					$beerInfo = array('id'=>$array['id'], 'name'=>$array['name']);
 					$beerArray[] = $beerInfo;
@@ -842,9 +822,9 @@ class Beer {
 
 		// Query Database
 		$db = new Database();
-		$db->query("SELECT COUNT('id') AS numBeers FROM beer");
+		$result = $db->query("SELECT COUNT('id') AS numBeers FROM beer");
 		if(!$db->error){
-			$array = $db->resultArray();
+			$array = $result->fetch_assoc();
 			return intval($array['numBeers']);
 		}else{
 			// Query Error
@@ -878,13 +858,12 @@ class Beer {
 
 				// Prep for Query
 				$db = new Database();
-				$dbBrewerID = $db->escape($brewerID);
-				$db->query("SELECT id, name, style FROM beer WHERE brewerID='$dbBrewerID' ORDER BY name");
+				$result = $db->query("SELECT id, name, style FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
 				if(!$db->error){
-					if($db->result->num_rows >= 1){
+					if($result->num_rows >= 1){
 						// Has Beers associated with it
 						$i=0;
-						while($array = $db->resultArray()){
+						while($array = $result->fetch_assoc()){
 							$beerInfo['data'][$i]['id'] = $array['id'];
 							$beerInfo['data'][$i]['name'] = $array['name'];
 							$beerInfo['data'][$i]['style'] = $array['style'];
@@ -931,8 +910,7 @@ class Beer {
 			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
 				// Delete Beer
 				$db = new Database();
-				$dbBeerID = $db->escape($beerID);
-				$db->query("DELETE FROM beer WHERE id='$dbBeerID'");
+				$db->query("DELETE FROM beer WHERE id=?", [$beerID]);
 				if($db->error){
 					// Database Error
 					$this->error = true;

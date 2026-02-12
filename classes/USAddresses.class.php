@@ -3,14 +3,14 @@ class USAddresses {
 
 	// Properties
 	public $locationID = '';	// Required
-	public $address1 = '';		
+	public $address1 = '';
 	public $address2 = '';		// Required
 	public $city = '';			// City + Sub Code OR zip5
 	public $sub_code = '';		// City + Sub Code OR zip5
 	public $stateShort = '';
 	public $stateLong = '';
 	public $zip5 = 0;			// City + Sub Code OR zip5
-	public $zip4 = 0;			
+	public $zip4 = 0;
 	public $telephone = 0;
 
 	// Error Handling
@@ -30,7 +30,7 @@ class USAddresses {
 		$location = new Location();
 		$privileges = new Privileges();
 		$users = new Users();
-		
+
 		// Validate Location
 		if($location->validate($locationID, true)){
 			// location_id is valid, proceed
@@ -42,7 +42,7 @@ class USAddresses {
 				$addressOnFile = false;
 				$newAddress = true;
 			}
-			
+
 			// ----- Permissions Check -----
 			if($users->validate($userID, true)){
 				// Get User's Email Domain Name
@@ -50,7 +50,7 @@ class USAddresses {
 
 				// Get User Privileges
 				$userBrewerPrivileges = $privileges->brewerList($userID);
-				
+
 				// Get Brewer Domain Name
 				$brewer->validate($location->brewerID, true);
 
@@ -101,7 +101,7 @@ class USAddresses {
 				$this->errorMsg = $users->errorMsg;
 				$this->responseCode = $users->responseCode;
 			}
-			
+
 			// ----- Check Method -----
 			switch($method){
 				case 'POST':
@@ -137,8 +137,8 @@ class USAddresses {
 					}
 					break;
 			}
-			
-			
+
+
 			if(!$this->error){
 				// Save to Class
 				$this->locationID = $locationID;
@@ -149,34 +149,34 @@ class USAddresses {
 				$this->zip5 = $zip5;
 				$this->zip4 = $zip4;
 				$this->telephone = $telephone;
-				
+
 				if($method == 'POST' || $method == 'PUT'){
 					// Validate Address
 					$this->validateAddress();
 					if($this->error && $this->responseCode == 404){
-						// USPS API Not able to find address	
+						// USPS API Not able to find address
 						// Clear Error Messages
 						$this->error = false;
 						$this->responseCode = 200;
 						$this->errorMsg = null;
-										
+
 						// Try Google Places API
 						$formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
 						if(!$location->error){
 							// Latitude and Longitude Found
 							$this->latLongFound = true;
-						
-							// Parse the formatted address 
+
+							// Parse the formatted address
 							$this->parseGoogleAddressString($formattedAddress);
-							
+
 							// Retry USPS Address Validation
 							$this->validateAddress();
-							
+
 							if($this->error && $this->responseCode == 404){
 								// USPS API Failed Again, Save Google API Results
 								$this->parseGoogleAddressString($formattedAddress);
 							}
-							
+
 							// Clear Error Messages
 							$this->error = false;
 							$this->responseCode = 200;
@@ -187,69 +187,50 @@ class USAddresses {
 							$this->errorMsg = $location->errorMsg;
 							$this->responseCode = $location->responseCode;
 						}
-					}	
+					}
 
 					// Validate Telephone
 					$this->validateTelephone();
 
 					if(!$this->error){
-						// Prep for database
-						$dbLocationID = $db->escape($this->locationID);
-						$dbAddress1 = $db->escape($this->address1);
-						$dbAddress2 = $db->escape($this->address2);
-						$dbCity = $db->escape($this->city);
-						$dbSubCode = $db->escape($this->sub_code);
-						$dbZip5 = $db->escape($this->zip5);
-						$dbZip4 = $db->escape($this->zip4);
-						$dbTelephone = $db->escape($this->telephone);
-						
 						if($newAddress){
 							// Add New Address (POST/PUT)
-							$sql1 = '';
-							if(empty($dbAddress1)){
-								$sql1 .= ", null";
-							}else{
-								$sql1 .= ", '$dbAddress1'";
-							}
-							if(empty($dbZip4)){
-								$sql1 .= ", null";
-							}else{
-								$sql1 .= ", '$dbZip4'";
-							}
-							if(empty($dbTelephone)){
-								$sql1 .= ", null";
-							}else{
-								$sql1 .= ", '$dbTelephone'";
-							}
-							$sql = "INSERT INTO US_addresses (locationID, address2, city, sub_code, zip5, address1, zip4, telephone) VALUES ('$dbLocationID', '$dbAddress2', '$dbCity', '$dbSubCode', $dbZip5" . $sql1 . ")";
+							$columns = ['locationID', 'address2', 'city', 'sub_code', 'zip5', 'address1', 'zip4', 'telephone'];
+							$params = [
+								$this->locationID,
+								$this->address2,
+								$this->city,
+								$this->sub_code,
+								$this->zip5,
+								!empty($this->address1) ? $this->address1 : null,
+								!empty($this->zip4) ? $this->zip4 : null,
+								!empty($this->telephone) ? $this->telephone : null
+							];
+							$placeholders = implode(', ', array_fill(0, count($columns), '?'));
+							$sql = "INSERT INTO US_addresses (" . implode(', ', $columns) . ") VALUES ($placeholders)";
+							$db->query($sql, $params);
 						}else{
 							// Update Address (PUT)
-							$sql1 = '';
-							if(empty($dbAddress1)){
-								$sql1 .= ", address1=null";
-							}else{
-								$sql1 .= ", address1='$dbAddress1'";
-							}
-							if(empty($dbZip4)){
-								$sql1 .= ", zip4=null";
-							}else{
-								$sql1 .= ", zip4=$dbZip4";
-							}
-							if(empty($dbTelephone)){
-								$sql1 .= ", telephone=null";
-							}else{
-								$sql1 .= ", telephone=$dbTelephone";
-							}
-							$sql = "UPDATE US_addresses SET address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5=$dbZip5" . $sql1 . " WHERE locationID='$dbLocationID'";
+							$params = [
+								$this->address2,
+								$this->city,
+								$this->sub_code,
+								$this->zip5,
+								!empty($this->address1) ? $this->address1 : null,
+								!empty($this->zip4) ? $this->zip4 : null,
+								!empty($this->telephone) ? $this->telephone : null,
+								$this->locationID
+							];
+							$sql = "UPDATE US_addresses SET address2=?, city=?, sub_code=?, zip5=?, address1=?, zip4=?, telephone=? WHERE locationID=?";
+							$db->query($sql, $params);
 						}
 
-						$db->query($sql);
 						if(!$db->error){
 							// Get Latitude and Longitude
 							if(!$this->latLongFound){
 								$location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
 							}
-							
+
 							// Update Last Modified
 							$location->updateLastModified($this->locationID);
 							if($location->error){
@@ -269,7 +250,7 @@ class USAddresses {
 					// What's getting updated?
 					$patchAddress = false;
 					$patchTelephone = false;
-					
+
 					if(in_array('telephone', $patchFields)){
 						// Validate Telephone
 						$this->validateTelephone();
@@ -280,29 +261,29 @@ class USAddresses {
 						$this->validateAddress();
 						$patchAddress = true;
 						if($this->error && $this->responseCode == 404){
-							// USPS API Not able to find address	
+							// USPS API Not able to find address
 							// Clear Error Messages
 							$this->error = false;
 							$this->responseCode = 200;
 							$this->errorMsg = null;
-										
+
 							// Try Google Places API
 							$formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
 							if(!$location->error){
 								// Latitude and Longitude Found
 								$this->latLongFound = true;
-						
-								// Parse the formatted address 
+
+								// Parse the formatted address
 								$this->parseGoogleAddressString($formattedAddress);
-							
+
 								// Retry USPS Address Validation
 								$this->validateAddress();
-							
+
 								if($this->error && $this->responseCode == 404){
 									// USPS API Failed Again, Save Google API Results
 									$this->parseGoogleAddressString($formattedAddress);
 								}
-							
+
 								// Clear Error Messages
 								$this->error = false;
 								$this->responseCode = 200;
@@ -315,50 +296,41 @@ class USAddresses {
 							}
 						}
 					}
-					if(!$this->error){						
-						// Prep for database
-						$dbLocationID = $db->escape($this->locationID);
-						$sql = "UPDATE US_addresses SET ";
-						
-						if($patchTelephone){
-							$dbTelephone = $db->escape($this->telephone);
-							if(!empty($dbTelephone)){
-								$sql .= " telephone=$dbTelephone";
-							}
-						}
-						
-						if($patchAddress){
-							// Escape Fields
-							$dbAddress1 = $db->escape($this->address1);
-							$dbAddress2 = $db->escape($this->address2);
-							$dbCity = $db->escape($this->city);
-							$dbSubCode = $db->escape($this->sub_code);
-							$dbZip5 = $db->escape($this->zip5);
-							$dbZip4 = $db->escape($this->zip4);
-							
-							// Add Comma?
-							if($patchTelephone){
-								$sql .= ", ";
-							}
-							$sql .= "address2='$dbAddress2', city='$dbCity', sub_code='$dbSubCode', zip5=$dbZip5";
-							
-							// Optional Fields
-							if(empty($dbAddress1)){
-								$sql .= ", address1=null";
-							}else{
-								$sql .= ", address1='$dbAddress1'";
-							}
-							if(empty($dbZip4)){
-								$sql .= ", zip4=null";
-							}else{
-								$sql .= ", zip4=$dbZip4";
-							}
-						}
-						
-						$sql .= " WHERE locationID='$dbLocationID'";
+					if(!$this->error){
+						// Build parameterized query
+						$setClauses = array();
+						$setParams = array();
 
-						// Run Query
-						$db->query($sql);
+						if($patchTelephone){
+							if(!empty($this->telephone)){
+								$setClauses[] = "telephone=?";
+								$setParams[] = $this->telephone;
+							}
+						}
+
+						if($patchAddress){
+							$setClauses[] = "address2=?";
+							$setParams[] = $this->address2;
+							$setClauses[] = "city=?";
+							$setParams[] = $this->city;
+							$setClauses[] = "sub_code=?";
+							$setParams[] = $this->sub_code;
+							$setClauses[] = "zip5=?";
+							$setParams[] = $this->zip5;
+
+							// Optional fields
+							$setClauses[] = "address1=?";
+							$setParams[] = !empty($this->address1) ? $this->address1 : null;
+							$setClauses[] = "zip4=?";
+							$setParams[] = !empty($this->zip4) ? $this->zip4 : null;
+						}
+
+						if(!empty($setClauses)){
+							$sql = "UPDATE US_addresses SET " . implode(", ", $setClauses) . " WHERE locationID=?";
+							$setParams[] = $this->locationID;
+							$db->query($sql, $setParams);
+						}
+
 						if(!$db->error){
 							if($patchAddress){
 								// Get Latitude and Longitude
@@ -366,7 +338,7 @@ class USAddresses {
 									$location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
 								}
 							}
-							
+
 							// Update Last Modified
 							$location->updateLastModified($this->locationID);
 							if($location->error){
@@ -402,7 +374,7 @@ class USAddresses {
 			$errorLog->filename = 'API / USAddresses.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Close Database Connection
 		$db->close();
 	}
@@ -565,7 +537,7 @@ class USAddresses {
 	}
 
 	private function uspsAPI($xmlBody){
-	
+
 		// Build XML
 		$xml = '<AddressValidateRequest USERID="' . USPS_API_KEY . '"><Address ID=\'1\'>' . $xmlBody . '</Address></AddressValidateRequest>';
 
@@ -638,7 +610,7 @@ class USAddresses {
 					$this->error = true;
 					$this->responseCode = 404;
 					$this->errorMsg = 'Address Not Found.';
-					
+
 					// Log Error
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 201;
@@ -661,7 +633,7 @@ class USAddresses {
 					$errorLog->write();
 				}
 			}else{
-				// Success	
+				// Success
 				if(isset($responseObj->Address->Address1)){
 					$this->address1 = ucwords(strtolower($responseObj->Address->Address1 ?? ''));
 				}else{
@@ -728,29 +700,29 @@ class USAddresses {
 			$this->telephone = 0;
 		}
 	}
-	
+
 	// Generate Google API Address String
 	private function generateGoogleAddressString(){
 		// Address2
 		$addressString = $this->address2;
-		
+
 		// Address1
 		if(!empty($this->address1)){
 			$addressString .= ' ' . $this->address1;
 		}
-		
+
 		$addressString .= ', ';
-		
+
 		// City
 		if(!empty($this->city)){
 			$addressString .= $this->city . ', ';
 		}
-		
+
 		// State
 		if(!empty($this->stateShort)){
 			$addressString .= $this->stateShort;
 		}
-		
+
 		// ZIP Code
 		if(!empty($this->zip5)){
 			$addressString .= ' ' . $this->zip5;
@@ -758,19 +730,19 @@ class USAddresses {
 				$addressString .= '-' . $this->zip4;
 			}
 		}
-		
+
 		// Add United States of America
 		$addressString .= ', USA';
-		
+
 		return $addressString;
 	}
-	
+
 	// Parse Google Formatted Address String
-	private function parseGoogleAddressString($addressString){	
+	private function parseGoogleAddressString($addressString){
 		// Regular Expression
 		$regex = '/([[:alnum:] ]+)([#0-9]+)?, ([[:alnum:] ]+), ([A-Z]{2}) ([0-9]{5})(-[0-9]{4})?/m';
 		preg_match_all($regex, $addressString, $matches, PREG_SET_ORDER, 0);
-				
+
 		// Match to the class
 		$this->address1 = $matches[0][2];
 		$this->address2 = $matches[0][1];
@@ -786,17 +758,15 @@ class USAddresses {
 		if(!empty($locationID)){
 			// Prep for Database
 			$db = new Database();
-			$dbLocationID = $db->escape($locationID);
-
-			$db->query("SELECT address1, address2, city, sub_code, zip5, zip4, telephone FROM US_addresses WHERE locationID='$dbLocationID'");
+			$result = $db->query("SELECT address1, address2, city, sub_code, zip5, zip4, telephone FROM US_addresses WHERE locationID=?", [$locationID]);
 			if(!$db->error){
-				if($db->result->num_rows == 1){
+				if($result->num_rows == 1){
 					// Valid
 					$valid = true;
 
 					// Save to Class?
 					if($saveToClass){
-						$array = $db->resultArray();
+						$array = $result->fetch_assoc();
 						$this->locationID = $locationID;
 						$this->address1 = $array['address1'];
 						$this->address2 = $array['address2'];
@@ -838,27 +808,27 @@ class USAddresses {
 		// Return
 		return $valid;
 	}
-	
+
 	public function api($method, $id, $apiKey, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/address/{function}
 		{METHOD} https://api.catalog.beer/address/{id}/{function}
-		
+
 		POST https://api.catalog.beer/address/{location_id}
-				
+
 		PATCH https://api.catalog.beer/address/{location_id}
 		---*/
-		
+
 		// Required Classes
 		$location = new Location();
 		$apiKeys = new apiKeys();
-		
+
 		// Validate API Key for userID
 		$apiKeys->validate($apiKey, true);
-		
+
 		// Handle Empty Fields
 		$patchFields = array();
-		
+
 		if(isset($data->address1)){$patchFields[] = 'address1';}
 		else{$data->address1 = '';}
 
@@ -879,7 +849,7 @@ class USAddresses {
 
 		if(isset($data->telephone)){$patchFields[] = 'telephone';}
 		else{$data->telephone = '';}
-		
+
 		switch($method){
 			case 'PATCH':
 				// PATCH https://api.catalog.beer/address/{location_id}
@@ -908,7 +878,7 @@ class USAddresses {
 				$errorLog->filename = 'API / USAddresses.class.php';
 				$errorLog->write();
 		}
-		
+
 		if(!$this->error){
 			// Return Location Object
 			$location = new Location();

@@ -1,14 +1,14 @@
 <?php
 class Privileges {
-	
+
 	public $id = '';
 	public $userID = '';
 	public $brewerID = '';
-	
+
 	public $error = false;
 	public $errorMsg = null;
 	public $responseCode = 200;
-	
+
 	public function add($userID, $brewerID, $newBrewery){
 		// Associate a new user as an "Admin" for a brewery
 		// Validate User
@@ -36,11 +36,11 @@ class Privileges {
 					$errorLog->write();
 				}
 			}
-			
+
 			if($validBrewer){
 				// Does user already have privileges for this brewerID?
 				$brewerIDs = $this->brewerList($userID);
-				
+
 				if(!in_array($brewerID, $brewerIDs)){
 					// userID not yet associated with this brewerID
 					// Create UUID
@@ -50,14 +50,9 @@ class Privileges {
 						// Save to Class
 						$this->id = $privID;
 
-						// Prep for Database
-						$db = new Database();
-						$dbID = $db->escape($this->id);
-						$dbUserID = $db->escape($userID);
-						$dbBrewerID = $db->escape($brewerID);
-
 						// Add to Database
-						$db->query("INSERT INTO privileges (id, userID, brewerID) VALUES ('$dbID', '$dbUserID', '$dbBrewerID')");
+						$db = new Database();
+						$db->query("INSERT INTO privileges (id, userID, brewerID) VALUES (?, ?, ?)", [$this->id, $userID, $brewerID]);
 						if($db->error){
 							$this->error = true;
 							$this->errorMsg = $db->errorMsg;
@@ -80,7 +75,7 @@ class Privileges {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 125;
@@ -90,27 +85,24 @@ class Privileges {
 			$errorLog->write();
 		}
 	}
-	
+
 	public function brewerList($userID){
 		// Return
 		$brewerIDs = array();
-		
+
 		// Which brewer/breweries does this user have privileges for?
 		$users = new Users();
 		if($users->validate($userID, false)){
-			// Prep for Database
-			$db = new Database();
-			$dbUserID = $db->escape($userID);
-			
 			// Query Database
-			$db->query("SELECT brewerID FROM privileges WHERE userID='$dbUserID'");
+			$db = new Database();
+			$result = $db->query("SELECT brewerID FROM privileges WHERE userID=?", [$userID]);
 			if(!$db->error){
 				// Loop through Results
-				while($array = $db->resultArray()){
+				while($array = $result->fetch_assoc()){
 					$brewerIDs[] = $array['brewerID'];
 				}
 			}
-			
+
 			// Close Database Connection
 			$db->close();
 		}else{
@@ -118,7 +110,7 @@ class Privileges {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 127;
@@ -127,27 +119,24 @@ class Privileges {
 			$errorLog->filename = 'API / Permissions.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $brewerIDs;
 	}
-	
+
 	public function userList($brewerID){
 		// Return
 		$userIDs = array();
-		
+
 		// Which users have privileges for this brewer?
 		$brewer = new Brewer();
 		if($brewer->validate($brewerID, false)){
-			// Prep for Database
-			$db = new Database();
-			$dbBrewerID = $db->escape($brewerID);
-			
 			// Query Database
-			$db->query("SELECT userID FROM privileges WHERE brewerID='$dbBrewerID'");
+			$db = new Database();
+			$result = $db->query("SELECT userID FROM privileges WHERE brewerID=?", [$brewerID]);
 			if(!$db->error){
 				// Loop through Results
-				while($array = $db->resultArray()){
+				while($array = $result->fetch_assoc()){
 					$userIDs[] = $array['userID'];
 				}
 			}else{
@@ -155,7 +144,7 @@ class Privileges {
 				$this->errorMsg = $db->errorMsg;
 				$this->responseCode = $db->responseCode;
 			}
-			
+
 			// Close Database Connection
 			$db->close();
 		}else{
@@ -163,7 +152,7 @@ class Privileges {
 			$this->error = true;
 			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
 			$this->responseCode = 500;
-			
+
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 132;
@@ -172,19 +161,15 @@ class Privileges {
 			$errorLog->filename = 'API / Permissions.class.php';
 			$errorLog->write();
 		}
-		
+
 		// Return
 		return $userIDs;
 	}
-	
+
 	public function remove($userID, $brewerID){
-		// Prep for Database
-		$db = new Database();
-		$dbUserID = $db->escape($userID);
-		$dbBrewerID = $db->escape($brewerID);
-		
 		// Delete all brewery privileges for this user
-		$db->query("DELETE FROM privileges WHERE userID='$dbUserID' AND brewerID='$dbBrewerID'");
+		$db = new Database();
+		$db->query("DELETE FROM privileges WHERE userID=? AND brewerID=?", [$userID, $brewerID]);
 		if($db->error){
 			// Database Error
 			$this->error = true;
@@ -193,7 +178,7 @@ class Privileges {
 		}
 		$db->close();
 	}
-	
+
 	public function deleteUser($userID){
 		/*---
 		Assume the following for this function
@@ -201,13 +186,10 @@ class Privileges {
 		2) User calling this function has been validated and has permission to perform this action.
 		This function does not perform this validation so as to not do it every time.
 		---*/
-		
-		// Prep for Database
-		$db = new Database();
-		$dbUserID = $db->escape($userID);
-		
+
 		// Delete all brewery privileges for this user
-		$db->query("DELETE FROM privileges WHERE userID='$dbUserID'");
+		$db = new Database();
+		$db->query("DELETE FROM privileges WHERE userID=?", [$userID]);
 		if($db->error){
 			// Database Error
 			$this->error = true;

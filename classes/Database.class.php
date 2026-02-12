@@ -1,132 +1,98 @@
 <?php
 class Database {
 
-	// Public Variables
-	public $result;
-	public $insertID;
+	// Properties
+	private mysqli $mysqli;
 
-	public $error = false;
-	public $errorMsg = null;
-	public $responseCode = 200;
+	// Error Handling
+	public bool $error = false;
+	public ?string $errorMsg = null;
+	public int $responseCode = 200;
 
-	// Private Variables
-	public $mysqli;
-
-	function __construct(){
+	public function __construct(){
 		// Restore pre-PHP 8.1 error handling (return false instead of throwing exceptions)
 		mysqli_report(MYSQLI_REPORT_OFF);
 
-		// Establish Environment
-		if(defined('ENVIRONMENT')){
-			// Connect to Server
-			$this->mysqli = new mysqli('localhost', 'catalogadmin', DB_PASSWORD, 'catalogbeer');
-			if($this->mysqli->connect_error){
-				//die('Connect Error (' . $this->mysqli->connect_errno . ') ' . $this->mysqli->connect_error);
-				$this->responseCode = 500;
-				echo 'Error D132 - Internal server error.';
-				exit();
-			}else{
-				// Set Character Set
-				if(!$this->mysqli->set_charset("utf8")){
-					//printf("Error loading character set utf8: %s\n", $this->mysqli->error);
-					$this->responseCode = 500;
-					echo 'Error D133 - Internal server error.';
-					exit();
-				}
-			}
-		}else{
-			// Environment Not Set
-			$this->responseCode = 500;
-			echo 'Error D134 - Internal server error.';
-			exit();
-		}
+		// Connect to Database
+		$this->connect();
 	}
 
-	// ----- Query -----
-	public function query($query){
-		if(isset($this->mysqli)){
-			// What type of query are we doing?
-			$returnResult = array('SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN');
-			$substring = substr($query, 0, 20);
-			$exploded = explode(' ', $substring);
-
-			if(in_array($exploded[0], $returnResult)){
-				// Query With Result
-				if($this->result = $this->mysqli->query($query)){
-					// Successful Query
-				}else{
-					// Query Error
-					$this->error = true;
-				}
-			}else{
-				// True False Query
-				if($this->mysqli->query($query) === true){
-					// Successful Query
-					if($exploded[0] == 'INSERT'){
-						$this->insertID = $this->mysqli->insert_id;
-					}
-				}else{
-					// Query Error
-					$this->error = true;
-				}
-			}
-
-			if($this->error){
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 1;
-				$errorLog->filename = 'API / Database.class.php';
-				$errorLog->errorMsg = 'Query Error';
-				$errorLog->badData = 'Query: ' . $query . ' MySQL Error: ' . $this->mysqli->error;
-				$errorLog->write();
-
-				// Generic Error Message
-				$this->responseCode = 500;
-				$this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
-			}
-		}else{
-			// mysqli not set
+	private function connect(): void {
+		$this->mysqli = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
+		if($this->mysqli->connect_error){
 			$this->error = true;
-			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->errorMsg = 'Database connection error.';
+			$this->responseCode = 500;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 1;
+			$errorLog->errorMsg = 'Database Connection Error';
+			$errorLog->badData = $this->mysqli->connect_errno;
+			$errorLog->filename = 'API / Database.class.php';
+			$errorLog->write();
+		}
+		$this->mysqli->set_charset("utf8");
+	}
+
+	public function query(string $sql, array $params = []): ?mysqli_result {
+		$stmt = $this->mysqli->prepare($sql);
+		if(!$stmt){
+			$this->error = true;
+			$this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
 			$this->responseCode = 500;
 
 			// Log Error
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 2;
-			$errorLog->errorMsg = '$this->mysqli not set';
-			$errorLog->badData = "Query: $query";
+			$errorLog->errorMsg = 'SQL Prepare Error';
+			$errorLog->badData = 'Query: ' . $sql . ' MySQL Error: ' . $this->mysqli->error;
 			$errorLog->filename = 'API / Database.class.php';
 			$errorLog->write();
+			return null;
 		}
-	}
 
-	// ----- Escape -----
-	public function escape($string){
-		if(is_null($string)){
-			// Null value doesn't need to be escaped, return
-			$escaped = null;
-		}else{
-			$escaped = $this->mysqli->real_escape_string($string);
+		if(!empty($params)){
+			$types = '';
+			foreach($params as $param){
+				if(is_int($param)) $types .= 'i';
+				elseif(is_float($param)) $types .= 'd';
+				else $types .= 's';
+			}
+			$stmt->bind_param($types, ...$params);
 		}
-		//$escaped = str_replace("%", "\%", $escaped);
-		//$escaped = str_replace("_", "\_", $escaped);
-		return $escaped;
+
+		if(!$stmt->execute()){
+			$this->error = true;
+			$this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
+			$this->responseCode = 500;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 3;
+			$errorLog->errorMsg = 'SQL Execution Error';
+			$errorLog->badData = 'Query: ' . $sql . ' Params: ' . json_encode($params) . ' MySQL Error: ' . $stmt->error;
+			$errorLog->filename = 'API / Database.class.php';
+			$errorLog->write();
+			$stmt->close();
+			return null;
+		}
+
+		$result = $stmt->get_result();
+		$stmt->close();
+		return $result !== false ? $result : null;
 	}
 
-	// ----- Result Array -----
-	public function resultArray(){
-		$array = $this->result->fetch_array(MYSQLI_ASSOC);
-		return $array;
+	public function getInsertId(): int {
+		return $this->mysqli->insert_id;
 	}
 
-	// ----- Single Result -----
-	public function singleResult($key){
-		$array = $this->result->fetch_array(MYSQLI_ASSOC);
-		return $array[$key];
+	public function getConnection(): mysqli {
+		return $this->mysqli;
 	}
 
 	// ----- Close Connection -----
-	public function close(){
+	public function close(): void {
 		if(!$this->mysqli->close()){
 			// Unsuccessful close
 			// Log Error
