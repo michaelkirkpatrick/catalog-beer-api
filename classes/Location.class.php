@@ -433,7 +433,7 @@ class Location {
 	// Validation Functions
 	private function validateName(){
 		// Must set $this->name
-		$this->name = trim($this->name);
+		$this->name = trim($this->name ?? '');
 
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
@@ -476,7 +476,7 @@ class Location {
 		// https://www.iso.org/iso-3166-country-codes.html
 
 		// Trim
-		$this->countryCode = trim($this->countryCode);
+		$this->countryCode = trim($this->countryCode ?? '');
 
 		// Validate
 		if(!empty($this->countryCode)){
@@ -522,7 +522,7 @@ class Location {
 		$valid = false;
 
 		// Trim
-		$locationID = trim($locationID);
+		$locationID = trim($locationID ?? '');
 
 		if(!empty($locationID)){
 			// Prep for Database
@@ -971,7 +971,7 @@ class Location {
 
 	public function googleMapsAPI($locationID, $addressString, $googleAPI){
 		// Request Parameters
-		$address = urlencode($addressString);
+		$address = urlencode($addressString ?? '');
 
 		// Headers & Options
 		$headerArray = array(

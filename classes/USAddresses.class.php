@@ -415,18 +415,18 @@ class USAddresses {
 		// Required set parameters: address1, address2, city, sub_code, zip5, zip4
 
 		// Trim Inputs
-		$this->address1 = trim($this->address1);
-		$this->address2 = trim($this->address2);
-		$this->city = trim($this->city);
-		$this->sub_code = trim($this->sub_code);
-		$this->zip5 = trim($this->zip5);
-		$this->zip4 = trim($this->zip4);
+		$this->address1 = trim($this->address1 ?? '');
+		$this->address2 = trim($this->address2 ?? '');
+		$this->city = trim($this->city ?? '');
+		$this->sub_code = trim($this->sub_code ?? '');
+		$this->zip5 = trim($this->zip5 ?? '');
+		$this->zip4 = trim($this->zip4 ?? '');
 
 		// Substitute Accented Characters
 		$accented_chars = array('Š'=>'S', 'š'=>'s', 'Ž'=>'Z', 'ž'=>'z', 'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E', 'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O', 'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss', 'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e', 'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o', 'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'þ'=>'b', 'ÿ'=>'y' );
-		$this->address1 = strtr($this->address1, $accented_chars);
-		$this->address2 = strtr($this->address2, $accented_chars);
-		$this->city = strtr($this->city, $accented_chars);
+		$this->address1 = strtr($this->address1 ?? '', $accented_chars);
+		$this->address2 = strtr($this->address2 ?? '', $accented_chars);
+		$this->city = strtr($this->city ?? '', $accented_chars);
 
 		// Address Line 1 - Apartment or suite number
 		$xmlBody = '<Address1>' . $this->address1 . '</Address1>';
@@ -530,7 +530,7 @@ class USAddresses {
 				$subdivisions = new Subdivisions();
 				if($subdivisions->validate($this->sub_code, true)){
 					// Get State Info
-					$this->stateShort = substr($this->sub_code, 3, 2);
+					$this->stateShort = substr($this->sub_code ?? '', 3, 2);
 					$this->stateLong = $subdivisions->sub_name;
 
 					// XML
@@ -652,7 +652,7 @@ class USAddresses {
 				}else{
 					// Other Error
 					$this->error = true;
-					$this->errorMsg = htmlspecialchars(trim($responseObj->Address->Error->Description)) . ' Please check your entry and try again.';
+					$this->errorMsg = htmlspecialchars(trim($responseObj->Address->Error->Description ?? '')) . ' Please check your entry and try again.';
 					$this->responseCode = 400;
 
 					// Log Error
@@ -666,12 +666,12 @@ class USAddresses {
 			}else{
 				// Success	
 				if(isset($responseObj->Address->Address1)){
-					$this->address1 = ucwords(strtolower($responseObj->Address->Address1));
+					$this->address1 = ucwords(strtolower($responseObj->Address->Address1 ?? ''));
 				}else{
 					$this->address1 = '';
 				}
-				$this->address2 = ucwords(strtolower($responseObj->Address->Address2));
-				$this->city = ucwords(strtolower($responseObj->Address->City));
+				$this->address2 = ucwords(strtolower($responseObj->Address->Address2 ?? ''));
+				$this->city = ucwords(strtolower($responseObj->Address->City ?? ''));
 				$this->stateShort = strval($responseObj->Address->State);
 				$this->zip5 = intval($responseObj->Address->Zip5);
 				$this->zip4 = intval($responseObj->Address->Zip4);
@@ -697,11 +697,11 @@ class USAddresses {
 		// Must set telephone
 
 		// Trim
-		$this->telephone = trim($this->telephone);
+		$this->telephone = trim($this->telephone ?? '');
 
 		if(!empty($this->telephone)){
 			// Eliminate every char except 0-9
-			$this->telephone = preg_replace("/[^0-9]/", '', $this->telephone);
+			$this->telephone = preg_replace("/[^0-9]/", '', $this->telephone ?? '');
 
 			// Check String Length
 			if(strlen($this->telephone) == 11){
@@ -811,7 +811,7 @@ class USAddresses {
 
 						$subdivisions = new Subdivisions();
 						if($subdivisions->validate($this->sub_code, true)){
-							$this->stateShort = substr($this->sub_code, 3, 2);
+							$this->stateShort = substr($this->sub_code ?? '', 3, 2);
 							$this->stateLong = $subdivisions->sub_name;
 						}
 					}

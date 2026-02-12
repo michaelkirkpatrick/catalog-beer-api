@@ -453,7 +453,7 @@ class Brewer {
 
 	private function validateName(){
 		// Must set $this->name
-		$this->name = trim($this->name);
+		$this->name = trim($this->name ?? '');
 
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
@@ -493,7 +493,7 @@ class Brewer {
 
 	private function validateDescription(){
 		// Must set $this->description
-		$this->description = trim($this->description);
+		$this->description = trim($this->description ?? '');
 
 		if(!empty($this->description)){
 			if(strlen($this->description) <= 65536){
@@ -519,7 +519,7 @@ class Brewer {
 
 	private function validateShortDescription(){
 		// Must set $this->shortDescription
-		$this->shortDescription = trim($this->shortDescription);
+		$this->shortDescription = trim($this->shortDescription ?? '');
 
 		if(!empty($this->shortDescription)){
 			if(strlen($this->shortDescription) <= 160){
@@ -551,7 +551,7 @@ class Brewer {
 		$i = 1;
 		$maxCount = 30;
 
-		$url = trim($url);
+		$url = trim($url ?? '');
 		if(!empty($url)){
 			// Add HTTP?
 			if(!preg_match('/^https?:\/\//', $url)){
@@ -703,7 +703,7 @@ class Brewer {
 		$urlDomainName = '';
 
 		// trim
-		$url = trim($url);
+		$url = trim($url ?? '');
 
 		if(!empty($url)){
 			$host = parse_url($url, PHP_URL_HOST);
@@ -827,7 +827,7 @@ class Brewer {
 		$valid = false;
 
 		// Trim
-		$brewerID = trim($brewerID);
+		$brewerID = trim($brewerID ?? '');
 
 		if(!empty($brewerID)){
 			// Prep for Database

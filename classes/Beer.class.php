@@ -447,7 +447,7 @@ class Beer {
 
 	private function validateName(){
 		// Trim
-		$this->name = trim($this->name);
+		$this->name = trim($this->name ?? '');
 
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
@@ -487,7 +487,7 @@ class Beer {
 
 	private function validateStyle(){
 		// Trim
-		$this->style = trim($this->style);
+		$this->style = trim($this->style ?? '');
 
 		if(!empty($this->style)){
 			if(strlen($this->style) <= 255){
@@ -527,7 +527,7 @@ class Beer {
 
 	private function validateDescription(){
 		// Trim
-		$this->description = trim($this->description);
+		$this->description = trim($this->description ?? '');
 
 		if(!empty($this->description)){
 			if(strlen($this->description) <= 65536){
@@ -642,7 +642,7 @@ class Beer {
 		$valid = false;
 
 		// Trim
-		$beerID = trim($beerID);
+		$beerID = trim($beerID ?? '');
 
 		if(!empty($beerID)){
 			// Prep for Database

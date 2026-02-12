@@ -9,7 +9,8 @@ class PostmarkSendEmail {
 	public $TextBody = '';
 	public $TrackOpens = false;
 	public $TrackLinks = 'None';
-	
+	public $bcc = '';
+
 	function generateBody($to, $subject, $tag, $htmlBody, $textBody){
 		$this->to = $to;
 		$this->bcc = 'michael@catalog.beer';

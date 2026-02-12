@@ -274,7 +274,7 @@ class Algolia {
 
 		// Check Index
 		$validIndex = array('beer', 'brewer', 'location');
-		if(!in_array($indexName, $validIndex){
+		if(!in_array($indexName, $validIndex)){
 			// Invalid Index
 			$this->error = true;
 			$this->errorMsg = "Invalid index. Must be one of: 'beer', 'brewer', or 'location'.";

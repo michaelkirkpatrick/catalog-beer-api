@@ -22,7 +22,7 @@ class SendEmail {
 		$validEmail = false;
 
 		// Trim Email
-		$email = trim($email);
+		$email = trim($email ?? '');
 
 		if(!empty($email)){
 			// Not Blank

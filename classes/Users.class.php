@@ -29,8 +29,8 @@ class Users {
 		$valid = false;
 		
 		// Trim
-		$userID = trim($userID);
-		
+		$userID = trim($userID ?? '');
+
 		if(!empty($userID)){
 			// Prep for Database
 			$db = new Database();
@@ -389,7 +389,7 @@ class Users {
 	
 	private function validateName(){
 		// Trim Name
-		$this->name = trim($this->name);
+		$this->name = trim($this->name ?? '');
 		
 		if(!empty($this->name)){
 			if(strlen($this->name) <= 255){
@@ -429,7 +429,7 @@ class Users {
 	
 	private function validateEmail(){
 		// Lowercase String
-		$this->email = strtolower($this->email);
+		$this->email = strtolower($this->email ?? '');
 		
 		// Valid Email?
 		$sendEmail = new SendEmail();

@@ -13,6 +13,9 @@ class Database {
 	public $mysqli;
 
 	function __construct(){
+		// Restore pre-PHP 8.1 error handling (return false instead of throwing exceptions)
+		mysqli_report(MYSQLI_REPORT_OFF);
+
 		// Establish Environment
 		if(defined('ENVIRONMENT')){
 			if(ENVIRONMENT == 'staging'){

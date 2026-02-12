@@ -14,8 +14,8 @@ class Subdivisions {
 		$valid = false;
 		
 		// Trim
-		$sub_code = trim($sub_code);
-		
+		$sub_code = trim($sub_code ?? '');
+
 		if(!empty($sub_code)){
 			// Prep for Database
 			$db = new Database();

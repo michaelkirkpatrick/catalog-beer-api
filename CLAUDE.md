@@ -4,67 +4,98 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the REST API backend for [Catalog.beer](https://catalog.beer), a beer database service. It's a PHP-based API that provides endpoints for managing brewers, beers, locations, and user accounts.
+REST API backend for [Catalog.beer](https://catalog.beer), a beer database service. PHP-based API with no framework, no dependency manager (no Composer), and no test suite. Runs on Apache with mod_rewrite.
+
+Related repos:
+- Frontend: [catalog-beer](https://github.com/michaelkirkpatrick/catalog-beer)
+- Database schema: [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql)
+
+## Development Environment
+
+This is a plain PHP project served by Apache. There are no build steps, linters, or test runners. Development requires:
+- Apache with mod_rewrite enabled
+- PHP with mysqli extension
+- MySQL database named `catalogbeer`
+
+Environment is detected by subdomain in `classes/initialize.php`:
+- `api-staging.*` → staging
+- `api.*` → production
 
 ## Architecture
 
 ### Request Flow
-1. All requests route through `index.php` via Apache mod_rewrite rules in `.htaccess`
-2. `classes/initialize.php` bootstraps the application (session, environment detection, autoloading)
-3. Requests are authenticated via HTTP Basic Auth (API key as username)
-4. The endpoint parameter routes to the appropriate class's `api()` method
+1. `.htaccess` rewrites all URLs to `index.php` with query parameters (`endpoint`, `id`, `function`)
+2. `classes/initialize.php` bootstraps: session start, constants, timezone (`America/Los_Angeles`), SPL autoloader
+3. `index.php` parses JSON body, validates headers (Content-Type, Accept), authenticates via HTTP Basic Auth (API key as username)
+4. `switch($endpoint)` routes to the appropriate class, calling its `api()` method
+5. Class sets `$responseCode`, `$responseHeader`, `$json`; `index.php` outputs the JSON response
+6. Request is logged via `apiLogging` (except for master API keys)
 
-### Environment Detection
-The environment is determined by subdomain:
-- `api-staging.*` → staging
-- `api.*` → production
+### Class Autoloading
+SPL autoloader in `initialize.php` loads `classes/{ClassName}.class.php`. All class files follow this naming convention.
 
-### Class Structure
-Each major entity has a class in `/classes/` with consistent patterns:
-- **Properties**: Entity fields plus error handling (`$error`, `$errorMsg`, `$validState`, `$validMsg`)
-- **API Response**: `$responseCode`, `$responseHeader`, `$json`
-- **Core Methods**:
-  - `api()` - Main API routing method handling HTTP methods
-  - `add()` - Create/update records (handles POST, PUT, PATCH)
-  - `validate()` - Check if entity exists, optionally populate class properties
+### Entity Class Pattern
+Entity classes (`Beer`, `Brewer`, `Location`, `Users`) share a consistent structure:
 
-### Key Classes
-- `Beer.class.php` - Beer management (linked to brewers)
-- `Brewer.class.php` - Brewery management with verification states
-- `Location.class.php` - Physical brewery locations with geocoding
-- `Users.class.php` - User accounts and authentication
-- `USAddresses.class.php` - US address handling with USPS validation
-- `Database.class.php` - MySQL wrapper with query/escape methods
-- `uuid.class.php` - RFC 4122 v4 UUID generation and validation
-- `Algolia.class.php` - Search indexing integration
-- `Privileges.class.php` - User-to-brewer permission mapping
+**Properties:**
+- Entity fields (e.g., `$brewerID`, `$name`)
+- Database-prefixed fields (e.g., `$dbBrewerID`) used during SQL operations
+- Error state: `$error` (bool), `$errorMsg` (string), `$validState` (bool), `$validMsg` (string array)
+- Response: `$responseCode` (int), `$responseHeader` (string), `$json` (array)
 
-### Verification System
-Two verification levels control edit permissions:
-- `cbVerified` - Catalog.beer verified (admin-only edits)
-- `brewerVerified` - Brewery staff verified (staff or admin edits)
+**Methods:**
+- `api($method, $function, $id, $apiKey, ...)` — Main router; switches on HTTP method and `$function`
+- `add($method, $id, $apiKey, $data)` — Handles POST, PUT, and PATCH in a single method with `switch($method)` to vary required fields
+- `validate($id, $saveToClass)` — Checks if entity exists by UUID; if `$saveToClass` is true, populates class properties
+- `delete($id, $userID)` — Soft or hard delete with permission checks
+- `generateObject()` — Builds the JSON response object for the entity
+- `generateSearchObject()` — Builds the Algolia search index object
 
-Verification is checked by matching user email domain to brewer's domain name or via explicit privileges.
+### Verification & Permissions
+Two-tier verification controls who can edit entities:
+- **cbVerified** — Catalog.beer admin verified; only admins can edit
+- **brewerVerified** — Brewery staff verified; staff or admins can edit
+
+Staff status determined by: user email domain matching brewer's `domainName`, or explicit entry in `privileges` table. Admin status is a flag on the user account.
+
+### Pagination
+Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number.
+
+### Error Logging
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number.
+
+### Database Access
+`Database.class.php` wraps mysqli. Key methods:
+- `query($sql)` — Execute query, returns result
+- `escape($string)` — Escape for SQL (uses `real_escape_string`)
+- `resultArray($result)` — Fetch all rows as array
+- `singleResult($result)` — Fetch single row
+
+SQL is built as concatenated strings (not prepared statements). Database credentials are hardcoded in the class with staging/production conditionals.
 
 ## API Endpoints
 
-Defined in `.htaccess`, all endpoints accept UUID-based IDs (36-character format):
-- `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`
-- `/beer`, `/beer/{id}`
+Defined in `.htaccess`. All IDs are 36-character UUIDs:
+- `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`, `/brewer/count`
+- `/beer`, `/beer/{id}`, `/beer/count`
 - `/location/{id}`, `/location/nearby`
 - `/address/{id}`
-- `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`
+- `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`
 - `/login`
-- `/usage`
-
-## Database
-
-- MySQL database named `catalogbeer`
-- All IDs are UUIDs (v4 compliant)
-- Schema available at: https://github.com/michaelkirkpatrick/catalog-beer-mysql
+- `/usage`, `/usage/currentMonth/{id}`
 
 ## External Services
 
-- **USPS API** - Address validation
-- **Google Maps Geocoding API** - Location coordinates
-- **Algolia** - Search indexing (API keys via environment variables)
+- **USPS API** — Address validation (`USAddresses.class.php`)
+- **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`)
+- **Algolia** — Search indexing; API keys via `getenv()` environment variables (`APPLICATION_ID`, `SEARCH_API_KEY`, `WRITE_API_KEY`)
+- **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`)
+
+## Code Conventions
+
+- Tabs for indentation
+- Class files: `ClassName.class.php`
+- Entity JSON uses `snake_case` keys (e.g., `brewer_id`, `error_msg`)
+- PHP class properties use `camelCase` (e.g., `$brewerID`, `$errorMsg`)
+- Database column names accessed via associative arrays using their SQL column names
+- UUID generation and validation via `uuid.class.php` (RFC 4122 v4)

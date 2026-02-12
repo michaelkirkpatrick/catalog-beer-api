@@ -23,7 +23,7 @@ class Usage {
 		// The request comes from $apiKeyInUse
 		// Usage for Current Month
 		
-		$apiKey = trim($apiKey);
+		$apiKey = trim($apiKey ?? '');
 		if(!empty($apiKey)){
 			// Required Classes
 			$apiKeys = new apiKeys();
