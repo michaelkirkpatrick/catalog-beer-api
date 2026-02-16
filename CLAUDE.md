@@ -41,14 +41,21 @@ Entity classes (`Beer`, `Brewer`, `Location`, `Users`) share a consistent struct
 - Entity fields (e.g., `$brewerID`, `$name`)
 - Error state: `$error` (bool), `$errorMsg` (string), `$validState` (bool), `$validMsg` (string array)
 - Response: `$responseCode` (int), `$responseHeader` (string), `$json` (array)
+- Cache: `$brewerObj` (cached Brewer for reuse), `$totalCount` (cached count for pagination)
 
 **Methods:**
 - `api($method, $function, $id, $apiKey, ...)` — Main router; switches on HTTP method and `$function`
 - `add($method, $id, $apiKey, $data)` — Handles POST, PUT, and PATCH in a single method with `switch($method)` to vary required fields
 - `validate($id, $saveToClass)` — Checks if entity exists by UUID; if `$saveToClass` is true, populates class properties
 - `delete($id, $userID)` — Soft or hard delete with permission checks
-- `generateObject()` — Builds the JSON response object for the entity
-- `generateSearchObject()` — Builds the Algolia search index object
+- `generateObject()` — Builds the JSON response object for the entity; accepts optional cached `$brewerObj` to avoid re-querying
+- `generateSearchObject()` — Builds the Algolia search index object; accepts optional cached `$brewerObj`
+
+**Query optimization patterns used in `add()`:**
+- PUT calls `validate($id, true)` to populate class properties, then saves original values (`$originalCBV`, `$originalBV`, etc.) before they're overwritten — avoids redundant `SELECT` queries for brewerID, cbVerified, brewerVerified
+- The validated `$brewer` object is cached in `$this->brewerObj` and reused by `generateObject()`/`generateSearchObject()`
+- `Privileges::brewerList($userID)` assumes the caller has already validated the userID
+- `USAddresses::validate()` JOINs with the `subdivisions` table to get state names in one query
 
 ### Verification & Permissions
 Two-tier verification controls who can edit entities:
@@ -58,7 +65,7 @@ Two-tier verification controls who can edit entities:
 Staff status determined by: user email domain matching brewer's `domainName`, or explicit entry in `privileges` table. Admin status is a flag on the user account.
 
 ### Pagination
-Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number.
+Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()` uses a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
 All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number.
@@ -78,6 +85,7 @@ All queries use parameterized `?` placeholders. Table names cannot be parameteri
 - INSERT/UPDATE/DELETE: `$db->query("INSERT INTO t (...) VALUES (?, ?)", [$a, $b]);`
 - Dynamic PATCH: Build `$setClauses[]` and `$setParams[]` parallel arrays, then `implode(', ', $setClauses)`
 - Optional INSERT fields: Build `$columns[]` and `$params[]` arrays, add optional fields conditionally
+- JOINs: Used where related data is needed together (e.g., `Location::nearbyLatLng()` JOINs location+brewer+US_addresses+subdivisions; `USAddresses::validate()` JOINs with subdivisions)
 
 ## API Endpoints
 
