@@ -89,6 +89,7 @@ rsync -avzO --no-perms --delete \
 	--exclude 'common/' \
 	--exclude 'algolia/test.php' \
 	--exclude 'README.md' \
+	--exclude 'tests/' \
 	./ "$REMOTE:$REMOTE_PATH/"
 
 # Set ownership and permissions so Apache can read/serve and michael can deploy

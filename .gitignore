@@ -1,3 +1,9 @@
 *.json
 .DS_Store
 common/
+
+# Tests: track collection and example env, ignore real env files
+!tests/Catalog.beer.postman_collection.json
+!tests/env.example.json
+tests/staging.env.json
+tests/production.env.json
