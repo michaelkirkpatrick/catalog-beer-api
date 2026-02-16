@@ -68,7 +68,7 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()` uses a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -77,7 +77,7 @@ All errors are logged to the `error_log` database table via `LogError` class. Ea
 - `getConnection(): mysqli` — Returns the underlying mysqli connection
 - `close()` — Closes the database connection
 
-All queries use parameterized `?` placeholders. Table names cannot be parameterized and are validated via whitelists where dynamic (e.g., `uuid.class.php`). Database credentials are loaded from `common/passwords.php` (gitignored) via constants `DB_HOST`, `DB_USER`, `DB_NAME`, `DB_PASSWORD`.
+All queries use parameterized `?` placeholders. Database credentials are loaded from `common/passwords.php` (gitignored) via constants `DB_HOST`, `DB_USER`, `DB_NAME`, `DB_PASSWORD`.
 
 **Query patterns:**
 - Single row: `$result = $db->query("SELECT ... WHERE id=?", [$id]); $row = $result->fetch_assoc();`
@@ -114,4 +114,4 @@ All secrets are centralized in `common/passwords.php` (gitignored, never committ
 - Entity JSON uses `snake_case` keys (e.g., `brewer_id`, `error_msg`)
 - PHP class properties use `camelCase` (e.g., `$brewerID`, `$errorMsg`)
 - Database column names accessed via associative arrays using their SQL column names
-- UUID generation and validation via `uuid.class.php` (RFC 4122 v4)
+- UUID generation via `uuid.class.php` (RFC 4122 v4, `random_bytes`-based, no DB uniqueness check needed)
