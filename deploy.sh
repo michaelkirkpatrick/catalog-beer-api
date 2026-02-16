@@ -1,11 +1,20 @@
 #!/bin/bash
 # Deploy Catalog Beer API to server
+#
+# Usage:
+#   ./deploy.sh              Interactive mode (prompts for environment)
+#   ./deploy.sh staging      Deploy to staging
+#   ./deploy.sh production   Deploy to production
 
 # Warn if there are uncommitted changes
 if ! git diff --quiet HEAD 2>/dev/null; then
 	echo "WARNING: You have uncommitted changes."
 	git status --short
 	echo ""
+	if [[ -n "$1" ]]; then
+		echo "Aborting non-interactive deploy due to uncommitted changes."
+		exit 1
+	fi
 	read -p "Deploy anyway? (y/n): " confirm
 	if [[ $confirm != "y" ]]; then
 		echo "Aborted."
@@ -13,29 +22,47 @@ if ! git diff --quiet HEAD 2>/dev/null; then
 	fi
 fi
 
-echo "Deploy to which environment?"
-echo "  1) Staging"
-echo "  2) Production"
-read -p "Select (1 or 2): " choice
+# Determine environment
+if [[ -n "$1" ]]; then
+	# CLI argument mode
+	ENV="$1"
+else
+	# Interactive mode
+	echo "Deploy to which environment?"
+	echo "  1) Staging"
+	echo "  2) Production"
+	read -p "Select (1 or 2): " choice
+	case $choice in
+		1) ENV="staging" ;;
+		2) ENV="production" ;;
+		*)
+			echo "Invalid selection. Aborted."
+			exit 1
+			;;
+	esac
+fi
 
-case $choice in
-	1)
+case $ENV in
+	staging)
 		HOST="172.236.249.199"
 		DEST="api-staging.catalog.beer"
 		echo "Deploying to Staging..."
 		;;
-	2)
+	production)
 		HOST="172.233.129.106"
 		DEST="api.catalog.beer"
-		read -p "Are you sure you want to deploy to Production? (y/n): " confirm
-		if [[ $confirm != "y" ]]; then
-			echo "Aborted."
-			exit 0
+		if [[ -z "$1" ]]; then
+			read -p "Are you sure you want to deploy to Production? (y/n): " confirm
+			if [[ $confirm != "y" ]]; then
+				echo "Aborted."
+				exit 0
+			fi
 		fi
 		echo "Deploying to Production..."
 		;;
 	*)
-		echo "Invalid selection. Aborted."
+		echo "Unknown environment: $ENV"
+		echo "Usage: $0 [staging|production]"
 		exit 1
 		;;
 esac
