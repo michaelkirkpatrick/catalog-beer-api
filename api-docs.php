@@ -1166,7 +1166,6 @@ curl -X POST \
 
 <h4>Sample Response</h4>
  <pre class="api-code">
- {
 {
   "id": "e00c24d6-de81-2ea4-dfd8-cd6f2cb5f1e7",
   "object": "location",
