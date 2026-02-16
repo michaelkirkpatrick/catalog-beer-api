@@ -88,7 +88,7 @@ class USAddresses {
 								$errorLog = new LogError();
 								$errorLog->errorNumber = 192;
 								$errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
-								$errorLog->badData = "User: $userID / Location: $this->locationID";
+								$errorLog->badData = "User: $userID / Location: $locationID";
 								$errorLog->filename = 'API / USAddresses.class.php';
 								$errorLog->write();
 							}
@@ -398,11 +398,11 @@ class USAddresses {
 		$this->city = strtr($this->city ?? '', $accented_chars);
 
 		// Address Line 1 - Apartment or suite number
-		$xmlBody = '<Address1>' . $this->address1 . '</Address1>';
+		$xmlBody = '<Address1>' . htmlspecialchars($this->address1 ?? '', ENT_XML1) . '</Address1>';
 
 		// Address Line 2 - Street Address
 		if(!empty($this->address2)){
-			$xmlBody .= '<Address2>' . $this->address2 . '</Address2>';
+			$xmlBody .= '<Address2>' . htmlspecialchars($this->address2, ENT_XML1) . '</Address2>';
 		}else{
 			// Missing Address Line
 			$this->error = true;
@@ -424,9 +424,9 @@ class USAddresses {
 			$xmlBody .= '<City></City><State></State>';
 
 			// Validate ZIP Code
-			if(preg_match('/[0-9]{5}/', $this->zip5)){
+			if(preg_match('/^[0-9]{5}$/', $this->zip5)){
 				// ZIP5
-				$xmlBody .= '<Zip5>' . $this->zip5 . '</Zip5>';
+				$xmlBody .= '<Zip5>' . htmlspecialchars($this->zip5, ENT_XML1) . '</Zip5>';
 			}else{
 				// Invalid ZIP Code
 				$this->error = true;
@@ -445,9 +445,9 @@ class USAddresses {
 
 			// Validate ZIP Code + 4
 			if(!empty($this->zip4)){
-				if(preg_match('/[0-9]{4}/', $this->zip4)){
+				if(preg_match('/^[0-9]{4}$/', $this->zip4)){
 					// ZIP4
-					$xmlBody .= '<Zip4>' . $this->zip4 . '</Zip4>';
+					$xmlBody .= '<Zip4>' . htmlspecialchars($this->zip4, ENT_XML1) . '</Zip4>';
 				}else{
 					// Invalid ZIP Code
 					$this->error = true;
@@ -477,7 +477,7 @@ class USAddresses {
 
 			// Check City
 			if(!empty($this->city)){
-				$xmlBody .= '<City>' . $this->city . '</City>';
+				$xmlBody .= '<City>' . htmlspecialchars($this->city, ENT_XML1) . '</City>';
 			}else{
 				// Missing City
 				$this->error = true;
@@ -503,7 +503,7 @@ class USAddresses {
 					$this->stateLong = $subdivisions->sub_name;
 
 					// XML
-					$xmlBody .= '<State>' . $this->stateShort . '</State>';
+					$xmlBody .= '<State>' . htmlspecialchars($this->stateShort, ENT_XML1) . '</State>';
 					$this->validState['sub_code'] = 'valid';
 				}else{
 					// Invalid Subdivision
@@ -649,7 +649,7 @@ class USAddresses {
 				}
 
 				// Need to derive sub_code and state_long?
-				if(empty($this->sub_code && $this->stateLong)){
+				if(empty($this->sub_code) || empty($this->stateLong)){
 					$subdivisions = new Subdivisions();
 					$sub_code = 'US-' . $this->stateShort;
 					if($subdivisions->validate($sub_code, true)){
@@ -758,7 +758,7 @@ class USAddresses {
 		if(!empty($locationID)){
 			// Prep for Database
 			$db = new Database();
-			$result = $db->query("SELECT address1, address2, city, sub_code, zip5, zip4, telephone FROM US_addresses WHERE locationID=?", [$locationID]);
+			$result = $db->query("SELECT a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM US_addresses a LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE a.locationID=?", [$locationID]);
 			if(!$db->error){
 				if($result->num_rows == 1){
 					// Valid
@@ -776,10 +776,9 @@ class USAddresses {
 						$this->zip4 = intval($array['zip4']);
 						$this->telephone = intval($array['telephone']);
 
-						$subdivisions = new Subdivisions();
-						if($subdivisions->validate($this->sub_code, true)){
-							$this->stateShort = substr($this->sub_code ?? '', 3, 2);
-							$this->stateLong = $subdivisions->sub_name;
+						if(!empty($array['sub_code'])){
+							$this->stateShort = substr($array['sub_code'] ?? '', 3, 2);
+							$this->stateLong = $array['sub_name'] ?? '';
 						}
 					}
 				}

@@ -15,6 +15,9 @@ class Location {
 	public $brewerVerified = false;
 	public $lastModified = 0;
 
+	// Cached objects to avoid redundant queries
+	private $brewerObj = null;
+
 	// Error Handling
 	public $error = false;
 	public $errorMsg = null;
@@ -51,9 +54,13 @@ class Location {
 				}
 				break;
 			case 'PUT':
-				if($this->validate($locationID, false)){
+				if($this->validate($locationID, true)){
 					// Valid Location - Update Existing Entry
 					$this->locationID = $locationID;
+					// Save original values for permissions check
+					$originalLocationBrewerID = $this->brewerID;
+					$originalCBV = $this->cbVerified;
+					$originalBV = $this->brewerVerified;
 				}else{
 					// Location doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
@@ -78,6 +85,10 @@ class Location {
 				if($this->validate($locationID, true)){
 					// Valid Location - Update Existing Entry (Reference #1)
 					$this->locationID = $locationID;
+					// Save original values for permissions check
+					$originalLocationBrewerID = $this->brewerID;
+					$originalCBV = $this->cbVerified;
+					$originalBV = $this->brewerVerified;
 					if(!in_array('brewerID', $patchFields)){
 						// Not updating brewer. Retain current brewerID
 						$brewerID = $this->brewerID;
@@ -85,7 +96,8 @@ class Location {
 						// Check to ensure it's a new brewer_id
 						if($this->brewerID == $brewerID){
 							// Same brewer_id, not changing. Remove from $patchFields
-							unset($patchFields['brewerID']);
+							$key = array_search('brewerID', $patchFields);
+							if($key !== false){ unset($patchFields[$key]); }
 						}
 					}
 				}
@@ -111,21 +123,14 @@ class Location {
 			// Valid BrewerID
 			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
+			$this->brewerObj = $brewer;
 
-			// Which brewer is this beer currently associated with?
-			if($method == 'PUT' || $method == 'PATCH'){
-				// Get the brewerID currenlty associated with this beer
-				$result = $db->query("SELECT brewerID FROM location WHERE id=?", [$this->locationID]);
-				if($result->num_rows > 0){
-					// Brewer currently associated with this beer
-					$row = $result->fetch_assoc();
-					$permissionsBrewerID = $row['brewerID'];
-				}else{
-					// No brewer currently associated with this beer (e.g. PUT)
-					$permissionsBrewerID = $this->brewerID;
-				}
+			// Which brewer is this location currently associated with?
+			if(($method == 'PUT' || $method == 'PATCH') && isset($originalLocationBrewerID)){
+				// Use saved brewerID from validate()
+				$permissionsBrewerID = $originalLocationBrewerID;
 			}else{
-				// Non PUT/PATCH Request, use $this->brewerID
+				// New location or POST, use the submitted brewerID
 				$permissionsBrewerID = $this->brewerID;
 			}
 		}else{
@@ -156,11 +161,9 @@ class Location {
 				if($method == 'PUT' || $method == 'PATCH'){
 					if(!$newLocation){
 						// Attempting to PUT or PATCH existing Location
-						// Get cb_verified and brewer_verified flags
-						$result = $db->query("SELECT cbVerified, brewerVerified FROM location WHERE id=?", [$this->locationID]);
-						$resultArray = $result->fetch_assoc();
-						$cbVerified = $resultArray['cbVerified'];
-						$brewerVerified = $resultArray['brewerVerified'];
+						// Use saved cb_verified and brewer_verified flags from validate()
+						$cbVerified = $originalCBV;
+						$brewerVerified = $originalBV;
 
 						if($cbVerified){
 							if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
@@ -208,22 +211,22 @@ class Location {
 
 				// ----- Verification Badges -----
 				$this->cbVerified = false;
-				$dbCBV = b'0';
+				$dbCBV = 0;
 				$this->brewerVerified = false;
-				$dbBV = b'0';
+				$dbBV = 0;
 
 				// Get User Info
 				if($users->admin){
 					// Catalog.beer Verified
 					$this->cbVerified = true;
-					$dbCBV = b'1';
+					$dbCBV = 1;
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($brewer->domainName)){
 						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
-							$dbBV = b'1';
+							$dbBV = 1;
 
 							if(!in_array($this->brewerID, $userBrewerPrivileges)){
 								// Give user privileges for this brewer
@@ -521,7 +524,7 @@ class Location {
 						$array = $result->fetch_assoc();
 						$this->locationID = $locationID;
 						$this->brewerID = $array['brewerID'];
-						$this->name = stripcslashes($array['name']);
+						$this->name = $array['name'];
 						$this->url = $array['url'];
 						$this->countryCode = $array['countryCode'];
 						$this->latitude = floatval($array['latitude']);
@@ -737,7 +740,7 @@ class Location {
 			if($searchRadius == 0){
 				// Invalid Search Radius
 				$this->error = true;
-				$this->errorMsg = "Whoops, the search radius you gave us appears to be zero. You'll want a search radius greater than zero. Please double check your value.'";
+				$this->errorMsg = "Whoops, the search radius you gave us appears to be zero. You'll want a search radius greater than zero. Please double check your value.";
 				$this->responseCode = 400;
 
 				// Log Error
@@ -750,7 +753,7 @@ class Location {
 			}elseif($searchRadius < 0){
 				// Invalid Search Radius
 				$this->error = true;
-				$this->errorMsg = "Whoops, the search radius you gave is negative. Negative distances are weird to compute. Try a positive value for your search radius.'";
+				$this->errorMsg = "Whoops, the search radius you gave is negative. Negative distances are weird to compute. Try a positive value for your search radius.";
 				$this->responseCode = 400;
 
 				// Log Error
@@ -801,8 +804,6 @@ class Location {
 			if(!$this->error){
 				// Required Classes
 				$db = new Database();
-				$brewer  = new Brewer();
-				$usaddresses = new USAddresses();
 
 				// Metric or Imperial?
 				if($metric){
@@ -815,31 +816,42 @@ class Location {
 					$units = 'miles';
 				}
 
-				// Query Database
+				// Query Database with JOINs to avoid N+1 queries
 				// Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
-				$result = $db->query("SELECT id, brewerID, name, url, countryCode, latitude, longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(latitude-?))/2) * SIN((RADIANS(latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-?)/2) * SIN((RADIANS(longitude-?))/2))))) AS distance FROM location HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $count]);
+				// Request count+1 to determine if there are more results (eliminates second Haversine query)
+				$fetchCount = $count + 1;
+				$result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN US_addresses a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
 				if(!$db->error){
+					$rowCount = 0;
 					while($array = $result->fetch_assoc()){
-						// Get Brewery Info
-						$brewer->validate($array['brewerID'], true);
-
-						// Get Address
-						$usaddresses->validate($array['id'], true);
+						$rowCount++;
+						if($rowCount > $count){
+							// Extra row indicates more results exist
+							break;
+						}
 
 						// Distance
 						$distance = round(floatval($array['distance']), 1);
 
+						// State info from sub_code
+						$stateShort = '';
+						$stateLong = '';
+						if(!empty($array['sub_code'])){
+							$stateShort = substr($array['sub_code'], 3, 2);
+							$stateLong = $array['sub_name'] ?? '';
+						}
+
 						// Build Response Array
-						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location','name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$usaddresses->telephone, 'address'=>array('address1'=>$usaddresses->address1, 'address2'=>$usaddresses->address2, 'city'=>$usaddresses->city, 'sub_code'=>$usaddresses->sub_code, 'state_short'=>$usaddresses->stateShort, 'state_long'=>$usaddresses->stateLong, 'zip5'=>$usaddresses->zip5, 'zip4'=>$usaddresses->zip4)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$brewer->brewerID, 'object'=>'brewer', 'name'=>$brewer->name, 'description'=>$brewer->description, 'short_description'=>$brewer->shortDescription, 'url'=>$brewer->url, 'cb_verified'=>$brewer->cbVerified, 'brewer_verified'=>$brewer->brewerVerified));
+						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>$array['zip5'], 'zip4'=>$array['zip4'])), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>stripcslashes($array['b_name'] ?? ''), 'description'=>is_null($array['b_description']) ? null : stripcslashes($array['b_description']), 'short_description'=>is_null($array['b_shortDescription']) ? null : stripcslashes($array['b_shortDescription']), 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
 						// Add to Array
 						$locationArray[] = $locationInfo;
 					}
 
-					// Next Cursor
-					$countResult = $db->query("SELECT id, (2 * ? * ASIN(SQRT(SIN((RADIANS(latitude-?))/2) * SIN((RADIANS(latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(latitude)) * SIN((RADIANS(longitude-?)/2) * SIN((RADIANS(longitude-?))/2))))) AS distance FROM location HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, 10000]);
-					$numResults = $countResult->num_rows;
-					$nextCursor = $this->nextCursor($cursor, $count, $numResults);
+					// Determine next cursor
+					if($rowCount > $count){
+						$nextCursor = base64_encode($offset + $count);
+					}
 					$db->close();
 				}else{
 					// Query Error
@@ -854,20 +866,6 @@ class Location {
 		return array('locationArray'=>$locationArray, 'nextCursor'=>$nextCursor);
 	}
 
-	// Next Cursor
-	private function nextCursor($cursor, $count, $numResults){
-		// Next Cursor
-		$offset = base64_decode($cursor);
-		$nextCursor = $offset + $count;
-
-		if($nextCursor <= $numResults){
-			// Return Next Page
-			return base64_encode($nextCursor);
-		}else{
-			return '';
-		}
-	}
-
 	// Number of Locations
 	public function countLocations(){
 		// Return
@@ -875,10 +873,10 @@ class Location {
 
 		// Query Database
 		$db = new Database();
-		$result = $db->query("SELECT COUNT('id') AS numLocations FROM location");
+		$result = $db->query("SELECT COUNT(*) AS numLocations FROM location");
 		if(!$db->error){
 			$array = $result->fetch_assoc();
-			return intval($array['numLocations']);
+			$count = intval($array['numLocations']);
 		}else{
 			// Query Error
 			$this->error = true;
@@ -1017,8 +1015,6 @@ class Location {
 
 					// Find Place From Text?
 					if($googleAPI == 'findplacefromtext'){
-						return $jsonResponse->$arrayName[0]->formatted_address;
-
 						// Log as Found in error_log for later troubleshooting
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 202;
@@ -1026,6 +1022,8 @@ class Location {
 						$errorLog->badData = 'Address String: ' . $addressString . ' // Response: ' . $jsonResponse->$arrayName[0]->formatted_address;
 						$errorLog->filename = 'API / USAddresses.class.php';
 						$errorLog->write();
+
+						return $jsonResponse->$arrayName[0]->formatted_address;
 					}
 				}else{
 					// More than one result, ambiguous
@@ -1051,7 +1049,7 @@ class Location {
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 196;
 				$errorLog->errorMsg = 'Unable to find location (Google Places API)';
-				$errorLog->badData = "LocationID: $locationID / Address String: $addressString / Status: $jsonResponse->status / Error Message: $jsonResponse->error_message";
+				$errorLog->badData = "LocationID: $locationID / Address String: $addressString / Status: $jsonResponse->status / Error Message: " . ($jsonResponse->error_message ?? '');
 				$errorLog->filename = 'API / Location.class.php';
 				$errorLog->write();
 			}else{
@@ -1063,14 +1061,14 @@ class Location {
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 195;
 				$errorLog->errorMsg = 'Google Maps Error';
-				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . $jsonResponse->error_message;
+				$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . ($jsonResponse->error_message ?? '');
 				$errorLog->filename = 'API / Location.class.php';
 				$errorLog->write();
 			}
 		}
 	}
 
-	public function generateLocationObject(){
+	public function generateLocationObject($brewerObj = null){
 		// Generates the Location Object
 		// Generally returned as part of the API output
 
@@ -1080,8 +1078,12 @@ class Location {
 		if(empty($this->longitude)){$this->longitude = null;}
 
 		// Get Brewery Data
-		$brewer = new Brewer();
-		$brewer->validate($this->brewerID, true);
+		if($brewerObj !== null){
+			$brewer = $brewerObj;
+		}else{
+			$brewer = new Brewer();
+			$brewer->validate($this->brewerID, true);
+		}
 		$brewer->generateBrewerObject(true);
 
 		// Address Data
@@ -1117,13 +1119,17 @@ class Location {
 		$this->json['brewer'] = $brewer->json;
 	}
 
-	public function generateLocationSearchObject(){
+	public function generateLocationSearchObject($brewerObj = null){
 		// Generates the Location Object for Algolia
 		$array = array();
 
 		// Get Brewery Data
-		$brewer = new Brewer();
-		$brewer->validate($this->brewerID, true);
+		if($brewerObj !== null){
+			$brewer = $brewerObj;
+		}else{
+			$brewer = new Brewer();
+			$brewer->validate($this->brewerID, true);
+		}
 
 		// Address Data
 		$usAddresses = new USAddresses();
@@ -1241,7 +1247,7 @@ class Location {
 				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'POST', '', array());
 				if(!$this->error){
 					// JSON Response
-					$this->generateLocationObject();
+					$this->generateLocationObject($this->brewerObj);
 				}else{
 					// Error Adding Location
 					$this->json['error'] = true;
@@ -1266,7 +1272,7 @@ class Location {
 				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PUT', $id, array());
 				if(!$this->error){
 					// JSON Response
-					$this->generateLocationObject();
+					$this->generateLocationObject($this->brewerObj);
 				}else{
 					// Error Adding Location
 					$this->json['error'] = true;
@@ -1300,7 +1306,7 @@ class Location {
 				$this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PATCH', $id, $patchFields);
 				if(!$this->error){
 					// JSON Response
-					$this->generateLocationObject();
+					$this->generateLocationObject($this->brewerObj);
 				}else{
 					// Error Adding Location
 					$this->json['error'] = true;

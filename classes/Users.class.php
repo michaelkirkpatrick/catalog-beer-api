@@ -34,7 +34,7 @@ class Users {
 		if(!empty($userID)){
 			// Query Database
 			$db = new Database();
-			$result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, admin FROM users WHERE id=?", [$userID]);
+			$result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordResetSent FROM users WHERE id=?", [$userID]);
 			if(!$db->error){
 				if($result->num_rows == 1){
 					// Valid User
@@ -53,6 +53,7 @@ class Users {
 						}
 						$this->emailAuth = $array['emailAuth'];
 						$this->emailAuthSent = intval($array['emailAuthSent']);
+						$this->passwordResetSent = intval($array['passwordResetSent'] ?? 0);
 						if($array['admin']){
 							$this->admin = true;
 						}else{
@@ -118,16 +119,14 @@ class Users {
 		$sendEmailVerification = false;
 
 		// Required Classes
-		$apiKeys = new apiKeys();
 		$db = new Database();
 		$privileges = new Privileges();
 
-		// Validate $apiKey & get user info for $apiKey
-		$apiKeys->validate($apiKey, true);
-		$this->validate($apiKeys->userID, true);
+		// Validation already performed by usersAPI()
+		$requesterUserID = $this->userID;
 
-		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
-		if($this->admin || $userID == $apiKeys->userID){
+		// If API Key is an Admin ($this->admin) or if $userID = requester's userID
+		if($this->admin || $userID == $requesterUserID){
 			switch($method){
 				case 'POST':
 					// Verify Admin
@@ -225,7 +224,7 @@ class Users {
 						$errorLog = new LogError();
 						$errorLog->errorNumber = 175;
 						$errorLog->errorMsg = 'Non-Admin trying to create an account.';
-						$errorLog->badData = "userID: $apiKeys->userID";
+						$errorLog->badData = "userID: $requesterUserID";
 						$errorLog->filename = 'API / Users.class.php';
 						$errorLog->write();
 					}
@@ -264,6 +263,7 @@ class Users {
 							if($originalEmailDomainName != $emailDomainName){
 								// New Domain Name, Reset Brewery Privileges, Email Verification, API Key
 								// Remove API Keys
+								$apiKeys = new apiKeys();
 								$apiKeys->deleteUser($userID);
 								if($apiKeys->error){
 									$this->error = true;
@@ -394,7 +394,7 @@ class Users {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 35;
 			$errorLog->errorMsg = 'Unauthorized attempt to create or update an account';
-			$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
+			$errorLog->badData = "userID $requesterUserID is trying to get info on userID: $userID";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -501,7 +501,7 @@ class Users {
 					$errorLog = new LogError();
 					$errorLog->errorNumber = 31;
 					$errorLog->errorMsg = 'Common Password';
-					$errorLog->badData = 'Password given: ' . $this->password;
+					$errorLog->badData = 'Common password submitted';
 					$errorLog->filename = 'API / Users.class.php';
 					$errorLog->write();
 				}
@@ -559,7 +559,7 @@ class Users {
 			if(!empty($password)){
 				// Query Database
 				$db = new Database();
-				$query = "SELECT id, passwordHash FROM users WHERE email=?";
+				$query = "SELECT id, email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordHash FROM users WHERE email=?";
 				$result = $db->query($query, [$email]);
 				if(!$db->error){
 					if($result->num_rows == 1){
@@ -571,8 +571,14 @@ class Users {
 							// Successful Login
 							$success = true;
 
-							// Save to class
-							$this->validate($array['id'], true);
+							// Save to class from existing query results
+							$this->userID = $array['id'];
+							$this->email = $array['email'];
+							$this->name = $array['name'];
+							$this->emailVerified = $array['emailVerified'] ? true : false;
+							$this->emailAuth = $array['emailAuth'];
+							$this->emailAuthSent = intval($array['emailAuthSent']);
+							$this->admin = $array['admin'] ? true : false;
 						}else{
 							// Wrong Password
 							$this->validState['password'] = 'invalid';
@@ -654,11 +660,7 @@ class Users {
 	}
 
 	public function verifyEmail($emailAuth, $apiKey){
-		// Verify Admin is performing this function
-		$apiKeys = new apiKeys();
-		$apiKeys->validate($apiKey, true);
-		$this->validate($apiKeys->userID, true);
-
+		// Validation already performed by usersAPI()
 		if($this->admin){
 			if(!empty($emailAuth)){
 				$db = new Database();
@@ -716,7 +718,7 @@ class Users {
 					// Query Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
-					$this->errorMsg = $db->responseCode;
+					$this->responseCode = $db->responseCode;
 				}
 
 				// Close Database Connection
@@ -745,7 +747,7 @@ class Users {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 171;
 			$errorLog->errorMsg = 'Non-Admin trying to verify email';
-			$errorLog->badData = "userID: $apiKeys->userID attempting to confirm email_auth: $emailAuth";
+			$errorLog->badData = "userID: $this->userID attempting to confirm email_auth: $emailAuth";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -757,13 +759,9 @@ class Users {
 	}
 
 	public function delete($userID, $apiKey){
-		// Validate $apiKey & get user info for $apiKey
-		$apiKeys = new apiKeys();
-		$apiKeys->validate($apiKey, true);
-		$this->validate($apiKeys->userID, true);
-
-		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
-		if($this->admin || $userID == $apiKeys->userID){
+		// Validation already performed by usersAPI()
+		// If API Key is an Admin ($this->admin) or if $userID = requester's userID
+		if($this->admin || $userID == $this->userID){
 			// Delete User
 			$db = new Database();
 			$db->query("DELETE FROM users WHERE id=?", [$userID]);
@@ -784,7 +782,7 @@ class Users {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 170;
 			$errorLog->errorMsg = 'Unauthorized attempt to delete user.';
-			$errorLog->badData = "userID $apiKeys->userID is trying to delete userID: $userID";
+			$errorLog->badData = "userID $this->userID is trying to delete userID: $userID";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -794,23 +792,32 @@ class Users {
 		// Default Value
 		$okayToSend = false;
 
-		// Validate $apiKey & get user info for $apiKey
-		$apiKeys = new apiKeys();
-		$apiKeys->validate($apiKey, true);
-		$this->validate($apiKeys->userID, true);
-
-		// If API Key is an Admin ($this->admin) or if $userID = $apiKeys->userID
-		if($this->admin || $userID == $apiKeys->userID){
+		// Validation already performed by usersAPI()
+		// If API Key is an Admin ($this->admin) or if $userID = requester's userID
+		if($this->admin || $userID == $this->userID){
 			if($this->emailVerified){
 				// Verified email, okay to send password reset
 
-				// When was the last password reset sent?
 				$db = new Database();
-				$result = $db->query("SELECT passwordResetSent FROM users WHERE id=?", [$userID]);
-				if(!$db->error){
-					// Get Timestamp of last Password Reset Sent
-					$row = $result->fetch_assoc();
-					$passwordResetSent = $row['passwordResetSent'];
+
+				// When was the last password reset sent?
+				if($userID == $this->userID){
+					// Same user - use cached value from validate()
+					$passwordResetSent = $this->passwordResetSent;
+				}else{
+					// Admin resetting for another user - need to query
+					$result = $db->query("SELECT passwordResetSent FROM users WHERE id=?", [$userID]);
+					if(!$db->error){
+						$row = $result->fetch_assoc();
+						$passwordResetSent = $row['passwordResetSent'];
+					}else{
+						$this->error = true;
+						$this->errorMsg = $db->errorMsg;
+						$this->responseCode = $db->responseCode;
+					}
+				}
+
+				if(!$this->error){
 
 					// Limit requests
 					if(!empty($passwordResetSent)){
@@ -832,7 +839,7 @@ class Users {
 							$errorLog = new LogError();
 							$errorLog->errorNumber = 178;
 							$errorLog->errorMsg = 'Too frequent password reset requests.';
-							$errorLog->badData = "userID $apiKeys->userID is trying to send another password reset for userID: $userID";
+							$errorLog->badData = "userID $this->userID is trying to send another password reset for userID: $userID";
 							$errorLog->filename = 'API / Users.class.php';
 							$errorLog->write();
 						}
@@ -866,11 +873,6 @@ class Users {
 							$this->responseCode = $db->responseCode;
 						}
 					}
-				}else{
-					// Database Error
-					$this->error = true;
-					$this->errorMsg = $db->errorMsg;
-					$this->responseCode = $db->responseCode;
 				}
 
 				// Close Database Connection
@@ -899,7 +901,7 @@ class Users {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 177;
 			$errorLog->errorMsg = 'Unauthorized person trying to send password reset';
-			$errorLog->badData = "userID $apiKeys->userID is trying to get info on userID: $userID";
+			$errorLog->badData = "userID $this->userID is trying to get info on userID: $userID";
 			$errorLog->filename = 'API / Users.class.php';
 			$errorLog->write();
 		}
@@ -951,7 +953,7 @@ class Users {
 			}else{
 				// More than one result
 				$this->error = true;
-				$this->errorMsg = "Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.";
+				$this->errorMsg = "Whoops, looks like a bug on our end. We've logged the issue and our support team will look into it.";
 				$this->responseCode = 500;
 
 				// Log Error

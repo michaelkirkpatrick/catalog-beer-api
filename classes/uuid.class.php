@@ -23,25 +23,10 @@ class uuid {
 	public $errorMsg = null;
 	public $responseCode = 200;
 
-	// Valid tables for UUID uniqueness check
-	private $validTables = ['beer', 'brewer', 'location', 'users', 'error_log', 'api_keys', 'api_logging', 'privileges', 'algolia', 'api_usage'];
-
-	// ----- Generate Unique UUID -----
+	// ----- Generate UUID -----
 	public function generate($table){
-		// Default State
-		$continue = true;
-
-		// While Loop
-		while($continue){
-			// Create Code
-			$this->createCode();
-
-			// Check Unique
-			$unique = $this->checkUnique($table);
-			if($unique || $this->error){
-				$continue = false;
-			}
-		}
+		// Generate UUID (collision probability ~1 in 2^122, no uniqueness check needed)
+		$this->createCode();
 
 		// Return UUID
 		return $this->uuid;
@@ -61,39 +46,6 @@ class uuid {
 		$this->uuid = vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 
 		return $this->uuid;
-	}
-
-	// ----- Check Unique -----
-	private function checkUnique($table){
-		// Default Return
-		$unique = false;
-
-		// Validate table name against whitelist
-		if(!in_array($table, $this->validTables)){
-			$this->error = true;
-			$this->errorMsg = 'Invalid table name.';
-			$this->responseCode = 500;
-			return false;
-		}
-
-		// Connect to database
-		$db = new Database();
-		$result = $db->query("SELECT id FROM $table WHERE id=?", [$this->uuid]);
-		if(!$db->error){
-			if($result->num_rows == 0){
-				$unique = true;
-			}
-		}else{
-			$this->error = true;
-			$this->errorMsg = $db->errorMsg;
-			$this->responseCode = $db->responseCode;
-		}
-
-		// Close Database Connection
-		$db->close();
-
-		// Return
-		return $unique;
 	}
 
 	// ----- Validate string is UUID v4 Compliant -----

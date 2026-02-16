@@ -32,7 +32,7 @@ class Privileges {
 					$errorLog->errorNumber = 126;
 					$errorLog->errorMsg = 'Invalid Brewer';
 					$errorLog->badData = $brewerID;
-					$errorLog->filename = 'API / Permissions.class.php';
+					$errorLog->filename = 'API / Privileges.class.php';
 					$errorLog->write();
 				}
 			}
@@ -81,7 +81,7 @@ class Privileges {
 			$errorLog->errorNumber = 125;
 			$errorLog->errorMsg = 'Invalid User';
 			$errorLog->badData = $userID;
-			$errorLog->filename = 'API / Permissions.class.php';
+			$errorLog->filename = 'API / Privileges.class.php';
 			$errorLog->write();
 		}
 	}
@@ -91,34 +91,18 @@ class Privileges {
 		$brewerIDs = array();
 
 		// Which brewer/breweries does this user have privileges for?
-		$users = new Users();
-		if($users->validate($userID, false)){
-			// Query Database
-			$db = new Database();
-			$result = $db->query("SELECT brewerID FROM privileges WHERE userID=?", [$userID]);
-			if(!$db->error){
-				// Loop through Results
-				while($array = $result->fetch_assoc()){
-					$brewerIDs[] = $array['brewerID'];
-				}
+		// Note: Callers are responsible for validating userID before calling this method.
+		$db = new Database();
+		$result = $db->query("SELECT brewerID FROM privileges WHERE userID=?", [$userID]);
+		if(!$db->error){
+			// Loop through Results
+			while($array = $result->fetch_assoc()){
+				$brewerIDs[] = $array['brewerID'];
 			}
-
-			// Close Database Connection
-			$db->close();
-		}else{
-			// Invalid UserID
-			$this->error = true;
-			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-			$this->responseCode = 500;
-
-			// Log Error
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 127;
-			$errorLog->errorMsg = 'Invalid User';
-			$errorLog->badData = $userID;
-			$errorLog->filename = 'API / Permissions.class.php';
-			$errorLog->write();
 		}
+
+		// Close Database Connection
+		$db->close();
 
 		// Return
 		return $brewerIDs;
@@ -158,7 +142,7 @@ class Privileges {
 			$errorLog->errorNumber = 132;
 			$errorLog->errorMsg = 'Invalid brewerID';
 			$errorLog->badData = $brewerID;
-			$errorLog->filename = 'API / Permissions.class.php';
+			$errorLog->filename = 'API / Privileges.class.php';
 			$errorLog->write();
 		}
 

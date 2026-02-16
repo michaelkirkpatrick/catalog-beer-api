@@ -31,6 +31,7 @@ class Database {
 			$errorLog->badData = $this->mysqli->connect_errno;
 			$errorLog->filename = 'API / Database.class.php';
 			$errorLog->write();
+			return;
 		}
 		$this->mysqli->set_charset("utf8");
 	}

@@ -343,6 +343,6 @@ $masterKeys = unserialize(MASTER_API_KEYS);
 if(!in_array($apiKey, $masterKeys)){
 	// Log Request
 	$apiLogging = new apiLogging();
-	$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded, $responseCode);
+	$apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded ?: '', $responseCode);
 }
 ?>

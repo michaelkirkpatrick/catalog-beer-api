@@ -28,6 +28,10 @@ class Beer {
 	private $isBV = false;	// Is the brewery, brewerVerified?
 	private $isCBV = false;	// Is the brewery, catalog.beer verified (cbVerified)?
 
+	// Cached objects to avoid redundant queries
+	private $brewerObj = null;
+	private $totalCount = 0;
+
 
 	public function add($brewerID, $name, $style, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
 
@@ -53,9 +57,13 @@ class Beer {
 				}
 				break;
 			case 'PUT':
-				if($this->validate($beerID, false)){
+				if($this->validate($beerID, true)){
 					// Valid Beer - Update Existing Entry
 					$this->beerID = $beerID;
+					// Save original values for permissions check
+					$originalBeerBrewerID = $this->brewerID;
+					$originalCBV = $this->cbVerified;
+					$originalBV = $this->brewerVerified;
 				}else{
 					// Beer doesn't exist, they'd like to add it
 					// Reset Errors from $this->validate()
@@ -80,6 +88,10 @@ class Beer {
 				if($this->validate($beerID, true)){
 					// Valid Beer - Update Existing Entry (Reference #1)
 					$this->beerID = $beerID;
+					// Save original values for permissions check
+					$originalBeerBrewerID = $this->brewerID;
+					$originalCBV = $this->cbVerified;
+					$originalBV = $this->brewerVerified;
 					if(!in_array('brewerID', $patchFields)){
 						// Not updating brewer. Retain current brewerID
 						$brewerID = $this->brewerID;
@@ -87,7 +99,8 @@ class Beer {
 						// Check to ensure it's a new brewer_id
 						if($this->brewerID == $brewerID){
 							// Same brewer_id, not changing. Remove from $patchFields
-							unset($patchFields['brewerID']);
+							$key = array_search('brewerID', $patchFields);
+							if($key !== false){ unset($patchFields[$key]); }
 						}
 					}
 				}
@@ -112,21 +125,14 @@ class Beer {
 			// Valid Brewer
 			$this->brewerID = $brewerID;
 			$this->validState['brewer_id'] = 'valid';
+			$this->brewerObj = $brewer;
 
 			// Which brewer is this beer currently associated with?
-			if($method == 'PUT' || $method == 'PATCH'){
-				// Get the brewerID currenlty associated with this beer
-				$result = $db->query("SELECT brewerID FROM beer WHERE id=?", [$this->beerID]);
-				if($result->num_rows > 0){
-					// Brewer currently associated with this beer
-					$row = $result->fetch_assoc();
-					$permissionsBrewerID = $row['brewerID'];
-				}else{
-					// No brewer currently associated with this beer (e.g. PUT)
-					$permissionsBrewerID = $this->brewerID;
-				}
+			if(($method == 'PUT' || $method == 'PATCH') && isset($originalBeerBrewerID)){
+				// Use saved brewerID from validate()
+				$permissionsBrewerID = $originalBeerBrewerID;
 			}else{
-				// Non PUT/PATCH Request, use $this->brewerID
+				// New beer or POST, use the submitted brewerID
 				$permissionsBrewerID = $this->brewerID;
 			}
 		}else{
@@ -157,11 +163,9 @@ class Beer {
 				if($method == 'PUT' || $method == 'PATCH'){
 					if(!$newBeer){
 						// Attempting to PUT or PATCH existing Beer
-						// Get cb_verified and brewer_verified flags
-						$result = $db->query("SELECT cbVerified, brewerVerified FROM beer WHERE id=?", [$this->beerID]);
-						$resultArray = $result->fetch_assoc();
-						$cbVerified = $resultArray['cbVerified'];
-						$brewerVerified = $resultArray['brewerVerified'];
+						// Use saved cb_verified and brewer_verified flags from validate()
+						$cbVerified = $originalCBV;
+						$brewerVerified = $originalBV;
 
 						if($cbVerified){
 							if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
@@ -209,22 +213,22 @@ class Beer {
 
 				// ----- Verification Badges -----
 				$this->cbVerified = false;
-				$dbCBV = b'0';
+				$dbCBV = 0;
 				$this->brewerVerified = false;
-				$dbBV = b'0';
+				$dbBV = 0;
 
 				// Get User Info
 				if($users->admin){
 					// Catalog.beer Verified
 					$this->cbVerified = true;
-					$dbCBV = b'1';
+					$dbCBV = 1;
 				}else{
 					// Not Catalog.beer Verified
 					if(!empty($brewer->domainName)){
 						if($userEmailDomain == $brewer->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
 							// User has email associated with the brewery, give breweryValidated flag.
 							$this->brewerVerified = true;
-							$dbBV = b'1';
+							$dbBV = 1;
 
 							if(!in_array($this->brewerID, $userBrewerPrivileges)){
 								// Give user privileges for this brewer
@@ -640,12 +644,12 @@ class Beer {
 
 						$this->beerID = $beerID;
 						$this->brewerID = $array['brewerID'];
-						$this->name = stripcslashes($array['name']);
-						$this->style = stripcslashes($array['style']);
+						$this->name = $array['name'];
+						$this->style = $array['style'];
 						if(is_null($array['description'])){
 							$this->description = null;
 						}else{
-							$this->description = stripcslashes($array['description']);
+							$this->description = $array['description'];
 						}
 						$this->abv = floatval($array['abv']);
 						$this->ibu = intval($array['ibu']);
@@ -718,6 +722,7 @@ class Beer {
 			if(is_int($count)){
 				// Within Limits?
 				$numBeers = $this->countBeers();
+				$this->totalCount = $numBeers;
 				if($offset > $numBeers){
 					// Outside Range
 					$this->error = true;
@@ -801,7 +806,7 @@ class Beer {
 
 	public function nextCursor($cursor, $count){
 		// Number of Beers
-		$numBeers = $this->countBeers();
+		$numBeers = ($this->totalCount > 0) ? $this->totalCount : $this->countBeers();
 
 		// Next Cursor
 		$offset = base64_decode($cursor);
@@ -822,10 +827,10 @@ class Beer {
 
 		// Query Database
 		$db = new Database();
-		$result = $db->query("SELECT COUNT('id') AS numBeers FROM beer");
+		$result = $db->query("SELECT COUNT(*) AS numBeers FROM beer");
 		if(!$db->error){
 			$array = $result->fetch_assoc();
-			return intval($array['numBeers']);
+			$count = intval($array['numBeers']);
 		}else{
 			// Query Error
 			$this->error = true;
@@ -945,8 +950,12 @@ class Beer {
 		else{$this->ibu = intval($this->ibu);}
 
 		// Get Brewery Data
-		$brewer = new Brewer();
-		$brewer->validate($this->brewerID, true);
+		if($this->brewerObj !== null){
+			$brewer = $this->brewerObj;
+		}else{
+			$brewer = new Brewer();
+			$brewer->validate($this->brewerID, true);
+		}
 		$brewer->generateBrewerObject(true);
 
 		// Known Values - Required
@@ -968,8 +977,12 @@ class Beer {
 		$array = array();
 
 		// Get Brewery Data
-		$brewer = new Brewer();
-		$brewer->validate($this->brewerID, true);
+		if($this->brewerObj !== null){
+			$brewer = $this->brewerObj;
+		}else{
+			$brewer = new Brewer();
+			$brewer->validate($this->brewerID, true);
+		}
 
 		// Get Algolia ID
 		$algolia = new Algolia();
@@ -981,9 +994,8 @@ class Beer {
 		$array['style'] = $this->style;
 		if(!empty($this->description)){$array['description'] = $this->description;}
 		$array['abv'] = floatval($this->abv);
-		if(empty($this->ibu)){
-			$this->ibu = intval($this->ibu);
-			$array['ibu'] = $this->ibu;
+		if(!empty($this->ibu)){
+			$array['ibu'] = intval($this->ibu);
 		}
 		$array['brewer']['brewerID'] = $brewer->brewerID;
 		$array['brewer']['name'] = $brewer->name;
@@ -1101,8 +1113,8 @@ class Beer {
 				if(empty($data->name)){$data->name = '';}
 				if(empty($data->style)){$data->style = '';}
 				if(empty($data->description)){$data->description = '';}
-				if(empty($data->abv)){$data->abv = '';}
-				if(empty($data->ibu)){$data->ibu = '';}
+				if(!isset($data->abv)){$data->abv = '';}
+				if(!isset($data->ibu)){$data->ibu = '';}
 
 				// Validate API Key for userID
 				$apiKeys = new apiKeys();
@@ -1144,8 +1156,8 @@ class Beer {
 				if(empty($data->name)){$data->name = '';}
 				if(empty($data->style)){$data->style = '';}
 				if(empty($data->description)){$data->description = '';}
-				if(empty($data->abv)){$data->abv = '';}
-				if(empty($data->ibu)){$data->ibu = '';}
+				if(!isset($data->abv)){$data->abv = '';}
+				if(!isset($data->ibu)){$data->ibu = '';}
 
 				// Validate API Key for userID
 				$apiKeys = new apiKeys();

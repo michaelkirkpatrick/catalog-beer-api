@@ -22,8 +22,17 @@ class LogError {
 	public $filename = '';
 	public $resolved = false;
 
+	// Recursion guard: prevents infinite loop when database is down
+	private static bool $writing = false;
+
 	// Write Error
 	public function write(){
+
+		// Prevent recursion (Database failure during write would trigger another write)
+		if(self::$writing){
+			return;
+		}
+		self::$writing = true;
 
 		// Generate UUID
 		$uuid = new uuid();
@@ -34,6 +43,8 @@ class LogError {
 			$db->query("INSERT INTO error_log (id, errorNumber, errorMessage, badData, URI, ipAddress, timestamp, filename, resolved) VALUES(?, ?, ?, ?, ?, ?, ?, ?, 0)", [$errorID, $this->errorNumber, $this->errorMsg, serialize($this->badData), $_SERVER['REQUEST_URI'], $_SERVER['REMOTE_ADDR'], time(), $this->filename]);
 			$db->close();
 		}
+
+		self::$writing = false;
 	}
 
 	public function validate($errorID, $saveToClass){
@@ -98,7 +109,7 @@ class LogError {
 			$db->query("UPDATE error_log SET resolved='1' WHERE id=?", [$errorID]);
 			$db->close();
 		}else{
-			$this->errorNumber = 3;
+			$this->errorNumber = 220;
 			$this->errorMsg = 'Missing errorID';
 			$this->badData = '';
 			$this->filename = 'LogError.class.php';
