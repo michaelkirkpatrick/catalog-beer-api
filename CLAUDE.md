@@ -68,7 +68,7 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()` uses a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–220+). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–224). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
