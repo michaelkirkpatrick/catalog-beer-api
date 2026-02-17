@@ -4915,7 +4915,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"{{brewer_name_4}}\",\n    \"description\": \"{{brewer_description_4}}\",\n    \"short_description\": \"{{brewer_short_description_4}}\"\n}",
+									"raw": "{\n    \"name\": \"{{brewer_name_4}}\",\n    \"description\": \"{{brewer_description_4}}\",\n    \"short_description\": \"{{brewer_short_description_4}}\",\n    \"url\": \"https://catalog.beer/catalog-beer-test-page.html\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
