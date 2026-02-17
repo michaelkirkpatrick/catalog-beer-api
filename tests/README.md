@@ -53,6 +53,24 @@ newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json 
 newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --verbose
 ```
 
+### Cleanup
+
+Tests create users, brewers, beers, and locations that are deleted by the `User - End Requests` folder at the end of the collection. If a test run is interrupted (e.g., via `--bail`) or only a specific folder is run, stale test data may remain in the database and cause failures on the next run.
+
+To reset, run the cleanup folder:
+
+```bash
+newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --folder "User - End Requests"
+```
+
+To automatically run cleanup after a bailed test run:
+
+```bash
+# Run tests, then always run cleanup regardless of pass/fail
+newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --bail; \
+newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --folder "User - End Requests"
+```
+
 ## Collection Structure
 
 The collection contains **595 requests** organized into sequential test groups. The `--folder` flag can target any folder at any nesting level by name.

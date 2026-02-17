@@ -256,7 +256,7 @@ class Users {
 						if(in_array('email', $patchFields)){
 							// Validate Email
 							$this->email = $email;
-							$this->validateEmail();
+							$this->validateEmail($userID);
 
 							// Different Domain?
 							$emailDomainName = $this->emailDomainName($this->email);
@@ -440,7 +440,7 @@ class Users {
 		}
 	}
 
-	private function validateEmail(){
+	private function validateEmail($excludeUserID = ''){
 		// Lowercase String
 		$this->email = strtolower($this->email ?? '');
 
@@ -452,7 +452,11 @@ class Users {
 
 			// Does user already exist?
 			$db = new Database();
-			$result = $db->query("SELECT id FROM users WHERE email=?", [$this->email]);
+			if(!empty($excludeUserID)){
+				$result = $db->query("SELECT id FROM users WHERE email=? AND id!=?", [$this->email, $excludeUserID]);
+			}else{
+				$result = $db->query("SELECT id FROM users WHERE email=?", [$this->email]);
+			}
 			if(!$db->error){
 				if($result->num_rows == 1){
 					// Someone else has already registered this email
