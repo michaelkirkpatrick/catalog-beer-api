@@ -52,15 +52,15 @@ newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json 
 
 ## Collection Structure
 
-The collection contains **510 requests** organized into sequential test groups:
+The collection contains **595 requests** organized into sequential test groups:
 
 | Folder | Requests | What it tests |
 |--------|----------|---------------|
 | `/users` | 35 | User creation, updates, email verification, admin operations |
-| `/login` | 8 | Authentication, API key validation |
-| `Breweries, Beer, Locations` | 446 | Full CRUD for brewers, beers, locations, and addresses |
+| `/login` | 9 | Authentication, API key validation |
+| `Breweries, Beer, Locations` | 527 | Full CRUD for brewers, beers, locations, and addresses |
 | `Invalid API Requests - Technical` | 12 | Malformed requests, missing headers, bad content types |
-| `/User - End Requests` | 9 | Password reset, account deletion, cleanup |
+| `/User - End Requests` | 12 | Password reset, account deletion, cleanup |
 
 ### Important: Tests are Sequential
 

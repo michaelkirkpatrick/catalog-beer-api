@@ -38,14 +38,14 @@ Users,U-36,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-pass
 Users,U-37,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Test User,204,Done
 Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_id_3}}/reset-password,Test User,400,Done
 Users,U-39,Reset Password - User #3 (Invalid Key),POST,/users/password-reset/{{guid}},Test User,400,Done
-Users,U-40,Get User #3 Info,GET,/users/{{user_id_3}},Test User,200,Not Started
-Users,U-41,Reset Password - User #3,POST,/users/password-reset/{{password_reset_key_3}},Test User,204,Not Started
+Users,U-40,Get User #3 Info,GET,/users/{{user_id_3}},Test User,200,Done
+Users,U-41,Reset Password - User #3,POST,/users/password-reset/{{password_reset_key_3}},Test User,204,Done
 Users,U-42,Update User #1 - Email (New Domain),PATCH,/users/{{user_id_1}},Admin,200,Done
 Users,U-43,Confirm No API Key - User #1,GET,/users/{{user_id_1}}/api-key,Admin,200,Done
 Users,U-44,Attempt - Delete User #1,DELETE,/users/{{user_id_1}},Non-Admin,403,Done
 Users,U-45,Delete User #1,DELETE,/users/{{user_id_1}},Admin,204,Done
 Users,U-46,Delete User #2,DELETE,/users/{{user_id_2}},Non-Admin,204,Done
-Users,U-47,Delete User #3,DELETE,/users/{{user_id_3}},Admin,204,Not Started
+Users,U-47,Delete User #3,DELETE,/users/{{user_id_3}},Admin,204,Done
 Login,UL-1,Validate Credentials - Invalid Method,GET,/login,Admin,405,Done
 Login,UL-2,Validate Credentials - No Data,POST,/login,Admin,400,Done
 Login,UL-3,Validate Credentials - Invalid Email,POST,/login,Admin,400,Done
@@ -54,7 +54,7 @@ Login,UL-5,Validate Credentials - Unregistered Email,POST,/login,Admin,401,Done
 Login,UL-6,Validate Credentials - Invalid Password,POST,/login,Admin,401,Done
 Login,UL-7,Validate Credentials - User #1,POST,/login,Admin,200,Done
 Login,UL-8,Validate Credentials - User #2,POST,/login,Non-Admin,403,Done
-Login,UL-9,Validate Credentials - User #3,POST,/login,Non-Admin,403,Not Started
+Login,UL-9,Validate Credentials - User #3,POST,/login,Non-Admin,403,Done
 Brewer,BR-1,Brewer: no data,POST,/brewer,Admin,400,Done
 Brewer,BR-2,Brewery #1 - name only,POST,/brewer,Admin,201,Done
 Brewer,BR-9,Delete Brewery #1,DELETE,/brewer/{{brewer_id_1}},Admin,204,Done
@@ -202,37 +202,37 @@ Brewer,BR-151,Create Brewery #37 as Non-Admin,POST,/brewer,Non-Admin,201,Done
 Brewer,BR-152,Brewery Staff Updates Non-Admin (Not their brewery),PUT,/brewer/{{brewer_id_37}},Brewery Staff,200,Done
 Brewer,BR-153,Brewery Staff Updates Non-Admin (Not their brewery),PATCH,/brewer/{{brewer_id_37}},Brewery Staff,200,Done
 Brewer,BR-154,Brewery Staff Attempts to Delete Non-Admin (Not their brewery),DELETE,/brewer/{{brewer_id_37}},Brewery Staff,403,Done
-Brewer,BR-155,"Admin Updates, Becomes cb_verified",PUT,/brewer/{{brewer_id_37}},Admin,200,Not Started
-Brewer,BR-156,Non-Admin Attempts to Change cb_verified,PUT,/brewer/{{brewer_id_37}},Non-Admin,403,Not Started
-Brewer,BR-157,Non-Admin Attempts to Change cb_verified,PATCH,/brewer/{{brewer_id_37}},Non-Admin,403,Not Started
-Brewer,BR-158,Non-Admin Attempts to Delete cb_verified,DELETE,/brewer/{{brewer_id_37}},Non-Admin,403,Not Started
-Brewer,BR-159,"Brewery Staff (Not their brewery), Attempts to Change cb_verified",PUT,/brewer/{{brewer_id_37}},Brewery Staff,403,Not Started
-Brewer,BR-160,"Brewery Staff (Not their brewery), Attempts to Change cb_verified",PATCH,/brewer/{{brewer_id_37}},Brewery Staff,403,Not Started
-Brewer,BR-161,"Brewery Staff (Not their brewery), Attempts to Delete cb_verified",DELETE,/brewer/{{brewer_id_37}},Brewery Staff,403,Not Started
-Brewer,BR-162,Change URL to Brewer URL,PATCH,/brewer/{{brewer_id_37}},Admin,200,Not Started
-Brewer,BR-163,"Brewery Staff Updates cb_verified (Their Brewery), becomes brewer_verified",PATCH,/brewer/{{brewer_id_37}},Brewery Staff,200,Not Started
-Brewer,BR-164,Delete Brewery #37,DELETE,/brewer/{{brewer_id_37}},Brewery Staff,204,Not Started
-Brewer,BR-165,Create Brewery #38 as Non-Admin,POST,/brewer,Non-Admin,201,Not Started
-Brewer,BR-166,"Admin Changes Short Description, Becomes cb_verified",PATCH,/brewer/{{brewer_id_38}},Admin,200,Not Started
-Brewer,BR-167,"Brewery Staff Updates cb_verified (Their Brewery), becomes brewer_verified",PUT,/brewer/{{brewer_id_38}},Brewery Staff,200,Not Started
-Brewer,BR-168,Delete Brewery #38,DELETE,/brewer/{{brewer_id_38}},Admin,204,Not Started
-Brewer,BR-169,Create Brewery #39 as Brewery Staff,POST,/brewer,Brewery Staff,201,Not Started
-Brewer,BR-170,Non-Admin Attempts to Change brewer_verified,PUT,/brewer/{{brewer_id_39}},Non-Admin,403,Not Started
-Brewer,BR-171,Non-Admin Attempts to Change brewer_verified,PATCH,/brewer/{{brewer_id_39}},Non-Admin,403,Not Started
-Brewer,BR-172,Non-Admin Attempts to Delete brewer_verified,DELETE,/brewer/{{brewer_id_39}},Non-Admin,403,Not Started
-Brewer,BR-173,"Admin Updates brewer_verified, Becomes cb_verified",PUT,/brewer/{{brewer_id_39}},Admin,200,Not Started
-Brewer,BR-174,Delete Brewery #39,DELETE,/brewer/{{brewer_id_39}},Admin,204,Not Started
-Brewer,BR-175,Create Brewery #40 as Brewery Staff,POST,/brewer,Brewery Staff,201,Not Started
-Brewer,BR-176,"Admin Updates brewer_verified, Becomes cb_verified",PATCH,/brewer/{{brewer_id_40}},Admin,200,Not Started
-Brewer,BR-177,Delete Brewery #40,DELETE,/brewer/{{brewer_id_40}},Admin,204,Not Started
-Brewer,BR-178,Brewery #41 - name only,POST,/brewer,Non-Admin,201,Not Started
-Brewer,BR-179,"Brewery Staff Updates Non-Admin (Their Brewery), becomes brewer_verified",PUT,/brewer/{{brewer_id_41}},Brewery Staff,200,Not Started
-Brewer,BR-180,Delete Brewery #41,DELETE,/brewer/{{brewer_id_41}},Brewery Staff,204,Not Started
-Brewer,BR-181,Brewery #42 - name only,POST,/brewer,Non-Admin,201,Not Started
-Brewer,BR-182,"Brewery Staff Updates Non-Admin (Their Brewery), becomes brewer_verified",PATCH,/brewer/{{brewer_id_42}},Brewery Staff,200,Not Started
-Brewer,BR-183,Delete Brewery #42,DELETE,/brewer/{{brewer_id_42}},Brewery Staff,204,Not Started
-Brewer,BR-184,Create Brewery #43 as Admin,POST,/brewer,Admin,201,Not Started
-Brewer,BR-185,Delete Brewery #43,DELETE,/brewer/{{brewer_id_43}},Brewery Staff,204,Not Started
+Brewer,BR-155,"Admin Updates, Becomes cb_verified",PUT,/brewer/{{brewer_id_37}},Admin,200,Done
+Brewer,BR-156,Non-Admin Attempts to Change cb_verified,PUT,/brewer/{{brewer_id_37}},Non-Admin,403,Done
+Brewer,BR-157,Non-Admin Attempts to Change cb_verified,PATCH,/brewer/{{brewer_id_37}},Non-Admin,403,Done
+Brewer,BR-158,Non-Admin Attempts to Delete cb_verified,DELETE,/brewer/{{brewer_id_37}},Non-Admin,403,Done
+Brewer,BR-159,"Brewery Staff (Not their brewery), Attempts to Change cb_verified",PUT,/brewer/{{brewer_id_37}},Brewery Staff,403,Done
+Brewer,BR-160,"Brewery Staff (Not their brewery), Attempts to Change cb_verified",PATCH,/brewer/{{brewer_id_37}},Brewery Staff,403,Done
+Brewer,BR-161,"Brewery Staff (Not their brewery), Attempts to Delete cb_verified",DELETE,/brewer/{{brewer_id_37}},Brewery Staff,403,Done
+Brewer,BR-162,Change URL to Brewer URL,PATCH,/brewer/{{brewer_id_37}},Admin,200,Done
+Brewer,BR-163,"Brewery Staff Updates cb_verified (Their Brewery), becomes brewer_verified",PATCH,/brewer/{{brewer_id_37}},Brewery Staff,200,Done
+Brewer,BR-164,Delete Brewery #37,DELETE,/brewer/{{brewer_id_37}},Brewery Staff,204,Done
+Brewer,BR-165,Create Brewery #38 as Non-Admin,POST,/brewer,Non-Admin,201,Done
+Brewer,BR-166,"Admin Changes Short Description, Becomes cb_verified",PATCH,/brewer/{{brewer_id_38}},Admin,200,Done
+Brewer,BR-167,"Brewery Staff Updates cb_verified (Their Brewery), becomes brewer_verified",PUT,/brewer/{{brewer_id_38}},Brewery Staff,200,Done
+Brewer,BR-168,Delete Brewery #38,DELETE,/brewer/{{brewer_id_38}},Admin,204,Done
+Brewer,BR-169,Create Brewery #39 as Brewery Staff,POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-170,Non-Admin Attempts to Change brewer_verified,PUT,/brewer/{{brewer_id_39}},Non-Admin,403,Done
+Brewer,BR-171,Non-Admin Attempts to Change brewer_verified,PATCH,/brewer/{{brewer_id_39}},Non-Admin,403,Done
+Brewer,BR-172,Non-Admin Attempts to Delete brewer_verified,DELETE,/brewer/{{brewer_id_39}},Non-Admin,403,Done
+Brewer,BR-173,"Admin Updates brewer_verified, Becomes cb_verified",PUT,/brewer/{{brewer_id_39}},Admin,200,Done
+Brewer,BR-174,Delete Brewery #39,DELETE,/brewer/{{brewer_id_39}},Admin,204,Done
+Brewer,BR-175,Create Brewery #40 as Brewery Staff,POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-176,"Admin Updates brewer_verified, Becomes cb_verified",PATCH,/brewer/{{brewer_id_40}},Admin,200,Done
+Brewer,BR-177,Delete Brewery #40,DELETE,/brewer/{{brewer_id_40}},Admin,204,Done
+Brewer,BR-178,Brewery #41 - name only,POST,/brewer,Non-Admin,201,Done
+Brewer,BR-179,"Brewery Staff Updates Non-Admin (Their Brewery), becomes brewer_verified",PUT,/brewer/{{brewer_id_41}},Brewery Staff,200,Done
+Brewer,BR-180,Delete Brewery #41,DELETE,/brewer/{{brewer_id_41}},Brewery Staff,204,Done
+Brewer,BR-181,Brewery #42 - name only,POST,/brewer,Non-Admin,201,Done
+Brewer,BR-182,"Brewery Staff Updates Non-Admin (Their Brewery), becomes brewer_verified",PATCH,/brewer/{{brewer_id_42}},Brewery Staff,200,Done
+Brewer,BR-183,Delete Brewery #42,DELETE,/brewer/{{brewer_id_42}},Brewery Staff,204,Done
+Brewer,BR-184,Create Brewery #43 as Admin,POST,/brewer,Admin,201,Done
+Brewer,BR-185,Delete Brewery #43,DELETE,/brewer/{{brewer_id_43}},Brewery Staff,204,Done
 Beer,BEER-1,Beer: no data,POST,/beer,Admin,400,Done
 Beer,BEER-2,Beer: unknown brewer_id,POST,/beer,Admin,400,Done
 Beer,BEER-3,Beer: brewer_id,POST,/beer,Admin,400,Done
@@ -346,25 +346,25 @@ Beer,BEER-111,Non-Admin Attempts to delete cb_verified,DELETE,/beer/{{beer_id_19
 Beer,BEER-112,Brewery Staff Attempts to update cb_verified,PUT,/beer/{{beer_id_19}},Brewery Staff,403,Done
 Beer,BEER-113,Brewery Staff Attempts to update cb_verified,PATCH,/beer/{{beer_id_19}},Brewery Staff,403,Done
 Beer,BEER-114,Brewery Staff Attempt to delete cb_verified,DELETE,/beer/{{beer_id_19}},Brewery Staff,403,Done
-Beer,BEER-115,"Brewery Staff Updates cb_verified, becomes brewer_verified",PATCH,/beer/{{beer_id_19}},Brewery Staff,200,Not Started
-Beer,BEER-116,Non-Admin Creates Beer #20,POST,/beer/{{beer_id_20}},Non-Admin,201,Not Started
-Beer,BEER-117,"Admin Updates Non-Admin, becomes cb_verified",PATCH,/beer/{{beer_id_20}},Admin,200,Not Started
-Beer,BEER-118,"Brewery Staff Updates cb_verified, becomes brewer_verified",PUT,/beer/{{beer_id_20}},Brewery Staff,200,Not Started
-Beer,BEER-119,Admin Deletes Beer #20,DELETE,/beer/{{beer_id_20}},Admin,204,Not Started
-Beer,BEER-120,Brewery Staff Creates Beer #21,POST,/beer/{{beer_id_21}},Brewery Staff,201,Not Started
-Beer,BEER-121,Non-Admin Attempts to update brewer_verified,PUT,/beer/{{beer_id_21}},Non-Admin,403,Not Started
-Beer,BEER-122,Non-Admin Attempts to update brewer_verified,PATCH,/beer/{{beer_id_21}},Non-Admin,403,Not Started
-Beer,BEER-123,Non-Admin Attempts to delete brewer_verified,DELETE,/beer/{{beer_id_21}},Non-Admin,403,Not Started
-Beer,BEER-124,"Admin Updates brewer_verified, becomes cb_verified",PUT,/beer/{{beer_id_21}},Admin,200,Not Started
-Beer,BEER-125,Brewery Staff Creates Beer #22,POST,/beer/{{beer_id_22}},Brewery Staff,201,Not Started
-Beer,BEER-126,"Admin Updates brewer_verified, becomes cb_verified",PATCH,/beer/{{beer_id_22}},Admin,200,Not Started
-Beer,BEER-127,"Brewery Staff Deletes their beer, cb_verified",DELETE,/beer/{{beer_id_22}},Brewery Staff,204,Not Started
-Beer,BEER-128,Non-Admin Creates Beer #23,POST,/beer/{{beer_id_23}},Non-Admin,201,Not Started
-Beer,BEER-129,"Brewery Staff Updates Non-Admin, becomes brewer_verified",PUT,/beer/{{beer_id_23}},Brewery Staff,200,Not Started
-Beer,BEER-130,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_24}},Non-Admin,201,Not Started
-Beer,BEER-131,"Brewery Staff Updates Non-Admin, becomes brewer_verified",PATCH,/beer/{{beer_id_24}},Brewery Staff,200,Not Started
-Beer,BEER-132,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_25}},Non-Admin,201,Not Started
-Beer,BEER-133,"Brewery Staff Deletes their beer, created by Non-Admin",DELETE,/beer/{{beer_id_25}},Brewery Staff,204,Not Started
+Beer,BEER-115,"Brewery Staff Updates cb_verified, becomes brewer_verified",PATCH,/beer/{{beer_id_19}},Brewery Staff,200,Done
+Beer,BEER-116,Non-Admin Creates Beer #20,POST,/beer/{{beer_id_20}},Non-Admin,201,Done
+Beer,BEER-117,"Admin Updates Non-Admin, becomes cb_verified",PATCH,/beer/{{beer_id_20}},Admin,200,Done
+Beer,BEER-118,"Brewery Staff Updates cb_verified, becomes brewer_verified",PUT,/beer/{{beer_id_20}},Brewery Staff,200,Done
+Beer,BEER-119,Admin Deletes Beer #20,DELETE,/beer/{{beer_id_20}},Admin,204,Done
+Beer,BEER-120,Brewery Staff Creates Beer #21,POST,/beer/{{beer_id_21}},Brewery Staff,201,Done
+Beer,BEER-121,Non-Admin Attempts to update brewer_verified,PUT,/beer/{{beer_id_21}},Non-Admin,403,Done
+Beer,BEER-122,Non-Admin Attempts to update brewer_verified,PATCH,/beer/{{beer_id_21}},Non-Admin,403,Done
+Beer,BEER-123,Non-Admin Attempts to delete brewer_verified,DELETE,/beer/{{beer_id_21}},Non-Admin,403,Done
+Beer,BEER-124,"Admin Updates brewer_verified, becomes cb_verified",PUT,/beer/{{beer_id_21}},Admin,200,Done
+Beer,BEER-125,Brewery Staff Creates Beer #22,POST,/beer/{{beer_id_22}},Brewery Staff,201,Done
+Beer,BEER-126,"Admin Updates brewer_verified, becomes cb_verified",PATCH,/beer/{{beer_id_22}},Admin,200,Done
+Beer,BEER-127,"Brewery Staff Deletes their beer, cb_verified",DELETE,/beer/{{beer_id_22}},Brewery Staff,204,Done
+Beer,BEER-128,Non-Admin Creates Beer #23,POST,/beer/{{beer_id_23}},Non-Admin,201,Done
+Beer,BEER-129,"Brewery Staff Updates Non-Admin, becomes brewer_verified",PUT,/beer/{{beer_id_23}},Brewery Staff,200,Done
+Beer,BEER-130,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_24}},Non-Admin,201,Done
+Beer,BEER-131,"Brewery Staff Updates Non-Admin, becomes brewer_verified",PATCH,/beer/{{beer_id_24}},Brewery Staff,200,Done
+Beer,BEER-132,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_25}},Non-Admin,201,Done
+Beer,BEER-133,"Brewery Staff Deletes their beer, created by Non-Admin",DELETE,/beer/{{beer_id_25}},Brewery Staff,204,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -457,37 +457,37 @@ Location,L-92,"Location #33 - brewer_id, name, CC",POST,/location,Brewery Staff,
 Location,L-93,"Location #34 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Done
 Location,L-94,"Location #35 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Done
 Location,L-95,"Location #36 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Done
-Location,L-96,"Location #37 - brewer_id, name, CC",POST,/location,Non-Admin,201,Not Started
-Location,L-97,Brewery Staff Updates Non-Admin (not their brewery),PUT,/location/{{location_id_37}},Brewery Staff,200,Not Started
-Location,L-98,Brewery Staff Updates Non-Admin (not their brewery),PATCH,/location/{{location_id_37}},Brewery Staff,200,Not Started
-Location,L-99,Brewery Staff attempts to delete Non-Admin,DELETE,/location/{{location_id_37}},Brewery Staff,403,Not Started
-Location,L-100,"Admin Updates Non-Admin, becomes cb_verified",PUT,/location/{{location_id_37}},Admin,200,Not Started
-Location,L-101,Non-Admin attempts to update cb_verified,PUT,/location/{{location_id_37}},Non-Admin,403,Not Started
-Location,L-102,Non-Admin attempts to update cb_verified,PATCH,/location/{{location_id_37}},Non-Admin,403,Not Started
-Location,L-103,Non-Admin attempts to delete cb_verified,DELETE,/location/{{location_id_37}},Non-Admin,403,Not Started
-Location,L-104,Brewery Staff attempts to update cb_verified,PUT,/location/{{location_id_37}},Brewery Staff,403,Not Started
-Location,L-105,Brewery Staff attempts to update cb_verified,PATCH,/location/{{location_id_37}},Brewery Staff,403,Not Started
-Location,L-106,Brewery Staff attempts to delete cb_verified,DELETE,/location/{{location_id_37}},Brewery Staff,403,Not Started
-Location,L-107,"Location #38 - brewer_id, name, CC",POST,/location,Admin,201,Not Started
-Location,L-108,"Brewery Staff updates cb_verified, becomes brewer_verified",PATCH,/location/{{location_id_38}},Brewery Staff,200,Not Started
-Location,L-109,"Location #39 - brewer_id, name, CC",POST,/location,Non-Admin,201,Not Started
-Location,L-110,"Admin Updates Non-Admin, becomes cb_verified",PATCH,/location/{{location_id_39}},Admin,200,Not Started
-Location,L-111,"Brewery Staff updates cb_verified, becomes brewer_verified",PUT,/location/{{location_id_39}},Brewery Staff,200,Not Started
-Location,L-112,Admin Deletes Location,DELETE,/location/{{location_id_39}},Admin,204,Not Started
-Location,L-113,"Location #40 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Not Started
-Location,L-114,Non-Admin attempts to update brewer_verified,PUT,/location/{{location_id_40}},Non-Admin,403,Not Started
-Location,L-115,Non-Admin attempts to update brewer_verified,PATCH,/location/{{location_id_40}},Non-Admin,403,Not Started
-Location,L-116,Non-Admin attempts to delete brewer_verified,DELETE,/location/{{location_id_40}},Non-Admin,403,Not Started
-Location,L-117,"Admin updates brewer_verified, becomes cb_verified",PUT,/location/{{location_id_40}},Admin,200,Not Started
-Location,L-118,"Location #41 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Not Started
-Location,L-119,"Admin updates brewer_verified, becomes cb_verified",PATCH,/location/{{location_id_41}},Admin,200,Not Started
-Location,L-120,Brewery Staff deletes cb_verified,DELETE,/location/{{location_id_41}},Brewery Staff,204,Not Started
-Location,L-121,"Location #42 - brewer_id, name, CC",POST,/location,Non-Admin,201,Not Started
-Location,L-122,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_verified",PUT,/location/{{location_id_42}},Brewery Staff,200,Not Started
-Location,L-123,"Location #43 - brewer_id, name, CC",POST,/location,Non-Admin,201,Not Started
-Location,L-124,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_verified",PATCH,/location/{{location_id_43}},Brewery Staff,200,Not Started
-Location,L-125,"Location #44 - brewer_id, name, CC",POST,/location,Non-Admin,201,Not Started
-Location,L-126,Brewery Staff deletes Non-Admin (their brewery),DELETE,/location/{{location_id_44}},Brewery Staff,204,Not Started
+Location,L-96,"Location #37 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
+Location,L-97,Brewery Staff Updates Non-Admin (not their brewery),PUT,/location/{{location_id_37}},Brewery Staff,200,Done
+Location,L-98,Brewery Staff Updates Non-Admin (not their brewery),PATCH,/location/{{location_id_37}},Brewery Staff,200,Done
+Location,L-99,Brewery Staff attempts to delete Non-Admin,DELETE,/location/{{location_id_37}},Brewery Staff,403,Done
+Location,L-100,"Admin Updates Non-Admin, becomes cb_verified",PUT,/location/{{location_id_37}},Admin,200,Done
+Location,L-101,Non-Admin attempts to update cb_verified,PUT,/location/{{location_id_37}},Non-Admin,403,Done
+Location,L-102,Non-Admin attempts to update cb_verified,PATCH,/location/{{location_id_37}},Non-Admin,403,Done
+Location,L-103,Non-Admin attempts to delete cb_verified,DELETE,/location/{{location_id_37}},Non-Admin,403,Done
+Location,L-104,Brewery Staff attempts to update cb_verified,PUT,/location/{{location_id_37}},Brewery Staff,403,Done
+Location,L-105,Brewery Staff attempts to update cb_verified,PATCH,/location/{{location_id_37}},Brewery Staff,403,Done
+Location,L-106,Brewery Staff attempts to delete cb_verified,DELETE,/location/{{location_id_37}},Brewery Staff,403,Done
+Location,L-107,"Location #38 - brewer_id, name, CC",POST,/location,Admin,201,Done
+Location,L-108,"Brewery Staff updates cb_verified, becomes brewer_verified",PATCH,/location/{{location_id_38}},Brewery Staff,200,Done
+Location,L-109,"Location #39 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
+Location,L-110,"Admin Updates Non-Admin, becomes cb_verified",PATCH,/location/{{location_id_39}},Admin,200,Done
+Location,L-111,"Brewery Staff updates cb_verified, becomes brewer_verified",PUT,/location/{{location_id_39}},Brewery Staff,200,Done
+Location,L-112,Admin Deletes Location,DELETE,/location/{{location_id_39}},Admin,204,Done
+Location,L-113,"Location #40 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Done
+Location,L-114,Non-Admin attempts to update brewer_verified,PUT,/location/{{location_id_40}},Non-Admin,403,Done
+Location,L-115,Non-Admin attempts to update brewer_verified,PATCH,/location/{{location_id_40}},Non-Admin,403,Done
+Location,L-116,Non-Admin attempts to delete brewer_verified,DELETE,/location/{{location_id_40}},Non-Admin,403,Done
+Location,L-117,"Admin updates brewer_verified, becomes cb_verified",PUT,/location/{{location_id_40}},Admin,200,Done
+Location,L-118,"Location #41 - brewer_id, name, CC",POST,/location,Brewery Staff,201,Done
+Location,L-119,"Admin updates brewer_verified, becomes cb_verified",PATCH,/location/{{location_id_41}},Admin,200,Done
+Location,L-120,Brewery Staff deletes cb_verified,DELETE,/location/{{location_id_41}},Brewery Staff,204,Done
+Location,L-121,"Location #42 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
+Location,L-122,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_verified",PUT,/location/{{location_id_42}},Brewery Staff,200,Done
+Location,L-123,"Location #43 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
+Location,L-124,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_verified",PATCH,/location/{{location_id_43}},Brewery Staff,200,Done
+Location,L-125,"Location #44 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
+Location,L-126,Brewery Staff deletes Non-Admin (their brewery),DELETE,/location/{{location_id_44}},Brewery Staff,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
