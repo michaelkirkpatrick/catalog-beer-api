@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-REST API backend for [Catalog.beer](https://catalog.beer), a beer database service. PHP-based API with no framework, no dependency manager (no Composer), and no test suite. Runs on Apache with mod_rewrite.
+REST API backend for [Catalog.beer](https://catalog.beer), a beer database service. PHP-based API with no framework and no dependency manager (no Composer). Runs on Apache with mod_rewrite. Integration tests run via Newman (Postman CLI).
 
 Related repos:
 - Frontend: [catalog-beer](https://github.com/michaelkirkpatrick/catalog-beer)

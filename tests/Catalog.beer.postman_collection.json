@@ -8,7 +8,7 @@
 	},
 	"item": [
 		{
-			"name": "/users ",
+			"name": "Users",
 			"item": [
 				{
 					"name": "As Admin",
@@ -3214,7 +3214,7 @@
 			]
 		},
 		{
-			"name": "/login",
+			"name": "Login",
 			"item": [
 				{
 					"name": "Get userID using Admin API Key",
@@ -67321,7 +67321,7 @@
 			]
 		},
 		{
-			"name": "/User - End Requests",
+			"name": "User - End Requests",
 			"item": [
 				{
 					"name": "U-36 Password Reset Request -  User #3 (Attempt)",

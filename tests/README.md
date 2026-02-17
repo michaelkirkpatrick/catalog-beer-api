@@ -57,6 +57,112 @@ newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json 
 
 The collection contains **595 requests** organized into sequential test groups. The `--folder` flag can target any folder at any nesting level by name.
 
+```
+Catalog.beer
+├── Users
+│   ├── As Admin
+│   └── Other Requests
+├── Login
+│   ├── Get userID using Admin API Key
+│   └── Get userID using non-admin API Key
+├── Breweries, Beer, Locations
+│   ├── Brewery #1
+│   ├── Brewery #2
+│   ├── Brewery #3
+│   ├── Brewery #4
+│   ├── Brewery #5
+│   ├── Brewery #6
+│   ├── Brewery #7 & #8
+│   ├── Brewery #9
+│   ├── Brewery #10
+│   ├── Brewery #11
+│   ├── Brewery #12
+│   ├── Brewery #13
+│   ├── Brewery #14
+│   ├── Brewery #15
+│   ├── Brewery #16
+│   ├── Brewery #17
+│   ├── Brewery #18
+│   ├── Brewery #19
+│   ├── Brewery #20
+│   ├── Brewery #21 & #22
+│   │   ├── Brewery Requests - Part 1
+│   │   ├── Beer #7
+│   │   ├── Beer #8
+│   │   ├── Beer #9
+│   │   ├── Beer #10
+│   │   ├── Beer #11
+│   │   ├── Beer #12
+│   │   ├── Location #13
+│   │   ├── Location #14
+│   │   ├── Location #15
+│   │   └── Location #16
+│   ├── Brewery #23
+│   ├── Brewery #24
+│   ├── Brewery #25
+│   ├── Brewery #26
+│   ├── Brewery #27
+│   ├── Brewery #28
+│   │   ├── Brewery #28
+│   │   ├── Location #17
+│   │   ├── Location #18
+│   │   ├── Location #19
+│   │   ├── Location #20
+│   │   ├── Location #21
+│   │   ├── Location #22
+│   │   ├── Location #23
+│   │   └── Location #24
+│   ├── Brewery #29
+│   ├── Brewery #30
+│   ├── Brewery #31
+│   ├── Brewery #32
+│   │   ├── Brewery Requests - Part 1
+│   │   ├── Beer #13
+│   │   ├── Beer #14
+│   │   ├── Beer #15
+│   │   ├── Beer #16
+│   │   ├── Beer #17
+│   │   ├── Beer #18
+│   │   ├── Location #26
+│   │   ├── Location #27
+│   │   ├── Location #16
+│   │   └── Location #25
+│   ├── Brewery #33
+│   ├── Brewery #34
+│   ├── Brewery #35
+│   ├── Brewery #36
+│   │   ├── Brewery #36
+│   │   ├── Location #29
+│   │   ├── Location #30
+│   │   ├── Location #31
+│   │   ├── Location #32
+│   │   ├── Location #33
+│   │   ├── Location #34
+│   │   ├── Location #35
+│   │   └── Location #36
+│   ├── Role Based Requests
+│   │   ├── Brewery #37
+│   │   │   ├── Brewer: Part 1
+│   │   │   ├── Beer #19: Part 1
+│   │   │   ├── Location: Part 1
+│   │   │   ├── Brewer: Part 2
+│   │   │   ├── Beer #19: Part 2
+│   │   │   └── Brewer: Part 3
+│   │   ├── Brewery #38
+│   │   ├── Brewery #39
+│   │   ├── Brewery #40
+│   │   ├── Brewery #41
+│   │   ├── Brewery #42
+│   │   └── Brewery #43
+│   └── General GET Requests
+│       ├── Beer: Admin
+│       ├── Beer: Non-Admin
+│       ├── Brewer: Admin
+│       └── Brewer: Non-Admin
+├── Invalid API Requests - Technical
+└── User - End Requests
+```
+
 ### Important: Tests are Sequential
 
 Tests run in order and depend on each other. Earlier tests create entities (brewers, beers, locations) and save their IDs as environment variables for later tests to reference. This means:
@@ -69,20 +175,20 @@ Tests run in order and depend on each other. Earlier tests create entities (brew
 
 | Folder | Requests | What it tests |
 |--------|----------|---------------|
-| `/users` | 35 | User creation, updates, email verification, admin operations |
-| `/login` | 9 | Authentication, API key validation |
+| `Users` | 35 | User creation, updates, email verification, admin operations |
+| `Login` | 9 | Authentication, API key validation |
 | `Breweries, Beer, Locations` | 527 | Full CRUD for brewers, beers, locations, and addresses |
 | `Invalid API Requests - Technical` | 12 | Malformed requests, missing headers, bad content types |
-| `/User - End Requests` | 12 | Password reset, account deletion, cleanup |
+| `User - End Requests` | 12 | Password reset, account deletion, cleanup |
 
-### /users (35 requests)
+### Users (35 requests)
 
 | Subfolder | Requests |
 |-----------|----------|
 | `As Admin` | 19 |
 | `Other Requests` | 15 |
 
-### /login (9 requests)
+### Login (9 requests)
 
 | Subfolder | Requests |
 |-----------|----------|
