@@ -100,7 +100,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 
 ## External Services
 
-- **USPS API** — Address validation (`USAddresses.class.php`); API key via `USPS_API_KEY` constant
+- **USPS Addresses API v3** — Address validation (`USAddresses.class.php`); OAuth 2.0 via `USPSAuth.class.php` using `USPS_CLIENT_ID`, `USPS_CLIENT_SECRET`, `USPS_API_BASE_URL` constants
 - **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`); API key via `GOOGLE_MAPS_API_KEY` constant
 - **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (sourced from environment variables)
 - **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant

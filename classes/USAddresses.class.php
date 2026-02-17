@@ -397,12 +397,17 @@ class USAddresses {
 		$this->address2 = strtr($this->address2 ?? '', $accented_chars);
 		$this->city = strtr($this->city ?? '', $accented_chars);
 
-		// Address Line 1 - Apartment or suite number
-		$xmlBody = '<Address1>' . htmlspecialchars($this->address1 ?? '', ENT_XML1) . '</Address1>';
+		// Build Query Parameters
+		$queryParams = array();
 
-		// Address Line 2 - Street Address
+		// Secondary Address (Apartment or suite number)
+		if(!empty($this->address1)){
+			$queryParams['secondaryAddress'] = $this->address1;
+		}
+
+		// Street Address
 		if(!empty($this->address2)){
-			$xmlBody .= '<Address2>' . htmlspecialchars($this->address2, ENT_XML1) . '</Address2>';
+			$queryParams['streetAddress'] = $this->address2;
 		}else{
 			// Missing Address Line
 			$this->error = true;
@@ -421,12 +426,10 @@ class USAddresses {
 
 		if(!empty($this->zip5)){
 			// Submit using ZIP Code
-			$xmlBody .= '<City></City><State></State>';
 
 			// Validate ZIP Code
 			if(preg_match('/^[0-9]{5}$/', $this->zip5)){
-				// ZIP5
-				$xmlBody .= '<Zip5>' . htmlspecialchars($this->zip5, ENT_XML1) . '</Zip5>';
+				$queryParams['ZIPCode'] = $this->zip5;
 			}else{
 				// Invalid ZIP Code
 				$this->error = true;
@@ -446,8 +449,7 @@ class USAddresses {
 			// Validate ZIP Code + 4
 			if(!empty($this->zip4)){
 				if(preg_match('/^[0-9]{4}$/', $this->zip4)){
-					// ZIP4
-					$xmlBody .= '<Zip4>' . htmlspecialchars($this->zip4, ENT_XML1) . '</Zip4>';
+					$queryParams['ZIPPlus4'] = $this->zip4;
 				}else{
 					// Invalid ZIP Code
 					$this->error = true;
@@ -463,21 +465,30 @@ class USAddresses {
 					$errorLog->filename = 'API / USAddresses.class.php';
 					$errorLog->write();
 				}
-			}else{
-				// Empty ZIP4
-				$xmlBody .= '<Zip4></Zip4>';
+			}
+
+			// Include state if available
+			if(!empty($this->stateShort)){
+				$queryParams['state'] = $this->stateShort;
+			}elseif(!empty($this->sub_code)){
+				$queryParams['state'] = substr($this->sub_code, 3, 2);
+			}
+
+			// Include city if available
+			if(!empty($this->city)){
+				$queryParams['city'] = $this->city;
 			}
 
 			if(!$this->error){
 				// Submit to Postal Service API
-				$this->uspsAPI($xmlBody);
+				$this->uspsAPI($queryParams);
 			}
 		}else{
 			// No ZIP Code provided, City & State Required
 
 			// Check City
 			if(!empty($this->city)){
-				$xmlBody .= '<City>' . htmlspecialchars($this->city, ENT_XML1) . '</City>';
+				$queryParams['city'] = $this->city;
 			}else{
 				// Missing City
 				$this->error = true;
@@ -502,8 +513,7 @@ class USAddresses {
 					$this->stateShort = substr($this->sub_code ?? '', 3, 2);
 					$this->stateLong = $subdivisions->sub_name;
 
-					// XML
-					$xmlBody .= '<State>' . htmlspecialchars($this->stateShort, ENT_XML1) . '</State>';
+					$queryParams['state'] = $this->stateShort;
 					$this->validState['sub_code'] = 'valid';
 				}else{
 					// Invalid Subdivision
@@ -530,36 +540,47 @@ class USAddresses {
 
 			if(!$this->error){
 				// Submit to Postal Service API
-				$xmlBody .= '<Zip5></Zip5><Zip4></Zip4>';
-				$this->uspsAPI($xmlBody);
+				$this->uspsAPI($queryParams);
 			}
 		}
 	}
 
-	private function uspsAPI($xmlBody){
+	private function uspsAPI($queryParams){
 
-		// Build XML
-		$xml = '<AddressValidateRequest USERID="' . USPS_API_KEY . '"><Address ID=\'1\'>' . $xmlBody . '</Address></AddressValidateRequest>';
+		// Get OAuth Token
+		$accessToken = USPSAuth::getAccessToken();
+		if($accessToken === null){
+			$this->error = true;
+			$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
+			return;
+		}
+
+		// Build URL
+		$url = USPS_API_BASE_URL . '/addresses/v3/address?' . http_build_query($queryParams);
 
 		// Start cURL
 		$curl = curl_init();
 
 		curl_setopt_array($curl, array(
-			CURLOPT_URL => "https://secure.shippingapis.com/ShippingAPI.dll?API=Verify&XML=" . urlencode($xml),
+			CURLOPT_URL => $url,
 			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_MAXREDIRS => 10,
 			CURLOPT_TIMEOUT => 30,
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => "GET",
 			CURLOPT_HTTPHEADER => array(
-				"cache-control: no-cache"
+				'Authorization: Bearer ' . $accessToken,
+				'Accept: application/json'
 			),
 		));
 
 		$response = curl_exec($curl);
 		$err = curl_error($curl);
+		$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
 		curl_close($curl);
+
+		// Log data for error reporting
+		$requestData = 'URL: ' . $url;
 
 		if($err){
 			// cURL Error
@@ -575,75 +596,23 @@ class USAddresses {
 			$errorLog->filename = 'API / USAddresses.class.php';
 			$errorLog->write();
 		}else{
-			// Response Received
-			$responseObj = new SimpleXMLElement($response);
-			if(isset($responseObj->Error)){
-				// Error
-				$this->error = true;
-				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-				$this->responseCode = 500;
+			// Parse JSON Response
+			$responseData = json_decode($response, true);
 
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 64;
-				$errorLog->errorMsg = 'USPS API Error';
-				$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
-				$errorLog->filename = 'API / USAddresses.class.php';
-				$errorLog->write();
-			}elseif(isset($responseObj->Address->Error)){
-				if(trim($responseObj->Address->Error->Description) == 'Invalid City.'){
-					// Invalid City
-					$this->error = true;
-					$this->validState['city'] = 'invalid';
-					$this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
-					$this->responseCode = 404;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 115;
-					$errorLog->errorMsg = 'Invalid City - USPS Address Validation Error';
-					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
-					$errorLog->filename = 'API / USAddresses.class.php';
-					$errorLog->write();
-				}elseif(trim($responseObj->Address->Error->Description) == 'Address Not Found.'){
-					// Not Found
-					$this->error = true;
-					$this->responseCode = 404;
-					$this->errorMsg = 'Address Not Found.';
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 201;
-					$errorLog->errorMsg = 'Address Not Found - USPS Address Validation Error';
-					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
-					$errorLog->filename = 'API / USAddresses.class.php';
-					$errorLog->write();
-				}else{
-					// Other Error
-					$this->error = true;
-					$this->errorMsg = htmlspecialchars(trim($responseObj->Address->Error->Description ?? '')) . ' Please check your entry and try again.';
-					$this->responseCode = 400;
-
-					// Log Error
-					$errorLog = new LogError();
-					$errorLog->errorNumber = 106;
-					$errorLog->errorMsg = 'USPS Address Validation Error';
-					$errorLog->badData = 'Body: ' . $xml . ' // Response: ' . $response;
-					$errorLog->filename = 'API / USAddresses.class.php';
-					$errorLog->write();
-				}
-			}else{
+			if($httpCode === 200){
 				// Success
-				if(isset($responseObj->Address->Address1)){
-					$this->address1 = ucwords(strtolower($responseObj->Address->Address1 ?? ''));
+				$address = $responseData['address'] ?? array();
+
+				if(isset($address['secondaryAddress']) && !empty($address['secondaryAddress'])){
+					$this->address1 = ucwords(strtolower($address['secondaryAddress']));
 				}else{
 					$this->address1 = '';
 				}
-				$this->address2 = ucwords(strtolower($responseObj->Address->Address2 ?? ''));
-				$this->city = ucwords(strtolower($responseObj->Address->City ?? ''));
-				$this->stateShort = strval($responseObj->Address->State);
-				$this->zip5 = intval($responseObj->Address->Zip5);
-				$this->zip4 = intval($responseObj->Address->Zip4);
+				$this->address2 = ucwords(strtolower($address['streetAddress'] ?? ''));
+				$this->city = ucwords(strtolower($address['city'] ?? ''));
+				$this->stateShort = strval($address['state'] ?? '');
+				$this->zip5 = intval($address['ZIPCode'] ?? 0);
+				$this->zip4 = intval($address['ZIPPlus4'] ?? 0);
 				if(empty($this->zip4)){
 					$this->zip4 = 0;
 				}
@@ -657,6 +626,90 @@ class USAddresses {
 						$this->stateLong = $subdivisions->sub_name;
 					}
 				}
+			}elseif($httpCode === 404){
+				// Address Not Found
+				$this->error = true;
+				$this->responseCode = 404;
+				$this->errorMsg = 'Address Not Found.';
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 201;
+				$errorLog->errorMsg = 'Address Not Found - USPS Address Validation Error';
+				$errorLog->badData = $requestData . ' // Response: ' . $response;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
+			}elseif($httpCode === 400){
+				// Check for specific error messages
+				$errorMessage = $responseData['error']['message'] ?? '';
+
+				if(stripos($errorMessage, 'city') !== false && stripos($errorMessage, 'invalid') !== false){
+					// Invalid City
+					$this->error = true;
+					$this->validState['city'] = 'invalid';
+					$this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
+					$this->responseCode = 404;
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 115;
+					$errorLog->errorMsg = 'Invalid City - USPS Address Validation Error';
+					$errorLog->badData = $requestData . ' // Response: ' . $response;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
+				}else{
+					// Other Validation Error
+					$this->error = true;
+					$this->errorMsg = htmlspecialchars(trim($errorMessage)) . ' Please check your entry and try again.';
+					$this->responseCode = 400;
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 106;
+					$errorLog->errorMsg = 'USPS Address Validation Error';
+					$errorLog->badData = $requestData . ' // Response: ' . $response;
+					$errorLog->filename = 'API / USAddresses.class.php';
+					$errorLog->write();
+				}
+			}elseif($httpCode === 401 || $httpCode === 403){
+				// Auth Error
+				$this->error = true;
+				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+				$this->responseCode = 500;
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 223;
+				$errorLog->errorMsg = 'USPS API Auth Error';
+				$errorLog->badData = 'HTTP ' . $httpCode . ' // ' . $requestData . ' // Response: ' . $response;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
+			}elseif($httpCode === 429){
+				// Rate Limited
+				$this->error = true;
+				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+				$this->responseCode = 500;
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 224;
+				$errorLog->errorMsg = 'USPS API Rate Limited';
+				$errorLog->badData = $requestData . ' // Response: ' . $response;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
+			}else{
+				// Unexpected Error
+				$this->error = true;
+				$this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+				$this->responseCode = 500;
+
+				// Log Error
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 64;
+				$errorLog->errorMsg = 'USPS API Error';
+				$errorLog->badData = 'HTTP ' . $httpCode . ' // ' . $requestData . ' // Response: ' . $response;
+				$errorLog->filename = 'API / USAddresses.class.php';
+				$errorLog->write();
 			}
 		}
 	}
