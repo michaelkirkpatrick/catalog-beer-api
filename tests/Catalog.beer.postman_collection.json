@@ -2718,11 +2718,19 @@
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
-											"    pm.expect(jsonData.email_verified).to.equal(pm.environment.get('user_email_verified_1'));",
-											"    pm.expect(jsonData.email_auth).to.equal(pm.environment.get('user_email_auth_1'));",
-											"    pm.expect(jsonData.email_auth_sent).to.equal(pm.environment.get('user_email_auth_sent_1'));",
+											"    pm.expect(jsonData.email_verified).to.equal(false);",
+											"    pm.expect(jsonData.email_auth).to.have.lengthOf(36);",
+											"    var minTime = Math.floor(Date.now() / 1000) - 1;",
+											"    var maxTime = Math.floor(Date.now() / 1000) + 1;",
+											"    pm.expect(jsonData.email_auth_sent).to.be.within(minTime, maxTime);",
 											"    pm.expect(jsonData.admin).to.equal(false);",
-											"});"
+											"});",
+											"",
+											"// Save updated values to environment",
+											"var jsonData = pm.response.json();",
+											"pm.environment.set('user_email_verified_1', jsonData.email_verified);",
+											"pm.environment.set('user_email_auth_1', jsonData.email_auth);",
+											"pm.environment.set('user_email_auth_sent_1', jsonData.email_auth_sent);"
 										],
 										"type": "text/javascript"
 									}
