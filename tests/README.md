@@ -25,6 +25,19 @@ To set up a new environment, copy the example and fill in your API key:
 cp tests/env.example.json tests/myenv.env.json
 ```
 
+### Test Pages
+
+The API validates brewer and location URLs by making a live HTTP request. Tests use a static test page hosted on several domains. Each domain must serve a page at `/catalog-beer-test-page.html` that returns HTTP 200:
+
+| URL |
+|-----|
+| `https://catalog.beer/catalog-beer-test-page.html` |
+| `https://mekstudios.com/catalog-beer-test-page.html` |
+| `https://swim.team/catalog-beer-test-page.html` |
+| `https://plungemasters.com/catalog-beer-test-page.html` |
+
+If any of these pages are missing or return a non-200 response, URL validation tests will fail.
+
 ## Running Tests
 
 From the project root:

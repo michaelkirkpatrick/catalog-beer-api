@@ -17053,7 +17053,7 @@
 											"pm.environment.set('brewer_name_13', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 											"pm.environment.set('brewer_description_13', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 											"pm.environment.set('brewer_short_description_13', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-											"pm.environment.set('brewer_url_13', 'https://staging.swim.team/catalog-beer-test-page.html');"
+											"pm.environment.set('brewer_url_13', 'https://swim.team/catalog-beer-test-page.html');"
 										],
 										"type": "text/javascript"
 									}
@@ -24953,7 +24953,7 @@
 													"pm.environment.set('brewer_name_21', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 													"pm.environment.set('brewer_description_21', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 													"pm.environment.set('brewer_short_description_21', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-													"pm.environment.set('brewer_url_21', 'https://staging.swim.team/catalog-beer-test-page.html');"
+													"pm.environment.set('brewer_url_21', 'https://swim.team/catalog-beer-test-page.html');"
 												],
 												"type": "text/javascript"
 											}
@@ -36369,7 +36369,7 @@
 											"pm.environment.set('brewer_name_27', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 											"pm.environment.set('brewer_description_27', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 											"pm.environment.set('brewer_short_description_27', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-											"pm.environment.set('brewer_url_27', 'https://staging.swim.team/catalog-beer-test-page.html');"
+											"pm.environment.set('brewer_url_27', 'https://swim.team/catalog-beer-test-page.html');"
 										],
 										"type": "text/javascript"
 									}
@@ -36684,7 +36684,7 @@
 													"pm.environment.set('brewer_name_28', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 													"pm.environment.set('brewer_description_28', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 													"pm.environment.set('brewer_short_description_28', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-													"pm.environment.set('brewer_url_28', 'https://staging.swim.team/catalog-beer-test-page.html');"
+													"pm.environment.set('brewer_url_28', 'https://swim.team/catalog-beer-test-page.html');"
 												],
 												"type": "text/javascript"
 											}
@@ -37576,7 +37576,7 @@
 													"pm.environment.set('brewer_name_28', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 													"pm.environment.set('brewer_description_28', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 													"pm.environment.set('brewer_short_description_28', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-													"pm.environment.set('brewer_url_28', 'https://staging.swim.team/catalog-beer-test-page.html');"
+													"pm.environment.set('brewer_url_28', 'https://swim.team/catalog-beer-test-page.html');"
 												],
 												"type": "text/javascript"
 											}
@@ -47264,7 +47264,7 @@
 											"pm.environment.set('api_key', pm.environment.get('api_key_1'));",
 											"",
 											"// Body JSON",
-											"pm.environment.set('brewer_url_35', 'https://staging.swim.team/catalog-beer-test-page.html');"
+											"pm.environment.set('brewer_url_35', 'https://swim.team/catalog-beer-test-page.html');"
 										],
 										"type": "text/javascript"
 									}
@@ -51902,7 +51902,7 @@
 											"//pm.environment.set('brewer_name_36', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
 											"//pm.environment.set('brewer_description_36', pm.variables.replaceIn('{{$randomLoremParagraph}}'));",
 											"//pm.environment.set('brewer_short_description_36', pm.variables.replaceIn('{{$randomLoremSentence}}'));",
-											"pm.environment.set('brewer_url_36', 'https://staging.swim.team/catalog-beer-test-page.html');"
+											"pm.environment.set('brewer_url_36', 'https://swim.team/catalog-beer-test-page.html');"
 										],
 										"type": "text/javascript"
 									}
