@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "2b899adb-1155-47ad-bdf5-1d2d6801d72a",
 		"name": "Catalog.beer",
-		"description": "Admin -> michael@catalog.beer\n\nBrewery Staff -> michael+{{timestamp}}@catalog.beer\n\nNon-Admin & Test -> michael+{{timestamp}}@mekstudios.com",
+		"description": "Admin -> michael@catalog.beer\n\nBrewery Staff -> michael+{{$randomUUID}}@catalog.beer\n\nNon-Admin & Test -> michael+{{$randomUUID}}@mekstudios.com",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "2596485"
 	},
@@ -482,7 +482,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"{{$randomFullName}\",\n    \"email\": \"michael+{{$timestamp}}@catalog.beer\",\n    \"terms_agreement\": true\n}"
+									"raw": "{\n    \"name\": \"{{$randomFullName}\",\n    \"email\": \"michael+{{$randomUUID}}@catalog.beer\",\n    \"terms_agreement\": true\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/users",
@@ -578,7 +578,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"{{$randomFullName}}\",\n    \"email\": \"michael+{{$timestamp}}@catalog.beer\",\n    \"password\": \"catalogbeer\",\n    \"terms_agreement\": true\n}"
+									"raw": "{\n    \"name\": \"{{$randomFullName}}\",\n    \"email\": \"michael+{{$randomUUID}}@catalog.beer\",\n    \"password\": \"catalogbeer\",\n    \"terms_agreement\": true\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/users",
@@ -636,7 +636,7 @@
 										"exec": [
 											"// JSON Body",
 											"pm.environment.set('user_name_1', pm.variables.replaceIn('{{$randomFullName}}'));",
-											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$timestamp}}@catalog.beer\"));",
+											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@catalog.beer\"));",
 											"pm.environment.set('user_password_1', pm.variables.replaceIn(\"{{$randomPassword}}\"));"
 										],
 										"type": "text/javascript"
@@ -739,7 +739,7 @@
 										"exec": [
 											"// JSON Body",
 											"pm.environment.set('user_name_2', pm.variables.replaceIn('{{$randomFullName}}'));",
-											"pm.environment.set('user_email_2', pm.variables.replaceIn(\"michael+{{$timestamp}}@mekstudios.com\"));",
+											"pm.environment.set('user_email_2', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));",
 											"pm.environment.set('user_password_2', pm.variables.replaceIn(\"{{$randomPassword}}\"));"
 										],
 										"type": "text/javascript"
@@ -840,15 +840,9 @@
 									"listen": "prerequest",
 									"script": {
 										"exec": [
-											"// Adjust timestamp by 1 second for fast processing",
-											"var d = new Date();",
-											"var seconds = Math.round(d.getTime() / 1000);",
-											"seconds = seconds + 1;",
-											"var emailAddress = \"michael+\" + seconds + \"@mekstudios.com\";",
-											"",
 											"// JSON Body",
 											"pm.environment.set('user_name_3', pm.variables.replaceIn('{{$randomFullName}}'));",
-											"pm.environment.set('user_email_3', pm.variables.replaceIn(emailAddress));",
+											"pm.environment.set('user_email_3', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));",
 											"pm.environment.set('user_password_3', pm.variables.replaceIn(\"{{$randomPassword}}\"));"
 										],
 										"type": "text/javascript"
@@ -2741,7 +2735,7 @@
 											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
 											"",
 											"// Update Variable",
-											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$timestamp}}@catalog.beer\"));"
+											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@catalog.beer\"));"
 										],
 										"type": "text/javascript"
 									}
@@ -3023,7 +3017,7 @@
 											"pm.environment.set('api_key', pm.environment.get('api_key_2'));",
 											"",
 											"// Update Variable",
-											"pm.environment.set('user_email_2', pm.variables.replaceIn(\"michael+{{$timestamp}}@mekstudios.com\"));"
+											"pm.environment.set('user_email_2', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
 										],
 										"type": "text/javascript"
 									}
@@ -65762,7 +65756,8 @@
 									"    pm.expect(jsonData.email_verified).to.equal(false);",
 									"    pm.expect(jsonData.email_auth).to.be.a('string');",
 									"    pm.expect(jsonData.email_auth).to.have.lengthOf(36);",
-									"    pm.expect(jsonData.email_auth_sent).to.be.at.least(parseInt(pm.environment.get('timestamp') - 5));",
+									"    var minTime = Math.floor(Date.now() / 1000) - 5;",
+									"    pm.expect(jsonData.email_auth_sent).to.be.at.least(minTime);",
 									"    pm.expect(jsonData.admin).to.equal(false);",
 									"});",
 									"",
@@ -65787,8 +65782,7 @@
 									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
 									"",
 									"// Update Variable",
-									"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$timestamp}}@mekstudios.com\"));",
-									"pm.environment.set('timestamp', pm.variables.replaceIn(\"{{$timestamp}}\"));"
+									"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
 								],
 								"type": "text/javascript"
 							}

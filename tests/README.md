@@ -191,15 +191,15 @@ Tests run in order and depend on each other. Earlier tests create entities (brew
 
 ### Test User Email Conventions
 
-Tests create three users with emails based on `$timestamp` (Unix seconds) to ensure uniqueness:
+Tests create three users with UUID-based emails to ensure uniqueness:
 
 | User | Role | Email Pattern | Domain |
 |------|------|---------------|--------|
-| User #1 | Brewery Staff | `michael+{timestamp}@catalog.beer` | `catalog.beer` |
-| User #2 | Non-Admin | `michael+{timestamp}@mekstudios.com` | `mekstudios.com` |
-| User #3 | Test User | `michael+{timestamp+1}@mekstudios.com` | `mekstudios.com` |
+| User #1 | Brewery Staff | `michael+{uuid}@catalog.beer` | `catalog.beer` |
+| User #2 | Non-Admin | `michael+{uuid}@mekstudios.com` | `mekstudios.com` |
+| User #3 | Test User | `michael+{uuid}@mekstudios.com` | `mekstudios.com` |
 
-Different domains prevent same-second timestamp collisions between User #1 and User #2. User #3 adds 1 second to the timestamp to avoid colliding with User #2.
+Each email uses Postman's `{{$randomUUID}}` for the plus-address, making collisions between users or between runs impossible. Different domains distinguish Brewery Staff from Non-Admin roles.
 
 ### Top-Level Folders
 
