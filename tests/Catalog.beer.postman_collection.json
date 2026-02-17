@@ -636,7 +636,7 @@
 										"exec": [
 											"// JSON Body",
 											"pm.environment.set('user_name_1', pm.variables.replaceIn('{{$randomFullName}}'));",
-											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$timestamp}}@mekstudios.com\"));",
+											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$timestamp}}@catalog.beer\"));",
 											"pm.environment.set('user_password_1', pm.variables.replaceIn(\"{{$randomPassword}}\"));"
 										],
 										"type": "text/javascript"

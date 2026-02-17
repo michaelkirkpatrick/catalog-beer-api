@@ -189,6 +189,18 @@ Tests run in order and depend on each other. Earlier tests create entities (brew
 - The `--folder` flag runs all requests within a folder, but tests may depend on earlier folders having run first
 - If a test fails, subsequent tests that depend on its output may also fail
 
+### Test User Email Conventions
+
+Tests create three users with emails based on `$timestamp` (Unix seconds) to ensure uniqueness:
+
+| User | Role | Email Pattern | Domain |
+|------|------|---------------|--------|
+| User #1 | Brewery Staff | `michael+{timestamp}@catalog.beer` | `catalog.beer` |
+| User #2 | Non-Admin | `michael+{timestamp}@mekstudios.com` | `mekstudios.com` |
+| User #3 | Test User | `michael+{timestamp+1}@mekstudios.com` | `mekstudios.com` |
+
+Different domains prevent same-second timestamp collisions between User #1 and User #2. User #3 adds 1 second to the timestamp to avoid colliding with User #2.
+
 ### Top-Level Folders
 
 | Folder | Requests | What it tests |
