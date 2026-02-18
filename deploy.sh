@@ -94,6 +94,6 @@ rsync -avzO --no-perms --delete \
 	./ "$REMOTE:$REMOTE_PATH/"
 
 # Set ownership and permissions so Apache can read/serve and michael can deploy
-ssh -S "$SOCKET" -t "$REMOTE" "sudo chown -R www-data:developers $REMOTE_PATH/ && sudo find $REMOTE_PATH/ -type d -exec chmod 2775 {} \; && sudo find $REMOTE_PATH/ -type f -exec chmod 664 {} \;"
+ssh -S "$SOCKET" -t "$REMOTE" "sudo chown -R www-data:developers $REMOTE_PATH/ && sudo find $REMOTE_PATH/ -type d -exec chmod 2775 {} + && sudo find $REMOTE_PATH/ -type f -exec chmod 664 {} +"
 
 echo "Deploy to $DEST complete."
