@@ -302,21 +302,29 @@ class Brewer {
 						$db->query($sql, $params);
 					}else{
 						// Update Brewer (PUT)
+						// PUT is a full replacement — omitted fields are cleared
 						$setClauses = ['name=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
 						$setParams = [$this->name, $dbCBV, $dbBV, $this->lastModified];
 						if(!empty($this->description)){
 							$setClauses[] = 'description=?';
 							$setParams[] = $this->description;
+						}else{
+							$setClauses[] = 'description=NULL';
 						}
 						if(!empty($this->shortDescription)){
 							$setClauses[] = 'shortDescription=?';
 							$setParams[] = $this->shortDescription;
+						}else{
+							$setClauses[] = 'shortDescription=NULL';
 						}
 						if(!empty($this->url)){
 							$setClauses[] = 'url=?';
 							$setParams[] = $this->url;
 							$setClauses[] = 'domainName=?';
 							$setParams[] = $this->domainName;
+						}else{
+							$setClauses[] = 'url=NULL';
+							$setClauses[] = 'domainName=NULL';
 						}
 						$sql = "UPDATE brewer SET " . implode(', ', $setClauses) . " WHERE id=?";
 						$setParams[] = $this->brewerID;

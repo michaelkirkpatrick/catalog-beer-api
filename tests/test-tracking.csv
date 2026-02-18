@@ -186,7 +186,7 @@ Brewer,BR-134,Brewery #35 - text + 3 urls,PUT,/brewer/{{brewer_id_35}},Brewery S
 Brewer,BR-135,Brewery #35 - Change URL,PATCH,/brewer/{{brewer_id_35}},Brewery Staff,201,Done
 Brewer,BR-137,Delete Brewery #35,DELETE,/brewer/{{brewer_id_35}},Admin,204,Done
 Brewer,BR-138,Brewery #36 - text + 4 urls,PUT,/brewer/{{brewer_id_36}},Brewery Staff,201,Done
-Brewer,BR-139,Brewery #36 - Change all but URL,PUT,/brewer/{{brewer_id_36}},Brewery Staff,201,Done
+Brewer,BR-139,Brewery #36 - Change Everything,PUT,/brewer/{{brewer_id_36}},Brewery Staff,200,Done
 Brewer,BR-140,Brewery #36 - Update name,PATCH,/brewer/{{brewer_id_36}},Brewery Staff,200,Done
 Brewer,BR-141,Brewery #36 - Update description,PATCH,/brewer/{{brewer_id_36}},Brewery Staff,200,Done
 Brewer,BR-142,Brewery #36 - Update short_description,PATCH,/brewer/{{brewer_id_36}},Brewery Staff,200,Done
@@ -488,6 +488,7 @@ Location,L-123,"Location #43 - brewer_id, name, CC",POST,/location,Non-Admin,201
 Location,L-124,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_verified",PATCH,/location/{{location_id_43}},Brewery Staff,200,Done
 Location,L-125,"Location #44 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
 Location,L-126,Brewery Staff deletes Non-Admin (their brewery),DELETE,/location/{{location_id_44}},Brewery Staff,204,Done
+Location,L-127,Location #16 - Change All,PUT,/location/{{location_id_16}},Non-Admin,200,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
@@ -595,3 +596,5 @@ Address,A-116,"Address #34 - address 1, address2, city, sub_code",PUT,/address/{
 Address,A-117,"Address #35 - address1, address2, zip5",PUT,/address/{{location_id_35}},Brewery Staff,201,Done
 Address,A-118,"Address #36 - address1, address2, zip5, zip4",PUT,/address/{{location_id_36}},Brewery Staff,201,Done
 Address,A-119,"Update Address #36 - address2, city, sub_code, telephone",PUT,/address/{{location_id_36}},Brewery Staff,201,Done
+Address,A-120,"Update Address #12 - address2, city, sub_code, telephone",PUT,/address/{{location_id_12}},Admin,200,Done
+Address,A-121,"Address #14 - address2, zip5",POST,/address/{{location_id_14}},Non-Admin,201,Done
