@@ -8,7 +8,7 @@ REST API backend for [Catalog.beer](https://catalog.beer), a beer database servi
 
 Related repos:
 - Frontend: [catalog-beer](https://github.com/michaelkirkpatrick/catalog-beer)
-- Database schema: [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql)
+- Database schema (canonical): [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql)
 
 API documentation page (for external consumers) lives in the frontend repo: `../catalog-beer/api-docs.php`
 
