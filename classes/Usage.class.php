@@ -105,6 +105,38 @@ class Usage {
 		}
 	}
 
+	public function updateUsage(){
+		// Counts api_logging rows per API key per month and upserts into api_usage
+		// Requires UNIQUE INDEX on api_usage (apiKey, year, month)
+
+		$db = new Database();
+		if($db->error) return;
+
+		// Determine target year and month
+		$result = $db->query("SELECT MAX(lastUpdated) AS lastUpdate FROM api_usage");
+		if($db->error){ $db->close(); return; }
+		$row = $result->fetch_assoc();
+
+		if(!empty($row['lastUpdate'])){
+			$year = (int)date('Y', $row['lastUpdate']);
+			$month = (int)date('n', $row['lastUpdate']);
+		}else{
+			// No existing usage data, default to current month
+			$year = (int)date('Y');
+			$month = (int)date('n');
+		}
+
+		// Set timestamps for the month
+		$startingTimestamp = mktime(0, 0, 0, $month, 1, $year);
+		$endingTimestamp = mktime(23, 59, 59, $month, (int)date('t', $startingTimestamp), $year);
+
+		// Count all API calls per key for the period and upsert in one query
+		$now = time();
+		$db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) SELECT UUID(), apiKey, ?, ?, COUNT(id), ? FROM api_logging WHERE timestamp BETWEEN ? AND ? GROUP BY apiKey ON DUPLICATE KEY UPDATE count=VALUES(count), lastUpdated=VALUES(lastUpdated)", [$year, $month, $now, $startingTimestamp, $endingTimestamp]);
+
+		$db->close();
+	}
+
 	public function api($method, $function, $id, $apiKey){
 		/*-----
 		/{endpoint}/{function}/{api_key}

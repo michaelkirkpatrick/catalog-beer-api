@@ -111,6 +111,19 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 
 All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `classes/initialize.php` after the `ENVIRONMENT` constant is set.
 
+## Cron Jobs
+
+The `cron/` directory contains scripts intended to run as scheduled tasks on the server, not via web requests.
+
+- `cron/update-usage.php` — Counts `api_logging` rows per API key per month and upserts into `api_usage`. Run via: `php cron/update-usage.php [staging|production]` (defaults to production). CLI-only; exits immediately if accessed via web.
+
+The `cron/` directory is excluded from web deploys via `deploy.sh`. Cron scripts must be deployed to the server separately when activated.
+
+**Schema dependency:** `update-usage.php` requires a `UNIQUE INDEX` on `api_usage (apiKey, year, month)` for `INSERT ... ON DUPLICATE KEY UPDATE`. The index must be applied before the cron runs:
+```sql
+ALTER TABLE api_usage ADD UNIQUE INDEX idx_apiKey_year_month (apiKey, year, month);
+```
+
 ## Code Conventions
 
 - Tabs for indentation
