@@ -305,6 +305,18 @@ These are **API integration tests** (not unit tests). They make real HTTP reques
 - Validation rules (required fields, format constraints)
 - CRUD lifecycle (create, read, update via PUT and PATCH, delete)
 
+### Staging-Only Tests
+
+Some tests rely on staging-specific API behavior and are automatically skipped when running against production:
+
+| Test | Why | Manual Production Testing |
+|------|-----|--------------------------|
+| U-41 (Reset Password - User #3) | Requires `password_reset_key`, which is only returned in the staging API response. In production, the key is sent via email only. | Trigger a password reset (U-37), retrieve the key from the database or email, then POST to `/users/password-reset/{key}` with a new password. Expect 204. |
+
+U-37 (Password Reset Request) behaves differently per environment:
+- **Staging:** Returns 200 with `{"password_reset_key": "..."}` so U-41 can capture it
+- **Production:** Returns 204 No Content (key sent via email only)
+
 ### Known Gaps
 
 - No tests for `/location/nearby` (geographic search)

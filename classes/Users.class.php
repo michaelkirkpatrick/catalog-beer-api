@@ -1153,9 +1153,14 @@ class Users {
 							// POST https://api.catalog.beer/users/{id}/reset-password
 							$this->sendPasswordResetKey($id, $apiKey);
 							if(!$this->error){
-								// Successfully Sent Email
-								// Return 204 - No Content
-								$this->responseCode = 204;
+								if(ENVIRONMENT == 'staging'){
+									// Return key in response for automated testing
+									$this->responseCode = 200;
+									$this->json['password_reset_key'] = $this->passwordResetKey;
+								}else{
+									// Return 204 - No Content
+									$this->responseCode = 204;
+								}
 							}else{
 								$this->json['error'] = true;
 								$this->json['error_msg'] = $this->errorMsg;

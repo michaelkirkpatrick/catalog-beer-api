@@ -65311,10 +65311,15 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Success - No Content (HTTP 204)\", function () {",
-									"    pm.response.to.have.status(204);",
+									"pm.test(\"Success (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
 									"});",
-									""
+									"",
+									"pm.test(\"Valid JSON payload\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('password_reset_key');",
+									"    pm.environment.set('password_reset_key_3', jsonData.password_reset_key);",
+									"});"
 								],
 								"type": "text/javascript"
 							}
@@ -65657,8 +65662,12 @@
 							"listen": "prerequest",
 							"script": {
 								"exec": [
-									"// NOTE: password_reset_key_3 must be populated manually from the database",
-									"// after U-37 triggers the password reset email.",
+									"// Skip in production — password_reset_key is only returned in staging",
+									"if (pm.environment.get('base_url') !== 'api-staging.catalog.beer') {",
+									"    pm.execution.skipRequest();",
+									"}",
+									"",
+									"// password_reset_key_3 is set automatically by U-37",
 									"pm.environment.set('api_key', pm.environment.get('api_key_3'));",
 									"",
 									"// New password for User #3",
