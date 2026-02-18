@@ -137,6 +137,28 @@ class Usage {
 		$db->close();
 	}
 
+	public function pruneApiLogging($monthsToKeep = 3){
+		// Deletes api_logging rows older than $monthsToKeep months
+
+		$db = new Database();
+		if($db->error) return;
+
+		// Calculate cutoff: midnight on the 1st, $monthsToKeep months ago
+		$cutoffTimestamp = mktime(0, 0, 0, (int)date('n') - $monthsToKeep, 1, (int)date('Y'));
+
+		$db->query("DELETE FROM api_logging WHERE timestamp < ?", [$cutoffTimestamp]);
+		if($db->error){
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 226;
+			$errorLog->errorMsg = 'Failed to prune api_logging';
+			$errorLog->badData = "cutoff timestamp: $cutoffTimestamp";
+			$errorLog->filename = 'Usage.class.php';
+			$errorLog->write();
+		}
+
+		$db->close();
+	}
+
 	public function api($method, $function, $id, $apiKey){
 		/*-----
 		/{endpoint}/{function}/{api_key}

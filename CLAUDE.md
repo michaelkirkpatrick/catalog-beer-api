@@ -117,7 +117,7 @@ The `cron/` directory contains scripts intended to run as scheduled tasks on the
 
 - `cron/update-usage.php` — Counts `api_logging` rows per API key per month and upserts into `api_usage`. Run via: `php cron/update-usage.php [staging|production]` (defaults to production). CLI-only; exits immediately if accessed via web.
 
-The `cron/` directory is excluded from web deploys via `deploy.sh`. Cron scripts must be deployed to the server separately when activated.
+The `cron/` directory is deployed by `deploy.sh` to `public_html/cron/` on the server. Each script has a CLI-only guard that exits immediately if accessed via a web request.
 
 **Schema dependency:** `update-usage.php` requires a `UNIQUE INDEX` on `api_usage (apiKey, year, month)` for `INSERT ... ON DUPLICATE KEY UPDATE`. The index must be applied before the cron runs:
 ```sql
