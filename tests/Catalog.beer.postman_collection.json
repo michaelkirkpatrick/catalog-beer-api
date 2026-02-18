@@ -600,8 +600,8 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Success (HTTP 200)\", function () {",
-											"    pm.response.to.have.status(200);",
+											"pm.test(\"Success (HTTP 201)\", function () {",
+											"    pm.response.to.have.status(201);",
 											"});",
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
@@ -703,8 +703,8 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Success (HTTP 200)\", function () {",
-											"    pm.response.to.have.status(200);",
+											"pm.test(\"Success (HTTP 201)\", function () {",
+											"    pm.response.to.have.status(201);",
 											"});",
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
@@ -806,8 +806,8 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Success (HTTP 200)\", function () {",
-											"    pm.response.to.have.status(200);",
+											"pm.test(\"Success (HTTP 201)\", function () {",
+											"    pm.response.to.have.status(201);",
 											"});",
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",

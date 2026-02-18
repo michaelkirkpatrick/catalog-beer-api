@@ -1123,6 +1123,13 @@ class Users {
 					// Create Account
 					$this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKey, 'POST', '', array());
 					if(!$this->error){
+						// Created New User
+						$this->responseCode = 201;
+						$responseHeaderString = 'Location: https://';
+						if(ENVIRONMENT == 'staging'){
+							$responseHeaderString .= 'staging.';
+						}
+						$this->responseHeader = $responseHeaderString . 'catalog.beer/user/' . $this->userID;
 						$this->generateUserObject();
 					}else{
 						$this->json['error'] = true;
