@@ -467,11 +467,23 @@ class USAddresses {
 				}
 			}
 
-			// Include state if available
+			// Include state (required by USPS v3 API)
 			if(!empty($this->stateShort)){
 				$queryParams['state'] = $this->stateShort;
 			}elseif(!empty($this->sub_code)){
 				$queryParams['state'] = substr($this->sub_code, 3, 2);
+			}else{
+				// Look up state from ZIP code
+				$stateLookup = $this->uspsCityStateLookup($this->zip5);
+				if($stateLookup !== null){
+					$queryParams['state'] = $stateLookup;
+				}else{
+					// Lookup failed, require sub_code
+					$this->error = true;
+					$this->validState['sub_code'] = 'invalid';
+					$this->validMsg['sub_code'] = 'Please provide the state (sub_code) for this address.';
+					$this->responseCode = 400;
+				}
 			}
 
 			// Include city if available
@@ -712,6 +724,53 @@ class USAddresses {
 				$errorLog->write();
 			}
 		}
+	}
+
+	// USPS City/State Lookup from ZIP Code
+	private function uspsCityStateLookup($zip5){
+		// Returns state abbreviation (e.g., "CA") or null on failure
+
+		// Get OAuth Token
+		$accessToken = USPSAuth::getAccessToken();
+		if($accessToken === null){
+			return null;
+		}
+
+		// Build URL
+		$url = USPS_API_BASE_URL . '/addresses/v3/city-state?ZIPCode=' . urlencode($zip5);
+
+		// cURL Request
+		$curl = curl_init();
+		curl_setopt_array($curl, array(
+			CURLOPT_URL => $url,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_HTTPHEADER => array(
+				'Authorization: Bearer ' . $accessToken,
+				'Accept: application/json'
+			),
+		));
+
+		$response = curl_exec($curl);
+		$err = curl_error($curl);
+		$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+		curl_close($curl);
+
+		if($err || $httpCode !== 200){
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 225;
+			$errorLog->errorMsg = 'USPS City/State Lookup Error';
+			$errorLog->badData = 'ZIP: ' . $zip5 . ' // HTTP ' . $httpCode . ' // ' . ($err ?: $response);
+			$errorLog->filename = 'API / USAddresses.class.php';
+			$errorLog->write();
+
+			return null;
+		}
+
+		$responseData = json_decode($response, true);
+		return $responseData['state'] ?? null;
 	}
 
 	// Validate Telephone

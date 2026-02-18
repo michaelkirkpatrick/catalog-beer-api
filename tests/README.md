@@ -44,10 +44,10 @@ From the project root:
 
 ```bash
 # Run against staging
-newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json
+newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --bail --verbose
 
 # Run against production
-newman run tests/Catalog.beer.postman_collection.json -e tests/production.env.json
+newman run tests/Catalog.beer.postman_collection.json -e tests/production.env.json --bail --verbose
 ```
 
 ### Useful Options
