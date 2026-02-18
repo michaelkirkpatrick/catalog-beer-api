@@ -114,6 +114,38 @@ if(isset($_GET['metric'])){
 	$data->metric = $_GET['metric'];
 }
 
+// --- Health Check (no auth required) ---
+if($endpoint == 'health'){
+	if($method != 'GET'){
+		http_response_code(405);
+		header('Content-Type: application/json');
+		header('Allow: GET');
+		echo json_encode(array('error' => true, 'error_msg' => 'Method Not Allowed.'));
+		exit;
+	}
+	$dbHealthy = false;
+	try {
+		$db = new Database();
+		$result = $db->query("SELECT 1");
+		if($result){
+			$dbHealthy = true;
+		}
+		$db->close();
+	} catch (Exception $e) {
+		// DB unavailable
+	}
+	if($dbHealthy){
+		http_response_code(200);
+		header('Content-Type: application/json');
+		echo json_encode(array('status' => 'ok'));
+	}else{
+		http_response_code(503);
+		header('Content-Type: application/json');
+		echo json_encode(array('status' => 'error'));
+	}
+	exit;
+}
+
 // --- Check Headers ----
 
 // Get all the headers that were sent
