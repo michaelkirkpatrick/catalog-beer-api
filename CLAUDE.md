@@ -10,6 +10,8 @@ Related repos:
 - Frontend: [catalog-beer](https://github.com/michaelkirkpatrick/catalog-beer)
 - Database schema: [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql)
 
+API documentation page (for external consumers) lives in the frontend repo: `../catalog-beer/api-docs.php`
+
 ## Development Environment
 
 This is a plain PHP project served by Apache. There are no build steps, linters, or test runners. Development requires:
