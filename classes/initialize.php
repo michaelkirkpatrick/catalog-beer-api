@@ -1,7 +1,4 @@
 <?php
-// Start Session
-session_start();
-
 // Define Root
 define("ROOT", $_SERVER["DOCUMENT_ROOT"]);
 define("SERVER_NAME", $_SERVER['SERVER_NAME']);
