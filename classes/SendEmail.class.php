@@ -109,7 +109,7 @@ class SendEmail {
 		$tag = 'password-reset';
 
 		// Plain Text
-		$textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://catalog.beer/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn&#8217;t request a password reset for your account, reply to this email or send a message to security@catalog.beer and we will monitor your account to ensure it stays safe.\r\n\r\n-Catalog.beer Password Reset Robot";
+		$textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://catalog.beer/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn&#8217;t request this, you can safely ignore this email &#8212; your password will not be changed. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer Password Reset Robot";
 
 		// HTML Email
 		$htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
