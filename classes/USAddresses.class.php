@@ -19,6 +19,7 @@ class USAddresses {
 	public $validState = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null);
 	public $validMsg = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null);
 	public $responseCode = 200;
+	public $responseHeader = '';
 	public $json = array();
 	private $latLongFound = false;
 
