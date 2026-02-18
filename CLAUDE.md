@@ -25,7 +25,7 @@ Environment is detected by subdomain in `classes/initialize.php`:
 
 ### Request Flow
 1. `.htaccess` rewrites all URLs to `index.php` with query parameters (`endpoint`, `id`, `function`)
-2. `classes/initialize.php` bootstraps: session start, constants, timezone (`America/Los_Angeles`), SPL autoloader
+2. `classes/initialize.php` bootstraps: constants, timezone (`America/Los_Angeles`), SPL autoloader
 3. `index.php` parses JSON body, validates headers (Content-Type, Accept), authenticates via HTTP Basic Auth (API key as username)
 4. `switch($endpoint)` routes to the appropriate class, calling its `api()` method
 5. Class sets `$responseCode`, `$responseHeader`, `$json`; `index.php` outputs the JSON response
@@ -68,7 +68,7 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()` uses a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–224). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–225). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -84,6 +84,7 @@ All queries use parameterized `?` placeholders. Database credentials are loaded 
 - Loop: `$result = $db->query("SELECT ..."); while($row = $result->fetch_assoc()) { ... }`
 - INSERT/UPDATE/DELETE: `$db->query("INSERT INTO t (...) VALUES (?, ?)", [$a, $b]);`
 - Dynamic PATCH: Build `$setClauses[]` and `$setParams[]` parallel arrays, then `implode(', ', $setClauses)`
+- PUT full replacement: Optional fields use `if(!empty()) { $setClauses[] = 'col=?'; } else { $setClauses[] = 'col=NULL'; }` — omitted fields are cleared per REST standards
 - Optional INSERT fields: Build `$columns[]` and `$params[]` arrays, add optional fields conditionally
 - JOINs: Used where related data is needed together (e.g., `Location::nearbyLatLng()` JOINs location+brewer+US_addresses+subdivisions; `USAddresses::validate()` JOINs with subdivisions)
 
@@ -97,6 +98,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`
 - `/login`
 - `/usage`, `/usage/currentMonth/{id}`
+- `/health` — Unauthenticated GET-only health check; returns `{"status":"ok"}` (200) or `{"status":"error"}` (503). Verifies Apache + PHP + MySQL. No logging. Used by exit1.dev for uptime monitoring.
 
 ## External Services
 
