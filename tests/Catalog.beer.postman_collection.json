@@ -65311,15 +65311,20 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Success (HTTP 200)\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test(\"Valid JSON payload\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('password_reset_key');",
-									"    pm.environment.set('password_reset_key_3', jsonData.password_reset_key);",
-									"});"
+									"if (pm.environment.get('staging') === 'true') {",
+									"    pm.test(\"Success (HTTP 200)\", function () {",
+									"        pm.response.to.have.status(200);",
+									"    });",
+									"    pm.test(\"Valid JSON payload\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('password_reset_key');",
+									"        pm.environment.set('password_reset_key_3', jsonData.password_reset_key);",
+									"    });",
+									"} else {",
+									"    pm.test(\"Success - No Content (HTTP 204)\", function () {",
+									"        pm.response.to.have.status(204);",
+									"    });",
+									"}"
 								],
 								"type": "text/javascript"
 							}
@@ -66242,19 +66247,13 @@
 					"pm.collectionVariables.clear()",
 					"",
 					"// Which Environment am I in?",
-					"pm.environment.set('staging', 'true');",
-					"",
-					"// Set {{api-key}} to be the API Key for an Admin user",
-					"if(pm.environment.get('staging') === 'true'){",
-					"    // Set API Key for Staging Environment",
+					"if (pm.environment.get('base_url') === 'api-staging.catalog.beer') {",
+					"    pm.environment.set('staging', 'true');",
 					"    pm.environment.set('api_key_admin', '5f8358b8-4036-4ea2-97ce-a992677efb67');",
-					"    pm.environment.set('base_url', 'api-staging.catalog.beer');",
-					"}else{",
-					"    // Set API Key for Production Environment",
+					"} else {",
+					"    pm.environment.set('staging', 'false');",
 					"    pm.environment.set('api_key_admin', '8f610e88-da70-4ff5-9102-eb524e25db76');",
-					"    pm.environment.set('base_url', 'api.catalog.beer');",
-					"}",
-					""
+					"}"
 				]
 			}
 		},
