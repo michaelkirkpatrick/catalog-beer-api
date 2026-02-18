@@ -897,11 +897,31 @@ class Location {
 			$users = new Users();
 			$users->validate($userID, true);
 
+			// Get User's Email Domain Name
+			$userEmailDomain = $users->emailDomainName($users->email);
+
+			// Get Brewer Information
+			$brewer = new Brewer();
+			$brewer->validate($this->brewerID, true);
+
 			// Get Brewer Privileges
 			$privileges = new Privileges();
 			$brewerPrivilegesList = $privileges->brewerList($userID);
 
-			if($users->admin || in_array($this->brewerID, $brewerPrivilegesList)){
+			// Check Permissions
+			$isBreweryStaff = false;
+			if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName){
+				$isBreweryStaff = true;
+
+				if(!in_array($this->brewerID, $brewerPrivilegesList)){
+					// Give user privileges for this brewer
+					$privileges->add($userID, $this->brewerID, true);
+				}
+			}elseif(in_array($this->brewerID, $brewerPrivilegesList)){
+				$isBreweryStaff = true;
+			}
+
+			if($users->admin || $isBreweryStaff){
 				// Delete Location
 				$db = new Database();
 				$db->query("DELETE FROM location WHERE id=?", [$locationID]);

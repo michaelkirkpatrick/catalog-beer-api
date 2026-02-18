@@ -1047,16 +1047,32 @@ class Brewer {
 	}
 
 	public function delete($brewerID, $userID){
-		if($this->validate($brewerID, false)){
+		if($this->validate($brewerID, true)){
 			// Get User Information
 			$users = new Users();
 			$users->validate($userID, true);
+
+			// Get User's Email Domain Name
+			$userEmailDomain = $users->emailDomainName($users->email);
 
 			// Get Brewer Privileges
 			$privileges = new Privileges();
 			$brewerPrivilegesList = $privileges->brewerList($userID);
 
-			if($users->admin || in_array($brewerID, $brewerPrivilegesList)){
+			// Check Permissions
+			$isBreweryStaff = false;
+			if(!empty($this->domainName) && $userEmailDomain == $this->domainName){
+				$isBreweryStaff = true;
+
+				if(!in_array($brewerID, $brewerPrivilegesList)){
+					// Give user privileges for this brewer
+					$privileges->add($userID, $brewerID, true);
+				}
+			}elseif(in_array($brewerID, $brewerPrivilegesList)){
+				$isBreweryStaff = true;
+			}
+
+			if($users->admin || $isBreweryStaff){
 				// Delete Brewer
 				$db = new Database();
 				$db->query("DELETE FROM brewer WHERE id=?", [$brewerID]);
