@@ -286,15 +286,20 @@ class Beer {
 						$sql = "INSERT INTO beer (" . implode(', ', $columns) . ") VALUES ($placeholders)";
 					}else{
 						// Update Beer (PUT)
+						// PUT is a full replacement — omitted fields are cleared
 						$setClauses = ['brewerID=?', 'name=?', 'style=?', 'abv=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
 						$setParams = [$this->brewerID, $this->name, $this->style, $this->abv, $dbCBV, $dbBV, $this->lastModified];
 						if(!empty($this->description)){
 							$setClauses[] = 'description=?';
 							$setParams[] = $this->description;
+						}else{
+							$setClauses[] = 'description=NULL';
 						}
 						if(!empty($this->ibu)){
 							$setClauses[] = 'ibu=?';
 							$setParams[] = $this->ibu;
+						}else{
+							$setClauses[] = 'ibu=NULL';
 						}
 						$sql = "UPDATE beer SET " . implode(', ', $setClauses) . " WHERE id=?";
 						$setParams[] = $this->beerID;

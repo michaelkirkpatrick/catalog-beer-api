@@ -290,11 +290,14 @@ class Location {
 						$sql = "INSERT INTO location (" . implode(', ', $columns) . ") VALUES ($placeholders)";
 					}else{
 						// Update Location (PUT)
+						// PUT is a full replacement — omitted fields are cleared
 						$setClauses = ['brewerID=?', 'name=?', 'countryCode=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
 						$params = [$this->brewerID, $this->name, $this->countryCode, $dbCBV, $dbBV, $this->lastModified];
 						if(!empty($this->url)){
 							$setClauses[] = 'url=?';
 							$params[] = $this->url;
+						}else{
+							$setClauses[] = 'url=NULL';
 						}
 						$sql = "UPDATE location SET " . implode(', ', $setClauses) . " WHERE id=?";
 						$params[] = $this->locationID;
