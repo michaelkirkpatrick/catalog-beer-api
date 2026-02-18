@@ -89,6 +89,7 @@ rsync -avzO --no-perms --delete \
 	--exclude 'common/' \
 	--exclude 'algolia/test.php' \
 	--exclude 'README.md' \
+	--exclude 'maintenance.php' \
 	--exclude 'tests/' \
 	./ "$REMOTE:$REMOTE_PATH/"
 
