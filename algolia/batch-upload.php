@@ -223,7 +223,7 @@ for($i=0; $i<count($brewerList); $i++){
 
 	// Send to Algolia
 	$json = json_encode($brewerInfo);
-	$curlResponse = curlRequest('brewer', $json);
+	$curlResponse = curlRequest('catalog', $json);
 	$counter++;
 	$percent = round(($counter/$numBrewers) * 100);
 	$output = "[$percent%] ";
@@ -251,7 +251,7 @@ for($i=0; $i<count($listOfLocationIDs); $i++){
 
 	// Send to Algolia
 	$json = json_encode($array);
-	$curlResponse = curlRequest('location', $json);
+	$curlResponse = curlRequest('catalog', $json);
 	$counter++;
 	$percent = round(($counter/$numLocations) * 100);
 	$output = "[$percent%] ";
@@ -279,7 +279,7 @@ for($i=0; $i<count($listOfBeerIDs); $i++){
 
 	// Send to Algolia
 	$json = json_encode($array);
-	$curlResponse = curlRequest('beer', $json);
+	$curlResponse = curlRequest('catalog', $json);
 	$counter++;
 	$percent = round(($counter/$numBeers) * 100);
 	$output = "[$percent%] ";

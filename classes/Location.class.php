@@ -404,14 +404,14 @@ class Location {
 						// Create Algolia ID and sync to Algolia
 						$algolia = new Algolia();
 						$algolia->add('location', $this->locationID);
-						$algolia->saveObject('location', $this->generateLocationSearchObject($this->brewerObj));
+						$algolia->saveObject('catalog', $this->generateLocationSearchObject($this->brewerObj));
 					}else{
 						// Success
 						$this->responseCode = 200;
 
 						// Sync updated location to Algolia
 						$algolia = new Algolia();
-						$algolia->saveObject('location', $this->generateLocationSearchObject($this->brewerObj));
+						$algolia->saveObject('catalog', $this->generateLocationSearchObject($this->brewerObj));
 					}
 				}else{
 					// Query Error
@@ -850,7 +850,7 @@ class Location {
 						}
 
 						// Build Response Array
-						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>$array['zip5'], 'zip4'=>$array['zip4'])), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>stripcslashes($array['b_name'] ?? ''), 'description'=>is_null($array['b_description']) ? null : stripcslashes($array['b_description']), 'short_description'=>is_null($array['b_shortDescription']) ? null : stripcslashes($array['b_shortDescription']), 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
+						$locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>$array['zip5'], 'zip4'=>$array['zip4'])), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
 						// Add to Array
 						$locationArray[] = $locationInfo;
@@ -937,7 +937,7 @@ class Location {
 				if(!$db->error){
 					// Delete from Algolia
 					if($algoliaId !== null){
-						$algolia->deleteObject('location', $algoliaId);
+						$algolia->deleteObject('catalog', $algoliaId);
 					}
 				}else{
 					// Database Error
@@ -1137,7 +1137,7 @@ class Location {
 		$this->json['longitude'] = $this->longitude;
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
-		$this->json['last_modified'] = $this->lastModified;
+		$this->json['last_modified'] = date('r', $this->lastModified);
 		if($usAddresses->validate($this->locationID, true)){
 			if(empty($usAddresses->address1)){$usAddresses->address1 = null;}
 			if(empty($usAddresses->zip4)){$usAddresses->zip4 = null;}
@@ -1193,6 +1193,11 @@ class Location {
 		}
 		$array['brewer']['brewerID'] = $brewer->brewerID;
 		$array['brewer']['name'] = $brewer->name;
+
+		// SiteSearch Fields
+		$array['type'] = 'location';
+		$array['subtitle'] = $brewer->name;
+		$array['page_url'] = '/brewer?brewerID=' . $brewer->brewerID;
 
 		return $array;
 	}

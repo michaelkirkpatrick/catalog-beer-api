@@ -422,13 +422,13 @@ class Brewer {
 						// Create Algolia ID and sync to Algolia
 						$algolia = new Algolia();
 						$algolia->add('brewer', $this->brewerID);
-						$algolia->saveObject('brewer', $this->generateBrewerSearchObject());
+						$algolia->saveObject('catalog', $this->generateBrewerSearchObject());
 					}else{
 						$this->responseCode = 200;
 
 						// Sync updated brewer to Algolia
 						$algolia = new Algolia();
-						$algolia->saveObject('brewer', $this->generateBrewerSearchObject());
+						$algolia->saveObject('catalog', $this->generateBrewerSearchObject());
 					}
 
 					// Add Privileges?
@@ -1088,7 +1088,7 @@ class Brewer {
 				if(!$db->error){
 					// Delete from Algolia
 					if($algoliaId !== null){
-						$algolia->deleteObject('brewer', $algoliaId);
+						$algolia->deleteObject('catalog', $algoliaId);
 					}
 				}else{
 					// Database Error
@@ -1138,7 +1138,7 @@ class Brewer {
 		$array['url'] = $this->url;
 		$array['cb_verified'] = $this->cbVerified;
 		$array['brewer_verified'] = $this->brewerVerified;
-		$array['last_modified'] = $this->lastModified;
+		$array['last_modified'] = date('r', $this->lastModified);
 
 		if($json){
 			// Add to JSON Output
@@ -1167,6 +1167,10 @@ class Brewer {
 		if(!empty($this->description)){$array['description'] = $this->description;}
 		if(!empty($this->shortDescription)){$array['short_description'] = $this->shortDescription;}
 		if(!empty($this->url)){$array['url'] = $this->url;}
+
+		// SiteSearch Fields
+		$array['type'] = 'brewer';
+		$array['page_url'] = '/brewer?brewerID=' . $this->brewerID;
 
 		// Return as array
 		return $array;
@@ -1256,7 +1260,7 @@ class Brewer {
 				$brewerObj['url'] = $row['url'] ?? null;
 				$brewerObj['cb_verified'] = $row['cbVerified'] ? true : false;
 				$brewerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
-				$brewerObj['last_modified'] = intval($row['lastModified']);
+				$brewerObj['last_modified'] = date('r', intval($row['lastModified']));
 
 				$data[] = $brewerObj;
 			}

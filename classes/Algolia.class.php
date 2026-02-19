@@ -174,7 +174,7 @@ class Algolia {
 	 * PUTs the search object to Algolia. Errors are logged but do NOT
 	 * set $this->error — Algolia failures should not fail the API response.
 	 *
-	 * @param string $indexName The index ('beer', 'brewer', 'location')
+	 * @param string $indexName The index ('catalog')
 	 * @param array  $searchObject The array from generateSearchObject(), must contain 'objectID'
 	 */
 	public function saveObject($indexName, $searchObject){
@@ -183,7 +183,7 @@ class Algolia {
 		$errorLog->filename = 'Algolia.class.php';
 
 		// Validate Index
-		$validIndexes = ['beer', 'brewer', 'location'];
+		$validIndexes = ['catalog'];
 		if(!in_array($indexName, $validIndexes)){
 			// Invalid Index
 			$errorLog->errorNumber = 226;
@@ -252,7 +252,7 @@ class Algolia {
 	 * DELETEs the object from Algolia and removes the local algolia table row.
 	 * Errors are logged but do NOT set $this->error.
 	 *
-	 * @param string $indexName The index ('beer', 'brewer', 'location')
+	 * @param string $indexName The index ('catalog')
 	 * @param string $objectID The Algolia objectID to delete
 	 */
 	public function deleteObject($indexName, $objectID){
@@ -261,7 +261,7 @@ class Algolia {
 		$errorLog->filename = 'Algolia.class.php';
 
 		// Validate Index
-		$validIndexes = ['beer', 'brewer', 'location'];
+		$validIndexes = ['catalog'];
 		if(!in_array($indexName, $validIndexes)){
 			// Invalid Index
 			$errorLog->errorNumber = 229;
