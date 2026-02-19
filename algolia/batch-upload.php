@@ -34,6 +34,9 @@ spl_autoload_register(function ($class_name) {
 	require_once ROOT . '/classes/' . $class_name . '.class.php';
 });
 
+// Load credentials (ALGOLIA_APPLICATION_ID, ALGOLIA_WRITE_API_KEY, etc.)
+require_once ROOT . '/common/passwords.php';
+
 // Required Classes
 $brewer = new Brewer();
 $location = new Location();
@@ -44,11 +47,8 @@ $listOfLocationIDs = array();
 $listOfBeerIDs = array();
 
 function curlRequest($index, $data = null){
-	// Application ID
-	$algoliaApplicationID = 'YPJOKK4A7S';
-
 	// Create URL
-	$url = 'https://' . $algoliaApplicationID . '.algolia.net/1/indexes/' . $index;
+	$url = 'https://' . ALGOLIA_APPLICATION_ID . '.algolia.net/1/indexes/' . $index;
 
 	// Return URL
 	$returnURL = '';
@@ -61,8 +61,8 @@ function curlRequest($index, $data = null){
 
 	// Initialize headers array
 	$headers = array(
-		'x-algolia-application-id: ' . $algoliaApplicationID,
-		'x-algolia-api-key: c5c278471d4bc621fe0acd2730c37251',
+		'x-algolia-application-id: ' . ALGOLIA_APPLICATION_ID,
+		'x-algolia-api-key: ' . ALGOLIA_WRITE_API_KEY,
 		'User-Agent: api.catalog.beer/1.0'
 	);
 
@@ -82,11 +82,9 @@ function curlRequest($index, $data = null){
 		// Attach the JSON payload
 		curl_setopt($curl, CURLOPT_POSTFIELDS, $jsonData);
 
-		// Set headers for JSON
-		curl_setopt($curl, CURLOPT_HTTPHEADER, array(
-			'Content-Type: application/json',
-			'Content-Length: ' . strlen($jsonData)
-		));
+		// Add JSON headers to auth headers
+		$headers[] = 'Content-Type: application/json';
+		$headers[] = 'Content-Length: ' . strlen($jsonData);
 	} else {
 		// If no data is provided, make it a GET request
 		curl_setopt($curl, CURLOPT_HTTPGET, true);
@@ -118,7 +116,7 @@ function curlRequest($index, $data = null){
 		$errorLog->errorNumber = 16;
 		$errorLog->errorMsg = 'cURL Error';
 		$errorLog->badData = "URL: $url / cURL Error: " . curl_error($curl);
-		$errorLog->filename = $this->filename;
+		$errorLog->filename = 'algolia/batch-upload.php';
 		$errorLog->write();
 	}
 

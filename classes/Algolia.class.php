@@ -7,11 +7,6 @@ class Algolia {
 	public $brewer_id = null;
 	public $location_id = null;
 
-	// Catalog.beer API Response
-	public $responseHeader = '';
-	public $responseCode = 200;
-	public $json = array();
-
 	// Error Variables
 	public $error = false;
 	public $errorMsg = null;
@@ -174,168 +169,159 @@ class Algolia {
 	}
 
 	/**
-	 * Searches the Algolia index with the given query string.
+	 * Save an object to an Algolia index
 	 *
-	 * @param string $query The search query string.
-	 * @return array|null The decoded JSON response from Algolia as an associative array, or null on failure.
+	 * PUTs the search object to Algolia. Errors are logged but do NOT
+	 * set $this->error — Algolia failures should not fail the API response.
+	 *
+	 * @param string $indexName The index ('beer', 'brewer', 'location')
+	 * @param array  $searchObject The array from generateSearchObject(), must contain 'objectID'
 	 */
-	function searchAlgolia(string $query, string $indexName): ?array {
+	public function saveObject($indexName, $searchObject){
 		// Required Classes
 		$errorLog = new LogError();
 		$errorLog->filename = 'Algolia.class.php';
 
-		// Check Index
-		$validIndex = array('beer', 'brewer', 'location');
-		if(!in_array($indexName, $validIndex)){
+		// Validate Index
+		$validIndexes = ['beer', 'brewer', 'location'];
+		if(!in_array($indexName, $validIndexes)){
 			// Invalid Index
-			$this->error = true;
-			$this->errorMsg = "Invalid index. Must be one of: 'beer', 'brewer', or 'location'.";
-			$this->responseCode = 400;
+			$errorLog->errorNumber = 226;
+			$errorLog->errorMsg = 'Invalid index name for saveObject.';
+			$errorLog->badData = $indexName;
+			$errorLog->write();
+			return;
+		}
 
-			// Log Error
-			$errorLog->errorNumber = 219;
-			$errorLog->errorMsg = $this->errorMsg;
-			$errorLog->badData = $type;
+		// Get objectID
+		$objectID = $searchObject['objectID'] ?? null;
+		if($objectID === null){
+			$errorLog->errorNumber = 233;
+			$errorLog->errorMsg = 'Missing objectID in search object for saveObject.';
+			$errorLog->badData = $indexName;
+			$errorLog->write();
+			return;
+		}
+
+		// Build URL
+		$url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/{$objectID}";
+
+		// JSON Payload
+		$jsonData = json_encode($searchObject);
+
+		// Initialize cURL
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			"x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
+			"x-algolia-api-key: " . ALGOLIA_WRITE_API_KEY,
+			"Content-Type: application/json"
+		]);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+		// Execute
+		$response = curl_exec($ch);
+
+		if(curl_errno($ch)){
+			// cURL Error
+			$errorLog->errorNumber = 227;
+			$errorLog->errorMsg = curl_error($ch);
+			$errorLog->badData = "Index: {$indexName} / objectID: {$objectID}";
+			$errorLog->write();
+			curl_close($ch);
+			return;
+		}
+
+		$httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		if($httpStatus < 200 || $httpStatus >= 300){
+			// HTTP Error
+			$errorLog->errorNumber = 228;
+			$errorLog->errorMsg = "HTTP Status {$httpStatus}";
+			$errorLog->badData = "Index: {$indexName} / objectID: {$objectID} / Response: {$response}";
 			$errorLog->write();
 		}
-
-		if(!$this->error){
-			// Algolia API Endpoint
-			$url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/query";
-
-			// URL-encode the query string
-			$encodedQuery = urlencode($query);
-
-			// Prepare the POST data as per the provided cURL request
-			$postData = json_encode([
-				'params' => "query={$encodedQuery}"
-			]);
-
-			// Initialize cURL
-			$ch = curl_init();
-
-			// Set cURL options
-			curl_setopt($ch, CURLOPT_URL, $url);
-			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Return the response as a string
-			curl_setopt($ch, CURLOPT_POST, true);           // Use POST method
-			curl_setopt($ch, CURLOPT_HTTPHEADER, [
-				"x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
-				"x-algolia-api-key: " . ALGOLIA_SEARCH_API_KEY,
-				"Accept: application/json",
-				"Content-Type: application/json"
-			]);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-
-			// Execute the cURL request
-			$response = curl_exec($ch);
-
-			// Check for cURL errors
-			if (curl_errno($ch)) {
-				// cURL Error
-				$this->error = true;
-				$this->errorMsg = "There was an error processing your request.";
-				$this->responseCode = 500;
-
-				// Log Error
-				$errorLog->errorNumber = 215;
-				$errorLog->errorMsg = curl_error($ch);
-				$errorLog->badData = '';
-				$errorLog->write();
-
-				curl_close($ch);
-
-				// Return null
-				return null;
-			}
-
-			// Get the HTTP status code
-			$httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-			// Close the cURL session
-			curl_close($ch);
-
-			// Check if the request was successful
-			if ($httpStatus >= 200 && $httpStatus < 300) {
-				// Return decoded JSON as array
-				return json_decode($response);
-			} else {
-				// Handle non-successful HTTP status codes as needed
-				$this->error = true;
-				$this->errorMsg = "There was an error processing your request.";
-				$this->responseCode = 500;
-
-				// Log Error
-				$errorLog->errorNumber = 216;
-				$errorLog->errorMsg = "HTTP Status {$httpStatus}";
-				$errorLog->badData = $decodedResponse;
-				$errorLog->write();
-
-				// Return null
-				return null;
-			}
-		}else{
-			// Error Triggered; Return null
-			return null;
-		}
 	}
 
-	public function api($method, $function, $data){
-		echo "Got to API Function\n";
-		/*
+	/**
+	 * Delete an object from an Algolia index
+	 *
+	 * DELETEs the object from Algolia and removes the local algolia table row.
+	 * Errors are logged but do NOT set $this->error.
+	 *
+	 * @param string $indexName The index ('beer', 'brewer', 'location')
+	 * @param string $objectID The Algolia objectID to delete
+	 */
+	public function deleteObject($indexName, $objectID){
 		// Required Classes
 		$errorLog = new LogError();
 		$errorLog->filename = 'Algolia.class.php';
 
-		/*---
-		{METHOD} https://api.catalog.beer/query/{type}
+		// Validate Index
+		$validIndexes = ['beer', 'brewer', 'location'];
+		if(!in_array($indexName, $validIndexes)){
+			// Invalid Index
+			$errorLog->errorNumber = 229;
+			$errorLog->errorMsg = 'Invalid index name for deleteObject.';
+			$errorLog->badData = $indexName;
+			$errorLog->write();
+			return;
+		}
 
-		POST https://api.catalog.beer/{type}
-		---
-		switch($method){
-			case 'POST':
-				// POST https://api.catalog.beer/{type}/{query}
-				// Check for Query
-				if(empty($data->query)){
-					// Missing Query
-					$this->error = true;
-					$this->json['error'] = true;
-					$this->json['error_msg'] = "Missing query. Send your query in a JSON array formatted {\"query\":\"Your query here...\"}";
-					$this->responseCode = 400;
+		// Build URL
+		$url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/{$objectID}";
 
-					// Log Error
-					$errorLog->errorNumber = 218;
-					$errorLog->errorMsg = "No query submitted.";
-					$errorLog->badData = '';
-					$errorLog->write();
-				}
+		// Initialize cURL
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			"x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
+			"x-algolia-api-key: " . ALGOLIA_WRITE_API_KEY,
+			"Content-Type: application/json"
+		]);
 
-				// Process Query
-				$response = $this->searchAlgolia($data->query, $function);
-				if(!$this->error){
-					// Return Response
-					$this->json = $response;
-				}else{
-					// Error
-					$this->json['error'] = true;
-					$this->json['error_msg'] = $this->errorMsg;
-				}
+		// Execute
+		$response = curl_exec($ch);
 
-				break;
-			default:
-				// Unsupported Method - Method Not Allowed
-				$this->json['error'] = true;
-				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
-				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: POST';
+		if(curl_errno($ch)){
+			// cURL Error
+			$errorLog->errorNumber = 230;
+			$errorLog->errorMsg = curl_error($ch);
+			$errorLog->badData = "Index: {$indexName} / objectID: {$objectID}";
+			$errorLog->write();
+			curl_close($ch);
+			return;
+		}
 
-				// Log Error
-				$errorLog = new LogError();
-				$errorLog->errorNumber = 217;
-				$errorLog->errorMsg = 'Invalid Method (/query)';
-				$errorLog->badData = $method;
-				$errorLog->filename = $this->filename;
-				$errorLog->write();
-		}*/
+		$httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		if($httpStatus < 200 || $httpStatus >= 300){
+			// HTTP Error
+			$errorLog->errorNumber = 231;
+			$errorLog->errorMsg = "HTTP Status {$httpStatus}";
+			$errorLog->badData = "Index: {$indexName} / objectID: {$objectID} / Response: {$response}";
+			$errorLog->write();
+			return;
+		}
+
+		// Delete local algolia table row
+		$db = new Database();
+		$db->query("DELETE FROM algolia WHERE algolia_id=?", [$objectID]);
+		if($db->error){
+			// DB Cleanup Error
+			$errorLog->errorNumber = 232;
+			$errorLog->errorMsg = 'Failed to delete algolia table row.';
+			$errorLog->badData = "objectID: {$objectID} / DB Error: {$db->errorMsg}";
+			$errorLog->write();
+		}
+		$db->close();
 	}
+
 }
 ?>

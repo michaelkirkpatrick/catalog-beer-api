@@ -67,10 +67,10 @@ Two-tier verification controls who can edit entities:
 Staff status determined by: user email domain matching brewer's `domainName`, or explicit entry in `privileges` table. Admin status is a flag on the user account.
 
 ### Pagination
-Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()` uses a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
+Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()`, `Beer::search()`, and `Brewer::search()` use a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–225). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–238). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -89,12 +89,13 @@ All queries use parameterized `?` placeholders. Database credentials are loaded 
 - PUT full replacement: Optional fields use `if(!empty()) { $setClauses[] = 'col=?'; } else { $setClauses[] = 'col=NULL'; }` — omitted fields are cleared per REST standards
 - Optional INSERT fields: Build `$columns[]` and `$params[]` arrays, add optional fields conditionally
 - JOINs: Used where related data is needed together (e.g., `Location::nearbyLatLng()` JOINs location+brewer+US_addresses+subdivisions; `USAddresses::validate()` JOINs with subdivisions)
+- FULLTEXT search: `Beer::search()` and `Brewer::search()` use `MATCH ... AGAINST(? IN NATURAL LANGUAGE MODE)` with MySQL FULLTEXT indexes; `Beer::search()` JOINs with brewer to return full objects in one query
 
 ## API Endpoints
 
 Defined in `.htaccess`. All IDs are 36-character UUIDs:
-- `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`, `/brewer/count`
-- `/beer`, `/beer/{id}`, `/beer/count`
+- `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`, `/brewer/count`, `/brewer/search`
+- `/beer`, `/beer/{id}`, `/beer/count`, `/beer/search`
 - `/location/{id}`, `/location/nearby`
 - `/address/{id}`
 - `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`

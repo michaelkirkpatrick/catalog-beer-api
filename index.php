@@ -304,13 +304,6 @@ if(!$error){
 			$responseCode = $users->responseCode;
 			$responseHeader = $users->responseHeader;
 			break;
-		case 'query':
-			$algolia = new Algolia();
-			$algolia->api($method, $function, $data);
-			$json = $algolia->json;
-			$responseCode = $algolia->responseCode;
-			$responseHeader = $algolia->responseHeader;
-			break;
 		case 'usage':
 			$usage = new Usage();
 			$usage->api($method, $function, $id, $apiKey);

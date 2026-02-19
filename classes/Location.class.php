@@ -401,12 +401,17 @@ class Location {
 						}
 						$this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->locationID;
 
-						// Create Algolia ID
+						// Create Algolia ID and sync to Algolia
 						$algolia = new Algolia();
 						$algolia->add('location', $this->locationID);
+						$algolia->saveObject('location', $this->generateLocationSearchObject($this->brewerObj));
 					}else{
 						// Success
 						$this->responseCode = 200;
+
+						// Sync updated location to Algolia
+						$algolia = new Algolia();
+						$algolia->saveObject('location', $this->generateLocationSearchObject($this->brewerObj));
 					}
 				}else{
 					// Query Error
@@ -922,10 +927,19 @@ class Location {
 			}
 
 			if($users->admin || $isBreweryStaff){
+				// Look up Algolia ID before deleting
+				$algolia = new Algolia();
+				$algoliaId = $algolia->getAlgoliaIdByRecord('location', $locationID);
+
 				// Delete Location
 				$db = new Database();
 				$db->query("DELETE FROM location WHERE id=?", [$locationID]);
-				if($db->error){
+				if(!$db->error){
+					// Delete from Algolia
+					if($algoliaId !== null){
+						$algolia->deleteObject('location', $algoliaId);
+					}
+				}else{
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;

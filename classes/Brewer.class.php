@@ -419,11 +419,16 @@ class Brewer {
 						}
 						$this->responseHeader = $responseHeaderString . 'catalog.beer/brewer/' . $this->brewerID;
 
-						// Create Algolia ID
+						// Create Algolia ID and sync to Algolia
 						$algolia = new Algolia();
 						$algolia->add('brewer', $this->brewerID);
+						$algolia->saveObject('brewer', $this->generateBrewerSearchObject());
 					}else{
 						$this->responseCode = 200;
+
+						// Sync updated brewer to Algolia
+						$algolia = new Algolia();
+						$algolia->saveObject('brewer', $this->generateBrewerSearchObject());
 					}
 
 					// Add Privileges?
@@ -1073,10 +1078,19 @@ class Brewer {
 			}
 
 			if($users->admin || $isBreweryStaff){
+				// Look up Algolia ID before deleting
+				$algolia = new Algolia();
+				$algoliaId = $algolia->getAlgoliaIdByRecord('brewer', $brewerID);
+
 				// Delete Brewer
 				$db = new Database();
 				$db->query("DELETE FROM brewer WHERE id=?", [$brewerID]);
-				if($db->error){
+				if(!$db->error){
+					// Delete from Algolia
+					if($algoliaId !== null){
+						$algolia->deleteObject('brewer', $algoliaId);
+					}
+				}else{
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
@@ -1158,6 +1172,122 @@ class Brewer {
 		return $array;
 	}
 
+	public function search($query, $cursor, $count){
+		// Validate query
+		$query = trim($query ?? '');
+		if(empty($query)){
+			// Missing Query
+			$this->error = true;
+			$this->errorMsg = "Missing search query. Include a 'q' parameter with your search terms.";
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 234;
+			$errorLog->errorMsg = 'Missing search query';
+			$errorLog->badData = '';
+			$errorLog->filename = $this->filename;
+			$errorLog->write();
+			return;
+		}
+
+		if(strlen($query) > 255){
+			// Query Too Long
+			$this->error = true;
+			$this->errorMsg = 'Search query is too long. Please limit your query to 255 characters.';
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 235;
+			$errorLog->errorMsg = 'Search query too long';
+			$errorLog->badData = strlen($query) . ' characters';
+			$errorLog->filename = $this->filename;
+			$errorLog->write();
+			return;
+		}
+
+		// Validate count
+		$count = intval($count);
+		if($count < 1 || $count > 100){
+			$this->error = true;
+			$this->errorMsg = 'The count value must be between 1 and 100.';
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 236;
+			$errorLog->errorMsg = 'Invalid count for search';
+			$errorLog->badData = $count;
+			$errorLog->filename = $this->filename;
+			$errorLog->write();
+			return;
+		}
+
+		// Validate cursor
+		$offset = intval(base64_decode($cursor));
+		if($offset < 0){
+			$offset = 0;
+		}
+
+		// Request count+1 to determine if there are more results
+		$fetchCount = $count + 1;
+
+		// Query Database
+		$db = new Database();
+		$result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+		if(!$db->error){
+			$rowCount = 0;
+			$data = array();
+			while($row = $result->fetch_assoc()){
+				$rowCount++;
+				if($rowCount > $count){
+					// Extra row — indicates more results exist
+					break;
+				}
+
+				// Build brewer object
+				$brewerObj = array();
+				$brewerObj['id'] = $row['id'];
+				$brewerObj['object'] = 'brewer';
+				$brewerObj['name'] = $row['name'];
+				$brewerObj['description'] = $row['description'] ?? null;
+				$brewerObj['short_description'] = $row['shortDescription'] ?? null;
+				$brewerObj['url'] = $row['url'] ?? null;
+				$brewerObj['cb_verified'] = $row['cbVerified'] ? true : false;
+				$brewerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
+				$brewerObj['last_modified'] = intval($row['lastModified']);
+
+				$data[] = $brewerObj;
+			}
+
+			// Build response
+			$hasMore = ($rowCount > $count);
+			$this->json['object'] = 'list';
+			$this->json['url'] = '/brewer/search';
+			$this->json['query'] = $query;
+			$this->json['has_more'] = $hasMore;
+			if($hasMore){
+				$this->json['next_cursor'] = base64_encode($offset + $count);
+			}
+			$this->json['data'] = $data;
+		}else{
+			// Query Error
+			$this->error = true;
+			$this->errorMsg = 'Sorry, we encountered an error while processing your search.';
+			$this->responseCode = 500;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 238;
+			$errorLog->errorMsg = 'Brewer FULLTEXT query error';
+			$errorLog->badData = $db->errorMsg;
+			$errorLog->filename = $this->filename;
+			$errorLog->write();
+		}
+		$db->close();
+	}
+
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/brewer/{function}
@@ -1193,6 +1323,17 @@ class Brewer {
 				}else{
 					if(!empty($function)){
 						switch($function){
+							case 'search':
+								// GET https://api.catalog.beer/brewer/search?q=
+								$searchQuery = isset($_GET['q']) ? $_GET['q'] : '';
+								$searchCount = isset($_GET['count']) ? $_GET['count'] : 25;
+								$searchCursor = isset($_GET['cursor']) ? $_GET['cursor'] : base64_encode('0');
+								$this->search($searchQuery, $searchCursor, $searchCount);
+								if($this->error){
+									$this->json['error'] = true;
+									$this->json['error_msg'] = $this->errorMsg;
+								}
+								break;
 							case 'count':
 								// GET https://api.catalog.beer/brewer/count
 								$numBrewers = $this->countBrewers();

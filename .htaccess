@@ -18,6 +18,7 @@ ErrorDocument 503 /errors.php?code=503
 # API Endpoints
 RewriteRule ^address(\/[-0-9a-f]{36})?$ index.php?endpoint=address&id=$1 [L]
 
+RewriteRule ^brewer/search$ index.php?endpoint=brewer&function=search [QSA,L]
 RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
@@ -25,6 +26,7 @@ RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
 
+RewriteRule ^beer/search$ index.php?endpoint=beer&function=search [QSA,L]
 RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
@@ -35,8 +37,6 @@ RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L
 RewriteRule ^health$ index.php?endpoint=health [L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]
-
-#RewriteRule ^query\/([a-zA-Z]{4,8})$ index.php?endpoint=query&function=$1 [L]
 
 RewriteRule ^usage/currentMonth/?(\/[-0-9a-f]{36})?$ index.php?endpoint=usage&function=currentMonth&id=$1 [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]

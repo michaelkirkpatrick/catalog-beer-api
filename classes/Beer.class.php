@@ -417,11 +417,16 @@ class Beer {
 						}
 						$this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
 
-						// Create Algolia ID
+						// Create Algolia ID and sync to Algolia
 						$algolia = new Algolia();
 						$algolia->add('beer', $this->beerID);
+						$algolia->saveObject('beer', $this->generateBeerSearchObject());
 					}else{
 						$this->responseCode = 200;
+
+						// Sync updated beer to Algolia
+						$algolia = new Algolia();
+						$algolia->saveObject('beer', $this->generateBeerSearchObject());
 					}
 				}else{
 					// Query Error
@@ -938,10 +943,19 @@ class Beer {
 			}
 
 			if($users->admin || $isBreweryStaff){
+				// Look up Algolia ID before deleting
+				$algolia = new Algolia();
+				$algoliaId = $algolia->getAlgoliaIdByRecord('beer', $beerID);
+
 				// Delete Beer
 				$db = new Database();
 				$db->query("DELETE FROM beer WHERE id=?", [$beerID]);
-				if($db->error){
+				if(!$db->error){
+					// Delete from Algolia
+					if($algoliaId !== null){
+						$algolia->deleteObject('beer', $algoliaId);
+					}
+				}else{
 					// Database Error
 					$this->error = true;
 					$this->errorMsg = $db->errorMsg;
@@ -1029,6 +1043,136 @@ class Beer {
 		return $array;
 	}
 
+	public function search($query, $cursor, $count){
+		// Validate query
+		$query = trim($query ?? '');
+		if(empty($query)){
+			// Missing Query
+			$this->error = true;
+			$this->errorMsg = "Missing search query. Include a 'q' parameter with your search terms.";
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 234;
+			$errorLog->errorMsg = 'Missing search query';
+			$errorLog->badData = '';
+			$errorLog->filename = 'API / Beer.class.php';
+			$errorLog->write();
+			return;
+		}
+
+		if(strlen($query) > 255){
+			// Query Too Long
+			$this->error = true;
+			$this->errorMsg = 'Search query is too long. Please limit your query to 255 characters.';
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 235;
+			$errorLog->errorMsg = 'Search query too long';
+			$errorLog->badData = strlen($query) . ' characters';
+			$errorLog->filename = 'API / Beer.class.php';
+			$errorLog->write();
+			return;
+		}
+
+		// Validate count
+		$count = intval($count);
+		if($count < 1 || $count > 100){
+			$this->error = true;
+			$this->errorMsg = 'The count value must be between 1 and 100.';
+			$this->responseCode = 400;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 236;
+			$errorLog->errorMsg = 'Invalid count for search';
+			$errorLog->badData = $count;
+			$errorLog->filename = 'API / Beer.class.php';
+			$errorLog->write();
+			return;
+		}
+
+		// Validate cursor
+		$offset = intval(base64_decode($cursor));
+		if($offset < 0){
+			$offset = 0;
+		}
+
+		// Request count+1 to determine if there are more results
+		$fetchCount = $count + 1;
+
+		// Query Database
+		$db = new Database();
+		$result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+		if(!$db->error){
+			$rowCount = 0;
+			$data = array();
+			while($row = $result->fetch_assoc()){
+				$rowCount++;
+				if($rowCount > $count){
+					// Extra row — indicates more results exist
+					break;
+				}
+
+				// Build beer object
+				$beerObj = array();
+				$beerObj['id'] = $row['id'];
+				$beerObj['object'] = 'beer';
+				$beerObj['name'] = $row['name'];
+				$beerObj['style'] = $row['style'];
+				$beerObj['description'] = $row['description'] ?? null;
+				$beerObj['abv'] = floatval($row['abv']);
+				$beerObj['ibu'] = !empty($row['ibu']) ? intval($row['ibu']) : null;
+				$beerObj['cb_verified'] = $row['cbVerified'] ? true : false;
+				$beerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
+				$beerObj['last_modified'] = intval($row['lastModified']);
+
+				// Build brewer sub-object
+				$brewerObj = array();
+				$brewerObj['id'] = $row['brewer_id'];
+				$brewerObj['object'] = 'brewer';
+				$brewerObj['name'] = $row['brewer_name'];
+				$brewerObj['description'] = $row['brewer_description'] ?? null;
+				$brewerObj['short_description'] = $row['brewer_shortDescription'] ?? null;
+				$brewerObj['url'] = $row['brewer_url'] ?? null;
+				$brewerObj['cb_verified'] = $row['brewer_cbVerified'] ? true : false;
+				$brewerObj['brewer_verified'] = $row['brewer_brewerVerified'] ? true : false;
+				$brewerObj['last_modified'] = intval($row['brewer_lastModified']);
+
+				$beerObj['brewer'] = $brewerObj;
+				$data[] = $beerObj;
+			}
+
+			// Build response
+			$hasMore = ($rowCount > $count);
+			$this->json['object'] = 'list';
+			$this->json['url'] = '/beer/search';
+			$this->json['query'] = $query;
+			$this->json['has_more'] = $hasMore;
+			if($hasMore){
+				$this->json['next_cursor'] = base64_encode($offset + $count);
+			}
+			$this->json['data'] = $data;
+		}else{
+			// Query Error
+			$this->error = true;
+			$this->errorMsg = 'Sorry, we encountered an error while processing your search.';
+			$this->responseCode = 500;
+
+			// Log Error
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 237;
+			$errorLog->errorMsg = 'Beer FULLTEXT query error';
+			$errorLog->badData = $db->errorMsg;
+			$errorLog->filename = 'API / Beer.class.php';
+			$errorLog->write();
+		}
+		$db->close();
+	}
+
 	public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
 		/*---
 		{METHOD} https://api.catalog.beer/beer/{function}
@@ -1065,6 +1209,17 @@ class Beer {
 				}else{
 					if(!empty($function)){
 						switch($function){
+							case 'search':
+								// GET https://api.catalog.beer/beer/search?q=
+								$searchQuery = isset($_GET['q']) ? $_GET['q'] : '';
+								$searchCount = isset($_GET['count']) ? $_GET['count'] : 25;
+								$searchCursor = isset($_GET['cursor']) ? $_GET['cursor'] : base64_encode('0');
+								$this->search($searchQuery, $searchCursor, $searchCount);
+								if($this->error){
+									$this->json['error'] = true;
+									$this->json['error_msg'] = $this->errorMsg;
+								}
+								break;
 							case 'count':
 								// GET https://api.catalog.beer/beer/count
 								$numBeers = $this->countBeers();
