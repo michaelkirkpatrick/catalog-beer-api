@@ -40,7 +40,7 @@ class LogError {
 		if(!$uuid->error){
 			// Connect to Database
 			$db = new Database();
-			$db->query("INSERT INTO error_log (id, errorNumber, errorMessage, badData, URI, ipAddress, timestamp, filename, resolved) VALUES(?, ?, ?, ?, ?, ?, ?, ?, 0)", [$errorID, $this->errorNumber, $this->errorMsg, serialize($this->badData), $_SERVER['REQUEST_URI'], $_SERVER['REMOTE_ADDR'], time(), $this->filename]);
+			$db->query("INSERT INTO error_log (id, errorNumber, errorMessage, badData, URI, ipAddress, timestamp, filename, resolved) VALUES(?, ?, ?, ?, ?, ?, ?, ?, 0)", [$errorID, $this->errorNumber, $this->errorMsg, serialize($this->badData), $_SERVER['REQUEST_URI'] ?? 'CLI', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', time(), $this->filename]);
 			$db->close();
 		}
 
