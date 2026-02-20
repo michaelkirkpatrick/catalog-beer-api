@@ -120,6 +120,21 @@ class SendEmail {
 		$this->send($to, $subject, $tag, $htmlBody, $textBody);
 	}
 	
+	public function errorDigest($htmlContent, $textBody, $count, $date){
+		// Email Basics
+		$to = 'michael@catalog.beer';
+		$subject = "Error Digest: $count errors on $date";
+		$tag = 'error-digest';
+
+		// HTML Email
+		$htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
+		$htmlBody .= file_get_contents(ROOT . '/classes/resources/email-error-digest.html');
+		$htmlBody = str_replace('##CONTENT##', $htmlContent, $htmlBody);
+
+		// Send Email
+		$this->send($to, $subject, $tag, $htmlBody, $textBody);
+	}
+
 	private function send($to, $subject, $tag, $htmlBody, $textBody){
 		if(!$this->testing){
 			// Generate Postmark Email Body

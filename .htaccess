@@ -36,6 +36,8 @@ RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L
 RewriteRule ^location/zip$ index.php?endpoint=location&function=zip [QSA,L]
 RewriteRule ^location/city$ index.php?endpoint=location&function=city [QSA,L]
 
+RewriteRule ^error-log/?$ index.php?endpoint=error-log [L]
+
 RewriteRule ^health$ index.php?endpoint=health [L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]

@@ -266,6 +266,13 @@ if(!$error){
 			$responseCode = $beer->responseCode;
 			$responseHeader = $beer->responseHeader;
 			break;
+		case 'error-log':
+			$errorReport = new ErrorReport();
+			$errorReport->api($method, $function, $id, $apiKey);
+			$json = $errorReport->json;
+			$responseCode = $errorReport->responseCode;
+			$responseHeader = $errorReport->responseHeader;
+			break;
 		case 'brewer':
 			$brewer = new Brewer();
 			$brewer->api($method, $function, $id, $apiKey, $count, $cursor, $data);
