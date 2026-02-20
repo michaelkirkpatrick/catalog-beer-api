@@ -62479,6 +62479,807 @@
 									]
 								},
 								{
+									"name": "Beer Search",
+									"item": [
+										{
+											"name": "BEER-134 Search Beer - Missing Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-135 Search Beer - Empty Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": ""
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-136 Search Beer - Query Too Long",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-137 Search Beer - Invalid Count (Zero)",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=Postman&count=0",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														},
+														{
+															"key": "count",
+															"value": "0"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-138 Search Beer - Invalid Count (Over Max)",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=Postman&count=101",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														},
+														{
+															"key": "count",
+															"value": "101"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-139 Search Beer - No Results",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid empty search response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/beer/search');",
+															"    pm.expect(jsonData.query).to.equal('xyznonexistent999');",
+															"    pm.expect(jsonData.has_more).to.equal(false);",
+															"    pm.expect(jsonData.data).to.have.lengthOf(0);",
+															"    pm.expect(jsonData).to.not.have.property('next_cursor');",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=xyznonexistent999",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "xyznonexistent999"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-140 Search Beer - Successful",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+															"",
+															"// Extract unique search term from beer name",
+															"var name = pm.environment.get('beer_name_24');",
+															"var searchTerm = name.replace('[Postman API Test] ', '');",
+															"pm.environment.set('beer_search_term', searchTerm);"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid search response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/beer/search');",
+															"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
+															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+															"});",
+															"",
+															"pm.test(\"Valid beer object\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'style', 'description',",
+															"        'abv', 'ibu', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+															"    pm.expect(jsonData.data[0].object).to.equal('beer');",
+															"});",
+															"",
+															"pm.test(\"Valid brewer sub-object\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.data[0].brewer).to.have.all.keys('id', 'object', 'name', 'description',",
+															"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData.data[0].brewer.object).to.equal('brewer');",
+															"});",
+															"",
+															"pm.test(\"Content-Type Header Present\", function () {",
+															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{beer_search_term}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-141 Search Beer - With Count",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+															"",
+															"// Reuse search term from BEER-140",
+															"var name = pm.environment.get('beer_name_24');",
+															"var searchTerm = name.replace('[Postman API Test] ', '');",
+															"pm.environment.set('beer_search_term', searchTerm);"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid search response with count\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/beer/search');",
+															"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
+															"    pm.expect(jsonData.data.length).to.be.at.most(1);",
+															"});",
+															"",
+															"pm.test(\"Content-Type Header Present\", function () {",
+															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}&count=1",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{beer_search_term}}"
+														},
+														{
+															"key": "count",
+															"value": "1"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-142 Search Beer - Invalid Method",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Method Not Allowed (HTTP 405)\", function () {",
+															"    pm.response.to.have.status(405);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "POST",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=Postman",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									]
+								},
+								{
 									"name": "BR-183 Delete Brewery #42",
 									"event": [
 										{
@@ -62540,807 +63341,6 @@
 											"path": [
 												"brewer",
 												"{{brewer_id_42}}"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "Beer Search",
-							"item": [
-								{
-									"name": "BEER-134 Search Beer - Missing Query",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-135 Search Beer - Empty Query",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": ""
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-136 Search Beer - Query Too Long",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-137 Search Beer - Invalid Count (Zero)",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=Postman&count=0",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												},
-												{
-													"key": "count",
-													"value": "0"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-138 Search Beer - Invalid Count (Over Max)",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=Postman&count=101",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												},
-												{
-													"key": "count",
-													"value": "101"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-139 Search Beer - No Results",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid empty search response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/beer/search');",
-													"    pm.expect(jsonData.query).to.equal('xyznonexistent999');",
-													"    pm.expect(jsonData.has_more).to.equal(false);",
-													"    pm.expect(jsonData.data).to.have.lengthOf(0);",
-													"    pm.expect(jsonData).to.not.have.property('next_cursor');",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=xyznonexistent999",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "xyznonexistent999"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-140 Search Beer - Successful",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
-													"",
-													"// Extract unique search term from beer name",
-													"var name = pm.environment.get('beer_name_24');",
-													"var searchTerm = name.replace('[Postman API Test] ', '');",
-													"pm.environment.set('beer_search_term', searchTerm);"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid search response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/beer/search');",
-													"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
-													"    pm.expect(jsonData.data.length).to.be.at.least(1);",
-													"});",
-													"",
-													"pm.test(\"Valid beer object\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'style', 'description',",
-													"        'abv', 'ibu', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
-													"    pm.expect(jsonData.data[0].object).to.equal('beer');",
-													"});",
-													"",
-													"pm.test(\"Valid brewer sub-object\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData.data[0].brewer).to.have.all.keys('id', 'object', 'name', 'description',",
-													"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
-													"    pm.expect(jsonData.data[0].brewer.object).to.equal('brewer');",
-													"});",
-													"",
-													"pm.test(\"Content-Type Header Present\", function () {",
-													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "{{beer_search_term}}"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-141 Search Beer - With Count",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
-													"",
-													"// Reuse search term from BEER-140",
-													"var name = pm.environment.get('beer_name_24');",
-													"var searchTerm = name.replace('[Postman API Test] ', '');",
-													"pm.environment.set('beer_search_term', searchTerm);"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid search response with count\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/beer/search');",
-													"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
-													"    pm.expect(jsonData.data.length).to.be.at.most(1);",
-													"});",
-													"",
-													"pm.test(\"Content-Type Header Present\", function () {",
-													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}&count=1",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "{{beer_search_term}}"
-												},
-												{
-													"key": "count",
-													"value": "1"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BEER-142 Search Beer - Invalid Method",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Method Not Allowed (HTTP 405)\", function () {",
-													"    pm.response.to.have.status(405);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "POST",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=Postman",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"beer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												}
 											]
 										}
 									},
