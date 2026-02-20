@@ -1197,7 +1197,7 @@ class Location {
 		// SiteSearch Fields
 		$array['type'] = 'location';
 		$array['subtitle'] = $brewer->name;
-		$array['page_url'] = '/brewer?brewerID=' . $brewer->brewerID;
+		$array['page_url'] = '/brewer/' . $brewer->brewerID;
 
 		return $array;
 	}

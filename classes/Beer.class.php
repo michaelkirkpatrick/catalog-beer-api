@@ -1042,7 +1042,7 @@ class Beer {
 		// SiteSearch Fields
 		$array['type'] = 'beer';
 		$array['subtitle'] = $brewer->name;
-		$array['page_url'] = '/beer?beerID=' . $this->beerID;
+		$array['page_url'] = '/beer/' . $this->beerID;
 
 		// Return
 		return $array;

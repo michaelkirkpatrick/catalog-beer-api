@@ -1170,7 +1170,7 @@ class Brewer {
 
 		// SiteSearch Fields
 		$array['type'] = 'brewer';
-		$array['page_url'] = '/brewer?brewerID=' . $this->brewerID;
+		$array['page_url'] = '/brewer/' . $this->brewerID;
 
 		// Return as array
 		return $array;
