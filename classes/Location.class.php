@@ -1273,6 +1273,23 @@ class Location {
 				}
 				break;
 			case 'POST':
+				if(!empty($function)){
+					// Method Not Allowed for /location/{function}
+					$this->responseCode = 405;
+					$this->responseHeader = 'Allow: GET';
+					$this->json['error'] = true;
+					$this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 241;
+					$errorLog->errorMsg = 'Invalid Method for /location/' . $function;
+					$errorLog->badData = $method;
+					$errorLog->filename = 'API / Location.class.php';
+					$errorLog->write();
+					break;
+				}
+
 				// POST https://api.catalog.beer/location
 				// Add Location
 
