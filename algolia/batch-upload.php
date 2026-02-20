@@ -1,30 +1,22 @@
 <?php
-// Start Session if not in CLI
-if (php_sapi_name() !== 'cli') {
-	if (session_status() == PHP_SESSION_NONE) {
-		session_start();
-	}
+// CLI only
+if(php_sapi_name() !== 'cli'){
+	exit(1);
 }
 
-// Define Root using __DIR__
-define("ROOT", __DIR__ . '/..'); // Adjust based on actual structure
+// Define Root
+define('ROOT', dirname(__DIR__));
 
-// Define SERVER_NAME appropriately for CLI
-if (php_sapi_name() === 'cli') {
-	define("SERVER_NAME", 'api-staging'); // Default value for CLI
-} else {
-	define("SERVER_NAME", $_SERVER['SERVER_NAME']);
+// Determine environment from CLI argument
+$env = $argv[1] ?? 'production';
+if(!in_array($env, ['staging', 'production'])){
+	echo "Usage: php batch-upload.php [staging|production]\n";
+	exit(1);
 }
+define('ENVIRONMENT', $env);
 
-// Establish Environment
-$serverName = explode('.', SERVER_NAME);
-if ($serverName[0] === 'api-staging') {
-	define('ENVIRONMENT', 'staging');
-} elseif ($serverName[0] === 'api') {
-	define('ENVIRONMENT', 'production');
-} else {
-	define('ENVIRONMENT', 'development'); // Default or other environments
-}
+// Load Passwords
+require_once ROOT . '/common/passwords.php';
 
 // Set Timezone
 date_default_timezone_set('America/Los_Angeles');
@@ -33,9 +25,6 @@ date_default_timezone_set('America/Los_Angeles');
 spl_autoload_register(function ($class_name) {
 	require_once ROOT . '/classes/' . $class_name . '.class.php';
 });
-
-// Load credentials (ALGOLIA_APPLICATION_ID, ALGOLIA_WRITE_API_KEY, etc.)
-require_once ROOT . '/common/passwords.php';
 
 // Required Classes
 $brewer = new Brewer();
