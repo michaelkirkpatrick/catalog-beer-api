@@ -217,7 +217,7 @@ for($i=0; $i<count($brewerList); $i++){
 	$percent = round(($counter/$numBrewers) * 100);
 	$output = "[$percent%] ";
 	if($curlResponse['httpCode'] == 201){$output .= "Created for brewerID: $brewer->brewerID\n";}
-	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . $curlResponse['response']['message'] . "\n";}
+	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . (is_array($curlResponse['response']) ? $curlResponse['response']['message'] : $curlResponse['response']) . "\n";}
 	echo $output;
 }
 echo "\n\n--- Done with Brewers. Starting Locations...\n\n";
@@ -245,7 +245,7 @@ for($i=0; $i<count($listOfLocationIDs); $i++){
 	$percent = round(($counter/$numLocations) * 100);
 	$output = "[$percent%] ";
 	if($curlResponse['httpCode'] == 201){$output .= "Created for locationID: $location->locationID\n";}
-	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . $curlResponse['response']['message'] . "\n";}
+	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . (is_array($curlResponse['response']) ? $curlResponse['response']['message'] : $curlResponse['response']) . "\n";}
 	echo $output;
 }
 
@@ -273,7 +273,7 @@ for($i=0; $i<count($listOfBeerIDs); $i++){
 	$percent = round(($counter/$numBeers) * 100);
 	$output = "[$percent%] ";
 	if($curlResponse['httpCode'] == 201){$output .= "Created for beerID: $beer->beerID\n";}
-	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . $curlResponse['response']['message'] . "\n";}
+	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . (is_array($curlResponse['response']) ? $curlResponse['response']['message'] : $curlResponse['response']) . "\n";}
 	echo $output;
 }
 

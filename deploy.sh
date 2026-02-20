@@ -75,7 +75,8 @@ SOCKET="/tmp/deploy-ssh-$$"
 ssh -fNM -S "$SOCKET" "$REMOTE"
 trap 'ssh -S "$SOCKET" -O exit "$REMOTE" 2>/dev/null' EXIT
 
-RSYNC_OUTPUT=$(rsync -avzO --no-perms --delete \
+RSYNC_OUTPUT=$(rsync -azO --no-perms --delete \
+	--out-format='%n' \
 	-e "ssh -S '$SOCKET'" \
 	--exclude '.git' \
 	--exclude '.claude' \
@@ -93,13 +94,15 @@ RSYNC_OUTPUT=$(rsync -avzO --no-perms --delete \
 	--exclude 'tests/' \
 	./ "$REMOTE:$REMOTE_PATH/" 2>&1)
 
-# Count and display transferred files (exclude directories, headers, and summary lines)
-TRANSFERRED_FILES=$(echo "$RSYNC_OUTPUT" | grep -v -E '(^sending |^$|^sent |^total |/$)')
-FILE_COUNT=$(echo "$TRANSFERRED_FILES" | grep -c .)
-echo "Transferring $FILE_COUNT files:"
-echo "$TRANSFERRED_FILES"
-echo ""
-echo "$RSYNC_OUTPUT" | grep '^sent \|^total '
+# Count and display transferred files (exclude directories ending with /)
+TRANSFERRED_FILES=$(echo "$RSYNC_OUTPUT" | grep -v -E '(^$|/$)')
+FILE_COUNT=$(echo "$TRANSFERRED_FILES" | grep -c . || true)
+if [ "$FILE_COUNT" -gt 0 ]; then
+	echo "Transferred $FILE_COUNT files:"
+	echo "$TRANSFERRED_FILES"
+else
+	echo "No files changed."
+fi
 
 # Set ownership and permissions so Apache can read/serve and michael can deploy
 ssh -S "$SOCKET" -t "$REMOTE" "sudo chown -R www-data:developers $REMOTE_PATH/ && sudo find $REMOTE_PATH/ -type d -exec chmod 2775 {} + && sudo find $REMOTE_PATH/ -type f -exec chmod 664 {} +"
