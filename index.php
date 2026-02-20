@@ -115,17 +115,20 @@ if(isset($_GET['metric'])){
 }
 
 // Location Zip/City URL Parameters
-$data->zipCode = '';
-$data->city = '';
-$data->state = '';
 if(isset($_GET['zip_code'])){
 	$data->zipCode = $_GET['zip_code'];
+}elseif(!isset($data->zipCode)){
+	$data->zipCode = '';
 }
 if(isset($_GET['city'])){
 	$data->city = $_GET['city'];
+}elseif(!isset($data->city)){
+	$data->city = '';
 }
 if(isset($_GET['state'])){
 	$data->state = $_GET['state'];
+}elseif(!isset($data->state)){
+	$data->state = '';
 }
 
 // --- Health Check (no auth required) ---

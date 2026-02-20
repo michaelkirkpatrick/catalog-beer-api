@@ -979,7 +979,7 @@ class Location {
 		}
 	}
 
-	public function googleMapsAPI($locationID, $addressString, $googleAPI){
+	public function googleMapsAPI($locationID, $addressString, $googleAPI, $saveToDB = true){
 		// Request Parameters
 		$address = urlencode($addressString ?? '');
 
@@ -1031,7 +1031,26 @@ class Location {
 			// Get Latitude and Longitude
 			$jsonResponse = json_decode($response);
 			if($jsonResponse->status == 'OK'){
-				if(count($jsonResponse->$arrayName) == 1){
+				if(count($jsonResponse->$arrayName) == 0){
+					// No results
+					$this->error = true;
+					$this->errorMsg = "We were not able to find a location based on the address you provided.";
+					$this->responseCode = 400;
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 196;
+					$errorLog->errorMsg = 'Unable to find location (Google Maps API)';
+					$errorLog->badData = "Address String: $addressString";
+					$errorLog->filename = 'API / Location.class.php';
+					$errorLog->write();
+				}elseif(!$saveToDB){
+					// Return coordinates without saving
+					return array(
+						'latitude' => $jsonResponse->$arrayName[0]->geometry->location->lat,
+						'longitude' => $jsonResponse->$arrayName[0]->geometry->location->lng
+					);
+				}elseif(count($jsonResponse->$arrayName) == 1){
 					// Valid Request, store Latitude and Longitude
 					$this->latitude = $jsonResponse->$arrayName[0]->geometry->location->lat;
 					$this->longitude = $jsonResponse->$arrayName[0]->geometry->location->lng;
@@ -1085,8 +1104,8 @@ class Location {
 				// Log Error
 				$errorLog = new LogError();
 				$errorLog->errorNumber = 196;
-				$errorLog->errorMsg = 'Unable to find location (Google Places API)';
-				$errorLog->badData = "LocationID: $locationID / Address String: $addressString / Status: $jsonResponse->status / Error Message: " . ($jsonResponse->error_message ?? '');
+				$errorLog->errorMsg = 'Unable to find location (Google Maps API)';
+				$errorLog->badData = "Address String: $addressString";
 				$errorLog->filename = 'API / Location.class.php';
 				$errorLog->write();
 			}else{
@@ -1103,90 +1122,6 @@ class Location {
 				$errorLog->write();
 			}
 		}
-	}
-
-	private function geocodeAddress($addressString){
-		// Geocode an address string to lat/lng coordinates
-		// Returns ['latitude' => float, 'longitude' => float] on success, null on failure
-		$address = urlencode($addressString ?? '');
-
-		// Headers & Options
-		$headerArray = array(
-			"accept: application/json"
-		);
-
-		$url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_MAPS_API_KEY;
-
-		$optionsArray = array(
-			CURLOPT_URL => $url,
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_TIMEOUT => 30,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_HTTPHEADER => $headerArray
-		);
-
-		// Create cURL Request
-		$curl = curl_init();
-		curl_setopt_array($curl, $optionsArray);
-		$response = curl_exec($curl);
-		$err = curl_error($curl);
-		curl_close($curl);
-
-		if(!empty($err)){
-			// cURL Error
-			$this->error = true;
-			$this->errorMsg = 'Looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-			$this->responseCode = 500;
-
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 242;
-			$errorLog->errorMsg = 'geocodeAddress cURL Error';
-			$errorLog->badData = $err;
-			$errorLog->filename = 'API / Location.class.php';
-			$errorLog->write();
-
-			return null;
-		}
-
-		$jsonResponse = json_decode($response);
-		if($jsonResponse->status == 'OK'){
-			if(count($jsonResponse->results) > 0){
-				return array(
-					'latitude' => $jsonResponse->results[0]->geometry->location->lat,
-					'longitude' => $jsonResponse->results[0]->geometry->location->lng
-				);
-			}
-		}
-
-		if($jsonResponse->status == 'ZERO_RESULTS'){
-			// No results found
-			$this->error = true;
-			$this->errorMsg = 'We were not able to find a location for the address you provided. Please check your input and try again.';
-			$this->responseCode = 400;
-
-			$errorLog = new LogError();
-			$errorLog->errorNumber = 244;
-			$errorLog->errorMsg = 'geocodeAddress zero results';
-			$errorLog->badData = $addressString;
-			$errorLog->filename = 'API / Location.class.php';
-			$errorLog->write();
-
-			return null;
-		}
-
-		// API error
-		$this->error = true;
-		$this->errorMsg = 'Looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-		$this->responseCode = 500;
-
-		$errorLog = new LogError();
-		$errorLog->errorNumber = 243;
-		$errorLog->errorMsg = 'geocodeAddress Google API error';
-		$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . ($jsonResponse->error_message ?? '') . ' / Address: ' . $addressString;
-		$errorLog->filename = 'API / Location.class.php';
-		$errorLog->write();
-
-		return null;
 	}
 
 	public function nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count){
@@ -1223,7 +1158,7 @@ class Location {
 		}
 
 		// Geocode the ZIP code
-		$coords = $this->geocodeAddress($zipCode);
+		$coords = $this->googleMapsAPI(null, $zipCode, 'geocode', false);
 		if($coords === null){
 			return array('locationArray' => array(), 'nextCursor' => '');
 		}
@@ -1269,7 +1204,7 @@ class Location {
 
 		// Geocode the city/state
 		$addressString = $city . ', ' . $state;
-		$coords = $this->geocodeAddress($addressString);
+		$coords = $this->googleMapsAPI(null, $addressString, 'geocode', false);
 		if($coords === null){
 			return array('locationArray' => array(), 'nextCursor' => '');
 		}
