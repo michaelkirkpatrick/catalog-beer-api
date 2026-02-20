@@ -159,6 +159,84 @@ class Usage {
 		$db->close();
 	}
 
+	public function listAllUsage($apiKey){
+		// Admin-only: Get all users' API usage for the last 13 months
+		$apiKeys = new apiKeys();
+		if($apiKeys->validate($apiKey, true)){
+			$users = new Users();
+			$users->validate($apiKeys->userID, true);
+
+			if(!$users->admin){
+				// Not an admin
+				$this->responseCode = 401;
+				$this->error = true;
+				$this->errorMsg = 'Unauthorized: You must be an admin to access this endpoint.';
+
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 249;
+				$errorLog->errorMsg = 'Unauthorized: Not admin (GET /usage)';
+				$errorLog->badData = "apiKey: $apiKey";
+				$errorLog->filename = 'Usage.class.php';
+				$errorLog->write();
+			}
+		}else{
+			// Invalid API Key
+			$this->error = true;
+			$this->errorMsg = 'Invalid API Key.';
+			$this->responseCode = 404;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 249;
+			$errorLog->errorMsg = 'Invalid API Key (GET /usage)';
+			$errorLog->badData = $apiKey;
+			$errorLog->filename = 'Usage.class.php';
+			$errorLog->write();
+		}
+
+		if(!$this->error){
+			// Calculate 13 months ago
+			$currentMonth = (int)date('n');
+			$currentYear = (int)date('Y');
+			$startMonth = $currentMonth - 12;
+			$startYear = $currentYear;
+			if($startMonth <= 0){
+				$startMonth += 12;
+				$startYear--;
+			}
+
+			$db = new Database();
+			$result = $db->query("SELECT u.name, u.email, ak.id AS apiKey, au.year, au.month, au.count FROM api_usage au JOIN api_keys ak ON au.apiKey = ak.id JOIN users u ON ak.userID = u.id WHERE (au.year > ? OR (au.year = ? AND au.month >= ?)) ORDER BY u.name ASC, au.year DESC, au.month DESC", [$startYear, $startYear, $startMonth]);
+			if(!$db->error){
+				$data = array();
+				while($row = $result->fetch_assoc()){
+					$data[] = array(
+						'name' => $row['name'],
+						'email' => $row['email'],
+						'api_key' => $row['apiKey'],
+						'year' => intval($row['year']),
+						'month' => intval($row['month']),
+						'count' => intval($row['count'])
+					);
+				}
+				$this->json['object'] = 'list';
+				$this->json['url'] = '/usage';
+				$this->json['data'] = $data;
+			}else{
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 250;
+				$errorLog->errorMsg = 'Database error (GET /usage)';
+				$errorLog->badData = $db->errorMsg;
+				$errorLog->filename = 'Usage.class.php';
+				$errorLog->write();
+			}
+			$db->close();
+		}
+	}
+
 	public function api($method, $function, $id, $apiKey){
 		/*-----
 		/{endpoint}/{function}/{api_key}
@@ -167,6 +245,15 @@ class Usage {
 		switch($method){
 			case 'GET':
 				switch($function){
+					case '':
+					case null:
+						// GET /usage — Admin-only: list all usage
+						$this->listAllUsage($apiKey);
+						if($this->error){
+							$this->json['error'] = true;
+							$this->json['error_msg'] = $this->errorMsg;
+						}
+						break;
 					case 'currentMonth':
 						$this->currentUsage($id, $apiKey, false);
 						if(!$this->error){
