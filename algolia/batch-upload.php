@@ -10,10 +10,14 @@ define('ROOT', dirname(__DIR__));
 // Determine environment from CLI argument
 $env = $argv[1] ?? 'production';
 if(!in_array($env, ['staging', 'production'])){
-	echo "Usage: php batch-upload.php [staging|production]\n";
+	echo "Usage: php batch-upload.php [staging|production] [limit]\n";
+	echo "  limit: optional max number of brewers to process (for testing)\n";
 	exit(1);
 }
 define('ENVIRONMENT', $env);
+
+// Optional limit for testing
+$limit = isset($argv[2]) ? intval($argv[2]) : 0;
 
 // Load Passwords
 require_once ROOT . '/common/passwords.php';
@@ -148,19 +152,22 @@ function curlRequest($index, $data = null){
 // ----- Brewers -----
 
 // Get a list of all the Brewers and brewerID's
-$brewerList = $brewer->getBrewers(0, 10000);
-//$brewerList = array('ab94abb7-a3e8-4cce-8945-4758cac66a53');
+$fetchCount = ($limit > 0) ? $limit : 10000;
+$brewerList = $brewer->getBrewers(base64_encode('0'), $fetchCount);
 
 // Counter
 $numBrewers = count($brewerList);
 $counter = 0;
 
+if($limit > 0){
+	echo "Limit: $limit brewers\n\n";
+}
+echo "--- Processing $numBrewers brewers...\n\n";
 
 // Loop Through all the Brewers
-for($i=0; $i<count($brewerList); $i++){
+for($i=0; $i<$numBrewers; $i++){
 	// Brewer ID
 	$brewerID = $brewerList[$i]['id'];
-	//$brewerID = $brewerList[$i];
 
 	// Clear $brewerInfo
 	$brewerInfo = array();
@@ -229,8 +236,10 @@ echo "\n\n--- Done with Brewers. Starting Locations...\n\n";
 $numLocations = count($listOfLocationIDs);
 $counter = 0;
 
+echo "--- Processing $numLocations locations...\n\n";
+
 // Loop Through all the Locations
-for($i=0; $i<count($listOfLocationIDs); $i++){
+for($i=0; $i<$numLocations; $i++){
 	// locationID
 	$locationID = $listOfLocationIDs[$i];
 
@@ -242,7 +251,7 @@ for($i=0; $i<count($listOfLocationIDs); $i++){
 	$json = json_encode($array);
 	$curlResponse = curlRequest('catalog', $json);
 	$counter++;
-	$percent = round(($counter/$numLocations) * 100);
+	$percent = ($numLocations > 0) ? round(($counter/$numLocations) * 100) : 0;
 	$output = "[$percent%] ";
 	if($curlResponse['httpCode'] == 201){$output .= "Created for locationID: $location->locationID\n";}
 	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . (is_array($curlResponse['response']) ? $curlResponse['response']['message'] : $curlResponse['response']) . "\n";}
@@ -251,14 +260,16 @@ for($i=0; $i<count($listOfLocationIDs); $i++){
 
 echo "\n\n--- Done with Locations. Starting Beers...\n\n";
 
-// ----- Beers.json -----
+// ----- Beers -----
 
 // Counter
 $numBeers = count($listOfBeerIDs);
 $counter = 0;
 
-// Loop Through all the Locations
-for($i=0; $i<count($listOfBeerIDs); $i++){
+echo "--- Processing $numBeers beers...\n\n";
+
+// Loop Through all the Beers
+for($i=0; $i<$numBeers; $i++){
 	// beerID
 	$beerID = $listOfBeerIDs[$i];
 
@@ -270,7 +281,7 @@ for($i=0; $i<count($listOfBeerIDs); $i++){
 	$json = json_encode($array);
 	$curlResponse = curlRequest('catalog', $json);
 	$counter++;
-	$percent = round(($counter/$numBeers) * 100);
+	$percent = ($numBeers > 0) ? round(($counter/$numBeers) * 100) : 0;
 	$output = "[$percent%] ";
 	if($curlResponse['httpCode'] == 201){$output .= "Created for beerID: $beer->beerID\n";}
 	else{$output .= 'HTTP Code: ' . $curlResponse['httpCode'] . ' / ' . (is_array($curlResponse['response']) ? $curlResponse['response']['message'] : $curlResponse['response']) . "\n";}
