@@ -99,7 +99,7 @@ if(isset($_GET['id'])){
 // Location Search URL Parameters
 $data->latitude = 0;
 $data->longitude = 0;
-$data->searchRadius = '';
+$data->searchRadius = null;
 $data->metric = '';
 if(isset($_GET['latitude'])){
 	$data->latitude = $_GET['latitude'];
