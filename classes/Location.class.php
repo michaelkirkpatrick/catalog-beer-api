@@ -1331,6 +1331,15 @@ class Location {
 		// Connect to Class
 
 
+		// Location GET parameters (read directly from URL, not from $data)
+		$latitude = $_GET['latitude'] ?? 0;
+		$longitude = $_GET['longitude'] ?? 0;
+		$searchRadius = $_GET['search_radius'] ?? null;
+		$metric = $_GET['metric'] ?? '';
+		$zipCode = $_GET['zip_code'] ?? null;
+		$city = $_GET['city'] ?? null;
+		$state = $_GET['state'] ?? null;
+
 		switch($method){
 			case 'GET':
 				if(!empty($id) && empty($function)){
@@ -1346,7 +1355,7 @@ class Location {
 					}
 				}elseif($function == 'nearby'){
 					// GET https://api.catalog.beer/location/nearby
-					$nearbyLatLngReturn = $this->nearbyLatLng($data->latitude, $data->longitude, $data->searchRadius, $data->metric, $cursor, $count);
+					$nearbyLatLngReturn = $this->nearbyLatLng($latitude, $longitude, $searchRadius, $metric, $cursor, $count);
 					if(!$this->error){
 						// Start JSON
 						$this->json['object'] = 'list';
@@ -1369,7 +1378,7 @@ class Location {
 
 				}elseif($function == 'zip'){
 					// GET https://api.catalog.beer/location/zip
-					$nearbyReturn = $this->nearbyZip($data->zipCode ?? null, $data->searchRadius, $data->metric, $cursor, $count);
+					$nearbyReturn = $this->nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count);
 					if(!$this->error){
 						// Start JSON
 						$this->json['object'] = 'list';
@@ -1392,7 +1401,7 @@ class Location {
 
 				}elseif($function == 'city'){
 					// GET https://api.catalog.beer/location/city
-					$nearbyReturn = $this->nearbyCity($data->city ?? null, $data->state ?? null, $data->searchRadius, $data->metric, $cursor, $count);
+					$nearbyReturn = $this->nearbyCity($city, $state, $searchRadius, $metric, $cursor, $count);
 					if(!$this->error){
 						// Start JSON
 						$this->json['object'] = 'list';

@@ -96,34 +96,7 @@ if(isset($_GET['id'])){
 	$id = substr($_GET['id'], 1, 36);
 }
 
-// Location Search URL Parameters
-$data->latitude = 0;
-$data->longitude = 0;
-$data->searchRadius = null;
-$data->metric = '';
-if(isset($_GET['latitude'])){
-	$data->latitude = $_GET['latitude'];
-}
-if(isset($_GET['longitude'])){
-	$data->longitude = $_GET['longitude'];
-}
-if(isset($_GET['search_radius'])){
-	$data->searchRadius = $_GET['search_radius'];
-}
-if(isset($_GET['metric'])){
-	$data->metric = $_GET['metric'];
-}
-
-// Location Zip/City URL Parameters
-if(isset($_GET['zip_code'])){
-	$data->zipCode = $_GET['zip_code'];
-}
-if(isset($_GET['city'])){
-	$data->city = $_GET['city'];
-}
-if(isset($_GET['state'])){
-	$data->state = $_GET['state'];
-}
+// Location GET parameters are read directly via $_GET in Location::api()
 
 // --- Health Check (no auth required) ---
 if($endpoint == 'health'){
