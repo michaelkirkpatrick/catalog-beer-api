@@ -205,13 +205,13 @@ class Usage {
 			}
 
 			$db = new Database();
-			$result = $db->query("SELECT u.name, u.email, ak.id AS apiKey, au.year, au.month, au.count FROM api_usage au JOIN api_keys ak ON au.apiKey = ak.id JOIN users u ON ak.userID = u.id WHERE (au.year > ? OR (au.year = ? AND au.month >= ?)) ORDER BY u.name ASC, au.year DESC, au.month DESC", [$startYear, $startYear, $startMonth]);
+			$result = $db->query("SELECT u.name, u.email, au.apiKey, au.year, au.month, au.count FROM api_usage au LEFT JOIN api_keys ak ON au.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id WHERE (au.year > ? OR (au.year = ? AND au.month >= ?)) ORDER BY u.name ASC, au.year DESC, au.month DESC", [$startYear, $startYear, $startMonth]);
 			if(!$db->error){
 				$data = array();
 				while($row = $result->fetch_assoc()){
 					$data[] = array(
-						'name' => $row['name'],
-						'email' => $row['email'],
+						'name' => $row['name'] ?? '(deleted user)',
+						'email' => $row['email'] ?? null,
 						'api_key' => $row['apiKey'],
 						'year' => intval($row['year']),
 						'month' => intval($row['month']),
