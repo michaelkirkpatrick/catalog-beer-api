@@ -646,7 +646,7 @@ class Location {
 		if(empty($count)){
 			$count = 100;
 		}
-		if(empty($searchRadius)){
+		if(!isset($searchRadius) || $searchRadius === ''){
 			$searchRadius = 25;
 		}
 		if($metric === 'false' || empty($metric)){
