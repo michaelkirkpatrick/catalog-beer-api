@@ -114,6 +114,20 @@ if(isset($_GET['metric'])){
 	$data->metric = $_GET['metric'];
 }
 
+// Location Zip/City URL Parameters
+$data->zipCode = '';
+$data->city = '';
+$data->state = '';
+if(isset($_GET['zip_code'])){
+	$data->zipCode = $_GET['zip_code'];
+}
+if(isset($_GET['city'])){
+	$data->city = $_GET['city'];
+}
+if(isset($_GET['state'])){
+	$data->state = $_GET['state'];
+}
+
 // --- Health Check (no auth required) ---
 if($endpoint == 'health'){
 	if($method != 'GET'){

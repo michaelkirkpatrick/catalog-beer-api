@@ -1105,6 +1105,179 @@ class Location {
 		}
 	}
 
+	private function geocodeAddress($addressString){
+		// Geocode an address string to lat/lng coordinates
+		// Returns ['latitude' => float, 'longitude' => float] on success, null on failure
+		$address = urlencode($addressString ?? '');
+
+		// Headers & Options
+		$headerArray = array(
+			"accept: application/json"
+		);
+
+		$url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_MAPS_API_KEY;
+
+		$optionsArray = array(
+			CURLOPT_URL => $url,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_HTTPHEADER => $headerArray
+		);
+
+		// Create cURL Request
+		$curl = curl_init();
+		curl_setopt_array($curl, $optionsArray);
+		$response = curl_exec($curl);
+		$err = curl_error($curl);
+		curl_close($curl);
+
+		if(!empty($err)){
+			// cURL Error
+			$this->error = true;
+			$this->errorMsg = 'Looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+			$this->responseCode = 500;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 242;
+			$errorLog->errorMsg = 'geocodeAddress cURL Error';
+			$errorLog->badData = $err;
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return null;
+		}
+
+		$jsonResponse = json_decode($response);
+		if($jsonResponse->status == 'OK'){
+			if(count($jsonResponse->results) > 0){
+				return array(
+					'latitude' => $jsonResponse->results[0]->geometry->location->lat,
+					'longitude' => $jsonResponse->results[0]->geometry->location->lng
+				);
+			}
+		}
+
+		if($jsonResponse->status == 'ZERO_RESULTS'){
+			// No results found
+			$this->error = true;
+			$this->errorMsg = 'We were not able to find a location for the address you provided. Please check your input and try again.';
+			$this->responseCode = 400;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 244;
+			$errorLog->errorMsg = 'geocodeAddress zero results';
+			$errorLog->badData = $addressString;
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return null;
+		}
+
+		// API error
+		$this->error = true;
+		$this->errorMsg = 'Looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+		$this->responseCode = 500;
+
+		$errorLog = new LogError();
+		$errorLog->errorNumber = 243;
+		$errorLog->errorMsg = 'geocodeAddress Google API error';
+		$errorLog->badData = 'Status: ' . $jsonResponse->status . ' / Error Message: ' . ($jsonResponse->error_message ?? '') . ' / Address: ' . $addressString;
+		$errorLog->filename = 'API / Location.class.php';
+		$errorLog->write();
+
+		return null;
+	}
+
+	public function nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count){
+		// Validate zip_code
+		$zipCode = trim($zipCode ?? '');
+		if(empty($zipCode)){
+			$this->error = true;
+			$this->errorMsg = 'Missing zip_code parameter. Please provide a 5-digit US ZIP code.';
+			$this->responseCode = 400;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 245;
+			$errorLog->errorMsg = 'Missing zip_code';
+			$errorLog->badData = '';
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		if(!preg_match('/^\d{5}$/', $zipCode)){
+			$this->error = true;
+			$this->errorMsg = 'Invalid zip_code format. Please provide a 5-digit US ZIP code.';
+			$this->responseCode = 400;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 246;
+			$errorLog->errorMsg = 'Invalid zip_code format';
+			$errorLog->badData = $zipCode;
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		// Geocode the ZIP code
+		$coords = $this->geocodeAddress($zipCode);
+		if($coords === null){
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		// Delegate to nearbyLatLng
+		return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $metric, $cursor, $count);
+	}
+
+	public function nearbyCity($city, $state, $searchRadius, $metric, $cursor, $count){
+		// Validate city
+		$city = trim($city ?? '');
+		if(empty($city)){
+			$this->error = true;
+			$this->errorMsg = 'Missing city parameter. Please provide a city name.';
+			$this->responseCode = 400;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 247;
+			$errorLog->errorMsg = 'Missing city';
+			$errorLog->badData = '';
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		// Validate state
+		$state = trim($state ?? '');
+		if(empty($state)){
+			$this->error = true;
+			$this->errorMsg = 'Missing state parameter. Please provide a state name or abbreviation.';
+			$this->responseCode = 400;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 248;
+			$errorLog->errorMsg = 'Missing state';
+			$errorLog->badData = '';
+			$errorLog->filename = 'API / Location.class.php';
+			$errorLog->write();
+
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		// Geocode the city/state
+		$addressString = $city . ', ' . $state;
+		$coords = $this->geocodeAddress($addressString);
+		if($coords === null){
+			return array('locationArray' => array(), 'nextCursor' => '');
+		}
+
+		// Delegate to nearbyLatLng
+		return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $metric, $cursor, $count);
+	}
+
 	public function generateLocationObject($brewerObj = null){
 		// Generates the Location Object
 		// Generally returned as part of the API output
@@ -1209,6 +1382,8 @@ class Location {
 
 		GET https://api.catalog.beer/location/{location_id}
 		GET https://api.catalog.beer/location/nearby
+		GET https://api.catalog.beer/location/zip
+		GET https://api.catalog.beer/location/city
 
 		POST https://api.catalog.beer/location
 
@@ -1252,6 +1427,52 @@ class Location {
 
 						// Append Data
 						$this->json['data'] = $nearbyLatLngReturn['locationArray'];
+					}else{
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+
+				}elseif($function == 'zip'){
+					// GET https://api.catalog.beer/location/zip
+					$nearbyReturn = $this->nearbyZip($data->zipCode, $data->searchRadius, $data->metric, $cursor, $count);
+					if(!$this->error){
+						// Start JSON
+						$this->json['object'] = 'list';
+						$this->json['url'] = '/location/zip';
+
+						// Next Cursor
+						if(!empty($nearbyReturn['nextCursor'])){
+							$this->json['has_more'] = true;
+							$this->json['next_cursor'] = $nearbyReturn['nextCursor'];
+						}else{
+							$this->json['has_more'] = false;
+						}
+
+						// Append Data
+						$this->json['data'] = $nearbyReturn['locationArray'];
+					}else{
+						$this->json['error'] = true;
+						$this->json['error_msg'] = $this->errorMsg;
+					}
+
+				}elseif($function == 'city'){
+					// GET https://api.catalog.beer/location/city
+					$nearbyReturn = $this->nearbyCity($data->city, $data->state, $data->searchRadius, $data->metric, $cursor, $count);
+					if(!$this->error){
+						// Start JSON
+						$this->json['object'] = 'list';
+						$this->json['url'] = '/location/city';
+
+						// Next Cursor
+						if(!empty($nearbyReturn['nextCursor'])){
+							$this->json['has_more'] = true;
+							$this->json['next_cursor'] = $nearbyReturn['nextCursor'];
+						}else{
+							$this->json['has_more'] = false;
+						}
+
+						// Append Data
+						$this->json['data'] = $nearbyReturn['locationArray'];
 					}else{
 						$this->json['error'] = true;
 						$this->json['error_msg'] = $this->errorMsg;

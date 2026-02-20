@@ -521,6 +521,28 @@ Location,L-138,Nearby - Successful,GET,/location/nearby?latitude={{lat}}&longitu
 Location,L-139,Nearby - Metric Units,GET,/location/nearby?latitude={{lat}}&longitude={{lng}}&search_radius=800&metric=true,Admin,200,Done
 Location,L-140,Nearby - With Count,GET,/location/nearby?latitude={{lat}}&longitude={{lng}}&search_radius=500&count=1,Admin,200,Done
 Location,L-141,Nearby - Invalid Method,POST,/location/nearby?latitude=33&longitude=-117,Admin,405,Done
+Location,L-142,Zip - Missing Parameter,GET,/location/zip?search_radius=500,Admin,400,Done
+Location,L-143,Zip - Invalid Format (Too Short),GET,/location/zip?zip_code=9210&search_radius=500,Admin,400,Done
+Location,L-144,Zip - Invalid Format (Too Long),GET,/location/zip?zip_code=921011&search_radius=500,Admin,400,Done
+Location,L-145,Zip - Invalid Format (Letters),GET,/location/zip?zip_code=abcde&search_radius=500,Admin,400,Done
+Location,L-146,Zip - No Results (Remote ZIP),GET,/location/zip?zip_code=99950&search_radius=10,Admin,200/400,Done
+Location,L-147,Zip - Successful Search,GET,/location/zip?zip_code=92101&search_radius=500,Admin,200,Done
+Location,L-148,Zip - With Count,GET,/location/zip?zip_code=92101&search_radius=500&count=1,Admin,200,Done
+Location,L-149,Zip - Metric Units,GET,/location/zip?zip_code=92101&search_radius=800&metric=true,Admin,200,Done
+Location,L-150,Zip - Invalid Count,GET,/location/zip?zip_code=92101&search_radius=500&count=0,Admin,400,Done
+Location,L-151,Zip - Invalid Method,POST,/location/zip?zip_code=92101,Admin,405,Done
+Location,L-152,Zip - Invalid Search Radius,GET,/location/zip?zip_code=92101&search_radius=-5,Admin,400,Done
+Location,L-153,City - Missing City,GET,/location/city?state=CA&search_radius=500,Admin,400,Done
+Location,L-154,City - Missing State,GET,/location/city?city=San+Diego&search_radius=500,Admin,400,Done
+Location,L-155,City - Missing Both,GET,/location/city?search_radius=500,Admin,400,Done
+Location,L-156,City - Successful (State Abbreviation),GET,/location/city?city=San+Diego&state=CA&search_radius=500,Admin,200,Done
+Location,L-157,City - Successful (Full State Name),GET,/location/city?city=San+Diego&state=California&search_radius=500,Admin,200,Done
+Location,L-158,City - With Count,GET,/location/city?city=San+Diego&state=CA&search_radius=500&count=1,Admin,200,Done
+Location,L-159,City - Metric Units,GET,/location/city?city=San+Diego&state=CA&search_radius=800&metric=true,Admin,200,Done
+Location,L-160,City - No Results (Remote City),GET,/location/city?city=Ketchikan&state=AK&search_radius=10,Admin,200/400,Done
+Location,L-161,City - Invalid Count,GET,/location/city?city=San+Diego&state=CA&search_radius=500&count=0,Admin,400,Done
+Location,L-162,City - Invalid Method,POST,/location/city?city=San+Diego&state=CA,Admin,405,Done
+Location,L-163,City - Invalid Search Radius,GET,/location/city?city=San+Diego&state=CA&search_radius=-5,Admin,400,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
