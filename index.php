@@ -290,7 +290,7 @@ if(!$error){
 			$responseHeader = $brewer->responseHeader;
 			break;
 		case 'location':
-			if(empty($_GET['count'])){$count = 0;}
+			if(!isset($_GET['count'])){$count = null;}
 			$location = new Location();
 			$location->api($method, $function, $id, $apiKey, $count, $cursor, $data);
 			$json = $location->json;
