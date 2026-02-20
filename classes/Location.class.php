@@ -1137,7 +1137,7 @@ class Location {
 		$this->json['longitude'] = $this->longitude;
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
-		$this->json['last_modified'] = date('r', $this->lastModified);
+		$this->json['last_modified'] = $this->lastModified;
 		if($usAddresses->validate($this->locationID, true)){
 			if(empty($usAddresses->address1)){$usAddresses->address1 = null;}
 			if(empty($usAddresses->zip4)){$usAddresses->zip4 = null;}

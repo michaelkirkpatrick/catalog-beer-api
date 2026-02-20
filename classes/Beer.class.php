@@ -1007,7 +1007,7 @@ class Beer {
 		$this->json['ibu'] = $this->ibu;
 		$this->json['cb_verified'] = $this->cbVerified;
 		$this->json['brewer_verified'] = $this->brewerVerified;
-		$this->json['last_modified'] = date('r', $this->lastModified);
+		$this->json['last_modified'] = $this->lastModified;
 		$this->json['brewer'] = $brewer->json;
 	}
 
@@ -1133,7 +1133,7 @@ class Beer {
 				$beerObj['ibu'] = !empty($row['ibu']) ? intval($row['ibu']) : null;
 				$beerObj['cb_verified'] = $row['cbVerified'] ? true : false;
 				$beerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
-				$beerObj['last_modified'] = date('r', intval($row['lastModified']));
+				$beerObj['last_modified'] = intval($row['lastModified']);
 
 				// Build brewer sub-object
 				$brewerObj = array();
@@ -1145,7 +1145,7 @@ class Beer {
 				$brewerObj['url'] = $row['brewer_url'] ?? null;
 				$brewerObj['cb_verified'] = $row['brewer_cbVerified'] ? true : false;
 				$brewerObj['brewer_verified'] = $row['brewer_brewerVerified'] ? true : false;
-				$brewerObj['last_modified'] = date('r', intval($row['brewer_lastModified']));
+				$brewerObj['last_modified'] = intval($row['brewer_lastModified']);
 
 				$beerObj['brewer'] = $brewerObj;
 				$data[] = $beerObj;

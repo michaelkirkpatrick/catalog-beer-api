@@ -233,6 +233,15 @@ Brewer,BR-182,"Brewery Staff Updates Non-Admin (Their Brewery), becomes brewer_v
 Brewer,BR-183,Delete Brewery #42,DELETE,/brewer/{{brewer_id_42}},Brewery Staff,204,Done
 Brewer,BR-184,Create Brewery #43 as Admin,POST,/brewer,Admin,201,Done
 Brewer,BR-185,Delete Brewery #43,DELETE,/brewer/{{brewer_id_43}},Brewery Staff,204,Done
+Brewer,BR-186,Search Brewers - Missing Query,GET,/brewer/search,Admin,400,Done
+Brewer,BR-187,Search Brewers - Empty Query,GET,/brewer/search?q=,Admin,400,Done
+Brewer,BR-188,Search Brewers - Query Too Long,GET,/brewer/search?q=<256 chars>,Admin,400,Done
+Brewer,BR-189,Search Brewers - Invalid Count (Zero),GET,/brewer/search?q=Postman&count=0,Admin,400,Done
+Brewer,BR-190,Search Brewers - Invalid Count (Over Max),GET,/brewer/search?q=Postman&count=101,Admin,400,Done
+Brewer,BR-191,Search Brewers - No Results,GET,/brewer/search?q=xyznonexistent999,Admin,200,Done
+Brewer,BR-192,Search Brewers - Successful,GET,/brewer/search?q=Postman,Admin,200,Done
+Brewer,BR-193,Search Brewers - With Count,GET,/brewer/search?q=Postman&count=1,Admin,200,Done
+Brewer,BR-194,Search Brewers - Invalid Method,POST,/brewer/search?q=Postman,Admin,405,Done
 Beer,BEER-1,Beer: no data,POST,/beer,Admin,400,Done
 Beer,BEER-2,Beer: unknown brewer_id,POST,/beer,Admin,400,Done
 Beer,BEER-3,Beer: brewer_id,POST,/beer,Admin,400,Done
@@ -365,6 +374,15 @@ Beer,BEER-130,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_24}},Non-Admin,201
 Beer,BEER-131,"Brewery Staff Updates Non-Admin, becomes brewer_verified",PATCH,/beer/{{beer_id_24}},Brewery Staff,200,Done
 Beer,BEER-132,Non-Admin Creates Beer #24,POST,/beer/{{beer_id_25}},Non-Admin,201,Done
 Beer,BEER-133,"Brewery Staff Deletes their beer, created by Non-Admin",DELETE,/beer/{{beer_id_25}},Brewery Staff,204,Done
+Beer,BEER-134,Search Beer - Missing Query,GET,/beer/search,Admin,400,Done
+Beer,BEER-135,Search Beer - Empty Query,GET,/beer/search?q=,Admin,400,Done
+Beer,BEER-136,Search Beer - Query Too Long,GET,/beer/search?q=<256 chars>,Admin,400,Done
+Beer,BEER-137,Search Beer - Invalid Count (Zero),GET,/beer/search?q=Postman&count=0,Admin,400,Done
+Beer,BEER-138,Search Beer - Invalid Count (Over Max),GET,/beer/search?q=Postman&count=101,Admin,400,Done
+Beer,BEER-139,Search Beer - No Results,GET,/beer/search?q=xyznonexistent999,Admin,200,Done
+Beer,BEER-140,Search Beer - Successful,GET,/beer/search?q=Postman,Admin,200,Done
+Beer,BEER-141,Search Beer - With Count,GET,/beer/search?q=Postman&count=1,Admin,200,Done
+Beer,BEER-142,Search Beer - Invalid Method,POST,/beer/search?q=Postman,Admin,405,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -489,6 +507,20 @@ Location,L-124,"Brewery Staff updates Non-Admin (their brewery), becomes brewer_
 Location,L-125,"Location #44 - brewer_id, name, CC",POST,/location,Non-Admin,201,Done
 Location,L-126,Brewery Staff deletes Non-Admin (their brewery),DELETE,/location/{{location_id_44}},Brewery Staff,204,Done
 Location,L-127,Location #16 - Change All,PUT,/location/{{location_id_16}},Non-Admin,200,Done
+Location,L-128,Nearby - Missing Parameters,GET,/location/nearby,Admin,400,Done
+Location,L-129,Nearby - Lat/Lng Both Zero,GET,/location/nearby?latitude=0&longitude=0,Admin,400,Done
+Location,L-130,Nearby - Latitude Out of Bounds,GET,/location/nearby?latitude=91&longitude=-117,Admin,400,Done
+Location,L-131,Nearby - Longitude Out of Bounds,GET,/location/nearby?latitude=33&longitude=181,Admin,400,Done
+Location,L-132,Nearby - Search Radius Zero,GET,/location/nearby?latitude=33&longitude=-117&search_radius=0,Admin,400,Done
+Location,L-133,Nearby - Search Radius Negative,GET,/location/nearby?latitude=33&longitude=-117&search_radius=-5,Admin,400,Done
+Location,L-134,Nearby - Invalid Count (Zero),GET,/location/nearby?latitude=33&longitude=-117&count=0,Admin,400,Done
+Location,L-135,Nearby - Invalid Count (Over Max),GET,/location/nearby?latitude=33&longitude=-117&count=501,Admin,400,Done
+Location,L-136,Nearby - Invalid Cursor,GET,/location/nearby?latitude=33&longitude=-117&cursor=LTE=,Admin,400,Done
+Location,L-137,Nearby - No Results,GET,/location/nearby?latitude=-80&longitude=0,Admin,200,Done
+Location,L-138,Nearby - Successful,GET,/location/nearby?latitude={{lat}}&longitude={{lng}}&search_radius=500,Admin,200,Done
+Location,L-139,Nearby - Metric Units,GET,/location/nearby?latitude={{lat}}&longitude={{lng}}&search_radius=800&metric=true,Admin,200,Done
+Location,L-140,Nearby - With Count,GET,/location/nearby?latitude={{lat}}&longitude={{lng}}&search_radius=500&count=1,Admin,200,Done
+Location,L-141,Nearby - Invalid Method,POST,/location/nearby?latitude=33&longitude=-117,Admin,405,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done

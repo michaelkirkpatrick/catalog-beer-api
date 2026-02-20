@@ -1138,7 +1138,7 @@ class Brewer {
 		$array['url'] = $this->url;
 		$array['cb_verified'] = $this->cbVerified;
 		$array['brewer_verified'] = $this->brewerVerified;
-		$array['last_modified'] = date('r', $this->lastModified);
+		$array['last_modified'] = $this->lastModified;
 
 		if($json){
 			// Add to JSON Output
@@ -1260,7 +1260,7 @@ class Brewer {
 				$brewerObj['url'] = $row['url'] ?? null;
 				$brewerObj['cb_verified'] = $row['cbVerified'] ? true : false;
 				$brewerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
-				$brewerObj['last_modified'] = date('r', intval($row['lastModified']));
+				$brewerObj['last_modified'] = intval($row['lastModified']);
 
 				$data[] = $brewerObj;
 			}
