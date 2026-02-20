@@ -70,7 +70,7 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()`, `Beer::search()`, and `Brewer::search()` use a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–238). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–241). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -107,8 +107,8 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 
 - **USPS Addresses API v3** — Address validation (`USAddresses.class.php`); OAuth 2.0 via `USPSAuth.class.php` using `USPS_CLIENT_ID`, `USPS_CLIENT_SECRET`, `USPS_API_BASE_URL` constants
 - **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`); API key via `GOOGLE_MAPS_API_KEY` constant
-- **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (sourced from environment variables)
-- **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant
+- **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (plain strings, not `getenv()`)
+- **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant (environment-conditional: staging uses sandbox server)
 
 All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `classes/initialize.php` after the `ENVIRONMENT` constant is set.
 
@@ -119,6 +119,14 @@ The `cron/` directory contains scripts intended to run as scheduled tasks on the
 - `cron/update-usage.php` — Counts `api_logging` rows per API key per month and upserts into `api_usage`. Run via: `php cron/update-usage.php [staging|production]` (defaults to production). CLI-only; exits immediately if accessed via web.
 
 The `cron/` directory is deployed by `deploy.sh` to `public_html/cron/` on the server. Each script has a CLI-only guard that exits immediately if accessed via a web request.
+
+## Algolia Batch Upload
+
+`algolia/batch-upload.php` — Uploads all brewers, locations, and beers to the Algolia `catalog` index. Uses `Algolia::saveObject()` (PUT/upsert), safe to re-run. Run via: `php batch-upload.php [staging|production] [limit]` (defaults to production). CLI-only; must be run on the server.
+
+- Requires the `algolia` table in MySQL (columns: `algolia_id`, `beer_id`, `brewer_id`, `location_id`)
+- `ensureAlgoliaRecord()` creates local `algolia` table entries for new records before uploading
+- Optional `limit` argument restricts number of brewers processed (for testing)
 
 **Schema dependency:** `update-usage.php` requires a `UNIQUE INDEX` on `api_usage (apiKey, year, month)` for `INSERT ... ON DUPLICATE KEY UPDATE`. The index must be applied before the cron runs:
 ```sql
