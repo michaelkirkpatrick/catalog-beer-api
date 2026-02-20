@@ -1369,7 +1369,7 @@ class Location {
 
 				}elseif($function == 'zip'){
 					// GET https://api.catalog.beer/location/zip
-					$nearbyReturn = $this->nearbyZip($data->zipCode, $data->searchRadius, $data->metric, $cursor, $count);
+					$nearbyReturn = $this->nearbyZip($data->zipCode ?? null, $data->searchRadius, $data->metric, $cursor, $count);
 					if(!$this->error){
 						// Start JSON
 						$this->json['object'] = 'list';
@@ -1392,7 +1392,7 @@ class Location {
 
 				}elseif($function == 'city'){
 					// GET https://api.catalog.beer/location/city
-					$nearbyReturn = $this->nearbyCity($data->city, $data->state, $data->searchRadius, $data->metric, $cursor, $count);
+					$nearbyReturn = $this->nearbyCity($data->city ?? null, $data->state ?? null, $data->searchRadius, $data->metric, $cursor, $count);
 					if(!$this->error){
 						// Start JSON
 						$this->json['object'] = 'list';
