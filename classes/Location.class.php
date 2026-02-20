@@ -643,7 +643,7 @@ class Location {
 		if(empty($cursor)){
 			$cursor = base64_encode('0');
 		}
-		if(empty($count)){
+		if(!isset($count) || $count === ''){
 			$count = 100;
 		}
 		if(!isset($searchRadius) || $searchRadius === ''){
