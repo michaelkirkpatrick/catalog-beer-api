@@ -1292,6 +1292,23 @@ class Beer {
 				}
 				break;
 			case 'POST':
+				if(!empty($function)){
+					// Method Not Allowed for /beer/{function}
+					$this->responseCode = 405;
+					$this->responseHeader = 'Allow: GET';
+					$this->json['error'] = true;
+					$this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 240;
+					$errorLog->errorMsg = 'Invalid Method for /beer/' . $function;
+					$errorLog->badData = $method;
+					$errorLog->filename = 'API / Beer.class.php';
+					$errorLog->write();
+					break;
+				}
+
 				// POST https://api.catalog.beer/beer
 				// Handle Empty Fields
 				if(empty($data->brewer_id)){$data->brewer_id = '';}

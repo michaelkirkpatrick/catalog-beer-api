@@ -1419,6 +1419,23 @@ class Brewer {
 				}
 				break;
 			case 'POST':
+				if(!empty($function)){
+					// Method Not Allowed for /brewer/{function}
+					$this->responseCode = 405;
+					$this->responseHeader = 'Allow: GET';
+					$this->json['error'] = true;
+					$this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+
+					// Log Error
+					$errorLog = new LogError();
+					$errorLog->errorNumber = 239;
+					$errorLog->errorMsg = 'Invalid Method for /brewer/' . $function;
+					$errorLog->badData = $method;
+					$errorLog->filename = 'API / Brewer.class.php';
+					$errorLog->write();
+					break;
+				}
+
 				// POST https://api.catalog.beer/brewer
 				$apiKeys = new apiKeys();
 				$apiKeys->validate($apiKey, true);

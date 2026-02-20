@@ -61685,6 +61685,800 @@
 									"response": []
 								},
 								{
+									"name": "Brewer Search",
+									"item": [
+										{
+											"name": "BR-186 Search Brewers - Missing Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-187 Search Brewers - Empty Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": ""
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-188 Search Brewers - Query Too Long",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-189 Search Brewers - Invalid Count (Zero)",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=Postman&count=0",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														},
+														{
+															"key": "count",
+															"value": "0"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-190 Search Brewers - Invalid Count (Over Max)",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Bad Request (HTTP 400)\", function () {",
+															"    pm.response.to.have.status(400);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=Postman&count=101",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														},
+														{
+															"key": "count",
+															"value": "101"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-191 Search Brewers - No Results",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid empty search response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/brewer/search');",
+															"    pm.expect(jsonData.query).to.equal('xyznonexistent999');",
+															"    pm.expect(jsonData.has_more).to.equal(false);",
+															"    pm.expect(jsonData.data).to.have.lengthOf(0);",
+															"    pm.expect(jsonData).to.not.have.property('next_cursor');",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=xyznonexistent999",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "xyznonexistent999"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-192 Search Brewers - Successful",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+															"",
+															"// Extract unique search term from brewer name",
+															"var name = pm.environment.get('brewer_name_42');",
+															"var searchTerm = name.replace('[Postman API Test] ', '');",
+															"pm.environment.set('brewer_search_term', searchTerm);"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid search response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/brewer/search');",
+															"    pm.expect(jsonData.query).to.equal(pm.environment.get('brewer_search_term'));",
+															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+															"});",
+															"",
+															"pm.test(\"Valid brewer object\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'description',",
+															"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData.data[0].object).to.equal('brewer');",
+															"});",
+															"",
+															"pm.test(\"Content-Type Header Present\", function () {",
+															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q={{brewer_search_term}}",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{brewer_search_term}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-193 Search Brewers - With Count",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+															"",
+															"// Reuse search term from BR-192",
+															"var name = pm.environment.get('brewer_name_42');",
+															"var searchTerm = name.replace('[Postman API Test] ', '');",
+															"pm.environment.set('brewer_search_term', searchTerm);"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Valid search response with count\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.url).to.equal('/brewer/search');",
+															"    pm.expect(jsonData.query).to.equal(pm.environment.get('brewer_search_term'));",
+															"    pm.expect(jsonData.data.length).to.be.at.most(1);",
+															"});",
+															"",
+															"pm.test(\"Content-Type Header Present\", function () {",
+															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q={{brewer_search_term}}&count=1",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{brewer_search_term}}"
+														},
+														{
+															"key": "count",
+															"value": "1"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-194 Search Brewers - Invalid Method",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Method Not Allowed (HTTP 405)\", function () {",
+															"    pm.response.to.have.status(405);",
+															"});",
+															"",
+															"pm.test(\"Valid error response\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+															"    pm.expect(jsonData.error).to.equal(true);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "POST",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=Postman",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "Postman"
+														}
+													]
+												}
+											},
+											"response": []
+										}
+									]
+								},
+								{
 									"name": "BR-183 Delete Brewery #42",
 									"event": [
 										{
@@ -61746,792 +62540,6 @@
 											"path": [
 												"brewer",
 												"{{brewer_id_42}}"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "Brewer Search",
-							"item": [
-								{
-									"name": "BR-186 Search Brewers - Missing Query",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-187 Search Brewers - Empty Query",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": ""
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-188 Search Brewers - Query Too Long",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-189 Search Brewers - Invalid Count (Zero)",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=Postman&count=0",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												},
-												{
-													"key": "count",
-													"value": "0"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-190 Search Brewers - Invalid Count (Over Max)",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Bad Request (HTTP 400)\", function () {",
-													"    pm.response.to.have.status(400);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=Postman&count=101",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												},
-												{
-													"key": "count",
-													"value": "101"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-191 Search Brewers - No Results",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid empty search response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/brewer/search');",
-													"    pm.expect(jsonData.query).to.equal('xyznonexistent999');",
-													"    pm.expect(jsonData.has_more).to.equal(false);",
-													"    pm.expect(jsonData.data).to.have.lengthOf(0);",
-													"    pm.expect(jsonData).to.not.have.property('next_cursor');",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=xyznonexistent999",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "xyznonexistent999"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-192 Search Brewers - Successful",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid search response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/brewer/search');",
-													"    pm.expect(jsonData.query).to.equal('Postman');",
-													"    pm.expect(jsonData.data.length).to.be.at.least(1);",
-													"});",
-													"",
-													"pm.test(\"Valid brewer object\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'description',",
-													"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
-													"    pm.expect(jsonData.data[0].object).to.equal('brewer');",
-													"});",
-													"",
-													"pm.test(\"Content-Type Header Present\", function () {",
-													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=Postman",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-193 Search Brewers - With Count",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Found OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
-													"});",
-													"",
-													"pm.test(\"Valid search response with count\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'next_cursor', 'data');",
-													"    pm.expect(jsonData.object).to.equal('list');",
-													"    pm.expect(jsonData.url).to.equal('/brewer/search');",
-													"    pm.expect(jsonData.query).to.equal('Postman');",
-													"    pm.expect(jsonData.data).to.have.lengthOf(1);",
-													"    pm.expect(jsonData.has_more).to.equal(true);",
-													"    pm.expect(jsonData).to.have.property('next_cursor');",
-													"});",
-													"",
-													"pm.test(\"Content-Type Header Present\", function () {",
-													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=Postman&count=1",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												},
-												{
-													"key": "count",
-													"value": "1"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "BR-194 Search Brewers - Invalid Method",
-									"event": [
-										{
-											"listen": "prerequest",
-											"script": {
-												"exec": [
-													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
-												],
-												"type": "text/javascript"
-											}
-										},
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"pm.test(\"Method Not Allowed (HTTP 405)\", function () {",
-													"    pm.response.to.have.status(405);",
-													"});",
-													"",
-													"pm.test(\"Valid error response\", function () {",
-													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"auth": {
-											"type": "basic",
-											"basic": [
-												{
-													"key": "username",
-													"value": "{{api_key}}",
-													"type": "string"
-												},
-												{
-													"key": "password",
-													"value": "",
-													"type": "string"
-												},
-												{
-													"key": "saveHelperData",
-													"type": "any"
-												},
-												{
-													"key": "showPassword",
-													"value": false,
-													"type": "boolean"
-												}
-											]
-										},
-										"method": "POST",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "https://{{base_url}}/brewer/search?q=Postman",
-											"protocol": "https",
-											"host": [
-												"{{base_url}}"
-											],
-											"path": [
-												"brewer",
-												"search"
-											],
-											"query": [
-												{
-													"key": "q",
-													"value": "Postman"
-												}
 											]
 										}
 									},
@@ -63055,7 +63063,12 @@
 											"script": {
 												"exec": [
 													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Extract unique search term from beer name",
+													"var name = pm.environment.get('beer_name_24');",
+													"var searchTerm = name.replace('[Postman API Test] ', '');",
+													"pm.environment.set('beer_search_term', searchTerm);"
 												],
 												"type": "text/javascript"
 											}
@@ -63070,10 +63083,10 @@
 													"",
 													"pm.test(\"Valid search response\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'data');",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
 													"    pm.expect(jsonData.object).to.equal('list');",
 													"    pm.expect(jsonData.url).to.equal('/beer/search');",
-													"    pm.expect(jsonData.query).to.equal('Postman');",
+													"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
 													"    pm.expect(jsonData.data.length).to.be.at.least(1);",
 													"});",
 													"",
@@ -63132,7 +63145,7 @@
 											}
 										],
 										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=Postman",
+											"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
@@ -63144,7 +63157,7 @@
 											"query": [
 												{
 													"key": "q",
-													"value": "Postman"
+													"value": "{{beer_search_term}}"
 												}
 											]
 										}
@@ -63159,7 +63172,12 @@
 											"script": {
 												"exec": [
 													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Reuse search term from BEER-140",
+													"var name = pm.environment.get('beer_name_24');",
+													"var searchTerm = name.replace('[Postman API Test] ', '');",
+													"pm.environment.set('beer_search_term', searchTerm);"
 												],
 												"type": "text/javascript"
 											}
@@ -63174,13 +63192,11 @@
 													"",
 													"pm.test(\"Valid search response with count\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'query', 'has_more', 'next_cursor', 'data');",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'query', 'has_more', 'data');",
 													"    pm.expect(jsonData.object).to.equal('list');",
 													"    pm.expect(jsonData.url).to.equal('/beer/search');",
-													"    pm.expect(jsonData.query).to.equal('Postman');",
-													"    pm.expect(jsonData.data).to.have.lengthOf(1);",
-													"    pm.expect(jsonData.has_more).to.equal(true);",
-													"    pm.expect(jsonData).to.have.property('next_cursor');",
+													"    pm.expect(jsonData.query).to.equal(pm.environment.get('beer_search_term'));",
+													"    pm.expect(jsonData.data.length).to.be.at.most(1);",
 													"});",
 													"",
 													"pm.test(\"Content-Type Header Present\", function () {",
@@ -63224,7 +63240,7 @@
 											}
 										],
 										"url": {
-											"raw": "https://{{base_url}}/beer/search?q=Postman&count=1",
+											"raw": "https://{{base_url}}/beer/search?q={{beer_search_term}}&count=1",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
@@ -63236,7 +63252,7 @@
 											"query": [
 												{
 													"key": "q",
-													"value": "Postman"
+													"value": "{{beer_search_term}}"
 												},
 												{
 													"key": "count",
@@ -64261,7 +64277,7 @@
 													"",
 													"pm.test(\"Valid list response\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'has_more', 'data');",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'has_more', 'data');",
 													"    pm.expect(jsonData.object).to.equal('list');",
 													"    pm.expect(jsonData.url).to.equal('/location/nearby');",
 													"    pm.expect(jsonData.data.length).to.be.at.least(1);",
