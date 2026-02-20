@@ -64249,20 +64249,9 @@
 													"// Role",
 													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
 													"",
-													"// Fetch coordinates from an existing location",
-													"var request = {",
-													"    url: 'https://' + pm.environment.get('base_url') + '/location/' + pm.environment.get('location_id_13'),",
-													"    method: 'GET',",
-													"    header: {",
-													"        'Accept': 'application/json',",
-													"        'Authorization': 'Basic ' + btoa(pm.environment.get('api_key') + ':')",
-													"    }",
-													"};",
-													"pm.sendRequest(request, function (err, res) {",
-													"    var data = res.json();",
-													"    pm.environment.set('nearby_test_latitude', data.latitude);",
-													"    pm.environment.set('nearby_test_longitude', data.longitude);",
-													"});"
+													"// Set coordinates for nearby search (San Diego area)",
+													"pm.environment.set('nearby_test_latitude', '33');",
+													"pm.environment.set('nearby_test_longitude', '-117');"
 												],
 												"type": "text/javascript"
 											}
