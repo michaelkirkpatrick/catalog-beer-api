@@ -144,4 +144,16 @@ if($sendEmail->error){
 }else{
 	echo "Error digest sent for $yesterdayDate: " . number_format($yesterdayCount) . " errors\n";
 }
+
+// Purge resolved errors older than 90 days
+$purgeThreshold = strtotime('-90 days');
+$db = new Database();
+if(!$db->error){
+	$db->query("DELETE FROM error_log WHERE resolved=1 AND timestamp < ?", [$purgeThreshold]);
+	$purgeCount = $db->getConnection()->affected_rows;
+	if($purgeCount > 0){
+		echo "Purged $purgeCount resolved errors older than 90 days\n";
+	}
+	$db->close();
+}
 ?>
