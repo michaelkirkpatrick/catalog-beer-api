@@ -7,7 +7,7 @@ define("SERVER_NAME", $_SERVER['SERVER_NAME']);
 $serverName = explode('.', $_SERVER['SERVER_NAME']);
 if($serverName[0] == 'api-staging'){
 	define('ENVIRONMENT', 'staging');
-}elseif($serverName[0] == 'api'){
+}else{
 	define('ENVIRONMENT', 'production');
 }
 
