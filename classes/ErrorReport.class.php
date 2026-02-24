@@ -189,6 +189,66 @@ class ErrorReport {
 		}
 	}
 
+	public function resolveAll($apiKey){
+		// Admin-only: Resolve all unresolved errors
+		$apiKeys = new apiKeys();
+		if($apiKeys->validate($apiKey, true)){
+			$users = new Users();
+			$users->validate($apiKeys->userID, true);
+
+			if(!$users->admin){
+				// Not an admin
+				$this->responseCode = 401;
+				$this->error = true;
+				$this->errorMsg = 'Unauthorized: You must be an admin to access this endpoint.';
+
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 251;
+				$errorLog->errorMsg = 'Unauthorized: Not admin (PATCH /error-log)';
+				$errorLog->badData = "apiKey: $apiKey";
+				$errorLog->filename = 'ErrorReport.class.php';
+				$errorLog->write();
+			}
+		}else{
+			// Invalid API Key
+			$this->error = true;
+			$this->errorMsg = 'Invalid API Key.';
+			$this->responseCode = 404;
+
+			$errorLog = new LogError();
+			$errorLog->errorNumber = 251;
+			$errorLog->errorMsg = 'Invalid API Key (PATCH /error-log)';
+			$errorLog->badData = $apiKey;
+			$errorLog->filename = 'ErrorReport.class.php';
+			$errorLog->write();
+		}
+
+		if(!$this->error){
+			$db = new Database();
+			$db->query("UPDATE error_log SET resolved=1 WHERE resolved=0");
+			if($db->error){
+				$this->error = true;
+				$this->errorMsg = $db->errorMsg;
+				$this->responseCode = $db->responseCode;
+
+				$errorLog = new LogError();
+				$errorLog->errorNumber = 252;
+				$errorLog->errorMsg = 'Database error (PATCH /error-log)';
+				$errorLog->badData = $db->errorMsg;
+				$errorLog->filename = 'ErrorReport.class.php';
+				$errorLog->write();
+				$db->close();
+				return;
+			}
+
+			$affectedRows = $db->getConnection()->affected_rows;
+			$db->close();
+
+			$this->json['object'] = 'resolve_result';
+			$this->json['resolved_count'] = $affectedRows;
+		}
+	}
+
 	public function api($method, $function, $id, $apiKey){
 		switch($method){
 			case 'GET':
@@ -215,12 +275,20 @@ class ErrorReport {
 						$errorLog->write();
 				}
 				break;
+			case 'PATCH':
+				// PATCH /error-log — Resolve all errors
+				$this->resolveAll($apiKey);
+				if($this->error){
+					$this->json['error'] = true;
+					$this->json['error_msg'] = $this->errorMsg;
+				}
+				break;
 			default:
 				// Unsupported Method - Method Not Allowed
 				$this->json['error'] = true;
 				$this->json['error_msg'] = "Invalid HTTP method for this endpoint.";
 				$this->responseCode = 405;
-				$this->responseHeader = 'Allow: GET';
+				$this->responseHeader = 'Allow: GET, PATCH';
 
 				// Log Error
 				$errorLog = new LogError();
