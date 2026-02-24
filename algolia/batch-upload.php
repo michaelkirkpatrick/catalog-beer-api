@@ -80,28 +80,20 @@ for($i=0; $i<$numBrewers; $i++){
 	$brewer->validate($brewerID, true);
 	$brewerInfo = $brewer->generateBrewerSearchObject();
 
-	// Get Brewer Locations
+	// Collect Location IDs for this brewer
 	$locations = $location->brewerLocations($brewerID);
 	if(!empty($locations)){
-		$locationsArray = array();
 		for($j=0; $j<count($locations); $j++){
 			$listOfLocationIDs[] = $locations[$j]['id'];
-			$locationsArray[$j]['locationID'] = $locations[$j]['id'];
-			$locationsArray[$j]['name'] = $locations[$j]['name'];
 		}
-		$brewerInfo['locations'] = $locationsArray;
 	}
 
-	// Get Beers for Brewer
+	// Collect Beer IDs for this brewer
 	$beerInfo = $beer->brewerBeers($brewerID);
 	if(!empty($beerInfo)){
-		$beerArray = array();
 		for($j=0; $j<count($beerInfo['data']); $j++){
 			$listOfBeerIDs[] = $beerInfo['data'][$j]['id'];
-			$beerArray[$j]['beerID'] = $beerInfo['data'][$j]['id'];
-			$beerArray[$j]['name'] = $beerInfo['data'][$j]['name'];
 		}
-		$brewerInfo['beer'] = $beerArray;
 	}
 
 	// Send to Algolia via PUT (upsert)
