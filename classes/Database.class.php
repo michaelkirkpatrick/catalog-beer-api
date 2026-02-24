@@ -8,6 +8,7 @@ class Database {
 	public bool $error = false;
 	public ?string $errorMsg = null;
 	public int $responseCode = 200;
+	private int $affectedRows = 0;
 
 	public function __construct(){
 		// Restore pre-PHP 8.1 error handling (return false instead of throwing exceptions)
@@ -79,9 +80,14 @@ class Database {
 			return null;
 		}
 
+		$this->affectedRows = $stmt->affected_rows;
 		$result = $stmt->get_result();
 		$stmt->close();
 		return $result !== false ? $result : null;
+	}
+
+	public function getAffectedRows(): int {
+		return $this->affectedRows;
 	}
 
 	public function getInsertId(): int {

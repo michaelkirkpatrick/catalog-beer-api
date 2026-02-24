@@ -241,7 +241,7 @@ class ErrorReport {
 				return;
 			}
 
-			$affectedRows = $db->getConnection()->affected_rows;
+			$affectedRows = $db->getAffectedRows();
 			$db->close();
 
 			$this->json['object'] = 'resolve_result';
