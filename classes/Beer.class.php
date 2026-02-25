@@ -794,11 +794,11 @@ class Beer {
 		if(!$this->error){
 			// Prep for Database
 			$db = new Database();
-			$result = $db->query("SELECT id, name FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
+			$result = $db->query("SELECT id, name, lastModified FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
 			if(!$db->error){
 				while($array = $result->fetch_assoc()){
-					// Brewer Info
-					$beerInfo = array('id'=>$array['id'], 'name'=>$array['name']);
+					// Beer Info
+					$beerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
 					$beerArray[] = $beerInfo;
 				}
 			}else{
