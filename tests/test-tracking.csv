@@ -383,6 +383,7 @@ Beer,BEER-139,Search Beer - No Results,GET,/beer/search?q=xyznonexistent999,Admi
 Beer,BEER-140,Search Beer - Successful,GET,/beer/search?q=Postman,Admin,200,Done
 Beer,BEER-141,Search Beer - With Count,GET,/beer/search?q=Postman&count=1,Admin,200,Done
 Beer,BEER-142,Search Beer - Invalid Method,POST,/beer/search?q=Postman,Admin,405,Done
+Beer,BEER-143,All Beer,GET,/beer,Admin,200,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
