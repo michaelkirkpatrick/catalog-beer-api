@@ -144,7 +144,7 @@ if(!empty($errorRows) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KE
 		'messages' => [
 			['role' => 'user', 'content' => $userMessage]
 		]
-	]);
+	], JSON_INVALID_UTF8_SUBSTITUTE);
 
 	$curl = curl_init();
 	curl_setopt_array($curl, [
