@@ -38,6 +38,10 @@ class Database {
 	}
 
 	public function query(string $sql, array $params = []): ?mysqli_result {
+		if($this->error){
+			return null;
+		}
+
 		$stmt = $this->mysqli->prepare($sql);
 		if(!$stmt){
 			$this->error = true;
