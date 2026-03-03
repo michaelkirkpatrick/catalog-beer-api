@@ -65,14 +65,14 @@ function markdownToHtml($markdown){
 	return '<p>' . $html . '</p>';
 }
 
-// Yesterday's date range (Unix timestamps)
-$yesterdayStart = mktime(0, 0, 0, (int)date('n'), (int)date('j') - 1, (int)date('Y'));
-$yesterdayEnd = mktime(23, 59, 59, (int)date('n'), (int)date('j') - 1, (int)date('Y'));
-$yesterdayDate = date('Y-m-d', $yesterdayStart);
+// This week's date range (past 7 days ending yesterday)
+$weekStart = mktime(0, 0, 0, (int)date('n'), (int)date('j') - 7, (int)date('Y'));
+$weekEnd = mktime(23, 59, 59, (int)date('n'), (int)date('j') - 1, (int)date('Y'));
+$weekLabel = date('M j', $weekStart) . ' – ' . date('M j', $weekEnd);
 
-// Prior day's date range (for comparison)
-$priorDayStart = mktime(0, 0, 0, (int)date('n'), (int)date('j') - 2, (int)date('Y'));
-$priorDayEnd = mktime(23, 59, 59, (int)date('n'), (int)date('j') - 2, (int)date('Y'));
+// Prior week's date range (for comparison)
+$priorWeekStart = mktime(0, 0, 0, (int)date('n'), (int)date('j') - 14, (int)date('Y'));
+$priorWeekEnd = mktime(23, 59, 59, (int)date('n'), (int)date('j') - 8, (int)date('Y'));
 
 $db = new Database();
 if($db->error){
@@ -80,32 +80,32 @@ if($db->error){
 	exit(1);
 }
 
-// Yesterday's total error count
-$result = $db->query("SELECT COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ?", [$yesterdayStart, $yesterdayEnd]);
+// This week's total error count
+$result = $db->query("SELECT COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ?", [$weekStart, $weekEnd]);
 $row = $result->fetch_assoc();
-$yesterdayCount = intval($row['count']);
+$weekCount = intval($row['count']);
 
-// Prior day's count
-$result = $db->query("SELECT COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ?", [$priorDayStart, $priorDayEnd]);
+// Prior week's count
+$result = $db->query("SELECT COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ?", [$priorWeekStart, $priorWeekEnd]);
 $row = $result->fetch_assoc();
-$priorDayCount = intval($row['count']);
+$priorWeekCount = intval($row['count']);
 
-// Top 10 errors by errorNumber (yesterday)
-$result = $db->query("SELECT errorNumber, errorMessage, COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ? GROUP BY errorNumber, errorMessage ORDER BY count DESC LIMIT 10", [$yesterdayStart, $yesterdayEnd]);
+// Top 10 errors by errorNumber (this week)
+$result = $db->query("SELECT errorNumber, errorMessage, COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ? GROUP BY errorNumber, errorMessage ORDER BY count DESC LIMIT 10", [$weekStart, $weekEnd]);
 $topErrors = array();
 while($row = $result->fetch_assoc()){
 	$topErrors[] = $row;
 }
 
-// Top 5 IPs (yesterday, excluding 127.0.0.1)
-$result = $db->query("SELECT ipAddress, COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ? AND ipAddress != '127.0.0.1' GROUP BY ipAddress ORDER BY count DESC LIMIT 5", [$yesterdayStart, $yesterdayEnd]);
+// Top 5 IPs (this week, excluding 127.0.0.1)
+$result = $db->query("SELECT ipAddress, COUNT(*) AS count FROM error_log WHERE timestamp BETWEEN ? AND ? AND ipAddress != '127.0.0.1' GROUP BY ipAddress ORDER BY count DESC LIMIT 5", [$weekStart, $weekEnd]);
 $topIPs = array();
 while($row = $result->fetch_assoc()){
 	$topIPs[] = $row;
 }
 
-// Query all unresolved errors from yesterday for Claude analysis
-$result = $db->query("SELECT errorNumber, errorMessage, URI, ipAddress, timestamp, SUBSTRING(badData, 1, 200) AS badData FROM error_log WHERE resolved=0 AND timestamp BETWEEN ? AND ? ORDER BY timestamp", [$yesterdayStart, $yesterdayEnd]);
+// Query all unresolved errors from this week for Claude analysis
+$result = $db->query("SELECT errorNumber, errorMessage, URI, ipAddress, timestamp, SUBSTRING(badData, 1, 200) AS badData FROM error_log WHERE resolved=0 AND timestamp BETWEEN ? AND ? ORDER BY timestamp", [$weekStart, $weekEnd]);
 $errorRows = array();
 while($row = $result->fetch_assoc()){
 	$errorRows[] = $row;
@@ -132,8 +132,8 @@ if(!empty($errorRows) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KE
 
 	// Build user message
 	$unresolvedCount = count($errorRows);
-	$userMessage = "Here are yesterday's ($yesterdayDate) unresolved errors from the Catalog.beer API error log.\n\n";
-	$userMessage .= "Summary: " . number_format($yesterdayCount) . " total errors yesterday (" . number_format($unresolvedCount) . " unresolved), " . number_format($priorDayCount) . " the prior day.\n\n";
+	$userMessage = "Here are this week's ($weekLabel) unresolved errors from the Catalog.beer API error log.\n\n";
+	$userMessage .= "Summary: " . number_format($weekCount) . " total errors this week (" . number_format($unresolvedCount) . " unresolved), " . number_format($priorWeekCount) . " the prior week.\n\n";
 	$userMessage .= "Full error data — " . number_format($unresolvedCount) . " unresolved errors (CSV):\n" . $csvData;
 
 	// Call Claude Messages API
@@ -193,13 +193,13 @@ if(!empty($errorRows) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KE
 }
 
 // Determine change direction
-$change = $yesterdayCount - $priorDayCount;
+$change = $weekCount - $priorWeekCount;
 if($change > 0){
-	$changeText = "(+" . number_format($change) . " from prior day)";
+	$changeText = "(+" . number_format($change) . " from prior week)";
 }elseif($change < 0){
-	$changeText = "(" . number_format($change) . " from prior day)";
+	$changeText = "(" . number_format($change) . " from prior week)";
 }else{
-	$changeText = "(no change from prior day)";
+	$changeText = "(no change from prior week)";
 }
 
 // Admin page URL
@@ -210,9 +210,9 @@ if($env === 'staging'){
 }
 
 // Build plain text body
-$textBody = "Error Digest for $yesterdayDate\r\n";
+$textBody = "Weekly Error Digest: $weekLabel\r\n";
 $textBody .= "================================\r\n\r\n";
-$textBody .= "Total errors: " . number_format($yesterdayCount) . " $changeText\r\n\r\n";
+$textBody .= "Total errors: " . number_format($weekCount) . " $changeText\r\n\r\n";
 
 if(!empty($topErrors)){
 	$textBody .= "Top Errors:\r\n";
@@ -239,9 +239,9 @@ if(!empty($claudeAnalysis)){
 $textBody .= "View full report: $adminUrl\r\n";
 
 // Build HTML content (for ##CONTENT## placeholder)
-$htmlContent = '<h1>Error Digest</h1>';
-$htmlContent .= '<p><strong>' . htmlspecialchars($yesterdayDate) . '</strong></p>';
-$htmlContent .= '<p>Total errors: <strong>' . number_format($yesterdayCount) . '</strong> ' . htmlspecialchars($changeText) . '</p>';
+$htmlContent = '<h1>Weekly Error Digest</h1>';
+$htmlContent .= '<p><strong>' . htmlspecialchars($weekLabel) . '</strong></p>';
+$htmlContent .= '<p>Total errors: <strong>' . number_format($weekCount) . '</strong> ' . htmlspecialchars($changeText) . '</p>';
 
 if(!empty($claudeAnalysis)){
 	$htmlContent .= '<div style="background-color: #f8f9fa; border-left: 4px solid #4a90d9; padding: 16px; margin: 20px 0;">';
@@ -274,13 +274,13 @@ $htmlContent .= '<p style="margin-top: 20px;"><a href="' . $adminUrl . '">View F
 
 // Send email
 $sendEmail = new SendEmail();
-$sendEmail->errorDigest($htmlContent, $textBody, number_format($yesterdayCount), $yesterdayDate);
+$sendEmail->errorDigest($htmlContent, $textBody, number_format($weekCount), $weekLabel);
 
 if($sendEmail->error){
 	echo "Error sending digest: " . $sendEmail->errorMsg . "\n";
 	exit(1);
 }else{
-	echo "Error digest sent for $yesterdayDate: " . number_format($yesterdayCount) . " errors\n";
+	echo "Weekly error digest sent for $weekLabel: " . number_format($weekCount) . " errors\n";
 }
 
 // Purge resolved errors older than 90 days

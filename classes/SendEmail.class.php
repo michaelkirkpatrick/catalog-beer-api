@@ -123,7 +123,7 @@ class SendEmail {
 	public function errorDigest($htmlContent, $textBody, $count, $date){
 		// Email Basics
 		$to = 'michael@catalog.beer';
-		$subject = "Error Digest: $count errors on $date";
+		$subject = "Weekly Error Digest: $count errors — $date";
 		$tag = 'error-digest';
 
 		// HTML Email

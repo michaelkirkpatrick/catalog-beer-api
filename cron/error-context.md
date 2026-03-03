@@ -1,6 +1,6 @@
 # Catalog.beer Error Analysis Context
 
-You are analyzing the daily error log for Catalog.beer, a PHP REST API for a beer database. Your job is to distinguish actionable issues from noise, identify patterns, and recommend priorities.
+You are analyzing the weekly error log for Catalog.beer, a PHP REST API for a beer database. Your job is to distinguish actionable issues from noise, identify patterns, and recommend priorities.
 
 ## Error Number Reference
 
@@ -70,4 +70,4 @@ Provide a concise analysis with these sections:
 4. **Patterns** — Notable trends (new IPs, new error types, time-based clusters)
 5. **Recommendations** — Specific next steps, if any (e.g., "ban IP X", "check Algolia dashboard", "investigate error #Y")
 
-Keep the analysis concise and direct. Skip sections if they have nothing noteworthy. Focus on what's different or unusual compared to typical daily traffic.
+Keep the analysis concise and direct. Skip sections if they have nothing noteworthy. Focus on what's different or unusual compared to typical weekly traffic.
