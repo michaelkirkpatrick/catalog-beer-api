@@ -56,6 +56,30 @@ function markdownToHtml($markdown){
 		return '<ol style="margin: 8px 0; padding-left: 20px;">' . $items . '</ol>';
 	}, $html);
 
+	// Tables: convert consecutive lines starting with | into <table>
+	$html = preg_replace_callback('/(?:^\|.+\|$\n?)+/m', function($match){
+		$lines = explode("\n", trim($match[0]));
+		if(count($lines) < 2) return $match[0];
+		$table = '<table width="100%" cellpadding="4" cellspacing="0" style="border-collapse: collapse;">';
+		$isHeader = true;
+		foreach($lines as $line){
+			if(preg_match('/^\|[\s\-:]+\|$/', $line)) continue;
+			$cells = array_map('trim', explode('|', trim($line, '|')));
+			$tag = $isHeader ? 'th' : 'td';
+			$style = $isHeader
+				? 'text-align: left; padding: 8px; border-bottom: 1px solid #ddd; background-color: #f0f0f0;'
+				: 'padding: 8px; border-bottom: 1px solid #eee;';
+			$table .= '<tr>';
+			foreach($cells as $cell){
+				$table .= '<' . $tag . ' style="' . $style . '">' . $cell . '</' . $tag . '>';
+			}
+			$table .= '</tr>';
+			$isHeader = false;
+		}
+		$table .= '</table>';
+		return $table;
+	}, $html);
+
 	// Paragraphs: double newlines become paragraph breaks
 	$html = preg_replace('/\n{2,}/', '</p><p>', $html);
 
@@ -104,41 +128,52 @@ while($row = $result->fetch_assoc()){
 	$topIPs[] = $row;
 }
 
-// Query all unresolved errors from this week for Claude analysis
-$result = $db->query("SELECT errorNumber, errorMessage, URI, ipAddress, timestamp, SUBSTRING(badData, 1, 200) AS badData FROM error_log WHERE resolved=0 AND timestamp BETWEEN ? AND ? ORDER BY timestamp", [$weekStart, $weekEnd]);
-$errorRows = array();
+// Count unresolved errors this week
+$result = $db->query("SELECT COUNT(*) AS count FROM error_log WHERE resolved=0 AND timestamp BETWEEN ? AND ?", [$weekStart, $weekEnd]);
+$row = $result->fetch_assoc();
+$unresolvedCount = intval($row['count']);
+
+// Query grouped unresolved errors for Claude analysis (top 50 by frequency)
+$result = $db->query("SELECT errorNumber, errorMessage, COUNT(*) AS count, COUNT(DISTINCT ipAddress) AS unique_ips, COUNT(DISTINCT URI) AS unique_uris, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen, SUBSTRING(MIN(badData), 1, 200) AS sample_bad_data FROM error_log WHERE resolved=0 AND timestamp BETWEEN ? AND ? GROUP BY errorNumber, errorMessage ORDER BY count DESC LIMIT 50", [$weekStart, $weekEnd]);
+$groupedErrors = array();
 while($row = $result->fetch_assoc()){
-	$errorRows[] = $row;
+	$groupedErrors[] = $row;
 }
 
 $db->close();
 
 // Claude AI Analysis
 $claudeAnalysis = null;
-if(!empty($errorRows) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KEY)){
-	// Build CSV data
-	$csvData = "errorNumber,errorMessage,URI,ipAddress,timestamp,badData\n";
-	foreach($errorRows as $row){
+if(!empty($groupedErrors) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KEY)){
+	// Build CSV data from grouped errors
+	$csvData = "errorNumber,errorMessage,count,unique_ips,unique_uris,first_seen,last_seen,sample_bad_data\n";
+	foreach($groupedErrors as $row){
 		$csvData .= '"' . str_replace('"', '""', $row['errorNumber']) . '",';
-		$csvData .= '"' . str_replace('"', '""', $row['errorMessage']) . '",';
-		$csvData .= '"' . str_replace('"', '""', $row['URI']) . '",';
-		$csvData .= '"' . str_replace('"', '""', $row['ipAddress']) . '",';
-		$csvData .= '"' . date('Y-m-d H:i:s', $row['timestamp']) . '",';
-		$csvData .= '"' . str_replace('"', '""', $row['badData'] ?? '') . '"' . "\n";
+		$csvData .= '"' . str_replace('"', '""', substr($row['errorMessage'], 0, 500)) . '",';
+		$csvData .= $row['count'] . ',';
+		$csvData .= $row['unique_ips'] . ',';
+		$csvData .= $row['unique_uris'] . ',';
+		$csvData .= '"' . date('Y-m-d H:i:s', $row['first_seen']) . '",';
+		$csvData .= '"' . date('Y-m-d H:i:s', $row['last_seen']) . '",';
+		$csvData .= '"' . str_replace('"', '""', $row['sample_bad_data'] ?? '') . '"' . "\n";
 	}
 
 	// Load system prompt from error-context.md
 	$systemPrompt = file_get_contents(__DIR__ . '/error-context.md');
 
 	// Build user message
-	$unresolvedCount = count($errorRows);
 	$userMessage = "Here are this week's ($weekLabel) unresolved errors from the Catalog.beer API error log.\n\n";
 	$userMessage .= "Summary: " . number_format($weekCount) . " total errors this week (" . number_format($unresolvedCount) . " unresolved), " . number_format($priorWeekCount) . " the prior week.\n\n";
-	$userMessage .= "Full error data — " . number_format($unresolvedCount) . " unresolved errors (CSV):\n" . $csvData;
+	$userMessage .= "Grouped errors — top " . count($groupedErrors) . " of " . number_format($unresolvedCount) . " unresolved (CSV):\n" . $csvData;
+
+	// Safety check: truncate if message exceeds ~400KB to stay under token limits
+	if(strlen($userMessage) > 400000){
+		$userMessage = substr($userMessage, 0, 400000) . "\n\n[Data truncated due to size]";
+	}
 
 	// Call Claude Messages API
 	$requestBody = json_encode([
-		'model' => 'claude-opus-4-6',
+		'model' => 'claude-haiku-4-5-20251001',
 		'max_tokens' => 2048,
 		'system' => $systemPrompt,
 		'messages' => [

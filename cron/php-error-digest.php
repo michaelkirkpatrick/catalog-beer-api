@@ -63,6 +63,30 @@ function markdownToHtml($markdown){
 		return '<ol style="margin: 8px 0; padding-left: 20px;">' . $items . '</ol>';
 	}, $html);
 
+	// Tables: convert consecutive lines starting with | into <table>
+	$html = preg_replace_callback('/(?:^\|.+\|$\n?)+/m', function($match){
+		$lines = explode("\n", trim($match[0]));
+		if(count($lines) < 2) return $match[0];
+		$table = '<table width="100%" cellpadding="4" cellspacing="0" style="border-collapse: collapse;">';
+		$isHeader = true;
+		foreach($lines as $line){
+			if(preg_match('/^\|[\s\-:]+\|$/', $line)) continue;
+			$cells = array_map('trim', explode('|', trim($line, '|')));
+			$tag = $isHeader ? 'th' : 'td';
+			$style = $isHeader
+				? 'text-align: left; padding: 8px; border-bottom: 1px solid #ddd; background-color: #f0f0f0;'
+				: 'padding: 8px; border-bottom: 1px solid #eee;';
+			$table .= '<tr>';
+			foreach($cells as $cell){
+				$table .= '<' . $tag . ' style="' . $style . '">' . $cell . '</' . $tag . '>';
+			}
+			$table .= '</tr>';
+			$isHeader = false;
+		}
+		$table .= '</table>';
+		return $table;
+	}, $html);
+
 	// Paragraphs: double newlines become paragraph breaks
 	$html = preg_replace('/\n{2,}/', '</p><p>', $html);
 
@@ -234,16 +258,17 @@ arsort($siteCounts);
 // Claude AI Analysis
 $claudeAnalysis = null;
 if(!empty($filteredEntries) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_API_KEY)){
-	// Build CSV data from grouped errors
+	// Build CSV data from grouped errors (top 50)
+	$topGrouped = array_slice($grouped, 0, 50);
 	$csvData = "count,normalized_message,sites,first_seen,last_seen,has_stack_trace,sample_full_message\n";
-	foreach($grouped as $group){
+	foreach($topGrouped as $group){
 		$csvData .= $group['count'] . ',';
-		$csvData .= '"' . str_replace('"', '""', $group['normalized']) . '",';
+		$csvData .= '"' . str_replace('"', '""', substr($group['normalized'], 0, 500)) . '",';
 		$csvData .= '"' . implode('; ', $group['sites']) . '",';
 		$csvData .= '"' . $group['first_seen'] . '",';
 		$csvData .= '"' . $group['last_seen'] . '",';
 		$csvData .= ($group['has_stack_trace'] ? 'yes' : 'no') . ',';
-		$csvData .= '"' . str_replace('"', '""', $group['sample_message']) . '"' . "\n";
+		$csvData .= '"' . str_replace('"', '""', substr($group['sample_message'], 0, 500)) . '"' . "\n";
 	}
 
 	// Load system prompt
@@ -256,24 +281,29 @@ if(!empty($filteredEntries) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_
 	foreach($siteCounts as $site => $count){
 		$userMessage .= "  $site: " . number_format($count) . "\n";
 	}
-	$userMessage .= "\nGrouped errors (CSV):\n" . $csvData;
+	$userMessage .= "\nGrouped errors — top " . count($topGrouped) . " of " . count($grouped) . " types (CSV):\n" . $csvData;
 
 	// Include up to 5 stack traces for context
 	$traceCount = 0;
-	foreach($grouped as $group){
+	foreach($topGrouped as $group){
 		if($group['has_stack_trace'] && $traceCount < 5){
 			if($traceCount === 0){
 				$userMessage .= "\nSample stack traces:\n";
 			}
-			$userMessage .= "\n--- " . $group['normalized'] . " ---\n";
-			$userMessage .= $group['sample_stack_trace'] . "\n";
+			$userMessage .= "\n--- " . substr($group['normalized'], 0, 200) . " ---\n";
+			$userMessage .= substr($group['sample_stack_trace'], 0, 1000) . "\n";
 			$traceCount++;
 		}
 	}
 
+	// Safety check: truncate if message exceeds ~400KB to stay under token limits
+	if(strlen($userMessage) > 400000){
+		$userMessage = substr($userMessage, 0, 400000) . "\n\n[Data truncated due to size]";
+	}
+
 	// Call Claude Messages API
 	$requestBody = json_encode([
-		'model' => 'claude-opus-4-6',
+		'model' => 'claude-haiku-4-5-20251001',
 		'max_tokens' => 2048,
 		'system' => $systemPrompt,
 		'messages' => [
@@ -407,6 +437,6 @@ if($sendEmail->error){
 	echo "Error sending digest: " . $sendEmail->errorMsg . "\n";
 	exit(1);
 }else{
-	echo "Weekly PHP error digest sent for $weekLabel: " . number_format($totalCount) . " total entries (" . number_format($filteredCount) . " after noise filtering)\n";
+	echo "Weekly PHP error digest sent for $weekLabel: " . number_format($totalCount) . " total entries, " . number_format($noiseCount) . " noise filtered, " . count($grouped) . " unique error types\n";
 }
 ?>
