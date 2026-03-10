@@ -61,7 +61,7 @@ class apiLogging {
 			$errorLog = new LogError();
 			$errorLog->errorNumber = 48;
 			$errorLog->errorMsg = 'Missing required parameter';
-			$errorLog->badData = "apiKey: $this->apiKey / method: $this->method / uri: $this->uri / body: $this->body";
+			$errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: " . serialize($body);
 			$errorLog->filename = 'API / apiLogging.class.php';
 			$errorLog->write();
 		}
