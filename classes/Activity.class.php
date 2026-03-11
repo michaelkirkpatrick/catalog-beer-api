@@ -141,6 +141,15 @@ class Activity {
 						if(isset($responseData['id'])){
 							$entry['resource_id'] = $responseData['id'];
 						}
+						// Extract nested brewer info for location/address responses
+						if(isset($responseData['brewer']) && is_array($responseData['brewer'])){
+							if(isset($responseData['brewer']['name'])){
+								$entry['brewer_name'] = $responseData['brewer']['name'];
+							}
+							if(isset($responseData['brewer']['id'])){
+								$entry['brewer_id'] = $responseData['brewer']['id'];
+							}
+						}
 					}
 				}
 
