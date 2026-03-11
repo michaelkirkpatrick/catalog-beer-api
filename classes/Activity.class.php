@@ -105,7 +105,7 @@ class Activity {
 			}
 
 			// 3. Recent Activity — last 50 write operations (all response codes)
-			$result = $db->query("SELECT al.timestamp, u.name AS user_name, al.method, al.uri, al.responseCode FROM api_logging al LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id WHERE al.method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND al.timestamp >= ? ORDER BY al.timestamp DESC LIMIT 50", [$cutoffTimestamp]);
+			$result = $db->query("SELECT al.timestamp, u.name AS user_name, al.method, al.uri, al.responseCode, al.response FROM api_logging al LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id WHERE al.method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND al.timestamp >= ? ORDER BY al.timestamp DESC LIMIT 50", [$cutoffTimestamp]);
 			if($db->error){
 				$this->error = true;
 				$this->errorMsg = $db->errorMsg;
@@ -122,13 +122,29 @@ class Activity {
 			}
 			$recentActivity = array();
 			while($row = $result->fetch_assoc()){
-				$recentActivity[] = array(
+				$entry = array(
 					'timestamp' => intval($row['timestamp']),
 					'user_name' => $row['user_name'] ?? '(deleted user)',
 					'method' => $row['method'],
 					'uri' => $row['uri'],
 					'response_code' => intval($row['responseCode'])
 				);
+
+				// Parse response JSON to extract resource name and ID
+				$responseCode = intval($row['responseCode']);
+				if($responseCode >= 200 && $responseCode < 300 && !empty($row['response'])){
+					$responseData = json_decode($row['response'], true);
+					if(is_array($responseData)){
+						if(isset($responseData['name'])){
+							$entry['resource_name'] = $responseData['name'];
+						}
+						if(isset($responseData['id'])){
+							$entry['resource_id'] = $responseData['id'];
+						}
+					}
+				}
+
+				$recentActivity[] = $entry;
 			}
 
 			// 4. GET Traffic — grouped by endpoint pattern
