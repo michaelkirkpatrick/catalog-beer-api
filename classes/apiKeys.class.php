@@ -4,6 +4,8 @@ class apiKeys {
     // Variables
     public $apiKey = '';
     public $userID = '';
+    public $requestLimit = 1000;
+    public $requestBuffer = 50;
 
     // Error Handling
     public $error = false;
@@ -75,7 +77,7 @@ class apiKeys {
         if(!empty($apiKey)){
             // Connect to Database
             $db = new Database();
-            $result = $db->query("SELECT userID FROM api_keys WHERE id=?", [$apiKey]);
+            $result = $db->query("SELECT userID, requestLimit, requestBuffer FROM api_keys WHERE id=?", [$apiKey]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid API Key
@@ -86,6 +88,8 @@ class apiKeys {
                         $array = $result->fetch_assoc();
                         $this->apiKey = $apiKey;
                         $this->userID = $array['userID'];
+                        $this->requestLimit = intval($array['requestLimit']);
+                        $this->requestBuffer = intval($array['requestBuffer']);
                     }
                 }elseif($result->num_rows > 1){
                     // Duplicate API Keys

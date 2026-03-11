@@ -8,6 +8,9 @@ class Usage {
     public $month = 0;
     public $count = 0;
     public $lastUpdated = 0;
+    public $requestLimit = 0;
+    public $requestBuffer = 0;
+    public $resetsOn = '';
 
     // Validation
     public $error = false;
@@ -18,87 +21,54 @@ class Usage {
     public $responseCode = 200;
     public $json = array();
 
-    public function currentUsage($apiKey, $apiKeyInUse){
-        // Get usage for API Key ($apiKey)
-        // The request comes from $apiKeyInUse
-        // Usage for Current Month
+    public function myUsage($apiKey){
+        // Get usage for the authenticated API key
+        // No admin check needed — returns data for whoever's authenticated
 
-        $apiKey = trim($apiKey ?? '');
-        if(!empty($apiKey)){
-            // Required Classes
-            $apiKeys = new apiKeys();
-            if($apiKeys->validate($apiKey, true)){
+        $apiKeys = new apiKeys();
+        if($apiKeys->validate($apiKey, true)){
+            // Current month and year
+            $year = date('Y');
+            $month = date('n');
 
-                $users = new Users();
-                $users->validate($apiKeys->userID, true);
+            // Query Database
+            $db = new Database();
+            $result = $db->query("SELECT count, lastUpdated FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, $year, $month]);
+            if(!$db->error){
+                // Save to Class
+                $this->apiKey = $apiKey;
+                $this->year = $year;
+                $this->month = $month;
+                $this->requestLimit = intval($apiKeys->requestLimit);
+                $this->requestBuffer = intval($apiKeys->requestBuffer);
+                $this->resetsOn = date('Y-m-d', strtotime('first day of next month'));
 
-                if($apiKey != $apiKeyInUse){
-                    // This request didn't come from the user themselves, ensure it came from an Admin user (e.g. the website)
-                    if(!$users->admin){
-                        // Didn't come from the Admin user, disallow this request
-                        $this->responseCode = 401;
-                        $this->error = true;
-                        $this->errorMsg = 'Unauthorized: API Key mismatch. In order to retreive API usage for your account, you must make the API request using your API Key.';
-
-                        // Log Error
-                        $errorLog = new LogError();
-                        $errorLog->errorNumber = 164;
-                        $errorLog->errorMsg = 'API Usage Request: API Key Mismatch';
-                        $errorLog->badData = "Usage requested for: $apiKey / by: $apiKeyInUse";
-                        $errorLog->filename = 'Usage.class.php';
-                        $errorLog->write();
-                    }
-                }
-
-                if(!$this->error){
-                    // Current month and year
-                    $year = date('Y', time());
-                    $month = date('n', time());
-
-                    // Query Database
-                    $db = new Database();
-                    $result = $db->query("SELECT id, count, lastUpdated FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, $year, $month]);
-                    if(!$db->error){
-                        $array = $result->fetch_assoc();
-
-                        // Save to Class
-                        $this->id = $array['id'];
-                        $this->apiKey = $apiKey;
-                        $this->year = $year;
-                        $this->month = $month;
-                        $this->count = $array['count'];
-                        $this->lastUpdated = $array['lastUpdated'];
-                    }else{
-                        $this->error = true;
-                        $this->errorMsg = $db->errorMsg;
-                        $this->responseCode = $db->responseCode;
-                    }
-
-                    // Close Database Connection
-                    $db->close();
+                if($result->num_rows == 1){
+                    $array = $result->fetch_assoc();
+                    $this->count = intval($array['count']);
+                    $this->lastUpdated = intval($array['lastUpdated']);
+                }else{
+                    // No usage row yet — count is 0
+                    $this->count = 0;
+                    $this->lastUpdated = 0;
                 }
             }else{
-                // Invalid API Key
                 $this->error = true;
-                $this->errorMsg = 'Invalid API Key. Unable to retreive API usage information.';
-                $this->responseCode = 404;
-
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 143;
-                $errorLog->errorMsg = 'Invalid API Key';
-                $errorLog->badData = $apiKey;
-                $errorLog->filename = 'API / Usage.class.php';
-                $errorLog->write();
+                $this->errorMsg = $db->errorMsg;
+                $this->responseCode = $db->responseCode;
             }
+
+            // Close Database Connection
+            $db->close();
         }else{
-            // Missing API Key
+            // Invalid API Key
             $this->error = true;
-            $this->errorMsg = 'Missing API Key. Ensure your request includes the API key in the URL: /usage/currentMonth/{api_key}';
-            $this->responseCode = 400;
+            $this->errorMsg = 'Invalid API Key.';
+            $this->responseCode = 404;
 
             $errorLog = new LogError();
-            $errorLog->errorNumber = 131;
-            $errorLog->errorMsg = 'Missing API Key';
+            $errorLog->errorNumber = 143;
+            $errorLog->errorMsg = 'Invalid API Key';
             $errorLog->badData = $apiKey;
             $errorLog->filename = 'API / Usage.class.php';
             $errorLog->write();
@@ -238,10 +208,6 @@ class Usage {
     }
 
     public function api($method, $function, $id, $apiKey){
-        /*-----
-        /{endpoint}/{function}/{api_key}
-        currentUsage() -> /usage/currentMonth/{api_key}
-        -----*/
         switch($method){
             case 'GET':
                 switch($function){
@@ -254,16 +220,19 @@ class Usage {
                             $this->json['error_msg'] = $this->errorMsg;
                         }
                         break;
-                    case 'currentMonth':
-                        $this->currentUsage($id, $apiKey, false);
+                    case 'my-usage':
+                        // GET /usage/my-usage — Authenticated user's own usage + limits
+                        $this->myUsage($apiKey);
                         if(!$this->error){
-                            $this->json['id'] = $this->id;
                             $this->json['object'] = 'usage';
                             $this->json['api_key'] = $this->apiKey;
                             $this->json['year'] = intval($this->year);
                             $this->json['month'] = intval($this->month);
                             $this->json['count'] = intval($this->count);
-                            $this->json['last_updated'] = intval($this->lastUpdated);
+                            $this->json['request_limit'] = $this->requestLimit;
+                            $this->json['request_buffer'] = $this->requestBuffer;
+                            $this->json['resets_on'] = $this->resetsOn;
+                            $this->json['last_updated'] = $this->lastUpdated;
                         }else{
                             $this->json['error'] = true;
                             $this->json['error_msg'] = $this->errorMsg;

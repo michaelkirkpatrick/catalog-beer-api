@@ -5,6 +5,7 @@ include_once $_SERVER["DOCUMENT_ROOT"] . '/classes/initialize.php';
 // Defaults
 $apiKey = '';
 $error = false;
+$rateLimited = false;
 $json = array();
 $responseCode = 200;
 $responseHeader = '';
@@ -249,6 +250,38 @@ if(isset($_SERVER['HTTPS'])){
     $json['error_msg'] = 'In order to connect to the Catalog.beer API, you will need to connect using a secure connection (HTTPS). Please try your request again.';
 }
 
+// ----- Rate Limit Check -----
+if(!$error && $endpoint != 'usage'){
+    $masterKeys = unserialize(MASTER_API_KEYS);
+    if(!in_array($apiKey, $masterKeys)){
+        $db = new Database();
+        $result = $db->query("SELECT count FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, date('Y'), date('n')]);
+        if(!$db->error){
+            $usageCount = 0;
+            if($result->num_rows == 1){
+                $row = $result->fetch_assoc();
+                $usageCount = intval($row['count']);
+            }
+            if($usageCount > $apiKeys->requestLimit + $apiKeys->requestBuffer){
+                $error = true;
+                $rateLimited = true;
+                $responseCode = 429;
+                $json['error'] = true;
+                $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". For more information, visit https://catalog.beer/api-usage. To request a higher limit, contact us at https://catalog.beer/contact or michael@catalog.beer.";
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 257;
+                $errorLog->errorMsg = 'Rate limit exceeded';
+                $errorLog->badData = "apiKey: $apiKey, count: $usageCount, limit: " . $apiKeys->requestLimit;
+                $errorLog->filename = 'API / index.php';
+                $errorLog->write();
+            }
+        }
+        $db->close();
+    }
+}
+
 /* - - - - - Process Based on Endpoint - - - - - */
 if(!$error){
     switch($endpoint){
@@ -363,9 +396,26 @@ if($json_encoded = json_encode($json)){
 }
 
 $masterKeys = unserialize(MASTER_API_KEYS);
-if(!empty($apiKey) && !in_array($apiKey, $masterKeys)){
+if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && !$rateLimited && $endpoint != 'usage'){
     // Log Request
     $apiLogging = new apiLogging();
     $apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded ?: '', $responseCode);
+
+    // Increment Usage Counter
+    $now = time();
+    $year = date('Y');
+    $month = date('n');
+    $db = new Database();
+    $db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) VALUES (UUID(), ?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE count = count + 1, lastUpdated = ?", [$apiKey, $year, $month, $now, $now]);
+    if($db->error){
+        // Log silently, don't affect response
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 258;
+        $errorLog->errorMsg = 'Failed to increment usage counter';
+        $errorLog->badData = "apiKey: $apiKey";
+        $errorLog->filename = 'API / index.php';
+        $errorLog->write();
+    }
+    $db->close();
 }
 ?>

@@ -44,7 +44,7 @@ RewriteRule ^health$ index.php?endpoint=health [L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]
 
-RewriteRule ^usage/currentMonth/?(\/[-0-9a-f]{36})?$ index.php?endpoint=usage&function=currentMonth&id=$1 [L]
+RewriteRule ^usage/my-usage/?$ index.php?endpoint=usage&function=my-usage [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]
 
 RewriteRule ^users(\/[-0-9a-f]{36})/api-key$ index.php?endpoint=users&id=$1&function=api-key [L]
