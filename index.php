@@ -252,6 +252,13 @@ if(isset($_SERVER['HTTPS'])){
 /* - - - - - Process Based on Endpoint - - - - - */
 if(!$error){
 	switch($endpoint){
+		case 'activity':
+			$activity = new Activity();
+			$activity->api($method, $function, $id, $apiKey);
+			$json = $activity->json;
+			$responseCode = $activity->responseCode;
+			$responseHeader = $activity->responseHeader;
+			break;
 		case 'address':
 			$usAddresses = new USAddresses();
 			$usAddresses->api($method, $id, $apiKey, $data);

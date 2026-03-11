@@ -16,6 +16,8 @@ ErrorDocument 500 /errors.php?code=500
 ErrorDocument 503 /errors.php?code=503
 
 # API Endpoints
+RewriteRule ^activity/?$ index.php?endpoint=activity [L]
+
 RewriteRule ^address(\/[-0-9a-f]{36})?$ index.php?endpoint=address&id=$1 [L]
 
 RewriteRule ^brewer/search$ index.php?endpoint=brewer&function=search [QSA,L]
