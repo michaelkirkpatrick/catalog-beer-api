@@ -136,7 +136,7 @@ ALTER TABLE api_usage ADD UNIQUE INDEX idx_apiKey_year_month (apiKey, year, mont
 
 ## Code Conventions
 
-- Tabs for indentation
+- 4 spaces for indentation
 - Class files: `ClassName.class.php`
 - Entity JSON uses `snake_case` keys (e.g., `brewer_id`, `error_msg`)
 - PHP class properties use `camelCase` (e.g., `$brewerID`, `$errorMsg`)

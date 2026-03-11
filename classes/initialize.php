@@ -6,9 +6,9 @@ define("SERVER_NAME", $_SERVER['SERVER_NAME']);
 // Establish Environment
 $serverName = explode('.', $_SERVER['SERVER_NAME']);
 if($serverName[0] == 'api-staging'){
-	define('ENVIRONMENT', 'staging');
+    define('ENVIRONMENT', 'staging');
 }else{
-	define('ENVIRONMENT', 'production');
+    define('ENVIRONMENT', 'production');
 }
 
 // Load Passwords
@@ -19,6 +19,6 @@ date_default_timezone_set('America/Los_Angeles');
 
 // Autoload Classes
 spl_autoload_register(function ($class_name) {
-	require_once  ROOT . '/classes/' . $class_name . '.class.php';
+    require_once  ROOT . '/classes/' . $class_name . '.class.php';
 });
 ?>
