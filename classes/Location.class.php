@@ -874,6 +874,76 @@ class Location {
         return array('locationArray'=>$locationArray, 'nextCursor'=>$nextCursor);
     }
 
+    // All Locations for Map (Admin Only)
+    public function mapLocations($apiKey){
+        // Validate API Key
+        $apiKeys = new apiKeys();
+        if($apiKeys->validate($apiKey, true)){
+            $users = new Users();
+            $users->validate($apiKeys->userID, true);
+
+            if(!$users->admin){
+                // Not an admin
+                $this->responseCode = 401;
+                $this->error = true;
+                $this->errorMsg = 'Unauthorized: You must be an admin to access this endpoint.';
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 259;
+                $errorLog->errorMsg = 'Unauthorized: Not admin (GET /location/map)';
+                $errorLog->badData = "apiKey: $apiKey";
+                $errorLog->filename = 'API / Location.class.php';
+                $errorLog->write();
+            }
+        }else{
+            // Invalid API Key
+            $this->error = true;
+            $this->errorMsg = 'Invalid API Key.';
+            $this->responseCode = 401;
+        }
+
+        if(!$this->error){
+            $db = new Database();
+            $result = $db->query("SELECT l.id, l.name, l.latitude, l.longitude, b.id AS b_id, b.name AS b_name FROM location l LEFT JOIN brewer b ON l.brewerID = b.id WHERE l.latitude IS NOT NULL AND l.longitude IS NOT NULL AND l.latitude != 0 AND l.longitude != 0");
+            if(!$db->error){
+                $locationArray = array();
+                while($row = $result->fetch_assoc()){
+                    $locationArray[] = array(
+                        'id' => $row['id'],
+                        'object' => 'location',
+                        'name' => $row['name'],
+                        'latitude' => floatval($row['latitude']),
+                        'longitude' => floatval($row['longitude']),
+                        'brewer' => array(
+                            'id' => $row['b_id'],
+                            'name' => $row['b_name']
+                        )
+                    );
+                }
+                $db->close();
+
+                // Build Response
+                $this->json['object'] = 'list';
+                $this->json['url'] = '/location/map';
+                $this->json['data'] = $locationArray;
+            }else{
+                // Query Error
+                $this->error = true;
+                $this->errorMsg = $db->errorMsg;
+                $this->responseCode = 500;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 260;
+                $errorLog->errorMsg = 'Database error (GET /location/map)';
+                $errorLog->badData = $db->errorMsg;
+                $errorLog->filename = 'API / Location.class.php';
+                $errorLog->write();
+            }
+        }
+    }
+
     // Number of Locations
     public function countLocations(){
         // Return
@@ -1422,6 +1492,15 @@ class Location {
                         $this->json['error_msg'] = $this->errorMsg;
                     }
 
+                }elseif($function == 'map'){
+                    // GET https://api.catalog.beer/location/map
+                    // Admin-only: All locations with coordinates for map display
+                    $this->mapLocations($apiKey);
+                    if($this->error){
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                    }
+
                 }else{
                     // Invalid Function
                     $this->responseCode = 404;
@@ -1481,6 +1560,15 @@ class Location {
                 }
                 break;
             case 'PUT':
+                if(!empty($function)){
+                    // Method Not Allowed for /location/{function}
+                    $this->responseCode = 405;
+                    $this->responseHeader = 'Allow: GET';
+                    $this->json['error'] = true;
+                    $this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+                    break;
+                }
+
                 // PUT https://api.catalog.beer/location/{location_id}
 
                 // Handle Empty Fields
@@ -1506,6 +1594,15 @@ class Location {
                 }
                 break;
             case 'PATCH':
+                if(!empty($function)){
+                    // Method Not Allowed for /location/{function}
+                    $this->responseCode = 405;
+                    $this->responseHeader = 'Allow: GET';
+                    $this->json['error'] = true;
+                    $this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+                    break;
+                }
+
                 // PATCH https://api.catalog.beer/location/{location_id}
                 // Which fields are we updating?
                 $patchFields = array();
@@ -1540,6 +1637,15 @@ class Location {
                 }
                 break;
             case 'DELETE':
+                if(!empty($function)){
+                    // Method Not Allowed for /location/{function}
+                    $this->responseCode = 405;
+                    $this->responseHeader = 'Allow: GET';
+                    $this->json['error'] = true;
+                    $this->json['error_msg'] = 'Method Not Allowed. Use GET for this endpoint.';
+                    break;
+                }
+
                 // DELETE https://api.catalog.beer/location/{location_id}
                 // Get userID
                 $apiKeys = new apiKeys();

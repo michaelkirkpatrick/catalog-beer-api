@@ -83,6 +83,7 @@ RSYNC_OUTPUT=$(rsync -azO --no-perms --delete \
 	--exclude '.nova' \
 	--exclude '.gitignore' \
 	--exclude '.gitattributes' \
+	--exclude '.editorconfig' \
 	--exclude '.DS_Store' \
 	--exclude 'CLAUDE.md' \
 	--exclude 'deploy.sh' \
