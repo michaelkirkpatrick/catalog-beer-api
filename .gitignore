@@ -1,5 +1,7 @@
 *.json
 .DS_Store
+.editorconfig
+.nova/
 common/
 
 # Tests: track collection and example env, ignore real env files
