@@ -67,3 +67,47 @@ php cron/prune-api-logging.php staging
 ```
 
 Defaults to `production` if no argument is given.
+
+## error-digest.php
+
+Queries the `error_log` database table for the past 7 days, groups errors by `errorNumber` and `errorMessage`, sends the grouped data to Claude (Haiku) for analysis, and emails a formatted digest via Postmark.
+
+### Scheduling
+
+Runs under the `michael` user (`crontab -e`):
+
+```
+# Send weekly app error digest email (Mondays at 7am Pacific)
+0 7 * * 1 php /var/www/html/api.catalog.beer/public_html/cron/error-digest.php production
+```
+
+### Manual run
+
+```bash
+php cron/error-digest.php production
+php cron/error-digest.php staging
+```
+
+Defaults to `production` if no argument is given.
+
+## php-error-digest.php
+
+Reads the server-wide PHP error log (`/var/log/php/error.log` and rotated files), groups errors by normalized message, sends the grouped data to Claude (Haiku) for analysis, and emails a formatted digest via Postmark. Covers all PHP sites on the server.
+
+### Scheduling
+
+Runs under **root** (`sudo crontab -e`) because `/var/log/php/error.log` is owned by `www-data` and not readable by `michael`:
+
+```
+# Send weekly PHP error digest email (Mondays at 6am Pacific)
+0 6 * * 1 php /var/www/html/api.catalog.beer/public_html/cron/php-error-digest.php production
+```
+
+### Manual run
+
+```bash
+sudo php cron/php-error-digest.php production
+sudo php cron/php-error-digest.php staging
+```
+
+Defaults to `production` if no argument is given. Requires `sudo` (or running as root) to read the PHP error log.
