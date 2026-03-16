@@ -38,13 +38,16 @@ You are analyzing the weekly error log for Catalog.beer, a PHP REST API for a be
 - **116.179.x.x**, **220.181.x.x**: Baidu Spider — Chinese search engine crawler
 - **114.119.x.x**: Bytedance/TikTok crawler
 
+## What's NOT in this log
+
+Apache-level 404s and 403s (bot probes to /wp-admin, /.env, etc.) are **not** logged here — those are handled by Apache access logs and Fail2Ban. This error_log table contains only application-level errors from within the API code.
+
 ## Classification Guide
 
 ### Noise (low priority, expected traffic)
 - Unauthenticated requests (6, 7) from known crawler IPs
 - Frontend C-prefix errors from bot user agents
 - CAPTCHA failures (C17, C18, C21, C22) — bots failing as designed
-- Vulnerability scanner probes (404s on paths like /wp-admin, /.env, /phpMyAdmin)
 - High volume from a single IP that's clearly a bot/scanner
 
 ### Potentially Actionable

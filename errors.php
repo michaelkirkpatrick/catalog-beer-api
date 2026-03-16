@@ -10,26 +10,12 @@ switch($code){
     case 403:
         // Show Error Message
         $json['error'] = true;
-        $json['error_msg'] = "Forbidden - Sorry, you have requested a resource that you don't have permission to view. We've logged the error so our support team is aware of it. If you believe you shoudn't be seeing a 403 error for your request, please contact us: https://catalog.beer/contact";
-        
-        // Log Error
-        $errorLog = new LogError();
-        $errorLog->errorNumber = 403;
-        $errorLog->errorMsg = '403 Error';
-        $errorLog->filename = 'API / errors.php';
-        $errorLog->write();
+        $json['error_msg'] = "Forbidden - Sorry, you have requested a resource that you don't have permission to view. If you believe you shoudn't be seeing a 403 error for your request, please contact us: https://catalog.beer/contact";
         break;
     case 404:
         // Show Error Message
         $json['error'] = true;
-        $json['error_msg'] = "Not Found - Sorry, we weren't able to find the resource you requested. That's a bummer. We've logged the error so our support team is aware of it. If you believe you shoudn't be seeing a 404 error for your request, please contact us: https://catalog.beer/contact";
-        
-        // Log Error
-        $errorLog = new LogError();
-        $errorLog->errorNumber = 404;
-        $errorLog->errorMsg = '404 Error';
-        $errorLog->filename = 'API / errors.php';
-        $errorLog->write();
+        $json['error_msg'] = "Not Found - Sorry, we weren't able to find the resource you requested. That's a bummer. If you believe you shoudn't be seeing a 404 error for your request, please contact us: https://catalog.beer/contact";
         break;
     case 405:
         // Show Error Message

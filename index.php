@@ -354,14 +354,6 @@ if(!$error){
             $responseCode = 404;
             $json['error'] = true;
             $json['error_msg'] = 'Invalid path. The URI you requested does not exist.';
-
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 151;
-            $errorLog->errorMsg = 'Invalid endpoint';
-            $errorLog->badData = $endpoint;
-            $errorLog->filename = 'API / index.php';
-            $errorLog->write();
     }
 }
 
