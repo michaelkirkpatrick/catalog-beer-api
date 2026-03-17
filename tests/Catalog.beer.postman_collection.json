@@ -72594,11 +72594,12 @@
 					"// Which Environment am I in?",
 					"if (pm.environment.get('base_url') === 'api-staging.catalog.beer') {",
 					"    pm.environment.set('staging', 'true');",
-					"    pm.environment.set('api_key_admin', '5f8358b8-4036-4ea2-97ce-a992677efb67');",
 					"} else {",
 					"    pm.environment.set('staging', 'false');",
-					"    pm.environment.set('api_key_admin', '8f610e88-da70-4ff5-9102-eb524e25db76');",
-					"}"
+					"}",
+					"",
+					"// Admin API key from environment file (not hardcoded)",
+					"pm.environment.set('api_key_admin', pm.environment.get('api_key_admin'));"
 				]
 			}
 		},

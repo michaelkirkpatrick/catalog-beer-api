@@ -19,11 +19,20 @@ Tests require an environment file with your API key and target server:
 | `staging.env.json` | Staging server (`api-staging.catalog.beer`) | No (gitignored) |
 | `production.env.json` | Production server (`api.catalog.beer`) | No (gitignored) |
 
-To set up a new environment, copy the example and fill in your API key:
+To set up a new environment, copy the example and fill in your API keys:
 
 ```bash
 cp tests/env.example.json tests/myenv.env.json
 ```
+
+The environment file requires two keys:
+
+| Variable | Purpose |
+|----------|---------|
+| `api_key` | Initial API key for requests (overwritten during test run) |
+| `api_key_admin` | Admin/master API key used for admin-only operations |
+
+Both should be set to your master API key for the target environment. These keys are **not hardcoded** in the collection — they must be provided via the environment file. During the test run, `api_key` is swapped between admin and non-admin keys as tests create users and exercise different permission levels.
 
 ### Test Pages
 
