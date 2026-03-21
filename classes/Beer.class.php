@@ -819,7 +819,7 @@ class Beer {
         $numBeers = ($this->totalCount > 0) ? $this->totalCount : $this->countBeers();
 
         // Next Cursor
-        $offset = base64_decode($cursor);
+        $offset = intval(base64_decode($cursor));
         $nextCursor = $offset + $count;
 
         if($nextCursor <= $numBeers){

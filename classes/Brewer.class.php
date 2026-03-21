@@ -1018,7 +1018,7 @@ class Brewer {
         $numBrewers = ($this->totalCount > 0) ? $this->totalCount : $this->countBrewers();
 
         // Next Cursor
-        $offset = base64_decode($cursor);
+        $offset = intval(base64_decode($cursor));
         $nextCursor = $offset + $count;
 
         if($nextCursor <= $numBrewers){
