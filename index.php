@@ -62,13 +62,6 @@ if(!empty($input)){
             break;
         }
 
-        // Log Error
-        $errorLog = new LogError();
-        $errorLog->errorNumber = 154;
-        $errorLog->errorMsg = 'JSON Decoding Error';
-        $errorLog->badData = $json['error_msg'] . ' // ' . $input;
-        $errorLog->filename = 'API / index.php';
-        $errorLog->write();
     }
 }else{
     // Setup Default Class
@@ -152,13 +145,7 @@ if(in_array($method, $contentTypeMethods)){
             $json['error'] = true;
             $json['error_msg'] = 'Our API only accepts JSON data at this time. Based on your \'Content-Type\' header, it doesn\'t appear that you are sending us \'application/json\' data.';
 
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 157;
-            $errorLog->errorMsg = 'Invalid Content-Type Header';
-            $errorLog->badData = $headers['Content-Type'];
-            $errorLog->filename = 'API / index.php';
-            $errorLog->write();
+
         }
     }
 }
@@ -177,13 +164,7 @@ if(in_array($method, $contentTypeMethods)){
             $json['error'] = true;
             $json['error_msg'] = 'At this time our API only sends data in a JSON format. Based on your \'Accept\' header, it appears that you would like us to send you data in a format other than \'application/json\'.';
 
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 158;
-            $errorLog->errorMsg = 'Invalid Accept header';
-            $errorLog->badData = $headers['Accept'];
-            $errorLog->filename = 'API / index.php';
-            $errorLog->write();
+
         }
     }
 }
@@ -227,13 +208,7 @@ if(isset($_SERVER['HTTPS'])){
             $json['error'] = true;
             $json['error_msg'] = 'Missing API key. Please check that your request includes your API key as the Username using HTTP basic auth and then try again.';
 
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 6;
-            $errorLog->errorMsg = 'No credentials submitted';
-            $errorLog->badData = '';
-            $errorLog->filename = 'API / index.php';
-            $errorLog->write();
+
         }
     }else{
         // No HTTPS
