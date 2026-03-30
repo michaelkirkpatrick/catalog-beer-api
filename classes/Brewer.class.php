@@ -543,157 +543,129 @@ class Brewer {
     }
 
     public function validateURL($url, $type, $class){
-        // Return
         $returnURL = '';
-
-        // Counter
-        $i = 1;
-        $maxCount = 30;
 
         $url = trim($url ?? '');
         if(!empty($url)){
-            // Add HTTP?
+            // Add HTTP if no scheme
             if(!preg_match('/^https?:\/\//', $url)){
-                // Add HTTP
                 $url = 'http://' . $url;
             }
 
-            // Check URL Symantics
-            if(filter_var($url, FILTER_VALIDATE_URL)){
-                $returnURL = $url;
-                $continue = true;
-                while($continue){
-                    // Perform cURL
-                    $curlResponse = $this->curlRequest($url, $type);
-                    $i++;
-
-                    if($curlResponse['httpCode'] >= 200 && $curlResponse['httpCode'] <= 206){
-                        if(!empty($curlResponse['url'])){
-                            // Test New URL
-                            $url = $curlResponse['url'];
-                            $curlResponse = $this->curlRequest($url, $type);
-                            $i++;
-                        }elseif(!preg_match('/^https:\/\//', $url)){
-                            // Check https
-                            $secureURL = str_replace('http://', 'https://', $url);
-                            $curlResponse = $this->curlRequest($secureURL, $type);
-                            $i++;
-                            if($curlResponse['httpCode'] == 200){
-                                // Use HTTPS
-                                $returnURL = $secureURL;
-                                $this->validState[$type] = 'valid';
-
-                                // Stop Loop
-                                $continue = false;
-                            }else{
-                                // HTTPS Not Valid, use HTTP
-                                $returnURL = $url;
-                                $this->validState[$type] = 'valid';
-
-                                // Stop Loop
-                                $continue = false;
-                            }
-                        }else{
-                            // Already HTTPS, good to go
-                            $returnURL = $url;
-                            $this->validState[$type] = 'valid';
-
-                            // Stop Loop
-                            $continue = false;
-                        }
-                    }elseif($curlResponse['httpCode'] == 301){
-                        // Moved Permanently. Save new location.
-                        $returnURL = $curlResponse['url'];
-                        $this->validState[$type] = 'valid';
-
-                        // Stop Loop
-                        $continue = false;
-                    }else{
-                        // Invalid URL
-                        $this->error = true;
-                        $this->validState[$type] = 'invalid';
-                        $this->validMsg[$type] = 'Sorry, something seems to be wrong with your URL. Please check it and try again.';
-                        $returnURL = '';
-                        $this->responseCode = 400;
-
-                        // Log Error
-                        $errorLog = new LogError();
-                        $errorLog->errorNumber = 107;
-                        $errorLog->errorMsg = 'Invalid URL / Failed cURL http';
-                        $errorLog->badData = 'URL: ' . $url . ' / HTTP Response Code: ' . $curlResponse['httpCode'];
-                        $errorLog->filename = $this->filename;
-                        $errorLog->write();
-
-                        // Stop Loop
-                        $continue = false;
-                    }
-
-                    if($i==$maxCount){
-                        // Too Many Redirects
-                        $this->error = true;
-                        $this->validState[$type] = 'invalid';
-                        $this->validMsg[$type] = 'Sorry, something seems to be wrong with your URL. Please check it and try again.';
-                        $returnURL = '';
-                        $this->responseCode = 400;
-
-                        // Log Error
-                        $errorLog = new LogError();
-                        $errorLog->errorNumber = 98;
-                        $errorLog->errorMsg = 'Too many redirects (+30)';
-                        $errorLog->badData = $url;
-                        $errorLog->filename = $this->filename;
-                        $errorLog->write();
-
-                        // Stop Loop
-                        $continue = false;
-                    }
-                }
-
-                // Check Length
-                if(strlen($url) > 255){
-                    // URL Too Long
-                    $this->error = true;
-                    $this->validState[$type] = 'invalid';
-                    $this->validMsg[$type] = 'Sorry, but URL strings are limited to 255 bytes in length. Any chance there is a shorter URL you can use?';
-                    $this->responseCode = 400;
-
-                    // Log Error
-                    $errorLog = new LogError();
-                    $errorLog->errorNumber = 147;
-                    $errorLog->errorMsg = 'URL Too Long';
-                    $errorLog->badData = $url;
-                    $errorLog->filename = $this->filename;
-                    $errorLog->write();
-                }
-            }else{
-                // Invalid URL
+            // Check URL syntax
+            if(!filter_var($url, FILTER_VALIDATE_URL)){
                 $this->error = true;
                 $this->validState[$type] = 'invalid';
                 $this->validMsg[$type] = 'Sorry, something seems to be wrong with your URL. Please check it and try again.';
                 $this->responseCode = 400;
 
-                // Log Error
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 13;
                 $errorLog->errorMsg = 'Invalid URL';
                 $errorLog->badData = $url;
                 $errorLog->filename = $this->filename;
                 $errorLog->write();
+
+                return $returnURL;
             }
-        }else{
-            // Return Blank URL
-            $returnURL = '';
+
+            // Perform cURL HEAD request
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $url,
+                CURLOPT_NOBODY => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_USERAGENT => 'api.catalog.beer/1.0',
+                CURLOPT_TIMEOUT => 10,
+            ]);
+
+            curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $finalUrl = curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
+            $curlError = curl_errno($curl);
+            $curlErrorMsg = curl_error($curl);
+            curl_close($curl);
+
+            if($curlError || $httpCode < 200 || $httpCode >= 400){
+                // Unreachable URL
+                $this->error = true;
+                $this->validState[$type] = 'invalid';
+                $this->validMsg[$type] = 'Sorry, something seems to be wrong with your URL. Please check it and try again.';
+                $returnURL = '';
+                $this->responseCode = 400;
+
+                $errorLog = new LogError();
+                if($curlError){
+                    $errorLog->errorNumber = 16;
+                    $errorLog->errorMsg = 'cURL Error';
+                    $errorLog->badData = "URL: $url / cURL Error: " . $curlErrorMsg;
+                }else{
+                    $errorLog->errorNumber = 107;
+                    $errorLog->errorMsg = 'Invalid URL / Failed cURL';
+                    $errorLog->badData = 'URL: ' . $url . ' / HTTP Response Code: ' . $httpCode;
+                }
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+
+                return $returnURL;
+            }
+
+            // Use the final URL after redirects
+            $returnURL = !empty($finalUrl) ? $finalUrl : $url;
+
+            // If still HTTP, try HTTPS upgrade
+            if(preg_match('/^http:\/\//', $returnURL)){
+                $secureURL = preg_replace('/^http:\/\//', 'https://', $returnURL);
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => $secureURL,
+                    CURLOPT_NOBODY => true,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_USERAGENT => 'api.catalog.beer/1.0',
+                    CURLOPT_TIMEOUT => 10,
+                ]);
+
+                curl_exec($curl);
+                $httpsCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                curl_close($curl);
+
+                if($httpsCode >= 200 && $httpsCode < 400){
+                    $returnURL = $secureURL;
+                }
+            }
+
+            $this->validState[$type] = 'valid';
+
+            // Check Length
+            if(strlen($returnURL) > 255){
+                $this->error = true;
+                $this->validState[$type] = 'invalid';
+                $this->validMsg[$type] = 'Sorry, but URL strings are limited to 255 bytes in length. Any chance there is a shorter URL you can use?';
+                $this->responseCode = 400;
+                $returnURL = '';
+
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 147;
+                $errorLog->errorMsg = 'URL Too Long';
+                $errorLog->badData = $url;
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+            }
         }
 
-        // Validate URLs
+        // Domain name check for brewers
         if(!empty($returnURL)){
             if($type == 'url' && $class == 'brewer'){
-                // Get Domain name from Brewery URL
                 $this->domainName = $this->urlDomainName($returnURL);
             }
         }
 
-        // Return
         return $returnURL;
     }
 
@@ -764,61 +736,6 @@ class Brewer {
         return $urlDomainName;
     }
 
-    private function curlRequest($url, $type){
-        // Return URL
-        $returnURL = '';
-
-        // Initialize Curl
-        $curl = curl_init();
-
-        // URL to Test
-        curl_setopt($curl, CURLOPT_URL, $url);
-
-        // Headers
-        curl_setopt($curl, CURLOPT_NOBODY, true);
-        if(preg_match('/^https:\/\//', $url)){
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
-        }
-        curl_setopt($curl, CURLOPT_HEADER, true);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($curl, CURLOPT_USERAGENT, 'api.catalog.beer/1.0');
-        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-
-        // Send Request, Get Output
-        $output = curl_exec($curl);
-
-        // Response HTTP Code
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
-        if(curl_errno($curl)){
-            // cURL Error
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 16;
-            $errorLog->errorMsg = 'cURL Error';
-            $errorLog->badData = "URL: $url / cURL Error: " . curl_error($curl);
-            $errorLog->filename = $this->filename;
-            $errorLog->write();
-        }
-
-        // Process Output?
-        if(gettype($output) == 'string'){
-            if(preg_match('/[lL]ocation: (.+)/', $output, $matches)){
-                $newLineChars = array("\n", "\r");
-                $returnURL = str_replace($newLineChars, '', $matches[1]);
-            }
-            if(preg_match('/HTTP\/1.1 ([0-9]{3})/', $output, $matches)){
-                $httpCode = intval($matches[1]);
-            }
-        }
-
-        // Close curl
-        curl_close($curl);
-
-        // Return
-        return array('httpCode'=>$httpCode, 'url'=>$returnURL);
-    }
 
     // Validate Brewer
     public function validate($brewerID, $saveToClass){
