@@ -237,7 +237,7 @@ if(!$error && $endpoint != 'usage'){
                 $row = $result->fetch_assoc();
                 $usageCount = intval($row['count']);
             }
-            if(strtotime('2026-04-01') <= time() && $usageCount > $apiKeys->requestLimit + $apiKeys->requestBuffer){
+            if($usageCount > $apiKeys->requestLimit + $apiKeys->requestBuffer){
                 $error = true;
                 $rateLimited = true;
                 $responseCode = 429;
