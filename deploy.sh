@@ -88,7 +88,6 @@ RSYNC_OUTPUT=$(rsync -azO --no-perms --delete \
 	--exclude 'CLAUDE.md' \
 	--exclude 'deploy.sh' \
 	--exclude '*.sql' \
-	--exclude 'common/' \
 	--exclude 'algolia/test.php' \
 	--exclude 'README.md' \
 	--exclude 'maintenance.php' \
