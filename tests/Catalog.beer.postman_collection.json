@@ -386,7 +386,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"{{$randomFullName}\",\n    \"email\": \"michael@interchangedesign.com\",\n    \"terms_agreement\": true\n}"
+									"raw": "{\n    \"name\": \"{{$randomFullName}\",\n    \"email\": \"michael@catalog.beer\",\n    \"terms_agreement\": true\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/users",
@@ -45634,7 +45634,7 @@
 									"response": []
 								},
 								{
-									"name": "L-127 Location #16: Change All",
+									"name": "L-127 Location #28: Change All",
 									"event": [
 										{
 											"listen": "test",
@@ -46621,6 +46621,72 @@
 											"path": [
 												"location",
 												"{{location_id_25}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-169 Delete Location #28",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													""
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_28}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_28}}"
 											]
 										}
 									},
