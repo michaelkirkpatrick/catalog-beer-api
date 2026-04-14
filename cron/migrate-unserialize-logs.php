@@ -53,12 +53,13 @@ function toStorableString($value): ?string {
 }
 
 // After the Database utf8mb4 switch, rows containing invalid UTF-8 bytes
-// will fail to re-insert. Sanitize to replacement chars so we can migrate them.
+// will fail to re-insert. Preserve them as readable hex so no info is lost.
+// Uses PCRE (always available) instead of mbstring (optional extension).
 function sanitizeUtf8(string $s): string {
-    if(mb_check_encoding($s, 'UTF-8')){
+    if(@preg_match('//u', $s) === 1){
         return $s;
     }
-    return mb_convert_encoding($s, 'UTF-8', 'UTF-8');
+    return '[binary: 0x' . bin2hex($s) . ']';
 }
 
 function migrateTable(Database $db, string $table, string $column, string $idColumn, int $batchSize, bool $dryRun): void {
