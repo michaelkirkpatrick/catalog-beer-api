@@ -429,9 +429,33 @@ if(!empty($grouped)){
     $htmlContent .= '</table>';
 }
 
+// Build log attachment from filtered entries
+$logText = '';
+foreach($filteredEntries as $entry){
+    $logText .= '[' . $entry['datetime'] . '] ' . $entry['message'] . "\n";
+    if(!empty($entry['stack_trace'])){
+        $logText .= $entry['stack_trace'] . "\n";
+    }
+}
+
+// Postmark message limit is 10MB; cap attachment at 5MB
+$maxAttachmentBytes = 5 * 1024 * 1024;
+if(strlen($logText) > $maxAttachmentBytes){
+    $logText = substr($logText, 0, $maxAttachmentBytes) . "\n\n[Log truncated — exceeded 5MB]";
+}
+
+$attachments = [];
+if(!empty($logText)){
+    $attachments[] = [
+        'Name' => 'php-errors-' . date('Y-m-d', $weekStart) . '-to-' . date('Y-m-d', $weekEnd) . '.txt',
+        'Content' => base64_encode($logText),
+        'ContentType' => 'text/plain'
+    ];
+}
+
 // Send email
 $sendEmail = new SendEmail();
-$sendEmail->phpErrorDigest($htmlContent, $textBody, number_format($filteredCount), $weekLabel);
+$sendEmail->phpErrorDigest($htmlContent, $textBody, number_format($filteredCount), $weekLabel, $attachments);
 
 if($sendEmail->error){
     echo "Error sending digest: " . $sendEmail->errorMsg . "\n";

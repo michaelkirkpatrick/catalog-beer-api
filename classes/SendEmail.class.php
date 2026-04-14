@@ -135,7 +135,7 @@ class SendEmail {
         $this->send($to, $subject, $tag, $htmlBody, $textBody);
     }
 
-    public function phpErrorDigest($htmlContent, $textBody, $count, $date){
+    public function phpErrorDigest($htmlContent, $textBody, $count, $date, $attachments = []){
         // Email Basics
         $to = 'michael@catalog.beer';
         $subject = "Weekly PHP Error Digest: $count errors — $date";
@@ -147,14 +147,14 @@ class SendEmail {
         $htmlBody = str_replace('##CONTENT##', $htmlContent, $htmlBody);
 
         // Send Email
-        $this->send($to, $subject, $tag, $htmlBody, $textBody);
+        $this->send($to, $subject, $tag, $htmlBody, $textBody, $attachments);
     }
 
-    private function send($to, $subject, $tag, $htmlBody, $textBody){
+    private function send($to, $subject, $tag, $htmlBody, $textBody, $attachments = []){
         if(!$this->testing){
             // Generate Postmark Email Body
             $postmarkSendEmail = new PostmarkSendEmail();
-            $postmarkSendEmail->generateBody($to, $subject, $tag, $htmlBody, $textBody);
+            $postmarkSendEmail->generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments);
             $json = json_encode($postmarkSendEmail);
 
             // Start cURL

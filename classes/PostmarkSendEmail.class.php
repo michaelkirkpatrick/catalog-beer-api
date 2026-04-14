@@ -10,14 +10,16 @@ class PostmarkSendEmail {
     public $TrackOpens = false;
     public $TrackLinks = 'None';
     public $bcc = '';
+    public $Attachments = [];
 
-    function generateBody($to, $subject, $tag, $htmlBody, $textBody){
+    function generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments = []){
         $this->to = $to;
         $this->bcc = 'michael@catalog.beer';
         $this->subject = $subject;
         $this->tag = $tag;
         $this->HtmlBody = $htmlBody;
         $this->TextBody = $textBody;
+        $this->Attachments = $attachments;
     }
 }   
 ?>
