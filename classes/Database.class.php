@@ -34,7 +34,7 @@ class Database {
             $errorLog->write();
             return;
         }
-        $this->mysqli->set_charset("utf8");
+        $this->mysqli->set_charset("utf8mb4");
     }
 
     public function query(string $sql, array $params = []): ?mysqli_result {
@@ -104,6 +104,10 @@ class Database {
 
     // ----- Close Connection -----
     public function close(): void {
+        // Skip if connection never succeeded — $this->mysqli may be unusable
+        if($this->error){
+            return;
+        }
         if(!$this->mysqli->close()){
             // Unsuccessful close
             // Log Error

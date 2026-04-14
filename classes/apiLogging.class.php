@@ -36,7 +36,7 @@ class apiLogging {
             $this->ipAddress = $_SERVER['REMOTE_ADDR'];
             $this->method = $method;
             $this->uri = $uri;
-            $this->body = serialize($body);
+            $this->body = is_string($body) ? $body : json_encode($body);
             if($method == 'GET'){
                 // Don't save the response (Memory Issues with large requests)
                 $this->response = '';
@@ -61,7 +61,7 @@ class apiLogging {
             $errorLog = new LogError();
             $errorLog->errorNumber = 48;
             $errorLog->errorMsg = 'Missing required parameter';
-            $errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: " . serialize($body);
+            $errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: " . (is_string($body) ? $body : json_encode($body));
             $errorLog->filename = 'API / apiLogging.class.php';
             $errorLog->write();
         }
