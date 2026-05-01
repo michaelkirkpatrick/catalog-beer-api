@@ -11,16 +11,21 @@ class Database {
     private int $affectedRows = 0;
 
     public function __construct(){
-        // Restore pre-PHP 8.1 error handling (return false instead of throwing exceptions)
-        mysqli_report(MYSQLI_REPORT_OFF);
+        // Use exception-based error handling so transient MySQL failures
+        // (server gone away, connection refused, greeting packet errors)
+        // surface as catchable mysqli_sql_exception instead of PHP warnings
+        // or uncaught fatal errors. PHP 8.1+ default; set explicitly for clarity.
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
         // Connect to Database
         $this->connect();
     }
 
     private function connect(): void {
-        $this->mysqli = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
-        if($this->mysqli->connect_error){
+        try {
+            $this->mysqli = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
+            $this->mysqli->set_charset("utf8mb4");
+        } catch (mysqli_sql_exception $e) {
             $this->error = true;
             $this->errorMsg = 'Database connection error.';
             $this->responseCode = 500;
@@ -29,12 +34,10 @@ class Database {
             $errorLog = new LogError();
             $errorLog->errorNumber = 1;
             $errorLog->errorMsg = 'Database Connection Error';
-            $errorLog->badData = $this->mysqli->connect_errno;
+            $errorLog->badData = $e->getCode() . ': ' . $e->getMessage();
             $errorLog->filename = 'API / Database.class.php';
             $errorLog->write();
-            return;
         }
-        $this->mysqli->set_charset("utf8mb4");
     }
 
     public function query(string $sql, array $params = []): ?mysqli_result {
@@ -42,8 +45,9 @@ class Database {
             return null;
         }
 
-        $stmt = $this->mysqli->prepare($sql);
-        if(!$stmt){
+        try {
+            $stmt = $this->mysqli->prepare($sql);
+        } catch (mysqli_sql_exception $e) {
             $this->error = true;
             $this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
             $this->responseCode = 500;
@@ -52,7 +56,7 @@ class Database {
             $errorLog = new LogError();
             $errorLog->errorNumber = 2;
             $errorLog->errorMsg = 'SQL Prepare Error';
-            $errorLog->badData = 'Query: ' . $sql . ' MySQL Error: ' . $this->mysqli->error;
+            $errorLog->badData = 'Query: ' . $sql . ' MySQL Error: ' . $e->getMessage();
             $errorLog->filename = 'API / Database.class.php';
             $errorLog->write();
             return null;
@@ -68,7 +72,9 @@ class Database {
             $stmt->bind_param($types, ...$params);
         }
 
-        if(!$stmt->execute()){
+        try {
+            $stmt->execute();
+        } catch (mysqli_sql_exception $e) {
             $this->error = true;
             $this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
             $this->responseCode = 500;
@@ -77,7 +83,7 @@ class Database {
             $errorLog = new LogError();
             $errorLog->errorNumber = 3;
             $errorLog->errorMsg = 'SQL Execution Error';
-            $errorLog->badData = 'Query: ' . $sql . ' Params: ' . json_encode($params) . ' MySQL Error: ' . $stmt->error;
+            $errorLog->badData = 'Query: ' . $sql . ' Params: ' . json_encode($params) . ' MySQL Error: ' . $e->getMessage();
             $errorLog->filename = 'API / Database.class.php';
             $errorLog->write();
             $stmt->close();
@@ -108,14 +114,24 @@ class Database {
         if($this->error){
             return;
         }
-        if(!$this->mysqli->close()){
-            // Unsuccessful close
+        try {
+            if(!$this->mysqli->close()){
+                // Unsuccessful close
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 124;
+                $errorLog->filename = 'API / Database.class.php';
+                $errorLog->errorMsg = 'Database Error';
+                $errorLog->badData = 'Unable to close database connection';
+                $errorLog->write();
+            }
+        } catch (mysqli_sql_exception $e) {
             // Log Error
             $errorLog = new LogError();
             $errorLog->errorNumber = 124;
             $errorLog->filename = 'API / Database.class.php';
             $errorLog->errorMsg = 'Database Error';
-            $errorLog->badData = 'Unable to close database connection';
+            $errorLog->badData = 'Unable to close database connection: ' . $e->getMessage();
             $errorLog->write();
         }
     }
