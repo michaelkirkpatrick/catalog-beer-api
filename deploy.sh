@@ -104,7 +104,8 @@ else
 	echo "No files changed."
 fi
 
-# Set ownership and permissions so Apache can read/serve and michael can deploy
-ssh -S "$SOCKET" -t "$REMOTE" "sudo chown -R www-data:developers $REMOTE_PATH/ && sudo find $REMOTE_PATH/ -type d -exec chmod 2775 {} + && sudo find $REMOTE_PATH/ -type f -exec chmod 664 {} +"
+# Set ownership and permissions so Apache can read/serve and michael can deploy.
+# common/passwords.php is locked down to 600 (owner-only) since it holds secrets.
+ssh -S "$SOCKET" -t "$REMOTE" "sudo chown -R www-data:developers $REMOTE_PATH/ && sudo find $REMOTE_PATH/ -type d -exec chmod 2775 {} + && sudo find $REMOTE_PATH/ -type f -exec chmod 664 {} + && sudo chmod 600 $REMOTE_PATH/common/passwords.php"
 
 echo "Deploy to $DEST complete."

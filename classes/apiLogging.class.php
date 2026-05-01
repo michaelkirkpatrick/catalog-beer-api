@@ -17,6 +17,15 @@ class apiLogging {
     public $response = '';
     public $responseCode = 0;
 
+    // Field names redacted from logged body and response
+    private static $sensitiveKeys = [
+        'password',
+        'new_password',
+        'current_password',
+        'confirm_password',
+        'password_reset_key',
+    ];
+
     // Error Handling
     private $error = false;
 
@@ -36,13 +45,13 @@ class apiLogging {
             $this->ipAddress = $_SERVER['REMOTE_ADDR'];
             $this->method = $method;
             $this->uri = $uri;
-            $this->body = is_string($body) ? $body : json_encode($body);
+            $this->body = $this->scrubSensitive($body);
             if($method == 'GET'){
                 // Don't save the response (Memory Issues with large requests)
                 $this->response = '';
             }else{
                 // Save the Response
-                $this->response = $response;
+                $this->response = $this->scrubSensitive($response);
             }
             $this->responseCode = $responseCode;
 
@@ -61,9 +70,37 @@ class apiLogging {
             $errorLog = new LogError();
             $errorLog->errorNumber = 48;
             $errorLog->errorMsg = 'Missing required parameter';
-            $errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: " . (is_string($body) ? $body : json_encode($body));
+            $errorLog->badData = "apiKey: $apiKey / method: $method / uri: $uri / body: " . $this->scrubSensitive($body);
             $errorLog->filename = 'API / apiLogging.class.php';
             $errorLog->write();
         }
+    }
+
+    // Redact known-sensitive fields from a JSON body or response before storage.
+    private function scrubSensitive($payload): string {
+        if($payload === null || $payload === ''){
+            return '';
+        }
+
+        $payloadStr = is_string($payload) ? $payload : json_encode($payload);
+        $decoded = json_decode($payloadStr, true);
+
+        // Not a JSON object/array — nothing structured to scrub.
+        if(!is_array($decoded)){
+            return $payloadStr;
+        }
+
+        return json_encode($this->redactKeys($decoded));
+    }
+
+    private function redactKeys(array $data): array {
+        foreach($data as $key => &$value){
+            if(in_array($key, self::$sensitiveKeys, true)){
+                $value = '[REDACTED]';
+            }elseif(is_array($value)){
+                $value = $this->redactKeys($value);
+            }
+        }
+        return $data;
     }
 }

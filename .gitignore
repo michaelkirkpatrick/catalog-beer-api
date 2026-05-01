@@ -2,7 +2,7 @@
 .DS_Store
 .editorconfig
 .nova/
-common/
+common/passwords.php
 
 # Tests: track collection and example env, ignore real env files
 !tests/Catalog.beer.postman_collection.json
