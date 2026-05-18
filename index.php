@@ -174,8 +174,13 @@ if(isset($_SERVER['HTTPS'])){
     if($_SERVER['HTTPS'] == 'on'){
         // Check Authorization Header
         if(isset($_SERVER['PHP_AUTH_USER'])){
-            // Get Submitted Username and Password
-            $apiKey = $_SERVER['PHP_AUTH_USER'];
+            // API keys are UUIDs (36 chars). Truncate longer inputs so they
+            // fit downstream varchar(36) columns on api_logging and api_usage.
+            // Overlong keys (Ethereum wallet addresses, base64-wrapped UUIDs,
+            // etc. — typically from misconfigured scrapers) still fail
+            // validate() and produce the same 401, but the audit row writes
+            // cleanly instead of triggering apiKey column-overflow errors.
+            $apiKey = substr($_SERVER['PHP_AUTH_USER'], 0, 36);
 
             if(!empty($apiKey)){
                 $apiKeys = new apiKeys();
@@ -192,14 +197,6 @@ if(isset($_SERVER['HTTPS'])){
                 $responseCode = 401;
                 $json['error'] = true;
                 $json['error_msg'] = 'We are missing your API Key. This key should be submitted in the username field of your API request using HTTP Basic Auth. No password is required.';
-
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 7;
-                $errorLog->errorMsg = 'Missing username';
-                $errorLog->badData = '';
-                $errorLog->filename = 'API / index.php';
-                $errorLog->write();
             }
         }else{
             // Invalid Authentication

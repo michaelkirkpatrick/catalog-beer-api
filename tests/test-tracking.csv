@@ -34,6 +34,7 @@ Users,U-32,Update User #2 - Name,PATCH,/users/{{user_id_2}},Non-Admin,200,Done
 Users,U-33,Update User #2 - Password,PATCH,/users/{{user_id_2}},Non-Admin,200,Done
 Users,U-34,Update User #2 - Email (Same Domain),PATCH,/users/{{user_id_2}},Non-Admin,200,Done
 Users,U-35,Generic Request - No API Key,GET,/,None,401,Done
+Users,U-48,Long API Key (Truncated),GET,/,Ethereum-style,401,Done
 Users,U-36,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Non-Admin,403,Done
 Users,U-37,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Test User,200 (staging) / 204 (prod),Done
 Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_id_3}}/reset-password,Test User,400,Done
