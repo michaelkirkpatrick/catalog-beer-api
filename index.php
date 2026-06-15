@@ -90,6 +90,12 @@ if(isset($_GET['id'])){
     $id = substr($_GET['id'], 1, 36);
 }
 
+// Style ids are slugs (variable length, up to 64), not 36-char UUIDs — the
+// generic substr above would truncate them, so read the raw slug instead.
+if($endpoint == 'style' && isset($_GET['id'])){
+    $id = ltrim($_GET['id'], '/');
+}
+
 // Location GET parameters are read directly via $_GET in Location::api()
 
 // --- Health Check (no auth required) ---
@@ -306,6 +312,13 @@ if(!$error){
             $json = $users->json;
             $responseCode = $users->responseCode;
             $responseHeader = $users->responseHeader;
+            break;
+        case 'style':
+            $style = new Style();
+            $style->api($method, $function, $id);
+            $json = $style->json;
+            $responseCode = $style->responseCode;
+            $responseHeader = $style->responseHeader;
             break;
         case 'usage':
             $usage = new Usage();

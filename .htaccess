@@ -33,6 +33,10 @@ RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
 RewriteRule ^beer/count$ index.php?endpoint=beer&function=count [L]
 
+RewriteRule ^style/parent$ index.php?endpoint=style&function=parent [L]
+RewriteRule ^style/([a-z0-9-]+)$ index.php?endpoint=style&id=$1 [L]
+RewriteRule ^style/?$ index.php?endpoint=style [L]
+
 RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
 RewriteRule ^location/map$ index.php?endpoint=location&function=map [L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
