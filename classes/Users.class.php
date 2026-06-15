@@ -709,14 +709,6 @@ class Users {
                         $this->error = true;
                         $this->errorMsg = 'Sorry, this appears to be an invalid email verification code. Please double check that you have clicked on the link in your email or have copy and pasted the entirety of the link into your browser.';
                         $this->responseCode = 400;
-
-                        // Log Error
-                        $errorLog = new LogError();
-                        $errorLog->errorNumber = 83;
-                        $errorLog->errorMsg = 'Invalid emailAuth';
-                        $errorLog->badData = "emailAuth: $emailAuth";
-                        $errorLog->filename = 'API / Users.class.php';
-                        $errorLog->write();
                     }
                 }else{
                     // Query Error
