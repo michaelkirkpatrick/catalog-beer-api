@@ -29,6 +29,8 @@ class Style {
         if(!empty($function)){
             if($function === 'parent'){
                 $this->listParents();
+            }elseif($function === 'class'){
+                $this->listClasses();
             }else{
                 $this->responseCode = 404;
                 $this->json['error'] = true;
@@ -156,30 +158,71 @@ class Style {
         );
     }
 
-    // GET /style/parent — the parent groupings
+    // GET /style/parent — the family groupings (with class rollup + aliases)
     private function listParents(){
         $db = new Database();
-        $result = $db->query("SELECT slug, name, beverage_type, description, sort_order FROM style_parent ORDER BY sort_order");
-        if($db->error){
-            $this->dbError($db->errorMsg, $db->responseCode);
-            $db->close();
-            return;
-        }
-        $data = array();
+        $parents = array();
+        $order = array();
+        $result = $db->query("SELECT slug, name, beverage_type, class, description, sort_order FROM style_parent ORDER BY sort_order");
+        if($db->error){ $this->dbError($db->errorMsg, $db->responseCode); $db->close(); return; }
         while($row = $result->fetch_assoc()){
-            $data[] = array(
+            $parents[$row['slug']] = array(
                 'slug' => $row['slug'],
                 'object' => 'style_parent',
                 'name' => $row['name'],
                 'beverage_type' => $row['beverage_type'],
+                'class' => $row['class'],
                 'description' => $row['description'],
                 'sort_order' => intval($row['sort_order']),
+                'aliases' => array(),
             );
+            $order[] = $row['slug'];
+        }
+        // Attach family aliases
+        $result = $db->query("SELECT alias, parent FROM parent_alias");
+        if($db->error){ $this->dbError($db->errorMsg, $db->responseCode); $db->close(); return; }
+        while($row = $result->fetch_assoc()){
+            if(isset($parents[$row['parent']])){ $parents[$row['parent']]['aliases'][] = $row['alias']; }
         }
         $db->close();
 
+        $data = array();
+        foreach($order as $slug){ $data[] = $parents[$slug]; }
         $this->json['object'] = 'list';
         $this->json['url'] = '/style/parent';
+        $this->json['has_more'] = false;
+        $this->json['data'] = $data;
+    }
+
+    // GET /style/class — the super-classes (Ale/Lager) with aliases
+    private function listClasses(){
+        $db = new Database();
+        $classes = array();
+        $order = array();
+        $result = $db->query("SELECT slug, name, beverage_type, sort_order FROM style_class ORDER BY sort_order");
+        if($db->error){ $this->dbError($db->errorMsg, $db->responseCode); $db->close(); return; }
+        while($row = $result->fetch_assoc()){
+            $classes[$row['slug']] = array(
+                'slug' => $row['slug'],
+                'object' => 'style_class',
+                'name' => $row['name'],
+                'beverage_type' => $row['beverage_type'],
+                'sort_order' => intval($row['sort_order']),
+                'aliases' => array(),
+            );
+            $order[] = $row['slug'];
+        }
+        $result = $db->query("SELECT alias, class FROM class_alias");
+        if($db->error){ $this->dbError($db->errorMsg, $db->responseCode); $db->close(); return; }
+        while($row = $result->fetch_assoc()){
+            if(isset($classes[$row['class']])){ $classes[$row['class']]['aliases'][] = $row['alias']; }
+        }
+        $db->close();
+
+        $data = array();
+        foreach($order as $slug){ $data[] = $classes[$slug]; }
+        $this->json['object'] = 'list';
+        $this->json['url'] = '/style/class';
         $this->json['has_more'] = false;
         $this->json['data'] = $data;
     }

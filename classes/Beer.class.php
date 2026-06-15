@@ -6,8 +6,10 @@ class Beer {
     public $brewerID = '';
     public $name = '';
     public $style = '';                 // Human-readable label (style_label); also written to legacy `style`
-    public $styleID = null;             // Canonical style FK (style.id slug)
-    public $beverageType = 'beer';      // Derived from the resolved style row: beer|cider|perry|mead
+    public $styleID = null;             // Canonical style FK (style.id slug) — null if filed at family/class level
+    public $parent = null;              // Family FK (style_parent.slug) — derived up, or filed directly
+    public $class = null;               // Super-class FK (style_class.slug: ale|lager) — derived up, or filed directly
+    public $beverageType = 'beer';      // Derived from the resolved row: beer|cider|perry|mead
     public $description = '';           // Optional
     public $abv = 0;
     public $ibu = 0;                    // Optional
@@ -35,7 +37,7 @@ class Beer {
     private $totalCount = 0;
 
 
-    public function add($brewerID, $name, $style, $styleID, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
+    public function add($brewerID, $name, $style, $styleID, $parent, $class, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
 
         // Required Classes
         $brewer = new Brewer();
@@ -263,7 +265,7 @@ class Beer {
 
                 // Validate Fields
                 $this->validateName();
-                $this->resolveStyle($styleID);
+                $this->resolveStyle($styleID, $parent, $class);
                 $this->validateDescription();
                 $this->validateABV();
                 $this->validateIBU();
@@ -275,8 +277,8 @@ class Beer {
                     if($newBeer){
                         // Add Beer (POST/PUT)
                         // `style` (legacy) and `style_label` both carry the human label during transition.
-                        $columns = ['id', 'brewerID', 'name', 'style', 'style_id', 'style_label', 'beverage_type', 'abv', 'cbVerified', 'brewerVerified', 'lastModified'];
-                        $params = [$this->beerID, $this->brewerID, $this->name, $this->style, $this->styleID, $this->style, $this->beverageType, $this->abv, $dbCBV, $dbBV, $this->lastModified];
+                        $columns = ['id', 'brewerID', 'name', 'style', 'style_id', 'parent', 'class', 'style_label', 'beverage_type', 'abv', 'cbVerified', 'brewerVerified', 'lastModified'];
+                        $params = [$this->beerID, $this->brewerID, $this->name, $this->style, $this->styleID, $this->parent, $this->class, $this->style, $this->beverageType, $this->abv, $dbCBV, $dbBV, $this->lastModified];
                         if(!empty($this->description)){
                             $columns[] = 'description';
                             $params[] = $this->description;
@@ -290,8 +292,8 @@ class Beer {
                     }else{
                         // Update Beer (PUT)
                         // PUT is a full replacement — omitted fields are cleared
-                        $setClauses = ['brewerID=?', 'name=?', 'style=?', 'style_id=?', 'style_label=?', 'beverage_type=?', 'abv=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
-                        $setParams = [$this->brewerID, $this->name, $this->style, $this->styleID, $this->style, $this->beverageType, $this->abv, $dbCBV, $dbBV, $this->lastModified];
+                        $setClauses = ['brewerID=?', 'name=?', 'style=?', 'style_id=?', 'parent=?', 'class=?', 'style_label=?', 'beverage_type=?', 'abv=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
+                        $setParams = [$this->brewerID, $this->name, $this->style, $this->styleID, $this->parent, $this->class, $this->style, $this->beverageType, $this->abv, $dbCBV, $dbBV, $this->lastModified];
                         if(!empty($this->description)){
                             $setClauses[] = 'description=?';
                             $setParams[] = $this->description;
@@ -338,21 +340,19 @@ class Beer {
                     }
                 }
 
-                // Resolve Style (style_label and/or style_id changed)
+                // Resolve Style (style_label / style_id / parent / class changed)
                 if(in_array('style', $patchFields)){
-                    // Re-resolve from the submitted label + style_id. style_id can change
-                    // even when the label doesn't, so always re-resolve when style is patched.
+                    // Re-resolve from the submitted label + tier pick. Any of style_id/
+                    // parent/class can change, so always re-resolve when style is patched.
                     $this->style = $style;
-                    $this->resolveStyle($styleID);
+                    $this->resolveStyle($styleID, $parent, $class);
                     if(!$this->error){
-                        $setClauses[] = "style=?";
-                        $setParams[] = $this->style;
-                        $setClauses[] = "style_id=?";
-                        $setParams[] = $this->styleID;
-                        $setClauses[] = "style_label=?";
-                        $setParams[] = $this->style;
-                        $setClauses[] = "beverage_type=?";
-                        $setParams[] = $this->beverageType;
+                        $setClauses[] = "style=?";        $setParams[] = $this->style;
+                        $setClauses[] = "style_id=?";     $setParams[] = $this->styleID;
+                        $setClauses[] = "parent=?";       $setParams[] = $this->parent;
+                        $setClauses[] = "class=?";        $setParams[] = $this->class;
+                        $setClauses[] = "style_label=?";  $setParams[] = $this->style;
+                        $setClauses[] = "beverage_type=?"; $setParams[] = $this->beverageType;
                     }
                 }
 
@@ -490,20 +490,23 @@ class Beer {
     }
 
     /*--
-    Resolve the submitted style to a canonical style_id while preserving the
-    brewer's raw label. Sets $this->style (label), $this->styleID, and
-    $this->beverageType (always derived from the resolved style row — never
-    trusted from the client). Resolution order:
-      1. explicit style_id (the typeahead's pick) — validated against `style`
-      2. raw label: exact canonical_name match, then style_alias lookup
+    Resolve the submitted classification to a style, family (parent), or
+    super-class (Ale/Lager), preserving the brewer's raw label. A beer may be
+    filed at any tier — encyclopedic brewers pick a style; generic brewers pick
+    a family or class. Sets $this->style (label), $this->styleID, $this->parent,
+    $this->class, $this->beverageType (all derived up the tree — never trusted
+    from the client). Resolution:
+      1. explicit style_id / parent / class (the typeahead's pick), most specific first
+      2. raw label: exact style name -> class alias -> family alias -> style alias
       3. unresolved -> 400 with a helpful, suggestion-oriented message
-    The collation (utf8mb4_0900_ai_ci) makes name/alias matching case- and
-    accent-insensitive.
+    Collation utf8mb4_0900_ai_ci makes name/alias matching case/accent-insensitive.
     --*/
-    private function resolveStyle($styleID){
+    private function resolveStyle($styleID, $parent = '', $class = ''){
         // Trim
         $this->style = trim($this->style ?? '');
         $styleID = trim($styleID ?? '');
+        $parent = trim($parent ?? '');
+        $class = trim($class ?? '');
 
         // Label length guard (style_label / legacy style are varchar(255))
         if(!empty($this->style) && strlen($this->style) > 255){
@@ -512,7 +515,6 @@ class Beer {
             $this->validMsg['style'] = 'We hate to say it but this beer style is too long for our database. Style names are limited to 255 bytes. Any chance you can shorten it?';
             $this->responseCode = 400;
 
-            // Log Error
             $errorLog = new LogError();
             $errorLog->errorNumber = 16;
             $errorLog->errorMsg = 'Beer style name too long (>255 Characters)';
@@ -524,53 +526,49 @@ class Beer {
 
         $db = new Database();
 
-        // 1. Explicit style_id wins (the guided typeahead's resolved pick)
+        // 1. Explicit picks (most specific first: style_id > parent > class)
         if(!empty($styleID)){
-            $result = $db->query("SELECT id, canonical_name, beverage_type FROM style WHERE id=?", [$styleID]);
-            if(!$db->error){
-                if($result !== null && $result->num_rows === 1){
-                    $row = $result->fetch_assoc();
-                    $this->styleID = $row['id'];
-                    $this->beverageType = $row['beverage_type'];
-                    if(empty($this->style)){ $this->style = $row['canonical_name']; }
-                    $this->validState['style'] = 'valid';
-                    $db->close();
-                    return;
-                }else{
-                    // Unknown style_id
-                    $this->error = true;
-                    $this->validState['style'] = 'invalid';
-                    $this->validMsg['style'] = 'The style_id you provided doesn\'t match any style in our catalog. Please choose a style from the list.';
-                    $this->responseCode = 400;
-
-                    // Log Error
-                    $errorLog = new LogError();
-                    $errorLog->errorNumber = 262;
-                    $errorLog->errorMsg = 'Invalid style_id (no matching style)';
-                    $errorLog->badData = $styleID;
-                    $errorLog->filename = 'API / Beer.class.php';
-                    $errorLog->write();
-                    $db->close();
-                    return;
-                }
-            }else{
-                // Query Error
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
+            $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class FROM style s JOIN style_parent p ON s.parent=p.slug WHERE s.id=?", [$styleID]);
+            if($db->error){ return $this->resolveDbError($db); }
+            if($result !== null && $result->num_rows === 1){
+                $row = $result->fetch_assoc();
+                if(empty($this->style)){ $this->style = $row['canonical_name']; }
+                $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
                 $db->close();
                 return;
             }
+            return $this->resolveBadId($db, 'style_id', $styleID);
+        }
+        if(!empty($parent)){
+            $result = $db->query("SELECT slug, beverage_type, class FROM style_parent WHERE slug=?", [$parent]);
+            if($db->error){ return $this->resolveDbError($db); }
+            if($result !== null && $result->num_rows === 1){
+                $row = $result->fetch_assoc();
+                $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type']);
+                $db->close();
+                return;
+            }
+            return $this->resolveBadId($db, 'parent', $parent);
+        }
+        if(!empty($class)){
+            $result = $db->query("SELECT slug, beverage_type FROM style_class WHERE slug=?", [$class]);
+            if($db->error){ return $this->resolveDbError($db); }
+            if($result !== null && $result->num_rows === 1){
+                $row = $result->fetch_assoc();
+                $this->setTier(null, null, $row['slug'], $row['beverage_type']);
+                $db->close();
+                return;
+            }
+            return $this->resolveBadId($db, 'class', $class);
         }
 
-        // 2. No style_id: need a label to resolve
+        // 2. No explicit pick: need a label to resolve
         if(empty($this->style)){
             $this->error = true;
             $this->validState['style'] = 'invalid';
             $this->validMsg['style'] = 'What\'s the style of this beer? We seem to be missing its style.';
             $this->responseCode = 400;
 
-            // Log Error
             $errorLog = new LogError();
             $errorLog->errorNumber = 17;
             $errorLog->errorMsg = 'Missing Beer Style';
@@ -581,35 +579,42 @@ class Beer {
             return;
         }
 
-        // 2a. Exact canonical name match
-        $result = $db->query("SELECT id, beverage_type FROM style WHERE canonical_name=?", [$this->style]);
-        if(!$db->error && $result !== null && $result->num_rows >= 1){
+        // 2a. Exact style canonical name
+        $result = $db->query("SELECT s.id, s.beverage_type, s.parent, p.class FROM style s JOIN style_parent p ON s.parent=p.slug WHERE s.canonical_name=?", [$this->style]);
+        if($db->error){ return $this->resolveDbError($db); }
+        if($result !== null && $result->num_rows >= 1){
             $row = $result->fetch_assoc();
-            $this->styleID = $row['id'];
-            $this->beverageType = $row['beverage_type'];
-            $this->validState['style'] = 'valid';
+            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
             $db->close();
             return;
         }
 
-        // 2b. Alias lookup
-        if(!$db->error){
-            $result = $db->query("SELECT s.id, s.beverage_type FROM style_alias sa JOIN style s ON sa.style_id = s.id WHERE sa.alias=?", [$this->style]);
-            if(!$db->error && $result !== null && $result->num_rows >= 1){
-                $row = $result->fetch_assoc();
-                $this->styleID = $row['id'];
-                $this->beverageType = $row['beverage_type'];
-                $this->validState['style'] = 'valid';
-                $db->close();
-                return;
-            }
+        // 2b. Class alias (Ale / Lager)
+        $result = $db->query("SELECT c.slug, c.beverage_type FROM class_alias ca JOIN style_class c ON ca.class=c.slug WHERE ca.alias=?", [$this->style]);
+        if($db->error){ return $this->resolveDbError($db); }
+        if($result !== null && $result->num_rows >= 1){
+            $row = $result->fetch_assoc();
+            $this->setTier(null, null, $row['slug'], $row['beverage_type']);
+            $db->close();
+            return;
         }
 
-        // Propagate any query error
-        if($db->error){
-            $this->error = true;
-            $this->errorMsg = $db->errorMsg;
-            $this->responseCode = $db->responseCode;
+        // 2c. Family (parent) alias
+        $result = $db->query("SELECT p.slug, p.beverage_type, p.class FROM parent_alias pa JOIN style_parent p ON pa.parent=p.slug WHERE pa.alias=?", [$this->style]);
+        if($db->error){ return $this->resolveDbError($db); }
+        if($result !== null && $result->num_rows >= 1){
+            $row = $result->fetch_assoc();
+            $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type']);
+            $db->close();
+            return;
+        }
+
+        // 2d. Style alias
+        $result = $db->query("SELECT s.id, s.beverage_type, s.parent, p.class FROM style_alias sa JOIN style s ON sa.style_id=s.id JOIN style_parent p ON s.parent=p.slug WHERE sa.alias=?", [$this->style]);
+        if($db->error){ return $this->resolveDbError($db); }
+        if($result !== null && $result->num_rows >= 1){
+            $row = $result->fetch_assoc();
+            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
             $db->close();
             return;
         }
@@ -618,16 +623,48 @@ class Beer {
         // 3. Unresolved — guide the caller toward the list / a catch-all
         $this->error = true;
         $this->validState['style'] = 'invalid';
-        $this->validMsg['style'] = 'We couldn\'t match "' . $this->style . '" to a known style. Pick a style from the list, or choose a catch-all like Specialty so nothing is lost.';
+        $this->validMsg['style'] = 'We couldn\'t match "' . $this->style . '" to a known style, family, or class. Pick one from the list, or choose a catch-all like Specialty so nothing is lost.';
         $this->responseCode = 400;
 
-        // Log Error
         $errorLog = new LogError();
         $errorLog->errorNumber = 261;
         $errorLog->errorMsg = 'Unresolved beer style (no canonical match)';
         $errorLog->badData = $this->style;
         $errorLog->filename = 'API / Beer.class.php';
         $errorLog->write();
+    }
+
+    // Set the resolved tier (style/parent/class), all derived up the tree.
+    private function setTier($styleID, $parent, $class, $beverageType){
+        $this->styleID = $styleID;
+        $this->parent = $parent;
+        $this->class = $class;
+        $this->beverageType = $beverageType;
+        $this->validState['style'] = 'valid';
+    }
+
+    // Shared: a DB error during resolution
+    private function resolveDbError($db){
+        $this->error = true;
+        $this->errorMsg = $db->errorMsg;
+        $this->responseCode = $db->responseCode;
+        $db->close();
+    }
+
+    // Shared: an explicit id (style_id/parent/class) that matched nothing
+    private function resolveBadId($db, $field, $value){
+        $this->error = true;
+        $this->validState['style'] = 'invalid';
+        $this->validMsg['style'] = 'The ' . $field . ' you provided doesn\'t match anything in our catalog. Please choose from the list.';
+        $this->responseCode = 400;
+
+        $errorLog = new LogError();
+        $errorLog->errorNumber = ($field === 'style_id') ? 262 : 264;
+        $errorLog->errorMsg = 'Invalid ' . $field . ' (no match)';
+        $errorLog->badData = $value;
+        $errorLog->filename = 'API / Beer.class.php';
+        $errorLog->write();
+        $db->close();
     }
 
     private function validateDescription(){
@@ -752,7 +789,7 @@ class Beer {
         if(!empty($beerID)){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT brewerID, name, style, style_id, style_label, beverage_type, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id=?", [$beerID]);
+            $result = $db->query("SELECT brewerID, name, style, style_id, parent, class, style_label, beverage_type, description, abv, ibu, cbVerified, brewerVerified, lastModified FROM beer WHERE id=?", [$beerID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid Result
@@ -767,6 +804,8 @@ class Beer {
                         // Prefer the canonical label column; fall back to legacy `style` during transition
                         $this->style = $array['style_label'] ?? $array['style'];
                         $this->styleID = $array['style_id'];
+                        $this->parent = $array['parent'];
+                        $this->class = $array['class'];
                         $this->beverageType = $array['beverage_type'] ?? 'beer';
                         if(is_null($array['description'])){
                             $this->description = null;
@@ -985,7 +1024,7 @@ class Beer {
 
                 // Prep for Query
                 $db = new Database();
-                $result = $db->query("SELECT id, name, style, style_id, style_label, beverage_type FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
+                $result = $db->query("SELECT id, name, style, style_id, parent, class, style_label, beverage_type FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
                 if(!$db->error){
                     if($result->num_rows >= 1){
                         // Has Beers associated with it
@@ -995,6 +1034,8 @@ class Beer {
                             $beerInfo['data'][$i]['name'] = $array['name'];
                             $beerInfo['data'][$i]['style'] = $array['style_label'] ?? $array['style'];
                             $beerInfo['data'][$i]['style_id'] = $array['style_id'];
+                            $beerInfo['data'][$i]['parent'] = $array['parent'];
+                            $beerInfo['data'][$i]['class'] = $array['class'];
                             $beerInfo['data'][$i]['beverage_type'] = $array['beverage_type'] ?? 'beer';
                             $i++;
                         }
@@ -1116,7 +1157,9 @@ class Beer {
         $this->json['object'] = 'beer';
         $this->json['name'] = $this->name;
         $this->json['style'] = $this->style;                    // human label (unchanged contract)
-        $this->json['style_id'] = $this->styleID;               // canonical style FK
+        $this->json['style_id'] = $this->styleID;               // canonical style FK (null if filed at family/class level)
+        $this->json['parent'] = $this->parent;                  // family slug
+        $this->json['class'] = $this->class;                    // super-class slug (ale|lager|null)
         $this->json['beverage_type'] = $this->beverageType;     // beer|cider|perry|mead
         $this->json['description'] = $this->description;
         $this->json['abv'] = floatval($this->abv);
@@ -1229,7 +1272,7 @@ class Beer {
 
         // Query Database
         $db = new Database();
-        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.style_label, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.style_label, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();
@@ -1247,6 +1290,8 @@ class Beer {
                 $beerObj['name'] = $row['name'];
                 $beerObj['style'] = $row['style_label'] ?? $row['style'];
                 $beerObj['style_id'] = $row['style_id'];
+                $beerObj['parent'] = $row['parent'];
+                $beerObj['class'] = $row['class'];
                 $beerObj['beverage_type'] = $row['beverage_type'] ?? 'beer';
                 $beerObj['description'] = $row['description'] ?? null;
                 $beerObj['abv'] = floatval($row['abv']);
@@ -1436,6 +1481,8 @@ class Beer {
                 // Style: prefer guided fields (style_label + style_id); fall back to legacy `style`
                 if(empty($data->style_label)){$data->style_label = (!empty($data->style) ? $data->style : '');}
                 if(empty($data->style_id)){$data->style_id = '';}
+                if(empty($data->parent)){$data->parent = '';}
+                if(empty($data->class)){$data->class = '';}
                 if(empty($data->description)){$data->description = '';}
                 if(!isset($data->abv)){$data->abv = '';}
                 if(!isset($data->ibu)){$data->ibu = '';}
@@ -1445,7 +1492,7 @@ class Beer {
                 $apiKeys->validate($apiKey, true);
 
                 // Add Beer
-                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
+                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->parent, $data->class, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'POST', '', array());
                 if(!$this->error){
                     // Beer Object JSON
                     $this->generateBeerObject();
@@ -1481,6 +1528,8 @@ class Beer {
                 // Style: prefer guided fields (style_label + style_id); fall back to legacy `style`
                 if(empty($data->style_label)){$data->style_label = (!empty($data->style) ? $data->style : '');}
                 if(empty($data->style_id)){$data->style_id = '';}
+                if(empty($data->parent)){$data->parent = '';}
+                if(empty($data->class)){$data->class = '';}
                 if(empty($data->description)){$data->description = '';}
                 if(!isset($data->abv)){$data->abv = '';}
                 if(!isset($data->ibu)){$data->ibu = '';}
@@ -1490,7 +1539,7 @@ class Beer {
                 $apiKeys->validate($apiKey, true);
 
                 // Add/Update/Replace Beer
-                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
+                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->parent, $data->class, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PUT', $id, array());
                 if(!$this->error){
                     // Beer Object JSON
                     $this->generateBeerObject();
@@ -1514,13 +1563,17 @@ class Beer {
                 else{$data->name = '';}
 
                 // Style change triggered by style_label, style_id, or legacy `style`
-                if(isset($data->style_label) || isset($data->style_id) || isset($data->style)){
+                if(isset($data->style_label) || isset($data->style_id) || isset($data->parent) || isset($data->class) || isset($data->style)){
                     $patchFields[] = 'style';
                     if(!isset($data->style_label)){$data->style_label = (isset($data->style) ? $data->style : '');}
                     if(!isset($data->style_id)){$data->style_id = '';}
+                    if(!isset($data->parent)){$data->parent = '';}
+                    if(!isset($data->class)){$data->class = '';}
                 }else{
                     $data->style_label = '';
                     $data->style_id = '';
+                    $data->parent = '';
+                    $data->class = '';
                 }
 
                 if(isset($data->description)){$patchFields[] = 'description';}
@@ -1537,7 +1590,7 @@ class Beer {
                 $apiKeys->validate($apiKey, true);
 
                 // Add/Update/Replace Beer
-                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
+                $this->add($data->brewer_id, $data->name, $data->style_label, $data->style_id, $data->parent, $data->class, $data->description, $data->abv, $data->ibu, $apiKeys->userID, 'PATCH', $id, $patchFields);
                 if(!$this->error){
                     // Beer Object JSON
                     $this->generateBeerObject();
