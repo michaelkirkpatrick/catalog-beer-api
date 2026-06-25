@@ -655,3 +655,4 @@ Address,A-118,"Address #36 - address1, address2, zip5, zip4",PUT,/address/{{loca
 Address,A-119,"Update Address #36 - address2, city, sub_code, telephone",PUT,/address/{{location_id_36}},Brewery Staff,201,Done
 Address,A-120,"Update Address #12 - address2, city, sub_code, telephone",PUT,/address/{{location_id_12}},Admin,200,Done
 Address,A-121,"Address #14 - address2, zip5",POST,/address/{{location_id_14}},Non-Admin,201,Done
+Address,A-122,"Not Found - unfindable address, expect 400",PUT,/address/{{location_id_36}},Admin,400,Done
