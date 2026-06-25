@@ -52026,7 +52026,7 @@
 													"    pm.expect(jsonData.valid_state.address1).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.address2).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.city).to.equal(null);",
-													"    pm.expect(jsonData.valid_state.sub_code).to.equal(null);",
+													"    pm.expect(jsonData.valid_state.sub_code).to.equal('valid');",
 													"    pm.expect(jsonData.valid_state.zip5).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.zip4).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.telephone).to.equal(null);",
