@@ -1194,6 +1194,25 @@ class Location {
         }
     }
 
+    // Store latitude/longitude for a location (used when coordinates are captured during address validation)
+    public function saveCoordinates($locationID, $latitude, $longitude){
+        $this->latitude = $latitude;
+        $this->longitude = $longitude;
+
+        if($this->validate($locationID, false)){
+            // Valid Location, Update Database
+            $db = new Database();
+            $db->query("UPDATE location SET latitude=?, longitude=? WHERE id=?", [$latitude, $longitude, $locationID]);
+            if($db->error){
+                // Database Error
+                $this->error = true;
+                $this->errorMsg = $db->errorMsg;
+                $this->responseCode = $db->responseCode;
+            }
+            $db->close();
+        }
+    }
+
     public function nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count){
         // Validate zip_code
         $zipCode = trim($zipCode ?? '');

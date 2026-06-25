@@ -22,6 +22,8 @@ class USAddresses {
     public $responseHeader = '';
     public $json = array();
     private $latLongFound = false;
+    private $latitude = null;
+    private $longitude = null;
 
     // Add Address
     public function add($locationID, $address1, $address2, $city, $sub_code, $zip5, $zip4, $telephone, $userID, $method, $patchFields){
@@ -152,43 +154,8 @@ class USAddresses {
                 $this->telephone = $telephone;
 
                 if($method == 'POST' || $method == 'PUT'){
-                    // Validate Address
+                    // Validate & standardize the address (Google Address Validation)
                     $this->validateAddress();
-                    if($this->error && $this->responseCode == 404){
-                        // USPS API Not able to find address
-                        // Clear Error Messages
-                        $this->error = false;
-                        $this->responseCode = 200;
-                        $this->errorMsg = null;
-
-                        // Try Google Places API
-                        $formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
-                        if(!$location->error){
-                            // Latitude and Longitude Found
-                            $this->latLongFound = true;
-
-                            // Parse the formatted address
-                            $this->parseGoogleAddressString($formattedAddress);
-
-                            // Retry USPS Address Validation
-                            $this->validateAddress();
-
-                            if($this->error && $this->responseCode == 404){
-                                // USPS API Failed Again, Save Google API Results
-                                $this->parseGoogleAddressString($formattedAddress);
-                            }
-
-                            // Clear Error Messages
-                            $this->error = false;
-                            $this->responseCode = 200;
-                            $this->errorMsg = null;
-                        }else{
-                            // Location Error
-                            $this->error= true;
-                            $this->errorMsg = $location->errorMsg;
-                            $this->responseCode = $location->responseCode;
-                        }
-                    }
 
                     // Validate Telephone
                     $this->validateTelephone();
@@ -227,8 +194,10 @@ class USAddresses {
                         }
 
                         if(!$db->error){
-                            // Get Latitude and Longitude
-                            if(!$this->latLongFound){
+                            // Store Latitude and Longitude (captured during validation; fall back to a geocode lookup)
+                            if($this->latLongFound){
+                                $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
+                            }else{
                                 $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
                             }
 
@@ -261,41 +230,6 @@ class USAddresses {
                         // They'd like to update something about the address, validate it
                         $this->validateAddress();
                         $patchAddress = true;
-                        if($this->error && $this->responseCode == 404){
-                            // USPS API Not able to find address
-                            // Clear Error Messages
-                            $this->error = false;
-                            $this->responseCode = 200;
-                            $this->errorMsg = null;
-
-                            // Try Google Places API
-                            $formattedAddress = $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'findplacefromtext');
-                            if(!$location->error){
-                                // Latitude and Longitude Found
-                                $this->latLongFound = true;
-
-                                // Parse the formatted address
-                                $this->parseGoogleAddressString($formattedAddress);
-
-                                // Retry USPS Address Validation
-                                $this->validateAddress();
-
-                                if($this->error && $this->responseCode == 404){
-                                    // USPS API Failed Again, Save Google API Results
-                                    $this->parseGoogleAddressString($formattedAddress);
-                                }
-
-                                // Clear Error Messages
-                                $this->error = false;
-                                $this->responseCode = 200;
-                                $this->errorMsg = null;
-                            }else{
-                                // Location Error
-                                $this->error= true;
-                                $this->errorMsg = $location->errorMsg;
-                                $this->responseCode = $location->responseCode;
-                            }
-                        }
                     }
                     if(!$this->error){
                         // Build parameterized query
@@ -334,8 +268,10 @@ class USAddresses {
 
                         if(!$db->error){
                             if($patchAddress){
-                                // Get Latitude and Longitude
-                                if(!$this->latLongFound){
+                                // Store Latitude and Longitude (captured during validation; fall back to a geocode lookup)
+                                if($this->latLongFound){
+                                    $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
+                                }else{
                                     $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
                                 }
                             }
@@ -398,18 +334,8 @@ class USAddresses {
         $this->address2 = strtr($this->address2 ?? '', $accented_chars);
         $this->city = strtr($this->city ?? '', $accented_chars);
 
-        // Build Query Parameters
-        $queryParams = array();
-
-        // Secondary Address (Apartment or suite number)
-        if(!empty($this->address1)){
-            $queryParams['secondaryAddress'] = $this->address1;
-        }
-
-        // Street Address
-        if(!empty($this->address2)){
-            $queryParams['streetAddress'] = $this->address2;
-        }else{
+        // Street Address (required)
+        if(empty($this->address2)){
             // Missing Address Line
             $this->error = true;
             $this->validState['address2'] = 'invalid';
@@ -426,12 +352,8 @@ class USAddresses {
         }
 
         if(!empty($this->zip5)){
-            // Submit using ZIP Code
-
             // Validate ZIP Code
-            if(preg_match('/^[0-9]{5}$/', $this->zip5)){
-                $queryParams['ZIPCode'] = $this->zip5;
-            }else{
+            if(!preg_match('/^[0-9]{5}$/', $this->zip5)){
                 // Invalid ZIP Code
                 $this->error = true;
                 $this->validState['zip5'] = 'invalid';
@@ -447,62 +369,32 @@ class USAddresses {
                 $errorLog->write();
             }
 
-            // Validate ZIP Code + 4
-            if(!empty($this->zip4)){
-                if(preg_match('/^[0-9]{4}$/', $this->zip4)){
-                    $queryParams['ZIPPlus4'] = $this->zip4;
-                }else{
-                    // Invalid ZIP Code
-                    $this->error = true;
-                    $this->validState['zip4'] = 'invalid';
-                    $this->validMsg['zip4'] = 'Sorry, this appears to be an invalid ZIP Code + 4 (zip4). Ensure you have submitted a four digit ZIP Code + 4.';
-                    $this->responseCode = 400;
+            // Validate ZIP Code + 4 (optional)
+            if(!empty($this->zip4) && !preg_match('/^[0-9]{4}$/', $this->zip4)){
+                // Invalid ZIP Code + 4
+                $this->error = true;
+                $this->validState['zip4'] = 'invalid';
+                $this->validMsg['zip4'] = 'Sorry, this appears to be an invalid ZIP Code + 4 (zip4). Ensure you have submitted a four digit ZIP Code + 4.';
+                $this->responseCode = 400;
 
-                    // Log Error
-                    $errorLog = new LogError();
-                    $errorLog->errorNumber = 60;
-                    $errorLog->errorMsg = 'Invalid Zip4';
-                    $errorLog->badData = "Zip4: " . $this->zip4;
-                    $errorLog->filename = 'API / USAddresses.class.php';
-                    $errorLog->write();
-                }
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 60;
+                $errorLog->errorMsg = 'Invalid Zip4';
+                $errorLog->badData = "Zip4: " . $this->zip4;
+                $errorLog->filename = 'API / USAddresses.class.php';
+                $errorLog->write();
             }
 
-            // Include state (required by USPS v3 API)
-            if(!empty($this->stateShort)){
-                $queryParams['state'] = $this->stateShort;
-            }elseif(!empty($this->sub_code)){
-                $queryParams['state'] = substr($this->sub_code, 3, 2);
-            }else{
-                // Look up state from ZIP code
-                $stateLookup = $this->uspsCityStateLookup($this->zip5);
-                if($stateLookup !== null){
-                    $queryParams['state'] = $stateLookup;
-                }else{
-                    // Lookup failed, require sub_code
-                    $this->error = true;
-                    $this->validState['sub_code'] = 'invalid';
-                    $this->validMsg['sub_code'] = 'Please provide the state (sub_code) for this address.';
-                    $this->responseCode = 400;
-                }
-            }
-
-            // Include city if available
-            if(!empty($this->city)){
-                $queryParams['city'] = $this->city;
-            }
-
-            if(!$this->error){
-                // Submit to Postal Service API
-                $this->uspsAPI($queryParams);
+            // Derive state from sub_code if provided (optional; Google infers it from the ZIP otherwise)
+            if(empty($this->stateShort) && !empty($this->sub_code)){
+                $this->stateShort = substr($this->sub_code, 3, 2);
             }
         }else{
             // No ZIP Code provided, City & State Required
 
             // Check City
-            if(!empty($this->city)){
-                $queryParams['city'] = $this->city;
-            }else{
+            if(empty($this->city)){
                 // Missing City
                 $this->error = true;
                 $this->validState['city'] = 'invalid';
@@ -525,8 +417,6 @@ class USAddresses {
                     // Get State Info
                     $this->stateShort = substr($this->sub_code ?? '', 3, 2);
                     $this->stateLong = $subdivisions->sub_name;
-
-                    $queryParams['state'] = $this->stateShort;
                     $this->validState['sub_code'] = 'valid';
                 }else{
                     // Invalid Subdivision
@@ -550,38 +440,57 @@ class USAddresses {
                 $this->validMsg['sub_code'] = 'Sorry, we seem to be missing the sub_code for this location. Please check your submission.';
                 $this->responseCode = 400;
             }
+        }
 
-            if(!$this->error){
-                // Submit to Postal Service API
-                $this->uspsAPI($queryParams);
-            }
+        if(!$this->error){
+            // Submit to Google Address Validation API
+            $this->googleAddressValidationAPI();
         }
     }
 
-    private function uspsAPI($queryParams){
-
-        // Get OAuth Token
-        $accessToken = USPSAuth::getAccessToken();
-        if($accessToken === null){
-            $this->error = true;
-            $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-            $this->responseCode = 500;
-            return;
+    private function googleAddressValidationAPI(){
+        // Build the address payload from class properties
+        $addressLines = array();
+        if(!empty($this->address2)){
+            $addressLines[] = $this->address2;
+        }
+        if(!empty($this->address1)){
+            $addressLines[] = $this->address1;
         }
 
+        $address = array(
+            'regionCode' => 'US',
+            'addressLines' => $addressLines
+        );
+        if(!empty($this->city)){
+            $address['locality'] = $this->city;
+        }
+        if(!empty($this->stateShort)){
+            $address['administrativeArea'] = $this->stateShort;
+        }
+        if(!empty($this->zip5)){
+            $address['postalCode'] = !empty($this->zip4) ? ($this->zip5 . '-' . $this->zip4) : strval($this->zip5);
+        }
+
+        $requestBody = json_encode(array(
+            'address' => $address,
+            'enableUspsCass' => true
+        ));
+
         // Build URL
-        $url = USPS_API_BASE_URL . '/addresses/v3/address?' . http_build_query($queryParams);
+        $url = 'https://addressvalidation.googleapis.com/v1:validateAddress?key=' . GOOGLE_MAPS_API_KEY;
 
         // Start cURL
         $curl = curl_init();
-
         curl_setopt_array($curl, array(
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $requestBody,
             CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
                 'Accept: application/json'
             ),
         ));
@@ -589,11 +498,10 @@ class USAddresses {
         $response = curl_exec($curl);
         $err = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
         curl_close($curl);
 
         // Log data for error reporting
-        $requestData = 'URL: ' . $url;
+        $requestData = 'Request: ' . $requestBody;
 
         if($err){
             // cURL Error
@@ -603,175 +511,143 @@ class USAddresses {
 
             // Log Error
             $errorLog = new LogError();
-            $errorLog->errorNumber = 63;
-            $errorLog->errorMsg = 'cURL Error';
+            $errorLog->errorNumber = 265;
+            $errorLog->errorMsg = 'Google Address Validation cURL Error';
             $errorLog->badData = $err;
             $errorLog->filename = 'API / USAddresses.class.php';
             $errorLog->write();
-        }else{
-            // Parse JSON Response
-            $responseData = json_decode($response, true);
+            return;
+        }
 
-            if($httpCode === 200){
-                // Success
-                $address = $responseData['address'] ?? array();
+        if($httpCode !== 200){
+            // API Error (bad request, auth/key, rate limit, etc.)
+            $this->error = true;
+            $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+            $this->responseCode = 500;
 
-                if(isset($address['secondaryAddress']) && !empty($address['secondaryAddress'])){
-                    $this->address1 = ucwords(strtolower($address['secondaryAddress']));
-                }else{
-                    $this->address1 = '';
-                }
-                $this->address2 = ucwords(strtolower($address['streetAddress'] ?? ''));
-                $this->city = ucwords(strtolower($address['city'] ?? ''));
-                $this->stateShort = strval($address['state'] ?? '');
-                $this->zip5 = intval($address['ZIPCode'] ?? 0);
-                $this->zip4 = intval($address['ZIPPlus4'] ?? 0);
-                if(empty($this->zip4)){
-                    $this->zip4 = 0;
-                }
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 266;
+            $errorLog->errorMsg = 'Google Address Validation API Error';
+            $errorLog->badData = 'HTTP ' . $httpCode . ' // ' . $requestData . ' // Response: ' . $response;
+            $errorLog->filename = 'API / USAddresses.class.php';
+            $errorLog->write();
+            return;
+        }
 
-                // Need to derive sub_code and state_long?
-                if(empty($this->sub_code) || empty($this->stateLong)){
-                    $subdivisions = new Subdivisions();
-                    $sub_code = 'US-' . $this->stateShort;
-                    if($subdivisions->validate($sub_code, true)){
-                        $this->sub_code = $subdivisions->sub_code;
-                        $this->stateLong = $subdivisions->sub_name;
-                    }
-                }
-            }elseif($httpCode === 404){
-                // Address Not Found
-                $this->error = true;
-                $this->responseCode = 404;
-                $this->errorMsg = 'Address Not Found.';
+        // Parse JSON Response
+        $responseData = json_decode($response, true);
+        $result = $responseData['result'] ?? array();
+        $verdict = $result['verdict'] ?? array();
+        $granularity = $verdict['validationGranularity'] ?? '';
+        $uspsData = $result['uspsData'] ?? array();
+        $std = $uspsData['standardizedAddress'] ?? array();
+        $postal = $result['address']['postalAddress'] ?? array();
+        $geo = $result['geocode']['location'] ?? array();
 
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 201;
-                $errorLog->errorMsg = 'Address Not Found - USPS Address Validation Error';
-                $errorLog->badData = $requestData . ' // Response: ' . $response;
-                $errorLog->filename = 'API / USAddresses.class.php';
-                $errorLog->write();
-            }elseif($httpCode === 400){
-                // Check for specific error messages
-                $errorMessage = $responseData['error']['message'] ?? '';
+        if(empty($result) || empty($verdict)){
+            // Empty / unparseable result
+            $this->error = true;
+            $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+            $this->responseCode = 500;
 
-                if(stripos($errorMessage, 'city') !== false && stripos($errorMessage, 'invalid') !== false){
-                    // Invalid City
-                    $this->error = true;
-                    $this->validState['city'] = 'invalid';
-                    $this->validMsg['city'] = 'Invalid City. Please check what you\'ve typed and try again.';
-                    $this->responseCode = 404;
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 268;
+            $errorLog->errorMsg = 'Google Address Validation Empty Result';
+            $errorLog->badData = $requestData . ' // Response: ' . $response;
+            $errorLog->filename = 'API / USAddresses.class.php';
+            $errorLog->write();
+            return;
+        }
 
-                    // Log Error
-                    $errorLog = new LogError();
-                    $errorLog->errorNumber = 115;
-                    $errorLog->errorMsg = 'Invalid City - USPS Address Validation Error';
-                    $errorLog->badData = $requestData . ' // Response: ' . $response;
-                    $errorLog->filename = 'API / USAddresses.class.php';
-                    $errorLog->write();
-                }else{
-                    // Other Validation Error
-                    $this->error = true;
-                    $this->errorMsg = htmlspecialchars(trim($errorMessage)) . ' Please check your entry and try again.';
-                    $this->responseCode = 400;
+        // Accept only building-level matches — a human can physically find it.
+        // DPV (mail deliverability) is intentionally informational, not a gate.
+        $buildingLevel = array('SUB_PREMISE', 'PREMISE', 'PREMISE_PROXIMITY');
+        if(!in_array($granularity, $buildingLevel)){
+            // Not a findable place
+            $this->error = true;
+            $this->errorMsg = 'We were not able to find a location based on the address you provided. Please double check the street, city, and ZIP code.';
+            $this->responseCode = 400;
 
-                    // Log Error
-                    $errorLog = new LogError();
-                    $errorLog->errorNumber = 106;
-                    $errorLog->errorMsg = 'USPS Address Validation Error';
-                    $errorLog->badData = $requestData . ' // Response: ' . $response;
-                    $errorLog->filename = 'API / USAddresses.class.php';
-                    $errorLog->write();
-                }
-            }elseif($httpCode === 401 || $httpCode === 403){
-                // Auth Error
-                $this->error = true;
-                $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-                $this->responseCode = 500;
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 267;
+            $errorLog->errorMsg = 'Address Not Found - Google Address Validation';
+            $errorLog->badData = 'Granularity: ' . $granularity . ' // ' . $requestData . ' // Response: ' . $response;
+            $errorLog->filename = 'API / USAddresses.class.php';
+            $errorLog->write();
+            return;
+        }
 
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 223;
-                $errorLog->errorMsg = 'USPS API Auth Error';
-                $errorLog->badData = 'HTTP ' . $httpCode . ' // ' . $requestData . ' // Response: ' . $response;
-                $errorLog->filename = 'API / USAddresses.class.php';
-                $errorLog->write();
-            }elseif($httpCode === 429){
-                // Rate Limited
-                $this->error = true;
-                $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-                $this->responseCode = 500;
-
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 224;
-                $errorLog->errorMsg = 'USPS API Rate Limited';
-                $errorLog->badData = $requestData . ' // Response: ' . $response;
-                $errorLog->filename = 'API / USAddresses.class.php';
-                $errorLog->write();
+        // ----- Accepted: populate standardized fields -----
+        if(!empty($std)){
+            // Prefer USPS-standardized (CASS) fields. Google folds any secondary
+            // unit (STE/APT/etc.) into firstAddressLine rather than secondAddressLine,
+            // so split it back out to keep address1 (unit) and address2 (street) separate.
+            if(!empty($std['secondAddressLine'])){
+                $street = $std['firstAddressLine'] ?? '';
+                $secondary = $std['secondAddressLine'];
             }else{
-                // Unexpected Error
-                $this->error = true;
-                $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
-                $this->responseCode = 500;
-
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 64;
-                $errorLog->errorMsg = 'USPS API Error';
-                $errorLog->badData = 'HTTP ' . $httpCode . ' // ' . $requestData . ' // Response: ' . $response;
-                $errorLog->filename = 'API / USAddresses.class.php';
-                $errorLog->write();
+                list($street, $secondary) = $this->splitSecondaryUnit($std['firstAddressLine'] ?? '');
             }
+            $this->address2 = ucwords(strtolower($street));
+            $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
+            $this->city = ucwords(strtolower($std['city'] ?? ''));
+            $this->stateShort = strval($std['state'] ?? '');
+            $this->zip5 = intval($std['zipCode'] ?? 0);
+            $this->zip4 = !empty($std['zipCodeExtension']) ? intval($std['zipCodeExtension']) : 0;
+        }else{
+            // Fall back to Google's post-processed postal address
+            $lines = $postal['addressLines'] ?? array();
+            if(count($lines) > 1){
+                $street = $lines[0];
+                $secondary = $lines[1];
+            }else{
+                list($street, $secondary) = $this->splitSecondaryUnit($lines[0] ?? '');
+            }
+            $this->address2 = ucwords(strtolower($street));
+            $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
+            $this->city = ucwords(strtolower($postal['locality'] ?? ''));
+            $this->stateShort = strval($postal['administrativeArea'] ?? '');
+            $postalCode = $postal['postalCode'] ?? '';
+            if(strpos($postalCode, '-') !== false){
+                list($z5, $z4) = explode('-', $postalCode, 2);
+                $this->zip5 = intval($z5);
+                $this->zip4 = intval($z4);
+            }else{
+                $this->zip5 = intval($postalCode);
+                $this->zip4 = 0;
+            }
+        }
+
+        // Derive sub_code and state_long
+        if(!empty($this->stateShort) && (empty($this->sub_code) || empty($this->stateLong))){
+            $subdivisions = new Subdivisions();
+            $sub_code = 'US-' . $this->stateShort;
+            if($subdivisions->validate($sub_code, true)){
+                $this->sub_code = $subdivisions->sub_code;
+                $this->stateLong = $subdivisions->sub_name;
+            }
+        }
+
+        // Capture coordinates from the same response (no separate geocode call needed)
+        if(isset($geo['latitude']) && isset($geo['longitude'])){
+            $this->latitude = $geo['latitude'];
+            $this->longitude = $geo['longitude'];
+            $this->latLongFound = true;
         }
     }
 
-    // USPS City/State Lookup from ZIP Code
-    private function uspsCityStateLookup($zip5){
-        // Returns state abbreviation (e.g., "CA") or null on failure
-
-        // Get OAuth Token
-        $accessToken = USPSAuth::getAccessToken();
-        if($accessToken === null){
-            return null;
+    // Split a USPS-standardized street line into [street, secondary unit].
+    // USPS secondary-unit designators per Publication 28, Appendix C2.
+    private function splitSecondaryUnit($line){
+        $line = trim($line ?? '');
+        $designators = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
+        if(preg_match('/^(.*?)\s+((?:' . $designators . '|#)\b.*)$/i', $line, $m)){
+            return array(trim($m[1]), trim($m[2]));
         }
-
-        // Build URL
-        $url = USPS_API_BASE_URL . '/addresses/v3/city-state?ZIPCode=' . urlencode($zip5);
-
-        // cURL Request
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $accessToken,
-                'Accept: application/json'
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        $err = curl_error($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
-
-        if($err || $httpCode !== 200){
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 225;
-            $errorLog->errorMsg = 'USPS City/State Lookup Error';
-            $errorLog->badData = 'ZIP: ' . $zip5 . ' // HTTP ' . $httpCode . ' // ' . ($err ?: $response);
-            $errorLog->filename = 'API / USAddresses.class.php';
-            $errorLog->write();
-
-            return null;
-        }
-
-        $responseData = json_decode($response, true);
-        return $responseData['state'] ?? null;
+        return array($line, '');
     }
 
     // Validate Telephone
@@ -848,20 +724,6 @@ class USAddresses {
         $addressString .= ', USA';
 
         return $addressString;
-    }
-
-    // Parse Google Formatted Address String
-    private function parseGoogleAddressString($addressString){
-        // Regular Expression
-        $regex = '/([[:alnum:] ]+)([#0-9]+)?, ([[:alnum:] ]+), ([A-Z]{2}) ([0-9]{5})(-[0-9]{4})?/m';
-        preg_match_all($regex, $addressString, $matches, PREG_SET_ORDER, 0);
-
-        // Match to the class
-        $this->address1 = $matches[0][2];
-        $this->address2 = $matches[0][1];
-        $this->city = $matches[0][3];
-        $this->sub_code = 'US-' . $matches[0][4];
-        $this->zip5 = $matches[0][5];
     }
 
     // Validate
