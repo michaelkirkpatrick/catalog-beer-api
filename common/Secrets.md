@@ -9,7 +9,7 @@ All production secrets live in `common/passwords.php` (gitignored, deployed via 
 | `DB_PASSWORD` | Annually | Any DB user compromise, dev offboarding |
 | `POSTMARK_SERVER_TOKEN` | Annually | Suspicious sends, sandbox abuse |
 | `USPS_CLIENT_SECRET` | Annually | USPS notifies of compromise |
-| `GOOGLE_MAPS_API_KEY` | Annually | Quota anomalies, referer leak |
+| `GOOGLE_ADDRESS_VALIDATION_KEY` | Annually | Quota anomalies, referer leak |
 | `ALGOLIA_WRITE_API_KEY` | Annually | Index tampering, search anomalies |
 | `ALGOLIA_SEARCH_API_KEY` | As needed | Frontend leak (it's already public-by-design) |
 | `ANTHROPIC_API_KEY` | Annually | Unexpected spend, key checked into VCS |
@@ -62,14 +62,15 @@ For every secret:
   3. POST a test Location with an address to verify
 - **Note:** USPS uses the same credentials for staging and production; environments differ only in `USPS_API_BASE_URL` (`apis-tem.usps.com` vs `apis.usps.com`).
 
-### `GOOGLE_MAPS_API_KEY`
-- **Used by:** `classes/Location.class.php` — geocoding addresses to lat/lng
+### `GOOGLE_ADDRESS_VALIDATION_KEY`
+- **Used by:** `classes/USAddresses.class.php` — address validation (+ lat/lng) on Location create/update. Also currently powers the legacy Maps Geocoding/Places calls in `classes/Location.class.php` (being deprecated).
 - **Provider:** https://console.cloud.google.com → APIs & Services → Credentials
 - **Rotate:**
-  1. Create a new API key, restrict it to the Geocoding + Places APIs
+  1. Create a new API key, restrict it to the Address Validation API (and Geocoding + Places APIs while the legacy `Location.class.php` geocoding remains)
   2. Restrict by server IP (staging + production IPs) if not already
   3. Update `passwords.php`, deploy, POST a Location to verify
   4. Delete the old key
+- **Note:** The frontend repo uses a *separate* JavaScript Maps API key — do not reuse this server-side key there.
 
 ### `ALGOLIA_WRITE_API_KEY`
 - **Used by:** `classes/Algolia.class.php`, `algolia/batch-upload.php` — index updates on Brewer/Beer/Location create/update/delete
@@ -120,7 +121,7 @@ Keep a record of when each secret was last rotated.
 | `POSTMARK_SERVER_TOKEN` (staging) | — | — | |
 | `POSTMARK_SERVER_TOKEN` (production) | — | — | |
 | `USPS_CLIENT_SECRET` | — | — | |
-| `GOOGLE_MAPS_API_KEY` | — | — | |
+| `GOOGLE_ADDRESS_VALIDATION_KEY` | — | — | |
 | `ALGOLIA_WRITE_API_KEY` | — | — | |
 | `ANTHROPIC_API_KEY` | — | — | |
 | `MASTER_API_KEYS` | — | — | |

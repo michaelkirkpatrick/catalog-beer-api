@@ -107,7 +107,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 ## External Services
 
 - **USPS Addresses API v3** — Address validation (`USAddresses.class.php`); OAuth 2.0 via `USPSAuth.class.php` using `USPS_CLIENT_ID`, `USPS_CLIENT_SECRET`, `USPS_API_BASE_URL` constants
-- **Google Maps Geocoding API** — Lat/lng coordinates (`Location.class.php`); API key via `GOOGLE_MAPS_API_KEY` constant
+- **Google Address Validation API** — Address verification + lat/lng (`USAddresses.class.php`); API key via `GOOGLE_ADDRESS_VALIDATION_KEY` constant. The same constant currently also powers the legacy Maps Geocoding/Places calls in `Location.class.php` (being deprecated, since Address Validation returns lat/lng)
 - **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (plain strings, not `getenv()`)
 - **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant (environment-conditional: staging uses sandbox server)
 

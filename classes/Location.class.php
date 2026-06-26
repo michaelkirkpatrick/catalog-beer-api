@@ -1061,11 +1061,11 @@ class Location {
         // URL
         switch($googleAPI){
             case 'geocode':
-                $url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_MAPS_API_KEY;
+                $url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_ADDRESS_VALIDATION_KEY;
                 $arrayName = 'results';
                 break;
             case 'findplacefromtext':
-                $url = 'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' . $address . '&key=' . GOOGLE_MAPS_API_KEY . '&inputtype=textquery&language=en&fields=formatted_address,geometry';
+                $url = 'https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' . $address . '&key=' . GOOGLE_ADDRESS_VALIDATION_KEY . '&inputtype=textquery&language=en&fields=formatted_address,geometry';
                     $arrayName = 'candidates';
                 break;
         }

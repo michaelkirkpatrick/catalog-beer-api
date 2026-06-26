@@ -478,7 +478,7 @@ class USAddresses {
         ));
 
         // Build URL
-        $url = 'https://addressvalidation.googleapis.com/v1:validateAddress?key=' . GOOGLE_MAPS_API_KEY;
+        $url = 'https://addressvalidation.googleapis.com/v1:validateAddress?key=' . GOOGLE_ADDRESS_VALIDATION_KEY;
 
         // Start cURL
         $curl = curl_init();
