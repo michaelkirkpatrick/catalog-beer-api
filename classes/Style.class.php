@@ -31,6 +31,8 @@ class Style {
                 $this->listParents();
             }elseif($function === 'class'){
                 $this->listClasses();
+            }elseif($function === 'approx'){
+                $this->listApprox();
             }else{
                 $this->responseCode = 404;
                 $this->json['error'] = true;
@@ -50,7 +52,7 @@ class Style {
         // Styles in display order
         $styles = array();
         $order = array();
-        $result = $db->query("SELECT id, canonical_name, beverage_type, parent, category, is_catch_all FROM style ORDER BY sort_order");
+        $result = $db->query("SELECT id, canonical_name, beverage_type, parent, category, family, is_catch_all FROM style ORDER BY sort_order");
         if($db->error){
             $this->dbError($db->errorMsg, $db->responseCode);
             $db->close();
@@ -64,6 +66,7 @@ class Style {
                 'beverage_type' => $row['beverage_type'],
                 'parent' => $row['parent'],
                 'category' => $row['category'],
+                'family' => $row['family'],
                 'catch_all' => (bool) $row['is_catch_all'],
                 'aliases' => array(),
             );
@@ -223,6 +226,30 @@ class Style {
         foreach($order as $slug){ $data[] = $classes[$slug]; }
         $this->json['object'] = 'list';
         $this->json['url'] = '/style/class';
+        $this->json['has_more'] = false;
+        $this->json['data'] = $data;
+    }
+
+    // GET /style/approx — manual-approx best-fit suggestions (alias -> style_id).
+    // Powers the Guided Style Field's "Closest match" (Approx) tier. These live in
+    // style_alias_approx, deliberately NOT in style_alias, so they never auto-resolve
+    // a beer in the write-path or backfill.
+    private function listApprox(){
+        $db = new Database();
+        $result = $db->query("SELECT a.alias, a.style_id, s.canonical_name, s.parent FROM style_alias_approx a JOIN style s ON a.style_id = s.id ORDER BY a.alias");
+        if($db->error){ $this->dbError($db->errorMsg, $db->responseCode); $db->close(); return; }
+        $data = array();
+        while($row = $result->fetch_assoc()){
+            $data[] = array(
+                'alias' => $row['alias'],
+                'style_id' => $row['style_id'],
+                'name' => $row['canonical_name'],
+                'parent' => $row['parent'],
+            );
+        }
+        $db->close();
+        $this->json['object'] = 'list';
+        $this->json['url'] = '/style/approx';
         $this->json['has_more'] = false;
         $this->json['data'] = $data;
     }
