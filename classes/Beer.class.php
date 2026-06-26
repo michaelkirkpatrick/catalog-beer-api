@@ -1297,7 +1297,7 @@ class Beer {
 
         // Query Database
         $db = new Database();
-        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.style_label, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.style_label, b.beverage_type, b.style_confidence, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style_label, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();
@@ -1318,6 +1318,7 @@ class Beer {
                 $beerObj['parent'] = $row['parent'];
                 $beerObj['class'] = $row['class'];
                 $beerObj['beverage_type'] = $row['beverage_type'] ?? 'beer';
+                $beerObj['style_confidence'] = $row['style_confidence'] ?? null;
                 $beerObj['description'] = $row['description'] ?? null;
                 $beerObj['abv'] = floatval($row['abv']);
                 $beerObj['ibu'] = !empty($row['ibu']) ? intval($row['ibu']) : null;

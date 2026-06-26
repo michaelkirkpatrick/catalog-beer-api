@@ -52,7 +52,7 @@ class Style {
         // Styles in display order
         $styles = array();
         $order = array();
-        $result = $db->query("SELECT id, canonical_name, beverage_type, parent, category, family, is_catch_all FROM style ORDER BY sort_order");
+        $result = $db->query("SELECT id, canonical_name, beverage_type, parent, is_catch_all FROM style ORDER BY sort_order");
         if($db->error){
             $this->dbError($db->errorMsg, $db->responseCode);
             $db->close();
@@ -65,8 +65,6 @@ class Style {
                 'name' => $row['canonical_name'],
                 'beverage_type' => $row['beverage_type'],
                 'parent' => $row['parent'],
-                'category' => $row['category'],
-                'family' => $row['family'],
                 'catch_all' => (bool) $row['is_catch_all'],
                 'aliases' => array(),
             );
@@ -111,7 +109,7 @@ class Style {
     // GET /style/{slug} — one style with full detail
     private function getStyle($id){
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.name AS parent_name, s.category, s.family, s.yeast_type, s.source, s.is_catch_all, s.abv_min, s.abv_max, s.ibu_min, s.ibu_max, s.srm_min, s.srm_max, s.og_min, s.og_max, s.fg_min, s.fg_max FROM style s LEFT JOIN style_parent p ON s.parent = p.slug WHERE s.id=?", [$id]);
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.name AS parent_name, s.source, s.is_catch_all, s.abv_min, s.abv_max, s.ibu_min, s.ibu_max, s.srm_min, s.srm_max, s.og_min, s.og_max, s.fg_min, s.fg_max FROM style s LEFT JOIN style_parent p ON s.parent = p.slug WHERE s.id=?", [$id]);
         if($db->error){
             $this->dbError($db->errorMsg, $db->responseCode);
             $db->close();
@@ -145,9 +143,6 @@ class Style {
             'beverage_type' => $row['beverage_type'],
             'parent' => $row['parent'],
             'parent_name' => $row['parent_name'],
-            'category' => $row['category'],
-            'family' => $row['family'],
-            'yeast_type' => $row['yeast_type'],
             'source' => $row['source'],
             'catch_all' => (bool) $row['is_catch_all'],
             'aliases' => $aliases,

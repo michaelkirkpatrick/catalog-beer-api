@@ -91,6 +91,14 @@ All queries use parameterized `?` placeholders. Database credentials are loaded 
 - JOINs: Used where related data is needed together (e.g., `Location::nearbyLatLng()` JOINs location+brewer+US_addresses+subdivisions; `USAddresses::validate()` JOINs with subdivisions)
 - FULLTEXT search: `Beer::search()` and `Brewer::search()` use `MATCH ... AGAINST(? IN NATURAL LANGUAGE MODE)` with MySQL FULLTEXT indexes; `Beer::search()` JOINs with brewer to return full objects in one query
 
+## Database Schema — keep `catalog-beer-mysql` in sync
+
+The canonical DB schema is a **separate, public repo**: [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql) (`catalog-beer-schema.sql`) — declarative DDL for the whole `catalogbeer` database. The live migration DDL (the style taxonomy system + `beer` column additions) is authored in `style-library/scripts/migration/` (`01_migration.sql`, regenerated `02_seed.sql`, and the `staging-sync-*.sql` upgrades for already-migrated DBs).
+
+**When you add or alter any table or column — in a migration, or directly in this API — update `catalog-beer-schema.sql` in the SAME change** so the canonical schema never lags, and bump its git tag (`v1.x`). It's easy to forget: it lives in a third repo, isn't imported by the app, and nothing breaks if it's wrong — but it is the schema every human and every future Claude session reads as truth.
+
+Touchpoints here that imply a schema change: a new entry in an entity's `$columns[]`/`$setClauses[]` arrays in `add()`, a new `CREATE TABLE`, a new index, or a `SELECT` that reads a column that doesn't exist yet (e.g. the `style_confidence` column and `style_alias_approx` table added for the Guided Style Field).
+
 ## API Endpoints
 
 Defined in `.htaccess`. All IDs are 36-character UUIDs:
@@ -101,7 +109,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - `/address/{id}`
 - `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`
 - `/login`
-- `/usage`, `/usage/currentMonth/{id}`
+- `/usage`, `/usage/my-usage`
 - `/health` — Unauthenticated GET-only health check; returns `{"status":"ok"}` (200) or `{"status":"error"}` (503). Verifies Apache + PHP + MySQL. No logging. Used by exit1.dev for uptime monitoring.
 
 ## External Services
