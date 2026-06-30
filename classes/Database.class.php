@@ -2,7 +2,7 @@
 class Database {
 
     // Properties
-    private mysqli $mysqli;
+    private ?mysqli $mysqli = null;
 
     // Error Handling
     public bool $error = false;
@@ -28,7 +28,11 @@ class Database {
         } catch (mysqli_sql_exception $e) {
             $this->error = true;
             $this->errorMsg = 'Database connection error.';
-            $this->responseCode = 500;
+            // 503 Service Unavailable: an unreachable database is a transient
+            // availability problem, not a 500 internal server error.
+            $this->responseCode = 503;
+            // Leave the handle null so query()/close() short-circuit on $error.
+            $this->mysqli = null;
 
             // Log Error
             $errorLog = new LogError();
