@@ -656,3 +656,11 @@ Address,A-119,"Update Address #36 - address2, city, sub_code, telephone",PUT,/ad
 Address,A-120,"Update Address #12 - address2, city, sub_code, telephone",PUT,/address/{{location_id_12}},Admin,200,Done
 Address,A-121,"Address #14 - address2, zip5",POST,/address/{{location_id_14}},Non-Admin,201,Done
 Address,A-122,"Not Found - unfindable address, expect 400",PUT,/address/{{location_id_36}},Admin,400,Done
+Style,STYLE-1,"List Styles - Shape, Version & Count",GET,/style,Admin,200,Pending reseed + deploy
+Style,STYLE-2,List Styles - New BJCP 2025 Cider/Perry Present,GET,/style,Admin,200,Pending reseed + deploy
+Style,STYLE-3,Get Style - New Cider Style (ice-cider),GET,/style/ice-cider,Admin,200,Pending reseed + deploy
+Style,STYLE-4,Get Style - Beer Style With Specs (american-ipa),GET,/style/american-ipa,Admin,200,Pending reseed + deploy
+Style,STYLE-5,Get Style - Not Found,GET,/style/not-a-real-style-xyz,Admin,404,Pending reseed + deploy
+Style,STYLE-6,List Parents (Families),GET,/style/parent,Admin,200,Pending reseed + deploy
+Style,STYLE-7,List Classes (Ale/Lager),GET,/style/class,Admin,200,Pending reseed + deploy
+Style,STYLE-8,Method Not Allowed (POST),POST,/style,Admin,405,Pending reseed + deploy

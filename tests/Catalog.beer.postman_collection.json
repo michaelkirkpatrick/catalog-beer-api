@@ -70672,6 +70672,721 @@
 			]
 		},
 		{
+			"name": "Styles",
+			"item": [
+				{
+					"name": "STYLE-1 List Styles - Shape, Version & Count",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"List envelope shape\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('object', 'url', 'version', 'has_more', 'data');",
+									"    pm.expect(d.object).to.equal('list');",
+									"    pm.expect(d.url).to.equal('/style');",
+									"    pm.expect(d.has_more).to.equal(false);",
+									"    pm.expect(d.data).to.be.an(\"array\");",
+									"});",
+									"",
+									"pm.test(\"Version is 2.3.0\", function () {",
+									"    pm.expect(pm.response.json().version).to.equal(\"2.3.0\");",
+									"});",
+									"",
+									"pm.test(\"196 styles returned\", function () {",
+									"    pm.expect(pm.response.json().data.length).to.equal(196);",
+									"});",
+									"",
+									"pm.test(\"Each style has the expected keys\", function () {",
+									"    pm.response.json().data.forEach(function (s) {",
+									"        pm.expect(s).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'catch_all', 'aliases');",
+									"        pm.expect(s.object).to.equal('style');",
+									"        pm.expect(s.aliases).to.be.an(\"array\");",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"Covers beer, cider, perry, and mead beverage types\", function () {",
+									"    var types = pm.response.json().data.map(function (s) { return s.beverage_type; });",
+									"    ['beer', 'cider', 'perry', 'mead'].forEach(function (t) {",
+									"        pm.expect(types).to.include(t);",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-2 List Styles - New BJCP 2025 Cider/Perry Present",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"All 8 new v2.3 cider/perry styles present\", function () {",
+									"    var ids = pm.response.json().data.map(function (s) { return s.id; });",
+									"    var expected = [\"applewine\",\"experimental-perry\",\"fire-cider\",\"heirloom-cider\",\"ice-cider\",\"ice-perry\",\"spanish-cider\",\"spiced-cider\"];",
+									"    expected.forEach(function (id) {",
+									"        pm.expect(ids).to.include(id);",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"New styles are cider or perry\", function () {",
+									"    var byId = {};",
+									"    pm.response.json().data.forEach(function (s) { byId[s.id] = s; });",
+									"    [\"applewine\",\"experimental-perry\",\"fire-cider\",\"heirloom-cider\",\"ice-cider\",\"ice-perry\",\"spanish-cider\",\"spiced-cider\"].forEach(function (id) {",
+									"        pm.expect(byId[id].beverage_type).to.be.oneOf(['cider', 'perry']);",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-3 Get Style - New Cider Style (ice-cider)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Detail shape\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'parent_name', 'source', 'catch_all', 'aliases', 'specs');",
+									"    pm.expect(d.id).to.equal('ice-cider');",
+									"    pm.expect(d.object).to.equal('style');",
+									"    pm.expect(d.beverage_type).to.equal('cider');",
+									"    pm.expect(d.parent).to.equal('cider');",
+									"    pm.expect(d.aliases).to.be.an(\"array\");",
+									"});",
+									"",
+									"pm.test(\"Specs expose abv/ibu/srm/og/fg\", function () {",
+									"    var specs = pm.response.json().specs;",
+									"    pm.expect(specs).to.have.all.keys('abv', 'ibu', 'srm', 'og', 'fg');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/ice-cider",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"ice-cider"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-4 Get Style - Beer Style With Specs (american-ipa)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Beer style detail\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d.id).to.equal('american-ipa');",
+									"    pm.expect(d.beverage_type).to.equal('beer');",
+									"});",
+									"",
+									"pm.test(\"ABV spec range is populated\", function () {",
+									"    var abv = pm.response.json().specs.abv;",
+									"    pm.expect(abv).to.have.all.keys('min', 'max');",
+									"    pm.expect(abv.min).to.be.a(\"number\");",
+									"    pm.expect(abv.max).to.be.a(\"number\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/american-ipa",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"american-ipa"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-5 Get Style - Not Found",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Not Found (HTTP 404)\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/not-a-real-style-xyz",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"not-a-real-style-xyz"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-6 List Parents (Families)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"List envelope shape\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('object', 'url', 'has_more', 'data');",
+									"    pm.expect(d.object).to.equal('list');",
+									"    pm.expect(d.url).to.equal('/style/parent');",
+									"    pm.expect(d.has_more).to.equal(false);",
+									"});",
+									"",
+									"pm.test(\"26 families returned\", function () {",
+									"    pm.expect(pm.response.json().data.length).to.equal(26);",
+									"});",
+									"",
+									"pm.test(\"Each family has the expected keys\", function () {",
+									"    pm.response.json().data.forEach(function (p) {",
+									"        pm.expect(p).to.have.all.keys('slug', 'object', 'name', 'beverage_type', 'class', 'description', 'sort_order', 'aliases');",
+									"        pm.expect(p.object).to.equal('style_parent');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/parent",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"parent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-7 List Classes (Ale/Lager)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"List envelope shape\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('object', 'url', 'has_more', 'data');",
+									"    pm.expect(d.url).to.equal('/style/class');",
+									"});",
+									"",
+									"pm.test(\"Exactly two classes: ale and lager\", function () {",
+									"    var data = pm.response.json().data;",
+									"    pm.expect(data.length).to.equal(2);",
+									"    var slugs = data.map(function (x) { return x.slug; });",
+									"    pm.expect(slugs).to.include('ale');",
+									"    pm.expect(slugs).to.include('lager');",
+									"});",
+									"",
+									"pm.test(\"Each class has the expected keys\", function () {",
+									"    pm.response.json().data.forEach(function (x) {",
+									"        pm.expect(x).to.have.all.keys('slug', 'object', 'name', 'beverage_type', 'sort_order', 'aliases');",
+									"        pm.expect(x.object).to.equal('style_class');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/class",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"class"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-8 Method Not Allowed (POST)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Method Not Allowed (HTTP 405)\", function () {",
+									"    pm.response.to.have.status(405);",
+									"});",
+									"",
+									"pm.test(\"Allow header advertises GET\", function () {",
+									"    pm.expect(pm.response.headers.get('Allow')).to.equal('GET');",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Invalid API Requests - Technical",
 			"item": [
 				{

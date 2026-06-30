@@ -97,7 +97,7 @@ The canonical DB schema is a **separate, public repo**: [catalog-beer-mysql](htt
 
 **When you add or alter any table or column — in a migration, or directly in this API — update `catalog-beer-schema.sql` in the SAME change** so the canonical schema never lags, and bump its git tag (`v1.x`). It's easy to forget: it lives in a third repo, isn't imported by the app, and nothing breaks if it's wrong — but it is the schema every human and every future Claude session reads as truth.
 
-Touchpoints here that imply a schema change: a new entry in an entity's `$columns[]`/`$setClauses[]` arrays in `add()`, a new `CREATE TABLE`, a new index, or a `SELECT` that reads a column that doesn't exist yet (e.g. the `style_confidence` column and `style_alias_approx` table added for the Guided Style Field).
+Touchpoints here that imply a schema change: a new entry in an entity's `$columns[]`/`$setClauses[]` arrays in `add()`, a new `CREATE TABLE`, a new index, or a `SELECT` that reads a column that doesn't exist yet (e.g. the `style_confidence` column added for the Guided Style Field).
 
 ## API Endpoints
 
