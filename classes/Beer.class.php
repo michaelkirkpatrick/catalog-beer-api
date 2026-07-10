@@ -259,6 +259,13 @@ class Beer {
             if($method == 'POST' || $method == 'PUT'){
                 // Save to Class
                 $this->name = $name;
+                // Snapshot the stored label + classification (loaded by
+                // validate() when PUT targets an existing beer) so an
+                // unchanged-but-unresolvable label keeps its classification
+                // and an unchanged tier keeps its provenance.
+                $prevLabel = $newBeer ? null : $this->style;
+                $prevTier = array($this->styleID, $this->parent, $this->class, $this->beverageType);
+                $prevConfidence = $this->styleConfidence;
                 $this->style = $style;
                 $this->description = $description;
                 $this->abv = $abv;
@@ -266,8 +273,8 @@ class Beer {
 
                 // Validate Fields
                 $this->validateName();
-                $this->resolveStyle($styleID, $parent, $class);
-                $this->resolveConfidence($styleConfidence);
+                $this->resolveStyle($styleID, $parent, $class, $prevLabel, $prevTier);
+                $this->resolveConfidence($styleConfidence, $prevConfidence, !$newBeer && array_slice($prevTier, 0, 3) === array($this->styleID, $this->parent, $this->class));
                 $this->validateDescription();
                 $this->validateABV();
                 $this->validateIBU();
@@ -345,13 +352,15 @@ class Beer {
                 if(in_array('style', $patchFields)){
                     // Re-resolve from the submitted label + tier pick. Any of style_id/
                     // parent/class can change, so always re-resolve when style is patched.
-                    // Snapshot the stored tier + confidence first (loaded by validate()
-                    // above) so an edit that doesn't change the tier keeps its provenance.
-                    $prevTier = array($this->styleID, $this->parent, $this->class);
+                    // Snapshot the stored label, tier + confidence first (loaded by
+                    // validate() above) so an unchanged-but-unresolvable label keeps its
+                    // classification and an unchanged tier keeps its provenance.
+                    $prevLabel = $this->style;
+                    $prevTier = array($this->styleID, $this->parent, $this->class, $this->beverageType);
                     $prevConfidence = $this->styleConfidence;
                     $this->style = $style;
-                    $this->resolveStyle($styleID, $parent, $class);
-                    $this->resolveConfidence($styleConfidence, $prevConfidence, $prevTier === array($this->styleID, $this->parent, $this->class));
+                    $this->resolveStyle($styleID, $parent, $class, $prevLabel, $prevTier);
+                    $this->resolveConfidence($styleConfidence, $prevConfidence, array_slice($prevTier, 0, 3) === array($this->styleID, $this->parent, $this->class));
                     if(!$this->error){
                         $setClauses[] = "style=?";        $setParams[] = $this->style;
                         $setClauses[] = "style_id=?";     $setParams[] = $this->styleID;
@@ -504,10 +513,14 @@ class Beer {
     from the client). Resolution:
       1. explicit style_id / parent / class (the typeahead's pick), most specific first
       2. raw label: exact style name -> class alias -> family alias -> style alias
-      3. unresolved -> 400 with a helpful, suggestion-oriented message
+      3. unchanged label on an existing beer -> keep the stored classification
+         ($prevLabel / $prevTier: a GET->PUT/PATCH round-trip of a legacy beer
+         whose label predates the vocabulary isn't a new style claim and must
+         not 400 the update)
+      4. unresolved -> 400 with a helpful, suggestion-oriented message
     Collation utf8mb4_0900_ai_ci makes name/alias matching case/accent-insensitive.
     --*/
-    private function resolveStyle($styleID, $parent = '', $class = ''){
+    private function resolveStyle($styleID, $parent = '', $class = '', $prevLabel = null, $prevTier = null){
         // Trim
         $this->style = trim($this->style ?? '');
         $styleID = trim($styleID ?? '');
@@ -626,7 +639,17 @@ class Beer {
         }
         $db->close();
 
-        // 3. Unresolved — guide the caller toward the list / a catch-all
+        // 3. Unchanged label on an existing beer: keep its stored
+        // classification rather than blocking the update. The caller isn't
+        // making a new style claim — they're resending the beer's own data
+        // (e.g. a GET->PUT round-trip of a legacy beer whose label predates
+        // the vocabulary).
+        if($prevLabel !== null && strcasecmp($this->style, trim($prevLabel)) === 0){
+            $this->setTier($prevTier[0] ?? null, $prevTier[1] ?? null, $prevTier[2] ?? null, $prevTier[3] ?? 'beer');
+            return;
+        }
+
+        // 4. Unresolved — guide the caller toward the list / a catch-all
         $this->error = true;
         $this->validState['style'] = 'invalid';
         $this->validMsg['style'] = 'We couldn\'t match "' . $this->style . '" to a known style, family, or class. Pick one from the list, or choose a catch-all like Specialty so nothing is lost.';
@@ -670,7 +693,9 @@ class Beer {
         $c = trim((string)($clientConfidence ?? ''));
         if(in_array($c, $valid, true)){
             $this->styleConfidence = $c;
-        }elseif($tierUnchanged && in_array($prevConfidence, $valid, true)){
+        }elseif($tierUnchanged && ($prevConfidence === null || in_array($prevConfidence, $valid, true))){
+            // Unchanged tier keeps its provenance — including NULL, which marks
+            // a backfilled/legacy classification no person has asserted yet.
             $this->styleConfidence = $prevConfidence;
         }elseif(!empty($this->styleID)){
             $this->styleConfidence = 'confident';
