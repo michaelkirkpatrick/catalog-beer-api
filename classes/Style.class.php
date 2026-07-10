@@ -51,7 +51,7 @@ class Style {
         // Styles in alphabetical order (predictable for consumers; pickers re-sort as needed)
         $styles = array();
         $order = array();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all FROM style s LEFT JOIN style_parent p ON s.parent = p.slug ORDER BY s.canonical_name");
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max FROM style s LEFT JOIN style_parent p ON s.parent = p.slug ORDER BY s.canonical_name");
         if($db->error){
             $this->dbError($db->errorMsg, $db->responseCode);
             $db->close();
@@ -67,6 +67,9 @@ class Style {
                 'class' => $row['class'],
                 'catch_all' => (bool) $row['is_catch_all'],
                 'aliases' => array(),
+                // Color only — the one spec the index page's swatch device needs.
+                // Full specs stay on GET /style/{slug}.
+                'srm' => $this->range($row['srm_min'], $row['srm_max'], true),
             );
             $order[] = $row['id'];
         }
