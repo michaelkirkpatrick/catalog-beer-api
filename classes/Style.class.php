@@ -109,10 +109,12 @@ class Style {
         $this->json['data'] = $data;
     }
 
-    // GET /style/{slug} — one style with full detail
+    // GET /style/{slug} — one style with full detail, including the editorial
+    // content (description, AAFM, history, notes, examples, sources) authored
+    // in the style library and seeded into style_content
     private function getStyle($id){
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.name AS parent_name, p.class, s.source, s.is_catch_all, s.abv_min, s.abv_max, s.ibu_min, s.ibu_max, s.srm_min, s.srm_max, s.og_min, s.og_max, s.fg_min, s.fg_max FROM style s LEFT JOIN style_parent p ON s.parent = p.slug WHERE s.id=?", [$id]);
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.name AS parent_name, p.class, s.source, s.is_catch_all, s.abv_min, s.abv_max, s.ibu_min, s.ibu_max, s.srm_min, s.srm_max, s.og_min, s.og_max, s.fg_min, s.fg_max, c.description, c.appearance, c.aroma, c.flavor, c.mouthfeel, c.history, c.notes, c.commercial_examples, c.sources FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE s.id=?", [$id]);
         if($db->error){
             $this->dbError($db->errorMsg, $db->responseCode);
             $db->close();
@@ -157,6 +159,17 @@ class Style {
                 'og'  => $this->range($row['og_min'], $row['og_max'], true),
                 'fg'  => $this->range($row['fg_min'], $row['fg_max'], true),
             ),
+            // Editorial content from the style library (null until seeded, and
+            // AAFM is null by design for catch-all styles)
+            'description' => $row['description'],
+            'appearance' => $row['appearance'],
+            'aroma' => $row['aroma'],
+            'flavor' => $row['flavor'],
+            'mouthfeel' => $row['mouthfeel'],
+            'history' => $row['history'],
+            'notes' => $row['notes'],
+            'commercial_examples' => $this->jsonColumn($row['commercial_examples']),
+            'sources' => $this->jsonColumn($row['sources']),
         );
     }
 
@@ -227,6 +240,15 @@ class Style {
         $this->json['url'] = '/style/class';
         $this->json['has_more'] = false;
         $this->json['data'] = $data;
+    }
+
+    // Decode a MySQL JSON column into a PHP structure, or null when absent
+    private function jsonColumn($value){
+        if($value === null || $value === ''){
+            return null;
+        }
+        $decoded = json_decode($value, true);
+        return ($decoded === null) ? null : $decoded;
     }
 
     // Build a {min,max} spec range, or null if both bounds are absent
