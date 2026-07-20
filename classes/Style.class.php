@@ -314,11 +314,26 @@ class Style {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Relevance is the best of three signals — canonical name (×3), alias
-        // (×2), description (×1) — so a name hit always outranks a passing
-        // description mention of the same term.
+        // Ranking is tiered, not a blended score:
+        //
+        //   0  the query IS the style — exact canonical name or exact alias
+        //   1  a hit somewhere in the style's identity terms (search_name)
+        //   2  a hit only in the editorial description
+        //
+        // Relevance orders results *within* a tier and never across one. That
+        // restriction is the whole point: MATCH() relevance is derived from IDF
+        // within a single index, so scores from different columns are not on a
+        // common scale and cannot be meaningfully weighted against each other.
+        // The previous implementation multiplied three such scores by 3/2/1 and
+        // compared them, which is why q=ipa ranked american-belgo-ale above
+        // american-ipa, and q=ale returned aged-beer first.
+        //
+        // search_name is canonical_name plus every alias in one document, so
+        // "IPA" reaches american-ipa even though its name spells out "India
+        // Pale Ale" — the case the old ranking could never handle, because the
+        // token was absent from the column carrying the heaviest weight.
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max FROM (SELECT id, MAX(rel) AS relevance FROM (SELECT id, MATCH(canonical_name) AGAINST(? IN NATURAL LANGUAGE MODE) * 3 AS rel FROM style WHERE MATCH(canonical_name) AGAINST(? IN NATURAL LANGUAGE MODE) UNION ALL SELECT style_id, MATCH(alias) AGAINST(? IN NATURAL LANGUAGE MODE) * 2 FROM style_alias WHERE MATCH(alias) AGAINST(? IN NATURAL LANGUAGE MODE) UNION ALL SELECT style_id, MATCH(description) AGAINST(? IN NATURAL LANGUAGE MODE) FROM style_content WHERE MATCH(description) AGAINST(? IN NATURAL LANGUAGE MODE)) hits GROUP BY id) m JOIN style s ON s.id = m.id LEFT JOIN style_parent p ON s.parent = p.slug ORDER BY m.relevance DESC, s.canonical_name LIMIT ?, ?", [$query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $query, $query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
         if($db->error){
             // Query Error
             $this->responseCode = 500;
@@ -372,6 +387,48 @@ class Style {
                 }
             }
         }
+
+        // Matching families, returned alongside the styles rather than mixed
+        // into them — keeping `data` a uniform array of style objects.
+        //
+        // Broad queries have no single correct style answer. "ipa" is not a
+        // style; it is 12 of them. Ranking one arbitrarily above the rest is
+        // the wrong answer however good the scoring is, so the family gets
+        // surfaced as its own result and the caller can offer the group.
+        //
+        // No FULLTEXT index here on purpose: style_parent holds 26 rows, so a
+        // scan costs nothing and an index would be one more thing to rebuild.
+        // sort_order has to be in the SELECT list: DISTINCT plus an ORDER BY on
+        // a column that isn't selected is rejected outright.
+        //
+        // The substring clause is only added for queries of 3+ characters.
+        // LIKE '%a%' would otherwise match nearly every family and drown the
+        // style results it is meant to complement.
+        $families = array();
+        $fSql = "SELECT DISTINCT p.slug, p.name, p.beverage_type, p.class, p.description, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) = LOWER(?) OR LOWER(p.name) = LOWER(?) OR LOWER(pa.alias) = LOWER(?)";
+        $fParams = array($query, $query, $query);
+        if(mb_strlen($query) >= 3){
+            $fSql .= " OR LOWER(p.name) LIKE LOWER(CONCAT('%', ?, '%'))";
+            $fParams[] = $query;
+        }
+        $fSql .= " ORDER BY p.sort_order";
+        $fResult = $db->query($fSql, $fParams);
+        if(!$db->error && $fResult !== null){
+            while($f = $fResult->fetch_assoc()){
+                // Same shape as GET /style/parent rows minus `aliases`, which
+                // would cost a second query to assemble for a field callers do
+                // not need here. Fetch the full object from /style/parent.
+                $families[] = array(
+                    'slug' => $f['slug'],
+                    'object' => 'style_parent',
+                    'name' => $f['name'],
+                    'beverage_type' => $f['beverage_type'],
+                    'class' => $f['class'],
+                    'description' => $f['description'],
+                    'sort_order' => intval($f['sort_order']),
+                );
+            }
+        }
         $db->close();
 
         // Preserve relevance order
@@ -389,6 +446,9 @@ class Style {
         if($hasMore){
             $this->json['next_cursor'] = base64_encode($offset + $count);
         }
+        // Families are never paginated — there are 26 in total and a query
+        // matches at most a handful. has_more and next_cursor describe `data`.
+        $this->json['families'] = $families;
         $this->json['data'] = $data;
     }
 
