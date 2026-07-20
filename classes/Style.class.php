@@ -319,22 +319,40 @@ class Style {
         // it. "juicy ipa" must put hazy-ipa (both terms) above american-ipa
         // (one term), and no amount of relevance arithmetic reliably does that.
         //
-        // Boolean operators are stripped rather than escaped: the query is user
-        // input, and leaving +, -, ~, *, < > or quotes in place would let a
-        // caller drive the matching logic. Terms below
-        // innodb_ft_min_token_size are dropped by MySQL rather than failing the
-        // AND, so short words degrade gracefully instead of returning nothing.
-        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[+\-<>~*()"@]+/', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
+        // Everything that is not a letter or digit becomes a separator. This is
+        // an allowlist on purpose: a blacklist of MySQL's operators
+        // (+ - < > ~ * parens quotes @) misses others — "%" alone was enough to
+        // produce "syntax error, unexpected $end" from the FULLTEXT parser, a
+        // 500 on a query a user could plausibly type. \p{L} keeps non-ASCII
+        // letters, so "kölsch" and "münchner" still search as single terms.
+        //
+        // An all-punctuation query yields an empty expression, which is left
+        // empty rather than falling back to the raw string — falling back would
+        // feed the very operators just stripped straight into BOOLEAN MODE.
+        // AGAINST('' IN BOOLEAN MODE) matches nothing and raises no error, so
+        // the natural-language tiers below still apply.
+        //
+        // Terms below innodb_ft_min_token_size are dropped by MySQL rather than
+        // failing the AND, so short words degrade instead of returning nothing.
+        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
         $boolQuery = '';
         foreach($boolTerms as $t){
             $boolQuery .= '+' . $t . ' ';
         }
         $boolQuery = trim($boolQuery);
-        if($boolQuery === ''){
-            // Query was nothing but operators. Matches nothing in boolean mode,
-            // which is correct — the natural-language tiers still apply.
-            $boolQuery = $query;
-        }
+
+        // The same sanitised terms feed the NATURAL LANGUAGE matches, which are
+        // not as forgiving as their name suggests: AGAINST('*' IN NATURAL
+        // LANGUAGE MODE) is a parser error, not an empty result. A bare "*"
+        // therefore 500s — a pre-existing fault in this endpoint since it
+        // shipped, reachable by anyone typing a lone asterisk into a search
+        // box, and logged as C272 with no indication it was user input rather
+        // than a broken query.
+        //
+        // Only the exact-match comparisons keep the raw query, since those are
+        // string equality against canonical names and aliases, where
+        // punctuation is meaningful and no FULLTEXT parser is involved.
+        $nlQuery = implode(' ', $boolTerms);
 
         // Ranking is tiered, not a blended score:
         //
@@ -362,12 +380,21 @@ class Style {
         // popular vague one, which is why "juicy ipa" needs the all-terms tier
         // to keep hazy-ipa (13 beers) above american-ipa (6,530).
         //
+        // Catch-all styles sort below specific ones within a tier, because
+        // beer_count structurally favours them: they are the buckets beers land
+        // in when nothing more precise fits, so they accumulate counts no
+        // specific style can match. specialty-beer holds 1,209 beers and its
+        // aliases mention stout, which put it second for q=stout — above four
+        // actual stouts. A catch-all is a fallback, not an answer. This only
+        // applies within a tier, so searching for a catch-all by name still
+        // returns it first on the exact-match tier.
+        //
         // search_name is canonical_name plus every alias in one document, so
         // "IPA" reaches american-ipa even though its name spells out "India
         // Pale Ale" — the case the original ranking could never handle, because
         // the token was absent from the column carrying the heaviest weight.
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $boolQuery, $query, $query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.is_catch_all, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $boolQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $query, $query, $offset, $fetchCount]);
         if($db->error){
             // Query Error
             $this->responseCode = 500;
