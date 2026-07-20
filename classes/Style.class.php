@@ -11,6 +11,7 @@ class Style {
     /*---
     GET https://api.catalog.beer/style              — all canonical styles, alphabetical (+ version)
     GET https://api.catalog.beer/style/{slug}       — one style with full detail
+    GET https://api.catalog.beer/style/search?q=    — full-text search over names, aliases, descriptions
     GET https://api.catalog.beer/style/parent       — the family groupings (curated sort_order)
     GET https://api.catalog.beer/style/class        — the super-classes (curated sort_order)
 
@@ -32,6 +33,12 @@ class Style {
                 $this->listParents();
             }elseif($function === 'class'){
                 $this->listClasses();
+            }elseif($function === 'search'){
+                // GET https://api.catalog.beer/style/search?q=
+                $searchQuery = isset($_GET['q']) ? $_GET['q'] : '';
+                $searchCount = isset($_GET['count']) ? $_GET['count'] : 25;
+                $searchCursor = isset($_GET['cursor']) ? $_GET['cursor'] : base64_encode('0');
+                $this->search($searchQuery, $searchCursor, $searchCount);
             }else{
                 $this->responseCode = 404;
                 $this->json['error'] = true;
@@ -239,6 +246,149 @@ class Style {
         $this->json['object'] = 'list';
         $this->json['url'] = '/style/class';
         $this->json['has_more'] = false;
+        $this->json['data'] = $data;
+    }
+
+    // GET /style/search?q= — full-text search across canonical names, aliases,
+    // and editorial descriptions. Aliases carry most real queries: "NEIPA" and
+    // "Juicy IPA" only reach hazy-ipa through style_alias. Results are compact
+    // style objects in the same shape as GET /style list rows.
+    private function search($query, $cursor, $count){
+        // Validate query
+        $query = trim($query ?? '');
+        if($query === ''){
+            // Missing Query
+            $this->responseCode = 400;
+            $this->json['error'] = true;
+            $this->json['error_msg'] = "Missing search query. Include a 'q' parameter with your search terms.";
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 269;
+            $errorLog->errorMsg = 'Missing style search query';
+            $errorLog->badData = '';
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        if(strlen($query) > 255){
+            // Query Too Long
+            $this->responseCode = 400;
+            $this->json['error'] = true;
+            $this->json['error_msg'] = 'Search query is too long. Please limit your query to 255 characters.';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 270;
+            $errorLog->errorMsg = 'Style search query too long';
+            $errorLog->badData = strlen($query) . ' characters';
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        // Validate count
+        $count = intval($count);
+        if($count < 1 || $count > 100){
+            $this->responseCode = 400;
+            $this->json['error'] = true;
+            $this->json['error_msg'] = 'The count value must be between 1 and 100.';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 271;
+            $errorLog->errorMsg = 'Invalid count for style search';
+            $errorLog->badData = $count;
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        // Validate cursor
+        $offset = intval(base64_decode($cursor));
+        if($offset < 0){
+            $offset = 0;
+        }
+
+        // Request count+1 to determine if there are more results
+        $fetchCount = $count + 1;
+
+        // Relevance is the best of three signals — canonical name (×3), alias
+        // (×2), description (×1) — so a name hit always outranks a passing
+        // description mention of the same term.
+        $db = new Database();
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max FROM (SELECT id, MAX(rel) AS relevance FROM (SELECT id, MATCH(canonical_name) AGAINST(? IN NATURAL LANGUAGE MODE) * 3 AS rel FROM style WHERE MATCH(canonical_name) AGAINST(? IN NATURAL LANGUAGE MODE) UNION ALL SELECT style_id, MATCH(alias) AGAINST(? IN NATURAL LANGUAGE MODE) * 2 FROM style_alias WHERE MATCH(alias) AGAINST(? IN NATURAL LANGUAGE MODE) UNION ALL SELECT style_id, MATCH(description) AGAINST(? IN NATURAL LANGUAGE MODE) FROM style_content WHERE MATCH(description) AGAINST(? IN NATURAL LANGUAGE MODE)) hits GROUP BY id) m JOIN style s ON s.id = m.id LEFT JOIN style_parent p ON s.parent = p.slug ORDER BY m.relevance DESC, s.canonical_name LIMIT ?, ?", [$query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
+        if($db->error){
+            // Query Error
+            $this->responseCode = 500;
+            $this->json['error'] = true;
+            $this->json['error_msg'] = 'Sorry, we encountered an error while processing your search.';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 272;
+            $errorLog->errorMsg = 'Style FULLTEXT query error';
+            $errorLog->badData = $db->errorMsg;
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            $db->close();
+            return;
+        }
+
+        $rowCount = 0;
+        $styles = array();
+        $order = array();
+        while($row = $result->fetch_assoc()){
+            $rowCount++;
+            if($rowCount > $count){
+                // Extra row — indicates more results exist
+                break;
+            }
+            $styles[$row['id']] = array(
+                'id' => $row['id'],
+                'object' => 'style',
+                'name' => $row['canonical_name'],
+                'beverage_type' => $row['beverage_type'],
+                'parent' => $row['parent'],
+                'class' => $row['class'],
+                'catch_all' => (bool) $row['is_catch_all'],
+                'aliases' => array(),
+                'srm' => $this->range($row['srm_min'], $row['srm_max'], true),
+            );
+            $order[] = $row['id'];
+        }
+
+        // Attach aliases (everything that resolves to each style, minus the canonical name itself)
+        if(!empty($order)){
+            $placeholders = implode(',', array_fill(0, count($order), '?'));
+            $aResult = $db->query("SELECT style_id, alias FROM style_alias WHERE style_id IN ($placeholders)", $order);
+            if(!$db->error && $aResult !== null){
+                while($a = $aResult->fetch_assoc()){
+                    $sid = $a['style_id'];
+                    if(isset($styles[$sid]) && strcasecmp($a['alias'], $styles[$sid]['name']) !== 0){
+                        $styles[$sid]['aliases'][] = $a['alias'];
+                    }
+                }
+            }
+        }
+        $db->close();
+
+        // Preserve relevance order
+        $data = array();
+        foreach($order as $sid){
+            $data[] = $styles[$sid];
+        }
+
+        // Build response
+        $hasMore = ($rowCount > $count);
+        $this->json['object'] = 'list';
+        $this->json['url'] = '/style/search';
+        $this->json['query'] = $query;
+        $this->json['has_more'] = $hasMore;
+        if($hasMore){
+            $this->json['next_cursor'] = base64_encode($offset + $count);
+        }
         $this->json['data'] = $data;
     }
 
