@@ -314,26 +314,60 @@ class Style {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
+        // A BOOLEAN MODE expression requiring EVERY term, used to separate
+        // styles that match the whole query from those matching only part of
+        // it. "juicy ipa" must put hazy-ipa (both terms) above american-ipa
+        // (one term), and no amount of relevance arithmetic reliably does that.
+        //
+        // Boolean operators are stripped rather than escaped: the query is user
+        // input, and leaving +, -, ~, *, < > or quotes in place would let a
+        // caller drive the matching logic. Terms below
+        // innodb_ft_min_token_size are dropped by MySQL rather than failing the
+        // AND, so short words degrade gracefully instead of returning nothing.
+        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[+\-<>~*()"@]+/', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
+        $boolQuery = '';
+        foreach($boolTerms as $t){
+            $boolQuery .= '+' . $t . ' ';
+        }
+        $boolQuery = trim($boolQuery);
+        if($boolQuery === ''){
+            // Query was nothing but operators. Matches nothing in boolean mode,
+            // which is correct — the natural-language tiers still apply.
+            $boolQuery = $query;
+        }
+
         // Ranking is tiered, not a blended score:
         //
         //   0  the query IS the style — exact canonical name or exact alias
-        //   1  a hit somewhere in the style's identity terms (search_name)
-        //   2  a hit only in the editorial description
+        //   1  EVERY query term appears in the style's identity terms
+        //   2  SOME query term appears in its identity terms
+        //   3  a hit only in the editorial description
         //
-        // Relevance orders results *within* a tier and never across one. That
-        // restriction is the whole point: MATCH() relevance is derived from IDF
-        // within a single index, so scores from different columns are not on a
-        // common scale and cannot be meaningfully weighted against each other.
-        // The previous implementation multiplied three such scores by 3/2/1 and
-        // compared them, which is why q=ipa ranked american-belgo-ale above
-        // american-ipa, and q=ale returned aged-beer first.
+        // Tiers exist because MATCH() relevance cannot carry this weight. Its
+        // scores come from IDF and document length within one index, so they
+        // are incomparable across columns and, within a column, are decided by
+        // document length — a property unrelated to what a searcher meant. Two
+        // attempts to rank tier-mates by relevance both failed: concatenated
+        // aliases ranked styles by how many synonyms they had, and deduplicated
+        // tokens ranked them by how many distinct tokens they had. Neither
+        // means anything, so q=ipa surfaced experimental-ipa and
+        // new-zealand-ipa — used by zero beers — above american-ipa, used by
+        // 6,530.
+        //
+        // Hence beer_count as the primary order WITHIN a tier: how many
+        // catalogued beers actually use the style. It ranks below tier on
+        // purpose. Tiers already guarantee tier-mates match the query equally
+        // well, so popularity only separates genuine equivalents; promoted
+        // above tier it would bury a precisely-matched rare style under a
+        // popular vague one, which is why "juicy ipa" needs the all-terms tier
+        // to keep hazy-ipa (13 beers) above american-ipa (6,530).
         //
         // search_name is canonical_name plus every alias in one document, so
         // "IPA" reaches american-ipa even though its name spells out "India
-        // Pale Ale" — the case the old ranking could never handle, because the
-        // token was absent from the column carrying the heaviest weight.
+        // Pale Ale" — the case the original ranking could never handle, because
+        // the token was absent from the column carrying the heaviest weight.
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $query, $query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $boolQuery, $query, $query, $query, $query, $query, $query, $query, $offset, $fetchCount]);
         if($db->error){
             // Query Error
             $this->responseCode = 500;
