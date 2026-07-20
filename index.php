@@ -373,26 +373,35 @@ if($json_encoded = json_encode($json)){
 }
 
 $masterKeys = unserialize(MASTER_API_KEYS);
-if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && !$rateLimited && $endpoint != 'usage'){
-    // Log Request
+if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && $endpoint != 'usage'){
+    // Log Request — rate-limited requests included. A 429 is a user asking for
+    // more than the free tier allows, which makes it the most commercially
+    // interesting event this API emits. It used to be skipped alongside the
+    // counter increment below, so rejections were invisible: not one 429 had
+    // ever been recorded, and users who hit the wall churned silently.
     $apiLogging = new apiLogging();
     $apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded ?: '', $responseCode);
 
-    // Increment Usage Counter
-    $now = time();
-    $year = date('Y');
-    $month = date('n');
-    $db = new Database();
-    $db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) VALUES (UUID(), ?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE count = count + 1, lastUpdated = ?", [$apiKey, $year, $month, $now, $now]);
-    if($db->error){
-        // Log silently, don't affect response
-        $errorLog = new LogError();
-        $errorLog->errorNumber = 258;
-        $errorLog->errorMsg = 'Failed to increment usage counter';
-        $errorLog->badData = "apiKey: $apiKey";
-        $errorLog->filename = 'API / index.php';
-        $errorLog->write();
+    // Increment Usage Counter — but NOT when rate limited. The count must
+    // freeze at requestLimit + requestBuffer + 1 rather than climbing while a
+    // blocked key keeps retrying. That frozen value is also how a blocked key
+    // is identified after the fact.
+    if(!$rateLimited){
+        $now = time();
+        $year = date('Y');
+        $month = date('n');
+        $db = new Database();
+        $db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) VALUES (UUID(), ?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE count = count + 1, lastUpdated = ?", [$apiKey, $year, $month, $now, $now]);
+        if($db->error){
+            // Log silently, don't affect response
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 258;
+            $errorLog->errorMsg = 'Failed to increment usage counter';
+            $errorLog->badData = "apiKey: $apiKey";
+            $errorLog->filename = 'API / index.php';
+            $errorLog->write();
+        }
+        $db->close();
     }
-    $db->close();
 }
 ?>
