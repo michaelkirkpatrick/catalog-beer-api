@@ -1334,9 +1334,27 @@ class Beer {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Query Database
+        // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
+        $searchTerms = SearchQuery::terms($query);
+
+        // Ranking is tiered, not a blended score. A single relevance value
+        // across (name, style, description) weights a description mention the
+        // same as the beer's own name, and FULLTEXT has no stemming — "mash"
+        // is not the token "Mashed". Both together buried "Triple-Mashed" at
+        // position ~23 for the query "triple mash".
+        //
+        //   0  the query IS the beer's name
+        //   1  every query term appears in the name as a word prefix
+        //   2  anything else the natural-language match returns
+        //
+        // Within a tier: name relevance, then blended relevance, then
+        // name/id so pagination order is deterministic.
+        //
+        // The boolean-mode term in the WHERE clause also widens recall:
+        // natural-language matching is exact-token, so "mash" alone would
+        // never return a beer named "Triple-Mashed" without it.
         $db = new Database();
-        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, CASE WHEN LOWER(b.name) = LOWER(?) THEN 0 WHEN MATCH(b.name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(b.name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(b.name) AGAINST(? IN BOOLEAN MODE) OR LOWER(b.name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, b.name, b.id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();

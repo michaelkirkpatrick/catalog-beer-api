@@ -62734,6 +62734,178 @@
 												}
 											},
 											"response": []
+										},
+										{
+											"name": "BR-195 Search Brewers - Exact Name First",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"// Ranking regression: searching a brewer's exact full name must return",
+															"// that brewer as the first result (tier 0), not a FULLTEXT relevance mix.",
+															"pm.test(\"Exact name match is the first result\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+															"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('brewer_id_42'));",
+															"    pm.expect(jsonData.data[0].name).to.equal(pm.environment.get('brewer_name_42'));",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q={{brewer_name_42}}",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{brewer_name_42}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BR-196 Search Brewers - Punctuation Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"// A bare \"*\" is a FULLTEXT parser error in NATURAL LANGUAGE MODE and",
+															"// used to 500. Sanitisation must turn it into an empty result instead.",
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Empty result list, no error\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.has_more).to.equal(false);",
+															"    pm.expect(jsonData.data.length).to.equal(0);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/brewer/search?q=*",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"brewer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "*"
+														}
+													]
+												}
+											},
+											"response": []
 										}
 									]
 								},
@@ -63530,6 +63702,178 @@
 														{
 															"key": "q",
 															"value": "Postman"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-144 Search Beer - Exact Name First",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"// Ranking regression: searching a beer's exact full name must return",
+															"// that beer as the first result (tier 0), not a FULLTEXT relevance mix.",
+															"pm.test(\"Exact name match is the first result\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+															"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('beer_id_24'));",
+															"    pm.expect(jsonData.data[0].name).to.equal(pm.environment.get('beer_name_24'));",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q={{beer_name_24}}",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "{{beer_name_24}}"
+														}
+													]
+												}
+											},
+											"response": []
+										},
+										{
+											"name": "BEER-145 Search Beer - Punctuation Query",
+											"event": [
+												{
+													"listen": "prerequest",
+													"script": {
+														"exec": [
+															"// Role",
+															"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+														],
+														"type": "text/javascript"
+													}
+												},
+												{
+													"listen": "test",
+													"script": {
+														"exec": [
+															"// A bare \"*\" is a FULLTEXT parser error in NATURAL LANGUAGE MODE and",
+															"// used to 500. Sanitisation must turn it into an empty result instead.",
+															"pm.test(\"Found OK (HTTP 200)\", function () {",
+															"    pm.response.to.have.status(200);",
+															"});",
+															"",
+															"pm.test(\"Empty result list, no error\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    pm.expect(jsonData.object).to.equal('list');",
+															"    pm.expect(jsonData.has_more).to.equal(false);",
+															"    pm.expect(jsonData.data.length).to.equal(0);",
+															"});"
+														],
+														"type": "text/javascript"
+													}
+												}
+											],
+											"request": {
+												"auth": {
+													"type": "basic",
+													"basic": [
+														{
+															"key": "username",
+															"value": "{{api_key}}",
+															"type": "string"
+														},
+														{
+															"key": "password",
+															"value": "",
+															"type": "string"
+														},
+														{
+															"key": "saveHelperData",
+															"type": "any"
+														},
+														{
+															"key": "showPassword",
+															"value": false,
+															"type": "boolean"
+														}
+													]
+												},
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "https://{{base_url}}/beer/search?q=*",
+													"protocol": "https",
+													"host": [
+														"{{base_url}}"
+													],
+													"path": [
+														"beer",
+														"search"
+													],
+													"query": [
+														{
+															"key": "q",
+															"value": "*"
 														}
 													]
 												}

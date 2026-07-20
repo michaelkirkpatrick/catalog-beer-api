@@ -89,7 +89,7 @@ All queries use parameterized `?` placeholders. Database credentials are loaded 
 - PUT full replacement: Optional fields use `if(!empty()) { $setClauses[] = 'col=?'; } else { $setClauses[] = 'col=NULL'; }` — omitted fields are cleared per REST standards
 - Optional INSERT fields: Build `$columns[]` and `$params[]` arrays, add optional fields conditionally
 - JOINs: Used where related data is needed together (e.g., `Location::nearbyLatLng()` JOINs location+brewer+US_addresses+subdivisions; `USAddresses::validate()` JOINs with subdivisions)
-- FULLTEXT search: `Beer::search()` and `Brewer::search()` use `MATCH ... AGAINST(? IN NATURAL LANGUAGE MODE)` with MySQL FULLTEXT indexes; `Beer::search()` JOINs with brewer to return full objects in one query
+- FULLTEXT search: `Beer::search()` and `Brewer::search()` rank in tiers — exact name, all query terms in the name as word prefixes (BOOLEAN MODE against a name-only FULLTEXT index), then the blended `NATURAL LANGUAGE MODE` match — so name matches always outrank description/style mentions. Query strings are sanitised by `SearchQuery::terms()` (`SearchQuery.class.php`), which strips FULLTEXT operator characters (a bare `*` is a parser error even in natural-language mode) and removes InnoDB stopwords from the boolean query (a required stopword like `+the*` silently matches nothing). `Beer::search()` JOINs with brewer to return full objects in one query
 
 ## Database Schema — keep `catalog-beer-mysql` in sync
 

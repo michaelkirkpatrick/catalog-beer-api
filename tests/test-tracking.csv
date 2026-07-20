@@ -243,6 +243,8 @@ Brewer,BR-191,Search Brewers - No Results,GET,/brewer/search?q=xyznonexistent999
 Brewer,BR-192,Search Brewers - Successful,GET,/brewer/search?q=Postman,Admin,200,Done
 Brewer,BR-193,Search Brewers - With Count,GET,/brewer/search?q=Postman&count=1,Admin,200,Done
 Brewer,BR-194,Search Brewers - Invalid Method,POST,/brewer/search?q=Postman,Admin,405,Done
+Brewer,BR-195,Search Brewers - Exact Name First,GET,/brewer/search?q={{brewer_name_42}},Admin,200,Done
+Brewer,BR-196,Search Brewers - Punctuation Query,GET,/brewer/search?q=*,Admin,200,Done
 Beer,BEER-1,Beer: no data,POST,/beer,Admin,400,Done
 Beer,BEER-2,Beer: unknown brewer_id,POST,/beer,Admin,400,Done
 Beer,BEER-3,Beer: brewer_id,POST,/beer,Admin,400,Done
@@ -384,6 +386,8 @@ Beer,BEER-139,Search Beer - No Results,GET,/beer/search?q=xyznonexistent999,Admi
 Beer,BEER-140,Search Beer - Successful,GET,/beer/search?q=Postman,Admin,200,Done
 Beer,BEER-141,Search Beer - With Count,GET,/beer/search?q=Postman&count=1,Admin,200,Done
 Beer,BEER-142,Search Beer - Invalid Method,POST,/beer/search?q=Postman,Admin,405,Done
+Beer,BEER-144,Search Beer - Exact Name First,GET,/beer/search?q={{beer_name_24}},Admin,200,Done
+Beer,BEER-145,Search Beer - Punctuation Query,GET,/beer/search?q=*,Admin,200,Done
 Beer,BEER-143,All Beer,GET,/beer,Admin,200,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
