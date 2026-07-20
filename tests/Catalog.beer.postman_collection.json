@@ -70704,8 +70704,8 @@
 									"    pm.expect(d.data).to.be.an(\"array\");",
 									"});",
 									"",
-									"pm.test(\"Version is 2.3.0\", function () {",
-									"    pm.expect(pm.response.json().version).to.equal(\"2.3.0\");",
+									"pm.test(\"Version is 2.5.0\", function () {",
+									"    pm.expect(pm.response.json().version).to.equal(\"2.5.0\");",
 									"});",
 									"",
 									"pm.test(\"196 styles returned\", function () {",
@@ -70714,7 +70714,7 @@
 									"",
 									"pm.test(\"Each style has the expected keys\", function () {",
 									"    pm.response.json().data.forEach(function (s) {",
-									"        pm.expect(s).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'class', 'catch_all', 'aliases');",
+									"        pm.expect(s).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'class', 'catch_all', 'aliases', 'srm');",
 									"        pm.expect(s.object).to.equal('style');",
 									"        pm.expect(s.aliases).to.be.an(\"array\");",
 									"    });",
@@ -70885,7 +70885,7 @@
 									"",
 									"pm.test(\"Detail shape\", function () {",
 									"    var d = pm.response.json();",
-									"    pm.expect(d).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'class', 'parent_name', 'source', 'catch_all', 'aliases', 'specs');",
+									"    pm.expect(d).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'class', 'parent_name', 'source', 'catch_all', 'aliases', 'specs', 'description', 'appearance', 'aroma', 'flavor', 'mouthfeel', 'history', 'notes', 'commercial_examples', 'sources');",
 									"    pm.expect(d.id).to.equal('ice-cider');",
 									"    pm.expect(d.object).to.equal('style');",
 									"    pm.expect(d.beverage_type).to.equal('cider');",
@@ -71380,6 +71380,1194 @@
 									"language": "json"
 								}
 							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-9 Search - Envelope & Compact Row Shape",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"List envelope shape\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.include.all.keys('object', 'url', 'query', 'has_more', 'families', 'data');",
+									"    pm.expect(d.object).to.equal('list');",
+									"    pm.expect(d.url).to.equal('/style/search');",
+									"    pm.expect(d.query).to.equal('stout');",
+									"    pm.expect(d.families).to.be.an(\"array\");",
+									"    pm.expect(d.data).to.be.an(\"array\");",
+									"});",
+									"",
+									"pm.test(\"Rows are compact style objects\", function () {",
+									"    pm.response.json().data.forEach(function (s) {",
+									"        pm.expect(s).to.have.all.keys('id', 'object', 'name', 'beverage_type', 'parent', 'class', 'catch_all', 'aliases', 'srm');",
+									"        pm.expect(s.object).to.equal('style');",
+									"        pm.expect(s.aliases).to.be.an(\"array\");",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"count is respected\", function () {",
+									"    pm.expect(pm.response.json().data.length).to.be.at.most(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=stout&count=5",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "stout"
+								},
+								{
+									"key": "count",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-10 Search - Exact Alias Ranks First",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// \"NEIPA\" appears in no canonical name. Only the alias index can find it,",
+									"// and an exact alias match must win outright.",
+									"pm.test(\"hazy-ipa ranked first via exact alias\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d.data.length).to.be.above(0);",
+									"    pm.expect(d.data[0].id).to.equal('hazy-ipa');",
+									"});",
+									"",
+									"pm.test(\"Matched alias is present on the row\", function () {",
+									"    var a = pm.response.json().data[0].aliases.map(function (x) { return x.toUpperCase(); });",
+									"    pm.expect(a).to.include('NEIPA');",
+									"});",
+									"",
+									"pm.test(\"No family matches a style-specific term\", function () {",
+									"    pm.expect(pm.response.json().families).to.be.an(\"array\").that.is.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=NEIPA",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "NEIPA"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-11 Search - Abbreviation Reaches Spelled-Out Names",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Canonical names spell out \"India Pale Ale\" — the token \"IPA\" appears in",
+									"// none of them. This passes only because aliases are indexed alongside the",
+									"// name. Within the tier, catalogue usage decides, so the most-used IPA leads.",
+									"pm.test(\"american-ipa ranked first\", function () {",
+									"    pm.expect(pm.response.json().data[0].id).to.equal('american-ipa');",
+									"});",
+									"",
+									"pm.test(\"The ipa family is offered for a broad query\", function () {",
+									"    var f = pm.response.json().families.map(function (x) { return x.slug; });",
+									"    pm.expect(f).to.include('ipa');",
+									"});",
+									"",
+									"pm.test(\"Family rows are style_parent objects\", function () {",
+									"    pm.response.json().families.forEach(function (f) {",
+									"        pm.expect(f).to.have.all.keys('slug', 'object', 'name', 'beverage_type', 'class', 'description', 'sort_order');",
+									"        pm.expect(f.object).to.equal('style_parent');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=ipa&count=5",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ipa"
+								},
+								{
+									"key": "count",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-12 Search - All Terms Outrank Popularity",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// The regression guard for the ranking design. hazy-ipa has ~13 catalogued",
+									"// beers; american-ipa has ~6,530. Matching every query term must still beat",
+									"// being popular, or popularity has been promoted above relevance.",
+									"pm.test(\"hazy-ipa ranked first despite far lower usage\", function () {",
+									"    pm.expect(pm.response.json().data[0].id).to.equal('hazy-ipa');",
+									"});",
+									"",
+									"pm.test(\"american-ipa is present but ranked lower\", function () {",
+									"    var ids = pm.response.json().data.map(function (s) { return s.id; });",
+									"    var i = ids.indexOf('american-ipa');",
+									"    pm.expect(i).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=juicy ipa",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "juicy ipa"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-13 Search - Catch-All Styles Demoted",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// specialty-beer is a catch-all holding ~1,209 beers and its aliases mention",
+									"// stout, so raw usage ranked it above four actual stouts. A fallback bucket",
+									"// must not outrank a specific style that matches equally well.",
+									"pm.test(\"No catch-all in the top 5 for a specific style term\", function () {",
+									"    pm.response.json().data.forEach(function (s) {",
+									"        pm.expect(s.catch_all).to.equal(false);",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"specialty-beer is not the top result\", function () {",
+									"    pm.expect(pm.response.json().data[0].id).to.not.equal('specialty-beer');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=stout&count=5",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "stout"
+								},
+								{
+									"key": "count",
+									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-14 Search - Pagination Page 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"More results available\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d.has_more).to.equal(true);",
+									"    pm.expect(d).to.have.property(\"next_cursor\");",
+									"});",
+									"",
+									"pm.test(\"Families present on the first page\", function () {",
+									"    pm.expect(pm.response.json().families.length).to.be.above(0);",
+									"});",
+									"",
+									"// Hand the cursor and the page-1 ids to STYLE-15.",
+									"var d = pm.response.json();",
+									"pm.environment.set('style_search_cursor', d.next_cursor);",
+									"pm.environment.set('style_search_page1_ids', d.data.map(function (s) { return s.id; }).join(','));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=ipa&count=4",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ipa"
+								},
+								{
+									"key": "count",
+									"value": "4"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-15 Search - Pagination Page 2 (No Overlap, No Repeated Families)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Page 2 returns different styles\", function () {",
+									"    var prev = pm.environment.get('style_search_page1_ids').split(',');",
+									"    var ids = pm.response.json().data.map(function (s) { return s.id; });",
+									"    ids.forEach(function (id) {",
+									"        pm.expect(prev).to.not.include(id);",
+									"    });",
+									"});",
+									"",
+									"// Families are not paginated. An empty array here means \"not repeated on",
+									"// this page\", not \"no family matched\" — page 1 is where they are returned.",
+									"pm.test(\"Families are not repeated past the first page\", function () {",
+									"    pm.expect(pm.response.json().families).to.be.an(\"array\").that.is.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=ipa&count=4&cursor={{style_search_cursor}}",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ipa"
+								},
+								{
+									"key": "count",
+									"value": "4"
+								},
+								{
+									"key": "cursor",
+									"value": "{{style_search_cursor}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-16 Search - Missing Query",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"    pm.expect(d.error_msg).to.include(\"Missing search query\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-17 Search - Count Below Range",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"    pm.expect(d.error_msg).to.include(\"between 1 and 100\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=ipa&count=0",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ipa"
+								},
+								{
+									"key": "count",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-18 Search - Count Above Range",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"    pm.expect(d.error_msg).to.include(\"between 1 and 100\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=ipa&count=101",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "ipa"
+								},
+								{
+									"key": "count",
+									"value": "101"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-19 Search - Query Too Long",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+									"",
+									"// 300 characters — over the 255 limit.",
+									"pm.environment.set('style_search_long_query', 'a'.repeat(300));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(d.error).to.equal(true);",
+									"    pm.expect(d.error_msg).to.include(\"too long\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q={{style_search_long_query}}",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "{{style_search_long_query}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-20 Search - Punctuation-Only Query Returns Empty",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Regression guard. A lone \"*\" used to return HTTP 500: MySQL treats it as a",
+									"// FULLTEXT parse error rather than an empty result, so any user typing an",
+									"// asterisk into a search box got a server error. Must be an empty 200.",
+									"pm.test(\"Empty result, not an error\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d.data).to.be.an(\"array\").that.is.empty;",
+									"    pm.expect(d.families).to.be.an(\"array\").that.is.empty;",
+									"    pm.expect(d.has_more).to.equal(false);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=*",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "*"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-21 Search - No Match Returns Empty",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Empty result set\", function () {",
+									"    var d = pm.response.json();",
+									"    pm.expect(d.data).to.be.an(\"array\").that.is.empty;",
+									"    pm.expect(d.families).to.be.an(\"array\").that.is.empty;",
+									"    pm.expect(d.has_more).to.equal(false);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=zzzqqqnotastyle",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "zzzqqqnotastyle"
+								}
+							]
 						}
 					},
 					"response": []
