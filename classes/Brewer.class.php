@@ -1154,9 +1154,14 @@ class Brewer {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Query Database
+        // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
+        $searchTerms = SearchQuery::terms($query);
+
+        // Tiered ranking; same scheme as Beer::search() — exact name, then
+        // all-terms-in-name (prefix match), then the natural-language match,
+        // with name relevance ranked above blended relevance within a tier.
         $db = new Database();
-        $result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) ORDER BY relevance DESC LIMIT ?, ?", [$query, $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, CASE WHEN LOWER(name) = LOWER(?) THEN 0 WHEN MATCH(name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(name) AGAINST(? IN BOOLEAN MODE) OR LOWER(name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, name, id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();

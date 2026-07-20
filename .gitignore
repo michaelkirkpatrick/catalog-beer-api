@@ -1,5 +1,8 @@
 *.json
 .DS_Store
+
+# Local production DB dumps for testing — contain user data, never commit
+catalogbeer-*.sql
 .editorconfig
 .nova/
 common/passwords.php
