@@ -401,18 +401,21 @@ class Style {
         // sort_order has to be in the SELECT list: DISTINCT plus an ORDER BY on
         // a column that isn't selected is rejected outright.
         //
-        // The substring clause is only added for queries of 3+ characters.
-        // LIKE '%a%' would otherwise match nearly every family and drown the
-        // style results it is meant to complement.
+        // Matching is exact — slug, name, or alias — with no substring clause.
+        // A LIKE '%q%' pass was tried and removed: q=ale returned 11 of the 26
+        // families, including Pale Lager, because "ale" sits inside "P-ale".
+        // Substring matching with no word boundary is simply wrong here, and
+        // exact matching covers every real case: ipa -> ipa, stout -> stout,
+        // "pale ale" -> pale-ale, "india pale ale" -> ipa. Bare "ale" matching
+        // nothing is correct, because "ale" names no single family.
+        //
+        // Only assembled for the first page. Families are not paginated, so
+        // repeating them on page 2 onward just makes a paginating client
+        // re-render the same block.
         $families = array();
-        $fSql = "SELECT DISTINCT p.slug, p.name, p.beverage_type, p.class, p.description, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) = LOWER(?) OR LOWER(p.name) = LOWER(?) OR LOWER(pa.alias) = LOWER(?)";
-        $fParams = array($query, $query, $query);
-        if(mb_strlen($query) >= 3){
-            $fSql .= " OR LOWER(p.name) LIKE LOWER(CONCAT('%', ?, '%'))";
-            $fParams[] = $query;
-        }
-        $fSql .= " ORDER BY p.sort_order";
-        $fResult = $db->query($fSql, $fParams);
+        $fResult = ($offset === 0)
+            ? $db->query("SELECT DISTINCT p.slug, p.name, p.beverage_type, p.class, p.description, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) = LOWER(?) OR LOWER(p.name) = LOWER(?) OR LOWER(pa.alias) = LOWER(?) ORDER BY p.sort_order", [$query, $query, $query])
+            : null;
         if(!$db->error && $fResult !== null){
             while($f = $fResult->fetch_assoc()){
                 // Same shape as GET /style/parent rows minus `aliases`, which
@@ -448,6 +451,8 @@ class Style {
         }
         // Families are never paginated — there are 26 in total and a query
         // matches at most a handful. has_more and next_cursor describe `data`.
+        // Present only on the first page; an empty array on later pages means
+        // "not repeated here", not "no families matched".
         $this->json['families'] = $families;
         $this->json['data'] = $data;
     }
