@@ -1088,7 +1088,7 @@ class Beer {
 
                 // Prep for Query
                 $db = new Database();
-                $result = $db->query("SELECT id, name, style, style_id, parent, class, beverage_type FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
+                $result = $db->query("SELECT id, name, style, style_id, parent, class, beverage_type, abv, cbVerified, brewerVerified FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
                 if(!$db->error){
                     if($result->num_rows >= 1){
                         // Has Beers associated with it
@@ -1101,6 +1101,9 @@ class Beer {
                             $beerInfo['data'][$i]['parent'] = $array['parent'];
                             $beerInfo['data'][$i]['class'] = $array['class'];
                             $beerInfo['data'][$i]['beverage_type'] = $array['beverage_type'] ?? 'beer';
+                            $beerInfo['data'][$i]['abv'] = floatval($array['abv']);
+                            $beerInfo['data'][$i]['cb_verified'] = $array['cbVerified'] ? true : false;
+                            $beerInfo['data'][$i]['brewer_verified'] = $array['brewerVerified'] ? true : false;
                             $i++;
                         }
                     }

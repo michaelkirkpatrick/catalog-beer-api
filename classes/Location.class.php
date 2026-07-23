@@ -607,11 +607,40 @@ class Location {
         $brewer = new Brewer();
         if($brewer->validate($brewerID, false)){
             // Query Database
+            // Full location objects in a single query — one LEFT JOIN per
+            // location instead of the 1 + N round-trips consumers otherwise
+            // need against /location/{id}. Same item shape as that endpoint,
+            // minus the nested brewer (the list wrapper already carries it).
             $db = new Database();
-            $result = $db->query("SELECT id, name FROM location WHERE brewerID=? ORDER BY name", [$brewerID]);
+            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN US_addresses a ON a.locationID = l.id LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
             if(!$db->error){
                 while($array = $result->fetch_assoc()){
-                    $locationInfo = array('id'=>$array['id'], 'name'=>$array['name']);
+                    $locationInfo = array(
+                        'id'=>$array['id'],
+                        'object'=>'location',
+                        'name'=>$array['name'],
+                        'url'=>!empty($array['url']) ? $array['url'] : null,
+                        'country_code'=>$array['countryCode'],
+                        'country_short_name'=>$this->countryShortName,
+                        'latitude'=>!empty($array['latitude']) ? floatval($array['latitude']) : null,
+                        'longitude'=>!empty($array['longitude']) ? floatval($array['longitude']) : null,
+                        'cb_verified'=>$array['cbVerified'] ? true : false,
+                        'brewer_verified'=>$array['brewerVerified'] ? true : false,
+                        'last_modified'=>intval($array['lastModified'])
+                    );
+                    if($array['address2'] !== null){
+                        $locationInfo['address'] = array(
+                            'address1'=>!empty($array['address1']) ? $array['address1'] : null,
+                            'address2'=>$array['address2'],
+                            'city'=>$array['city'],
+                            'sub_code'=>$array['sub_code'],
+                            'state_short'=>!empty($array['sub_code']) ? substr($array['sub_code'], 3, 2) : null,
+                            'state_long'=>!empty($array['sub_name']) ? $array['sub_name'] : null,
+                            'zip5'=>intval($array['zip5']),
+                            'zip4'=>!empty($array['zip4']) ? intval($array['zip4']) : null,
+                            'telephone'=>!empty($array['telephone']) ? intval($array['telephone']) : null
+                        );
+                    }
                     $locationArray[] = $locationInfo;
                 }
             }else{
