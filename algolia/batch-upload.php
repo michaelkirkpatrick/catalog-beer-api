@@ -126,7 +126,8 @@ for($i=0; $i<$numLocations; $i++){
     $algolia->saveObject('catalog', $array);
     $counter++;
     $percent = ($numLocations > 0) ? round(($counter/$numLocations) * 100) : 0;
-    echo "[$percent%] Location: $location->name\n";
+    // $array['name'] is the composed display name — location names are optional
+    echo "[$percent%] Location: {$array['name']}\n";
 }
 
 echo "\n\n--- Done with Locations. Starting Beers...\n\n";

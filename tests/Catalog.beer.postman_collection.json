@@ -10286,13 +10286,13 @@
 											"    ",
 											"    // Valid State",
 											"    pm.expect(jsonData.valid_state.brewer_id).to.equal('valid');",
-											"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
+											"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
 											"    ",
 											"    // Validation Error Message",
 											"    pm.expect(jsonData.valid_msg.brewer_id).to.equal(null);",
-											"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the location you\\'d like to add.');",
+											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.country_code).to.equal('Which country is this location in? We are missing the country code.');",
 											"});",
@@ -11096,13 +11096,13 @@
 											"    ",
 											"    // Valid State",
 											"    pm.expect(jsonData.valid_state.brewer_id).to.equal('valid');",
-											"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
+											"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
 											"    ",
 											"    // Validation Error Message",
 											"    pm.expect(jsonData.valid_msg.brewer_id).to.equal(null);",
-											"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the location you\\'d like to add.');",
+											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.country_code).to.equal('Which country is this location in? We are missing the country code.');",
 											"});",
@@ -30094,13 +30094,13 @@
 													"    ",
 													"    // Valid State",
 													"    pm.expect(jsonData.valid_state.brewer_id).to.equal('valid');",
-													"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
 													"    ",
 													"    // Validation Error Message",
 													"    pm.expect(jsonData.valid_msg.brewer_id).to.equal(null);",
-													"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the location you\\'d like to add.');",
+													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.country_code).to.equal('Which country is this location in? We are missing the country code.');",
 													"});",
@@ -30803,13 +30803,13 @@
 													"    ",
 													"    // Valid State",
 													"    pm.expect(jsonData.valid_state.brewer_id).to.equal('valid');",
-													"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
 													"    ",
 													"    // Validation Error Message",
 													"    pm.expect(jsonData.valid_msg.brewer_id).to.equal(null);",
-													"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the location you\\'d like to add.');",
+													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.country_code).to.equal('Which country is this location in? We are missing the country code.');",
 													"});",
@@ -68372,6 +68372,950 @@
 											"path": [
 												"brewer",
 												"{{brewer_id_43}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Optional Location Name",
+							"item": [
+								{
+									"name": "BR-197 Create Brewery #44 as Admin",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"pm.environment.set('brewer_name_44', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));",
+													"pm.environment.set('brewer_url_44', 'https://catalog.beer/catalog-beer-test-page.html');"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function(){",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_44'));",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_44', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_44}}\",\n    \"url\": \"{{brewer_url_44}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-170 Location #45: brewer_id, CC (no name)",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Location name is optional — most breweries do not name a taproom",
+													"// separately from the community it sits in.",
+													"pm.test(\"Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});",
+													"",
+													"pm.test(\"Location Header Present\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var locationString = 'https://';",
+													"    if (pm.environment.get('staging') === 'true') {",
+													"        locationString = locationString + 'staging.';",
+													"    }",
+													"    locationString = locationString + 'catalog.beer/location/' + jsonData.id;",
+													"    pm.response.to.have.header(\"Location\", locationString);",
+													"});",
+													"",
+													"// Save to Environment",
+													"pm.environment.set('location_id_45', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-171 Location #45: GET null name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-172 Location #45: PATCH sets name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"pm.environment.set('location_name_45', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('location_name_45'));",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{location_name_45}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-173 Location #45: PATCH clears name (null)",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// An explicit null must clear the name. isset() is false for null, so",
+													"// this is the case that needs property_exists() in the PATCH parser.",
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": null\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-174 Location #45: PATCH re-sets name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('location_name_45'));",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{location_name_45}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-175 Location #45: PATCH clears name (empty string)",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// An empty string is stored as NULL, not as '', so the absence of a",
+													"// name stays distinguishable from a location named ''.",
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-176 Location #45: PUT with name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('location_name_45'));",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"name\": \"{{location_name_45}}\",\n    \"country_code\": \"US\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-177 Location #45: PUT without name clears it",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// PUT is a full replacement — an omitted optional field is cleared,",
+													"// the same way url already behaves.",
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'url', 'country_code', 'country_short_name', 'latitude', 'longitude', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+													"    pm.expect(jsonData.object).to.equal('location');",
+													"    pm.expect(jsonData.name).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"    pm.expect(jsonData.brewer.id).to.equal(pm.environment.get('brewer_id_44'));",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function () {",
+													"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-198 Delete Brewery #44",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													""
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_44}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_44}}"
 											]
 										}
 									},

@@ -427,6 +427,10 @@ class Location {
     // Validation Functions
     private function validateName(){
         // Must set $this->name
+        // Name is optional. Most breweries don't name a taproom separately from
+        // the community it sits in, and while this was required the field just
+        // collected the city over and over. An absent name is stored as NULL;
+        // consumers compose a display name from the brewer and the address.
         $this->name = trim($this->name ?? '');
 
         if(!empty($this->name)){
@@ -449,19 +453,10 @@ class Location {
                 $errorLog->write();
             }
         }else{
-            // Missing Name
-            $this->error = true;
-            $this->validState['name'] = 'invalid';
-            $this->validMsg['name'] = 'Please give us the name of the location you\'d like to add.';
-            $this->responseCode = 400;
-
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 50;
-            $errorLog->errorMsg = 'Missing location name';
-            $errorLog->badData = '';
-            $errorLog->filename = 'API / Location.class.php';
-            $errorLog->write();
+            // No Name Given — store NULL rather than an empty string so the
+            // absence is distinguishable from a location genuinely named ''.
+            $this->name = null;
+            $this->validState['name'] = 'valid';
         }
     }
 
@@ -1382,6 +1377,33 @@ class Location {
         $this->json['brewer'] = $brewer->json;
     }
 
+    public function displayName($brewerName = '', $city = ''){
+        /*--
+        A label for this location that is always safe to render.
+
+        Location names are optional — most breweries don't name a taproom
+        separately from the community it sits in. When there's no name, identify
+        the location the way a person would: by its brewer and its city. That is
+        what the old required-name field was collecting by hand.
+        --*/
+        if(!empty($this->name)){
+            return $this->name;
+        }
+
+        $brewerName = trim($brewerName ?? '');
+        $city = trim($city ?? '');
+
+        if($brewerName !== '' && $city !== ''){
+            return $brewerName . ' – ' . $city;
+        }elseif($brewerName !== ''){
+            return $brewerName;
+        }elseif($city !== ''){
+            return $city;
+        }
+
+        return 'Unnamed Location';
+    }
+
     public function generateLocationSearchObject($brewerObj = null){
         // Generates the Location Object for Algolia
         $array = array();
@@ -1403,12 +1425,12 @@ class Location {
 
         // Generate JSON
         $array['locationID'] = $this->locationID;
-        $array['name'] = $this->name;
         if(!empty($this->url)){$array['url'] = $this->url;}
         $array['country_short_name'] = $this->countryShortName;
         if(!empty($this->latitude)){$array['_geoloc']['lat'] = $this->latitude;}
         if(!empty($this->longitude)){$array['_geoloc']['lng'] = $this->longitude;}
-        if($usAddresses->validate($this->locationID, true)){
+        $hasAddress = $usAddresses->validate($this->locationID, true);
+        if($hasAddress){
             if(!empty($usAddresses->address1)){$array['address']['address1'] = $usAddresses->address1;}
             $array['address']['address2'] = $usAddresses->address2;
             $array['address']['city'] = $usAddresses->city;
@@ -1419,6 +1441,11 @@ class Location {
         }
         $array['brewer']['brewerID'] = $brewer->brewerID;
         $array['brewer']['name'] = $brewer->name;
+
+        // Name is optional on a location, but a search hit needs a literal
+        // title, so compose one when it's absent. The address has to be loaded
+        // before this point — hence the ordering above.
+        $array['name'] = $this->displayName($brewer->name, $hasAddress ? $usAddresses->city : '');
 
         // SiteSearch Fields
         $array['type'] = 'location';
@@ -1659,7 +1686,10 @@ class Location {
                 if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
                 else{$data->brewer_id = '';}
 
-                if(isset($data->name)){$patchFields[] = 'name';}
+                // property_exists, not isset — name is nullable, and isset() is
+                // false for an explicit "name": null, which is exactly how a
+                // client clears the field.
+                if(is_object($data) && property_exists($data, 'name')){$patchFields[] = 'name';}
                 else{$data->name = '';}
 
                 if(isset($data->url)){$patchFields[] = 'url';}

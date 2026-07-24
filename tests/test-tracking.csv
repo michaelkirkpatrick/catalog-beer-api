@@ -550,6 +550,16 @@ Location,L-160,City - No Results (Remote City),GET,/location/city?city=Ketchikan
 Location,L-161,City - Invalid Count,GET,/location/city?city=San+Diego&state=CA&search_radius=500&count=0,Admin,400,Done
 Location,L-162,City - Invalid Method,POST,/location/city?city=San+Diego&state=CA,Admin,405,Done
 Location,L-163,City - Invalid Search Radius,GET,/location/city?city=San+Diego&state=CA&search_radius=-5,Admin,400,Done
+Brewer,BR-197,Create Brewery #44 as Admin,POST,/brewer,Admin,201,Done
+Location,L-170,"Location #45 - brewer_id, CC (no name)",POST,/location,Admin,201,Done
+Location,L-171,Location #45 - GET null name,GET,/location/{{location_id_45}},Admin,200,Done
+Location,L-172,Location #45 - PATCH sets name,PATCH,/location/{{location_id_45}},Admin,200,Done
+Location,L-173,Location #45 - PATCH clears name (null),PATCH,/location/{{location_id_45}},Admin,200,Done
+Location,L-174,Location #45 - PATCH re-sets name,PATCH,/location/{{location_id_45}},Admin,200,Done
+Location,L-175,Location #45 - PATCH clears name (empty string),PATCH,/location/{{location_id_45}},Admin,200,Done
+Location,L-176,Location #45 - PUT with name,PUT,/location/{{location_id_45}},Admin,200,Done
+Location,L-177,Location #45 - PUT without name clears it,PUT,/location/{{location_id_45}},Admin,200,Done
+Brewer,BR-198,Delete Brewery #44,DELETE,/brewer/{{brewer_id_44}},Admin,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
