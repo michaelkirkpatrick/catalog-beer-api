@@ -37,6 +37,7 @@ class Brewer {
         $uuid = new uuid();
         $newBrewer = false;
         $urlVerified = false;
+        $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
         switch($method){
             case 'POST':
                 // Generate a new brewer_id
@@ -62,6 +63,8 @@ class Brewer {
                     // Save original values for permissions check
                     $originalCBV = $this->cbVerified;
                     $originalBV = $this->brewerVerified;
+                    // Save original name to detect a rename — drives the Algolia cascade below
+                    $originalName = $this->name;
                 }else{
                     // Brewer doesn't exist, they'd like to add it
                     // Reset Errors from $this->validate()
@@ -95,6 +98,8 @@ class Brewer {
                     // Save original values for permissions check
                     $originalCBV = $this->cbVerified;
                     $originalBV = $this->brewerVerified;
+                    // Save original name to detect a rename — drives the Algolia cascade below
+                    $originalName = $this->name;
                 }
                 break;
             default:
@@ -429,6 +434,14 @@ class Brewer {
                         // Sync updated brewer to Algolia
                         $algolia = new Algolia();
                         $algolia->saveObject('catalog', $this->generateBrewerSearchObject());
+
+                        // Cascade a rename down to this brewer's beers and
+                        // locations, which carry the name denormalized. Guarded
+                        // on an actual change — most updates never touch the
+                        // name, and this is the expensive path.
+                        if($originalName !== null && $originalName !== $this->name){
+                            $this->cascadeNameToChildren();
+                        }
                     }
 
                     // Add Privileges?
@@ -899,7 +912,12 @@ class Brewer {
     }
 
     // Get BrewerIDs
-    public function getBrewers($cursor, $count){
+    //
+    // $enriched adds a beer_count to each row. Only ever passed true for a master
+    // API key (see api()), so the public GET /brewer contract stays
+    // id/name/last_modified; the website's A-Z brewer index uses the enriched
+    // shape to show each brewer's beer count without a per-row fetch.
+    public function getBrewers($cursor, $count, $enriched = false){
         // Return Array
         $brewerArray = array();
 
@@ -911,17 +929,35 @@ class Brewer {
         if(!$this->error){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT id, name, lastModified FROM brewer ORDER BY name LIMIT ?, ?", [$offset, $count]);
-            if(!$db->error){
-                while($array = $result->fetch_assoc()){
-                    $brewerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
-                    $brewerArray[] = $brewerInfo;
+            if($enriched){
+                // Master-key only: per-brewer beer count for the website's brewer
+                // index. Correlated subquery so the COUNT runs only for the page's
+                // rows (LIMIT bounds the outer scan), not every brewer.
+                $result = $db->query("SELECT b.id, b.name, (SELECT COUNT(*) FROM beer WHERE beer.brewerID = b.id) AS beer_count FROM brewer b ORDER BY b.name LIMIT ?, ?", [$offset, $count]);
+                if(!$db->error){
+                    while($array = $result->fetch_assoc()){
+                        $brewerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'beer_count'=>intval($array['beer_count']));
+                        $brewerArray[] = $brewerInfo;
+                    }
+                }else{
+                    // Query Error
+                    $this->error = true;
+                    $this->errorMsg = $db->errorMsg;
+                    $this->responseCode = $db->responseCode;
                 }
             }else{
-                // Query Error
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
+                $result = $db->query("SELECT id, name, lastModified FROM brewer ORDER BY name LIMIT ?, ?", [$offset, $count]);
+                if(!$db->error){
+                    while($array = $result->fetch_assoc()){
+                        $brewerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
+                        $brewerArray[] = $brewerInfo;
+                    }
+                }else{
+                    // Query Error
+                    $this->error = true;
+                    $this->errorMsg = $db->errorMsg;
+                    $this->responseCode = $db->responseCode;
+                }
             }
             $db->close();
         }
@@ -1085,12 +1121,300 @@ class Brewer {
         if(!empty($this->shortDescription)){$array['short_description'] = $this->shortDescription;}
         if(!empty($this->url)){$array['url'] = $this->url;}
 
+        // Location Denormalization — a brewer row carries no geography of its
+        // own, so everything geographic here is borrowed from its locations.
+        $locations = $this->locationFacets();
+        $array['location_count'] = $locations['count'];
+        if(!empty($locations['geoloc'])){$array['_geoloc'] = $locations['geoloc'];}
+        if(!empty($locations['states'])){$array['states'] = $locations['states'];}
+        if(!empty($locations['cities'])){$array['cities'] = $locations['cities'];}
+        if(!empty($locations['countries'])){$array['countries'] = $locations['countries'];}
+
+        // Beer count — lets a search result row read "214 beers · 3 locations".
+        // Kept fresh by the refreshSearchObject() calls on beer create/delete.
+        // Omitted (not zeroed) on a query error so a transient failure can't
+        // misrepresent a stocked brewer as empty.
+        $db = new Database();
+        $result = $db->query("SELECT COUNT(*) AS beer_count FROM beer WHERE brewerID=?", [$this->brewerID]);
+        if(!$db->error && ($row = $result->fetch_assoc()) !== null){
+            $array['beer_count'] = intval($row['beer_count']);
+        }elseif($db->error){
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 283;
+            $errorLog->errorMsg = 'Failed to count beers for brewer search object.';
+            $errorLog->badData = "brewerID: {$this->brewerID} / DB Error: {$db->errorMsg}";
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+        }
+        $db->close();
+
         // SiteSearch Fields
         $array['type'] = 'brewer';
         $array['page_url'] = '/brewer/' . $this->brewerID;
 
+        // Subtitle — parallels how beers and locations use it for parent
+        // context. Where a brewer *is* beats a prose blurb; fall back to the
+        // blurb, and omit the key entirely when there's neither.
+        if(!empty($locations['primary'])){
+            $array['subtitle'] = $locations['primary'];
+        }elseif(!empty($this->shortDescription)){
+            $array['subtitle'] = $this->shortDescription;
+        }
+
         // Return as array
         return $array;
+    }
+
+    /*
+    Re-sync a brewer's search object after one of its children changed.
+
+    The reverse of cascadeNameToChildren(): because brewer records denormalize
+    their locations' geography (_geoloc / states / cities / location_count), any
+    location or address write invalidates the parent. Callers in
+    Location.class.php and USAddresses.class.php use this instead of rebuilding
+    a Brewer by hand.
+
+    Runs on its own instance so validate() failures can't leak error state into
+    the caller's response, and stays silent on a bad ID — the child write has
+    already succeeded by this point and must not be failed by a sync problem.
+
+    $cascadeGeography: beers borrow their brewer's states/cities/countries, so
+    a location or address write must also re-patch every beer of the brewer —
+    pass true from those paths. Beer create/delete calls leave it false: only
+    beer_count changed, and patching N sibling beers on every beer write would
+    make adding one beer cost a batch proportional to the brewer's catalog.
+    */
+    public static function refreshSearchObject($brewerID, $cascadeGeography = false){
+        if(empty($brewerID)){
+            return;
+        }
+
+        $brewer = new Brewer();
+        if($brewer->validate($brewerID, true)){
+            $algolia = new Algolia();
+            $algolia->saveObject('catalog', $brewer->generateBrewerSearchObject());
+
+            if($cascadeGeography){
+                $brewer->cascadeGeographyToBeers();
+            }
+        }
+    }
+
+    /*
+    Expose the brewer's geography for denormalization onto its beers.
+
+    Static cache keyed by brewerID because generateBeerSearchObject() calls
+    this once per beer, and a full batch re-index would otherwise run the
+    locations query 60k+ times for ~6.5k distinct brewers. Safe to cache for
+    the process lifetime: within a single API request only one entity is
+    written, so a beer's search object is never generated after a location
+    write that would invalidate the cache. (The location-write path itself
+    bypasses this cache — cascadeGeographyToBeers() reads locationFacets()
+    directly.)
+    */
+    public function searchGeography(){
+        static $cache = array();
+
+        if(!empty($this->brewerID) && isset($cache[$this->brewerID])){
+            return $cache[$this->brewerID];
+        }
+
+        $facets = $this->locationFacets();
+        $geo = array(
+            'states'    => $facets['states'],
+            'cities'    => $facets['cities'],
+            'countries' => $facets['countries']
+        );
+
+        if(!empty($this->brewerID)){
+            $cache[$this->brewerID] = $geo;
+        }
+        return $geo;
+    }
+
+    /*
+    Push the brewer's current geography onto every one of its beers in Algolia.
+
+    The geographic mirror of cascadeNameToChildren(): beers carry their
+    brewer's states/cities/countries so that a geography refinement doesn't
+    silently drop every beer from the results — and those copies go stale the
+    moment a location or address changes. Called from refreshSearchObject()
+    when the trigger was a location/address write.
+
+    Always sends all three keys, even when empty — an empty array must
+    propagate so that closing a brewer's last Oregon taproom removes its beers
+    from the Oregon facet. One batched call rather than N PUTs.
+    */
+    private function cascadeGeographyToBeers(){
+        // Required Classes
+        $algolia = new Algolia();
+        $db = new Database();
+        $updates = array();
+
+        // Fresh read, deliberately not searchGeography()'s cache — this runs
+        // immediately after the location write the cache would predate.
+        $facets = $this->locationFacets();
+        $patch = array(
+            'states'    => $facets['states'],
+            'cities'    => $facets['cities'],
+            'countries' => $facets['countries']
+        );
+
+        // Join through the algolia table so objectIDs come back with the rows,
+        // instead of one getAlgoliaIdByRecord() round-trip per beer.
+        $result = $db->query("SELECT a.algolia_id FROM beer b JOIN algolia a ON a.beer_id = b.id WHERE b.brewerID=?", [$this->brewerID]);
+        if($db->error){
+            // Query Error — log and skip; the next full re-index heals it
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 284;
+            $errorLog->errorMsg = 'Failed to collect beer records for brewer geography cascade.';
+            $errorLog->badData = "brewerID: {$this->brewerID} / DB Error: {$db->errorMsg}";
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            $db->close();
+            return;
+        }
+
+        while($row = $result->fetch_assoc()){
+            $updates[] = array_merge(array('objectID'=>$row['algolia_id']), $patch);
+        }
+        $db->close();
+
+        $algolia->batchPartialUpdate('catalog', $updates);
+    }
+
+    /*
+    Push this brewer's current name onto every one of its beers and locations
+    in Algolia.
+
+    Those records carry the brewer name denormalized twice — as brewer.name and
+    as subtitle — because Algolia has no joins. A rename leaves both stale. That
+    was cosmetic while the name was only display text; once brewer.name is
+    facetable, a stale copy silently splits one brewer into two facet buckets.
+
+    Callers must guard on an actual name change. One batched call rather than N
+    PUTs: a large brewer has hundreds of beers and this runs inside the request.
+    */
+    private function cascadeNameToChildren(){
+        // Required Classes
+        $algolia = new Algolia();
+        $db = new Database();
+        $updates = array();
+
+        // The denormalized payload is identical for beers and locations
+        $patch = array(
+            'subtitle' => $this->name,
+            // A partial update replaces a nested attribute wholesale rather than
+            // merging into it, so brewerID must be resent or it gets dropped.
+            'brewer'   => array('brewerID'=>$this->brewerID, 'name'=>$this->name)
+        );
+
+        // Join through the algolia table so objectIDs come back with the rows,
+        // instead of one getAlgoliaIdByRecord() round-trip per child.
+        $children = array(
+            'beer'     => "SELECT a.algolia_id FROM beer b JOIN algolia a ON a.beer_id = b.id WHERE b.brewerID=?",
+            'location' => "SELECT a.algolia_id FROM location l JOIN algolia a ON a.location_id = l.id WHERE l.brewerID=?"
+        );
+
+        foreach($children as $type => $sql){
+            $result = $db->query($sql, [$this->brewerID]);
+            if($db->error){
+                // Query Error — log and skip this child type
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 279;
+                $errorLog->errorMsg = 'Failed to collect ' . $type . ' records for brewer rename cascade.';
+                $errorLog->badData = "brewerID: {$this->brewerID} / DB Error: {$db->errorMsg}";
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+
+                // Reset so the next child type still runs
+                $db->error = false;
+                $db->errorMsg = null;
+                $db->responseCode = 200;
+                continue;
+            }
+
+            while($row = $result->fetch_assoc()){
+                $updates[] = array_merge(array('objectID'=>$row['algolia_id']), $patch);
+            }
+        }
+        $db->close();
+
+        $algolia->batchPartialUpdate('catalog', $updates);
+    }
+
+    /*
+    Collect the brewer's location data for the search index.
+
+    Algolia has no joins, so geographic search over brewers only works if the
+    children are folded into the parent. _geoloc accepts an ARRAY of positions
+    and ranks against the closest one — exactly the multi-taproom case.
+
+    Any location or address write must re-save the parent brewer or these values
+    go stale; see the cascades in Location.class.php and USAddresses.class.php.
+    */
+    private function locationFacets(){
+        $facets = array('geoloc'=>array(), 'states'=>array(), 'cities'=>array(), 'countries'=>array(), 'count'=>0, 'primary'=>null);
+
+        // A brewer being saved for the first time has no locations yet
+        if(empty($this->brewerID)){
+            return $facets;
+        }
+
+        $db = new Database();
+        $result = $db->query("SELECT l.latitude, l.longitude, l.countryCode, a.city, a.sub_code FROM location l LEFT JOIN US_addresses a ON a.locationID = l.id WHERE l.brewerID=? ORDER BY l.name", [$this->brewerID]);
+
+        if($db->error){
+            // Query Error — degrade to no geo rather than failing the sync
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 278;
+            $errorLog->errorMsg = 'Failed to collect location facets for brewer search object.';
+            $errorLog->badData = "brewerID: {$this->brewerID} / DB Error: {$db->errorMsg}";
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            $db->close();
+            return $facets;
+        }
+
+        while($row = $result->fetch_assoc()){
+            $facets['count']++;
+
+            // Coordinates are optional per location
+            if($row['latitude'] !== null && $row['longitude'] !== null){
+                $facets['geoloc'][] = array('lat'=>floatval($row['latitude']), 'lng'=>floatval($row['longitude']));
+            }
+
+            // Country
+            if(!empty($row['countryCode'])){
+                $facets['countries'][] = $row['countryCode'];
+            }
+
+            // State — sub_code is 'US-OR'; same substring convention as brewerLocations()
+            $stateShort = !empty($row['sub_code']) ? substr($row['sub_code'], 3, 2) : null;
+            if(!empty($stateShort)){
+                $facets['states'][] = $stateShort;
+            }
+
+            // City
+            if(!empty($row['city'])){
+                $facets['cities'][] = $row['city'];
+            }
+
+            // Primary — first location by name with a usable "City, ST"
+            if($facets['primary'] === null && !empty($row['city']) && !empty($stateShort)){
+                $facets['primary'] = $row['city'] . ', ' . $stateShort;
+            }
+        }
+        $db->close();
+
+        // Dedupe — a brewer with three taprooms in one city must yield one facet
+        // value. array_values() re-indexes so these encode as JSON arrays;
+        // array_unique() alone leaves gaps that json_encode turns into objects.
+        $facets['states'] = array_values(array_unique($facets['states']));
+        $facets['cities'] = array_values(array_unique($facets['cities']));
+        $facets['countries'] = array_values(array_unique($facets['countries']));
+
+        return $facets;
     }
 
     public function search($query, $cursor, $count){
@@ -1316,7 +1640,14 @@ class Brewer {
                     }else{
                         // List Breweries
                         // GET https://api.catalog.beer/brewer
-                        $brewerArray = $this->getBrewers($cursor, $count);
+                        // Enriched rows (beer_count) are master-key only; a
+                        // non-master caller passing ?enriched gets the standard
+                        // shape (no error, no leak).
+                        $enriched = false;
+                        if(!empty($_GET['enriched']) && in_array($apiKey, unserialize(MASTER_API_KEYS))){
+                            $enriched = true;
+                        }
+                        $brewerArray = $this->getBrewers($cursor, $count, $enriched);
                         if(!$this->error){
                             // Start JSON
                             $this->json['object'] = 'list';

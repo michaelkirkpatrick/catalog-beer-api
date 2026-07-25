@@ -538,6 +538,122 @@ class Style {
         return array('min' => ($min === null ? null : intval($min)), 'max' => ($max === null ? null : intval($max)));
     }
 
+    /*
+    Generate Algolia search objects for EVERY style in one pass.
+
+    Styles are the fourth record type in the `catalog` index. They exist so an
+    informational query ("gose") can return the page that explains the style,
+    not just forty beers filed under it. The aliases ride along as a searchable
+    attribute, which makes "NEIPA" reach the Juicy or Hazy IPA style record
+    directly — the alias vocabulary doing double duty as a synonym mechanism.
+
+    objectID is deterministic ('style-' + slug) rather than routed through the
+    algolia table: style slugs are stable, public, and curated, so there is
+    nothing to gain from the random-ID indirection the user-writable types
+    need — and it spares a schema migration. Styles are a slow-moving
+    vocabulary with no API write path, so there is no real-time sync either;
+    batch-upload.php is the only writer.
+
+    Built as one method returning all styles (two queries total) instead of a
+    per-style generator, because the only caller is the batch script and ~250
+    styles never warrant 250 query pairs.
+
+    Returns an array of search-object arrays, or an empty array on failure
+    (logged) — the Algolia sync is best-effort by design.
+    */
+    public function generateStyleSearchObjects(){
+        $db = new Database();
+        $objects = array();
+
+        // One row per style, with family/class display names and the editorial
+        // description resolved through their joins.
+        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.name AS parent_name, p.class AS class_slug, sc.name AS class_name, s.is_catch_all, s.abv_min, s.abv_max, s.ibu_min, s.ibu_max, s.srm_min, s.srm_max, s.beer_count, c.description FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_class sc ON p.class = sc.slug LEFT JOIN style_content c ON c.style_id = s.id ORDER BY s.canonical_name");
+        if($db->error){
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 285;
+            $errorLog->errorMsg = 'Failed to generate style search objects.';
+            $errorLog->badData = $db->errorMsg;
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            $db->close();
+            return array();
+        }
+
+        $byID = array();
+        while($row = $result->fetch_assoc()){
+            $array = array();
+            $array['objectID'] = 'style-' . $row['id'];
+            $array['styleID'] = $row['id'];
+            $array['name'] = $row['canonical_name'];
+            $array['beverage_type'] = $row['beverage_type'];
+
+            // Same facet fields the beers carry, so one style_family
+            // refinement spans both record types.
+            if(!empty($row['parent'])){
+                $array['style_family_slug'] = $row['parent'];
+                if(!empty($row['parent_name'])){$array['style_family'] = $row['parent_name'];}
+            }
+            if(!empty($row['class_slug'])){
+                $array['style_class_slug'] = $row['class_slug'];
+                if(!empty($row['class_name'])){$array['style_class'] = $row['class_name'];}
+            }
+
+            $array['catch_all'] = (bool) $row['is_catch_all'];
+            $array['aliases'] = array();
+
+            // Specs — flat min/max keys (not the API's nested range objects)
+            // so Algolia numeric filters can reach them directly.
+            if($row['abv_min'] !== null){$array['abv_min'] = floatval($row['abv_min']);}
+            if($row['abv_max'] !== null){$array['abv_max'] = floatval($row['abv_max']);}
+            if($row['ibu_min'] !== null){$array['ibu_min'] = intval($row['ibu_min']);}
+            if($row['ibu_max'] !== null){$array['ibu_max'] = intval($row['ibu_max']);}
+            if($row['srm_min'] !== null){$array['srm_min'] = intval($row['srm_min']);}
+            if($row['srm_max'] !== null){$array['srm_max'] = intval($row['srm_max']);}
+
+            $array['beer_count'] = intval($row['beer_count']);
+            if(!empty($row['description'])){$array['description'] = $row['description'];}
+
+            // SiteSearch Fields
+            $array['type'] = 'style';
+            // Family reads as parent context, paralleling how beers use the
+            // brewer; fall back to the class ("Ale") for family-less styles.
+            if(!empty($row['parent_name'])){
+                $array['subtitle'] = $row['parent_name'];
+            }elseif(!empty($row['class_name'])){
+                $array['subtitle'] = $row['class_name'];
+            }
+            $array['page_url'] = '/style/' . $row['id'];
+
+            $byID[$row['id']] = $array;
+        }
+
+        // Attach aliases (everything that resolves to each style, minus the
+        // canonical name itself — same rule as listStyles())
+        $result = $db->query("SELECT style_id, alias FROM style_alias");
+        if($db->error){
+            // Degrade to no aliases rather than failing the upload
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 290;
+            $errorLog->errorMsg = 'Failed to attach aliases to style search objects.';
+            $errorLog->badData = $db->errorMsg;
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+        }else{
+            while($row = $result->fetch_assoc()){
+                $sid = $row['style_id'];
+                if(isset($byID[$sid]) && strcasecmp($row['alias'], $byID[$sid]['name']) !== 0){
+                    $byID[$sid]['aliases'][] = $row['alias'];
+                }
+            }
+        }
+        $db->close();
+
+        foreach($byID as $array){
+            $objects[] = $array;
+        }
+        return $objects;
+    }
+
     // Shared DB error response + log
     private function dbError($msg, $code){
         $this->error = true;

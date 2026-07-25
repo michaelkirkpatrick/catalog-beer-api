@@ -208,6 +208,25 @@ class USAddresses {
                                 $this->errorMsg = $location->errorMsg;
                                 $this->responseCode = $location->responseCode;
                             }
+
+                            // Sync to Algolia. An address write was previously
+                            // invisible to the index even though the location
+                            // record carries the address block — and the parent
+                            // brewer now denormalizes city/state/coordinates
+                            // from it, so both records need refreshing.
+                            //
+                            // Re-validate rather than reusing $location: the
+                            // coordinates were rewritten moments ago by
+                            // saveCoordinates()/googleMapsAPI(), so the copy
+                            // loaded at the top of add() is already stale.
+                            if(!$this->error){
+                                $syncLocation = new Location();
+                                if($syncLocation->validate($this->locationID, true)){
+                                    $algolia = new Algolia();
+                                    $algolia->saveObject('catalog', $syncLocation->generateLocationSearchObject());
+                                    Brewer::refreshSearchObject($syncLocation->brewerID, true);
+                                }
+                            }
                         }else{
                             // Query Error
                             $this->error = true;
@@ -282,6 +301,25 @@ class USAddresses {
                                 $this->error = true;
                                 $this->errorMsg = $location->errorMsg;
                                 $this->responseCode = $location->responseCode;
+                            }
+
+                            // Sync to Algolia. An address write was previously
+                            // invisible to the index even though the location
+                            // record carries the address block — and the parent
+                            // brewer now denormalizes city/state/coordinates
+                            // from it, so both records need refreshing.
+                            //
+                            // Re-validate rather than reusing $location: the
+                            // coordinates were rewritten moments ago by
+                            // saveCoordinates()/googleMapsAPI(), so the copy
+                            // loaded at the top of add() is already stale.
+                            if(!$this->error){
+                                $syncLocation = new Location();
+                                if($syncLocation->validate($this->locationID, true)){
+                                    $algolia = new Algolia();
+                                    $algolia->saveObject('catalog', $syncLocation->generateLocationSearchObject());
+                                    Brewer::refreshSearchObject($syncLocation->brewerID, true);
+                                }
                             }
                         }else{
                             // Query Error

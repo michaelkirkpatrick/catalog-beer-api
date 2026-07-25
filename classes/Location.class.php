@@ -405,6 +405,10 @@ class Location {
                         $algolia = new Algolia();
                         $algolia->add('location', $this->locationID);
                         $algolia->saveObject('catalog', $this->generateLocationSearchObject($this->brewerObj));
+
+                        // Refresh the parent — brewer records denormalize their
+                        // locations' geography, so a new location changes them.
+                        Brewer::refreshSearchObject($this->brewerID, true);
                     }else{
                         // Success
                         $this->responseCode = 200;
@@ -412,6 +416,9 @@ class Location {
                         // Sync updated location to Algolia
                         $algolia = new Algolia();
                         $algolia->saveObject('catalog', $this->generateLocationSearchObject($this->brewerObj));
+
+                        // Refresh the parent — coordinates or country may have moved
+                        Brewer::refreshSearchObject($this->brewerID, true);
                     }
                 }else{
                     // Query Error
@@ -1033,6 +1040,10 @@ class Location {
                     if($algoliaId !== null){
                         $algolia->deleteObject('catalog', $algoliaId);
                     }
+
+                    // Refresh the parent — its denormalized geography still
+                    // carries this location's coordinates, city, and state.
+                    Brewer::refreshSearchObject($this->brewerID, true);
                 }else{
                     // Database Error
                     $this->error = true;
@@ -1439,6 +1450,17 @@ class Location {
             $array['address']['zip5'] = $usAddresses->zip5;
             if(!empty($usAddresses->telephone)){$array['address']['telephone'] = $usAddresses->telephone;}
         }
+        // Geography under the same facet names brewers and beers use, so one
+        // states/cities/countries refinement works across all record types.
+        // Values must match Brewer::locationFacets() exactly or the facet
+        // splits: countryCode ("US", not the long name) and short state codes.
+        // address.* stays as-is for display.
+        if(!empty($this->countryCode)){$array['countries'] = array($this->countryCode);}
+        if($hasAddress){
+            if(!empty($usAddresses->stateShort)){$array['states'] = array($usAddresses->stateShort);}
+            if(!empty($usAddresses->city)){$array['cities'] = array($usAddresses->city);}
+        }
+
         $array['brewer']['brewerID'] = $brewer->brewerID;
         $array['brewer']['name'] = $brewer->name;
 
@@ -1450,7 +1472,12 @@ class Location {
         // SiteSearch Fields
         $array['type'] = 'location';
         $array['subtitle'] = $brewer->name;
-        $array['page_url'] = '/brewer/' . $brewer->brewerID;
+        // Points at the location's own page. This previously pointed at the
+        // parent brewer, which made location and brewer hits collide on one
+        // destination — invisible in an 8-hit modal, obvious duplication in a
+        // full results list. DEPLOY ORDER: the frontend /location/{id} pages
+        // must exist before a re-index ships this, or these results 404.
+        $array['page_url'] = '/location/' . $this->locationID;
 
         return $array;
     }

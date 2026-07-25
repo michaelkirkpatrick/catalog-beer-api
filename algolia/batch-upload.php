@@ -156,5 +156,28 @@ for($i=0; $i<$numBeers; $i++){
     echo "[$percent%] Beer: $beer->name\n";
 }
 
-echo "\n\n--- Done with Beers. Script complete.\n";
+echo "\n\n--- Done with Beers. Starting Styles...\n\n";
+
+// ----- Styles -----
+//
+// Deterministic objectIDs ('style-' + slug), so no algolia-table bookkeeping,
+// and no per-style loop on the data side: generateStyleSearchObjects() builds
+// the whole vocabulary in two queries. Not limited by the brewer $limit — the
+// style set is ~250 records and always uploads in full.
+
+$style = new Style();
+$styleObjects = $style->generateStyleSearchObjects();
+$numStyles = count($styleObjects);
+$counter = 0;
+
+echo "--- Processing $numStyles styles...\n\n";
+
+foreach($styleObjects as $styleObject){
+    $algolia->saveObject('catalog', $styleObject);
+    $counter++;
+    $percent = ($numStyles > 0) ? round(($counter/$numStyles) * 100) : 0;
+    echo "[$percent%] Style: {$styleObject['name']}\n";
+}
+
+echo "\n\n--- Done with Styles. Script complete.\n";
 ?>

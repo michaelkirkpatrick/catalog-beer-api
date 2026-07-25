@@ -444,6 +444,9 @@ class Beer {
                         $algolia = new Algolia();
                         $algolia->add('beer', $this->beerID);
                         $algolia->saveObject('catalog', $this->generateBeerSearchObject());
+
+                        // The brewer record's beer_count just changed
+                        Brewer::refreshSearchObject($this->brewerID);
                     }else{
                         $this->responseCode = 200;
 
@@ -935,7 +938,13 @@ class Beer {
     }
 
     // Get Beer IDs
-    public function getBeers($cursor, $count){
+    //
+    // $enriched adds style + a representative SRM to each row (a beer -> style
+    // JOIN). It is only ever passed true for a master API key (see api()), so the
+    // public GET /beer contract stays id/name/last_modified; the website's A-Z
+    // beer index uses the enriched shape to render style names + SRM swatches
+    // without a per-row fetch. Nothing new is stored — SRM comes from the style.
+    public function getBeers($cursor, $count, $enriched = false){
         // Return Array
         $beerArray = array();
 
@@ -1009,24 +1018,67 @@ class Beer {
         if(!$this->error){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT id, name, lastModified FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
-            if(!$db->error){
-                while($array = $result->fetch_assoc()){
-                    // Beer Info
-                    $beerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
-                    $beerArray[] = $beerInfo;
+            if($enriched){
+                // Master-key only: style name + representative SRM (from the
+                // beer's style) for the website's beer index. LEFT JOIN so beers
+                // with no matched style_id still return (srm/style null).
+                $result = $db->query("SELECT b.id, b.name, b.style, s.srm_min, s.srm_max FROM beer b LEFT JOIN style s ON b.style_id = s.id ORDER BY b.name LIMIT ?, ?", [$offset, $count]);
+                if(!$db->error){
+                    while($array = $result->fetch_assoc()){
+                        $beerInfo = array(
+                            'id'    => $array['id'],
+                            'name'  => $array['name'],
+                            'style' => ($array['style'] === null || $array['style'] === '') ? null : $array['style'],
+                            'srm'   => $this->representativeSRM($array['srm_min'], $array['srm_max']),
+                        );
+                        $beerArray[] = $beerInfo;
+                    }
+                }else{
+                    // Query Error
+                    $this->error = true;
+                    $this->errorMsg = $db->errorMsg;
+                    $this->responseCode = $db->responseCode;
                 }
             }else{
-                // Query Error
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
+                $result = $db->query("SELECT id, name, lastModified FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
+                if(!$db->error){
+                    while($array = $result->fetch_assoc()){
+                        // Beer Info
+                        $beerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
+                        $beerArray[] = $beerInfo;
+                    }
+                }else{
+                    // Query Error
+                    $this->error = true;
+                    $this->errorMsg = $db->errorMsg;
+                    $this->responseCode = $db->responseCode;
+                }
             }
             $db->close();
         }
 
         // Return
         return $beerArray;
+    }
+
+    // Collapse a style's SRM range (srm_min..srm_max) to one representative
+    // integer for a color swatch, clamped to the 1-40 chart the frontend maps.
+    // Returns null when the style carries no SRM (or the beer has no style),
+    // which the frontend renders as a neutral swatch.
+    private function representativeSRM($min, $max){
+        if($min === null && $max === null){
+            return null;
+        }
+        if($min === null){
+            $val = intval($max);
+        }elseif($max === null){
+            $val = intval($min);
+        }else{
+            $val = intval(round((intval($min) + intval($max)) / 2));
+        }
+        if($val < 1){ $val = 1; }
+        if($val > 40){ $val = 40; }
+        return $val;
     }
 
     public function nextCursor($cursor, $count){
@@ -1177,6 +1229,9 @@ class Beer {
                     if($algoliaId !== null){
                         $algolia->deleteObject('catalog', $algoliaId);
                     }
+
+                    // The brewer record's beer_count just changed
+                    Brewer::refreshSearchObject($this->brewerID);
                 }else{
                     // Database Error
                     $this->error = true;
@@ -1259,13 +1314,53 @@ class Beer {
         $array['style'] = $this->style;
         if(!empty($this->styleID)){$array['style_id'] = $this->styleID;}
         $array['beverage_type'] = $this->beverageType;
+
+        // Style Family / Class — facetable. Index the resolved DISPLAY names so
+        // the refinement list can render them directly; a slug is never safe to
+        // title-case ("ipa" -> "Ipa"). Slugs ride along for stable URL state.
+        $family = $this->styleFamilyNames();
+        if(!empty($this->parent)){
+            $array['style_family_slug'] = $this->parent;
+            if(!empty($family['parent_name'])){$array['style_family'] = $family['parent_name'];}
+        }
+        if(!empty($this->class)){
+            $array['style_class_slug'] = $this->class;
+            if(!empty($family['class_name'])){$array['style_class'] = $family['class_name'];}
+        }
         if(!empty($this->description)){$array['description'] = $this->description;}
-        $array['abv'] = floatval($this->abv);
+        // Omit unknown numerics rather than indexing zero. filterOnly(abv)
+        // range filters match a literal 0, so an unknown ABV indexed as 0 would
+        // put the beer inside every "under X%" refinement. Records missing the
+        // attribute are excluded from numeric filters — correct for unknown.
+        if(!empty($this->abv)){
+            $array['abv'] = floatval($this->abv);
+        }
         if(!empty($this->ibu)){
             $array['ibu'] = intval($this->ibu);
         }
+
+        // Representative SRM from the beer's canonical style — the swatch color
+        // the frontend renders. Omitted when the style carries no SRM.
+        $srm = $this->styleSRM();
+        if($srm !== null){
+            $array['srm'] = $srm;
+        }
+
+        // Verification flags — the trust signals (facetable)
+        $array['cb_verified'] = (bool) $this->cbVerified;
+        $array['brewer_verified'] = (bool) $this->brewerVerified;
+
         $array['brewer']['brewerID'] = $brewer->brewerID;
         $array['brewer']['name'] = $brewer->name;
+
+        // Geography, borrowed from the brewer's locations. Without this a
+        // states/cities refinement silently drops every beer from the results —
+        // "hazy IPAs in Colorado" only works if beers carry Colorado. Location
+        // and address writes keep these fresh via cascadeGeographyToBeers().
+        $geo = $brewer->searchGeography();
+        if(!empty($geo['states'])){$array['states'] = $geo['states'];}
+        if(!empty($geo['cities'])){$array['cities'] = $geo['cities'];}
+        if(!empty($geo['countries'])){$array['countries'] = $geo['countries'];}
 
         // SiteSearch Fields
         $array['type'] = 'beer';
@@ -1274,6 +1369,115 @@ class Beer {
 
         // Return
         return $array;
+    }
+
+    /*
+    Resolve the beer's style to a representative SRM integer for the search
+    index — the same collapse the enriched list endpoint uses. Returns null
+    when the beer has no matched style or the style carries no SRM.
+
+    Static cache for the same reason as styleFamilyNames(): ~250 styles shared
+    across 60k+ beers, and a full batch re-index would otherwise repeat the
+    lookup once per beer. Lookup failures degrade to null — the Algolia sync is
+    best-effort by design.
+    */
+    private function styleSRM(){
+        if(empty($this->styleID)){
+            return null;
+        }
+
+        static $cache = array();
+        if(array_key_exists($this->styleID, $cache)){
+            return $cache[$this->styleID];
+        }
+
+        $db = new Database();
+        $result = $db->query("SELECT srm_min, srm_max FROM style WHERE id=?", [$this->styleID]);
+        if($db->error){
+            // Query Error — log and return null, but do NOT cache: a transient
+            // failure must not pin a missing swatch for the process.
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 289;
+            $errorLog->errorMsg = 'Failed to resolve style SRM for search object.';
+            $errorLog->badData = "beerID: {$this->beerID} / styleID: {$this->styleID}";
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            $db->close();
+            return null;
+        }
+
+        $srm = null;
+        if(($row = $result->fetch_assoc()) !== null){
+            $srm = $this->representativeSRM($row['srm_min'], $row['srm_max']);
+        }
+        $db->close();
+
+        $cache[$this->styleID] = $srm;
+        return $srm;
+    }
+
+    /*
+    Resolve the beer's family/class slugs to their display names for the search
+    index. A beer may be filed at class level with no family, so the class name
+    is looked up independently rather than derived through style_parent.
+
+    Returns array('parent_name'=>string|null, 'class_name'=>string|null).
+    Lookup failures degrade to null — a missing facet label must never break the
+    Algolia sync, which is best-effort by design.
+    */
+    private function styleFamilyNames(){
+        // Families and classes are a small static vocabulary (~30 rows) shared
+        // across thousands of beers. Without this, a full batch re-index would
+        // repeat the same handful of lookups once per beer.
+        static $cache = array();
+
+        $names = array('parent_name'=>null, 'class_name'=>null);
+
+        // Nothing filed above the style level
+        if(empty($this->parent) && empty($this->class)){
+            return $names;
+        }
+
+        $key = $this->parent . '|' . $this->class;
+        if(isset($cache[$key])){
+            return $cache[$key];
+        }
+
+        $db = new Database();
+
+        // Family (carries its class through the FK)
+        if(!empty($this->parent)){
+            $result = $db->query("SELECT p.name AS parent_name, c.name AS class_name FROM style_parent p LEFT JOIN style_class c ON p.class = c.slug WHERE p.slug=?", [$this->parent]);
+            if(!$db->error && ($row = $result->fetch_assoc()) !== null){
+                $names['parent_name'] = $row['parent_name'];
+                $names['class_name'] = $row['class_name'];
+            }
+        }
+
+        // Filed directly at class level, or the family had no class attached
+        if(!empty($this->class) && empty($names['class_name'])){
+            $result = $db->query("SELECT name FROM style_class WHERE slug=?", [$this->class]);
+            if(!$db->error && ($row = $result->fetch_assoc()) !== null){
+                $names['class_name'] = $row['name'];
+            }
+        }
+
+        if($db->error){
+            // Query Error — log and return whatever resolved, but do NOT cache:
+            // a transient failure must not pin empty labels for the process.
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 277;
+            $errorLog->errorMsg = 'Failed to resolve style family names for search object.';
+            $errorLog->badData = "beerID: {$this->beerID} / parent: {$this->parent} / class: {$this->class}";
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            $db->close();
+            return $names;
+        }
+
+        $db->close();
+        $cache[$key] = $names;
+        return $names;
     }
 
     public function search($query, $cursor, $count){
@@ -1516,8 +1720,16 @@ class Beer {
                             $count = $_GET['count'];
                         }
 
+                        // Enriched rows (style + SRM) are master-key only. A
+                        // non-master caller passing ?enriched just gets the
+                        // standard shape — no error, no leak.
+                        $enriched = false;
+                        if(!empty($_GET['enriched']) && in_array($apiKey, unserialize(MASTER_API_KEYS))){
+                            $enriched = true;
+                        }
+
                         // Query
-                        $beerArray = $this->getBeers($cursor, $count);
+                        $beerArray = $this->getBeers($cursor, $count, $enriched);
                         if(!$this->error){
                             // Start JSON
                             $this->json['object'] = 'list';
