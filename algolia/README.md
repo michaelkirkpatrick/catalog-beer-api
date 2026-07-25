@@ -84,6 +84,8 @@ Steps 4 and 5 can swap — the page treats every new field as optional and degra
 
 `page_url` for locations now points at `/location/{id}` instead of the parent brewer. **The frontend location pages must exist before step 5**, or search results will 404. The write key used by `synonyms.php` needs the synonyms ACL (`editSettings`-class); if the push 403s, check the key's ACLs in the dashboard.
 
-## Known gap
+## Brewer delete
 
-Deleting a brewer removes its own Algolia record, and MySQL cascades the delete to its beers and locations — but those children's Algolia records are not removed and are left orphaned in the index. Pre-existing; not addressed here.
+Deleting a brewer removes its own Algolia record **and** its children's: MySQL cascades the delete to beers, locations, and their `algolia`-table rows, so `Brewer::delete()` captures every child's `algolia_id` *before* the SQL delete (`childAlgoliaIds()`) and removes them afterward in one `Algolia::batchDelete()` call. The batch method deliberately skips local `algolia`-table cleanup — the FK cascade already handled it.
+
+(Historical note: before Jul 2026 the children's records were left orphaned in the index — invisible in the old 8-hit modal, but a full `/search` results page renders orphans as hits that 404. If any predate the fix, a full `batch-upload.php` run does not remove them; delete them from the dashboard or ignore — they 404 harmlessly and are few.)

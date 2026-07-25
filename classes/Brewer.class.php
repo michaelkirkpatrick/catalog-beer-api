@@ -1031,18 +1031,26 @@ class Brewer {
             }
 
             if($users->admin || $isBreweryStaff){
-                // Look up Algolia ID before deleting
+                // Look up Algolia IDs before deleting — the MySQL delete
+                // cascades to beers, locations, AND their algolia-table rows,
+                // so this mapping is unreadable afterward. (Skipping this was
+                // the old orphan bug: the brewer's own record was removed but
+                // its children's search records lingered as hits that 404.)
                 $algolia = new Algolia();
                 $algoliaId = $algolia->getAlgoliaIdByRecord('brewer', $brewerID);
+                $childAlgoliaIds = $this->childAlgoliaIds();
 
-                // Delete Brewer
+                // Delete Brewer (cascades to beers/locations in MySQL)
                 $db = new Database();
                 $db->query("DELETE FROM brewer WHERE id=?", [$brewerID]);
                 if(!$db->error){
-                    // Delete from Algolia
+                    // Delete from Algolia: the brewer's record, then every
+                    // child record in one batched call. No local algolia-table
+                    // cleanup needed — the FK cascade already removed the rows.
                     if($algoliaId !== null){
                         $algolia->deleteObject('catalog', $algoliaId);
                     }
+                    $algolia->batchDelete('catalog', $childAlgoliaIds);
                 }else{
                     // Database Error
                     $this->error = true;
@@ -1341,6 +1349,52 @@ class Brewer {
         $db->close();
 
         $algolia->batchPartialUpdate('catalog', $updates);
+    }
+
+    /*
+    Collect the Algolia objectIDs of every beer and location under this brewer.
+
+    Used by delete(): MySQL cascades a brewer delete to its children and to
+    their algolia-table rows, so the IDs must be captured BEFORE the delete or
+    the index-side records become unreachable orphans. Failures degrade to
+    whatever was collected (logged) — a sync problem must not block the delete.
+    */
+    private function childAlgoliaIds(){
+        $db = new Database();
+        $ids = array();
+
+        // Join through the algolia table so objectIDs come back with the rows,
+        // instead of one getAlgoliaIdByRecord() round-trip per child.
+        $children = array(
+            'beer'     => "SELECT a.algolia_id FROM beer b JOIN algolia a ON a.beer_id = b.id WHERE b.brewerID=?",
+            'location' => "SELECT a.algolia_id FROM location l JOIN algolia a ON a.location_id = l.id WHERE l.brewerID=?"
+        );
+
+        foreach($children as $type => $sql){
+            $result = $db->query($sql, [$this->brewerID]);
+            if($db->error){
+                // Query Error — log and skip this child type
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 294;
+                $errorLog->errorMsg = 'Failed to collect ' . $type . ' Algolia IDs for brewer delete.';
+                $errorLog->badData = "brewerID: {$this->brewerID} / DB Error: {$db->errorMsg}";
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+
+                // Reset so the next child type still runs
+                $db->error = false;
+                $db->errorMsg = null;
+                $db->responseCode = 200;
+                continue;
+            }
+
+            while($row = $result->fetch_assoc()){
+                $ids[] = $row['algolia_id'];
+            }
+        }
+        $db->close();
+
+        return $ids;
     }
 
     /*

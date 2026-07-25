@@ -398,6 +398,101 @@ class Algolia {
     }
 
     /**
+     * Delete many objects in one request
+     *
+     * POSTs a batch of deleteObject operations. Used by the brewer delete
+     * cascade: MySQL cascades a brewer delete to its beers and locations, so
+     * their Algolia records must go in the same pass — and a large brewer has
+     * hundreds of beers, so N records cost one HTTP call instead of N DELETEs.
+     *
+     * Deliberately does NOT touch the local algolia table: the callers'
+     * entity rows cascade-delete their algolia rows at the MySQL layer, and by
+     * the time this runs those rows are already gone. (Contrast deleteObject(),
+     * whose single-record callers delete the entity without a cascade path.)
+     *
+     * Errors are logged but do NOT set $this->error — Algolia failures should
+     * not fail the API response.
+     *
+     * @param string $indexName The index ('catalog')
+     * @param array  $objectIDs List of Algolia objectIDs to delete
+     */
+    public function batchDelete($indexName, $objectIDs){
+        // Required Classes
+        $errorLog = new LogError();
+        $errorLog->filename = 'Algolia.class.php';
+
+        // Validate Index
+        $validIndexes = ['catalog'];
+        if(!in_array($indexName, $validIndexes)){
+            // Invalid Index
+            $errorLog->errorNumber = 291;
+            $errorLog->errorMsg = 'Invalid index name for batchDelete.';
+            $errorLog->badData = $indexName;
+            $errorLog->write();
+            return;
+        }
+
+        // Nothing to do
+        $objectIDs = array_values(array_filter($objectIDs));
+        if(empty($objectIDs)){
+            return;
+        }
+
+        // Build URL
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/batch";
+
+        // Chunk — Algolia caps a batch at 1,000 operations
+        $chunks = array_chunk($objectIDs, 1000);
+        foreach($chunks as $chunk){
+            // Build Request Body
+            $requests = array();
+            foreach($chunk as $objectID){
+                $requests[] = array(
+                    'action' => 'deleteObject',
+                    'body'   => array('objectID' => $objectID)
+                );
+            }
+            $jsonData = json_encode(array('requests'=>$requests));
+
+            // Initialize cURL
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
+                "x-algolia-api-key: " . ALGOLIA_WRITE_API_KEY,
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+            // Execute
+            $response = curl_exec($ch);
+
+            if(curl_errno($ch)){
+                // cURL Error
+                $errorLog->errorNumber = 292;
+                $errorLog->errorMsg = curl_error($ch);
+                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk);
+                $errorLog->write();
+                curl_close($ch);
+                continue;
+            }
+
+            $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if($httpStatus < 200 || $httpStatus >= 300){
+                // HTTP Error
+                $errorLog->errorNumber = 293;
+                $errorLog->errorMsg = "HTTP Status {$httpStatus}";
+                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk) . " / Response: {$response}";
+                $errorLog->write();
+            }
+        }
+    }
+
+    /**
      * Replace the index's synonym set
      *
      * POSTs a batch of synonym objects with replaceExistingSynonyms=true, so
