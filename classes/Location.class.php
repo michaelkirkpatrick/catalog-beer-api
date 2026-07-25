@@ -18,6 +18,9 @@ class Location {
     // Cached objects to avoid redundant queries
     private $brewerObj = null;
 
+    // Total location count, cached by validateCursorCount() for nextCursor()
+    private $totalCount = 0;
+
     // Error Handling
     public $error = false;
     public $errorMsg = null;
@@ -975,6 +978,134 @@ class Location {
         }
     }
 
+    // Validate Cursor and Count
+    // Same contract (and shared error numbers 94-97) as the brewer/beer lists.
+    private function validateCursorCount($cursor, $count){
+        // Prep Variables
+        $offset = intval(base64_decode($cursor));
+        $count = intval($count);
+
+        if(is_int($offset) && $offset >= 0){
+            if(is_int($count)){
+                // Within Limits?
+                $numLocations = $this->countLocations();
+                $this->totalCount = $numLocations;
+                if($offset > $numLocations){
+                    // Outside Range
+                    $this->error = true;
+                    $this->errorMsg = 'Sorry, the cursor value you supplied is outside our data range.';
+                    $this->responseCode = 400;
+
+                    // Log Error
+                    $errorLog = new LogError();
+                    $errorLog->errorNumber = 96;
+                    $errorLog->errorMsg = 'Offset value outside range';
+                    $errorLog->badData = "Offset: $offset / numLocations: $numLocations";
+                    $errorLog->filename = 'API / Location.class.php';
+                    $errorLog->write();
+                }
+
+                if($count > 1000000 || $count < 1){
+                    // Outside Range
+                    $this->error = true;
+                    $this->errorMsg = 'Sorry, the count value you specified is outside our acceptable range. The range we will accept is [1, 1,000,000].';
+                    $this->responseCode = 400;
+
+                    // Log Error
+                    $errorLog = new LogError();
+                    $errorLog->errorNumber = 97;
+                    $errorLog->errorMsg = 'Count value outside range';
+                    $errorLog->badData = $count;
+                    $errorLog->filename = 'API / Location.class.php';
+                    $errorLog->write();
+                }
+            }else{
+                // Not an integer count
+                $this->error = true;
+                $this->errorMsg = 'Sorry, the count value you supplied is invalid. Please ensure you are sending an integer value.';
+                $this->responseCode = 400;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 95;
+                $errorLog->errorMsg = 'Non-integer count value';
+                $errorLog->badData = $count;
+                $errorLog->filename = 'API / Location.class.php';
+                $errorLog->write();
+            }
+        }else{
+            // Not an integer offset
+            $this->error = true;
+            $this->errorMsg = 'Sorry, the cursor value you supplied is invalid.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 94;
+            $errorLog->errorMsg = 'Invalid cursor value';
+            $errorLog->badData = $offset;
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+        }
+
+        return(array($offset, $count));
+    }
+
+    // Get Location IDs
+    //
+    // The flat paginated list, mirroring GET /brewer and GET /beer: id, name,
+    // last_modified per row. Added for the sitemap generator — /location/{id}
+    // pages exist on the website but were unreachable as a set (the other
+    // location GETs are all geo lookups). name is null when the location has
+    // no name of its own (nullable since Jul 2026); consumers that need a
+    // display title compose one, as the location page does.
+    public function getLocations($cursor, $count){
+        // Return Array
+        $locationArray = array();
+
+        // Validate $cursor and $count
+        $cursorCountArray = $this->validateCursorCount($cursor, $count);
+        $offset = $cursorCountArray[0];
+        $count = $cursorCountArray[1];
+
+        if(!$this->error){
+            // Prep for Database
+            $db = new Database();
+            $result = $db->query("SELECT id, name, lastModified FROM location ORDER BY name LIMIT ?, ?", [$offset, $count]);
+            if(!$db->error){
+                while($array = $result->fetch_assoc()){
+                    $locationInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
+                    $locationArray[] = $locationInfo;
+                }
+            }else{
+                // Query Error
+                $this->error = true;
+                $this->errorMsg = $db->errorMsg;
+                $this->responseCode = $db->responseCode;
+            }
+            $db->close();
+        }
+
+        // Return
+        return $locationArray;
+    }
+
+    public function nextCursor($cursor, $count){
+        // Use cached count from validateCursorCount() called by getLocations()
+        $numLocations = ($this->totalCount > 0) ? $this->totalCount : $this->countLocations();
+
+        // Next Cursor
+        $offset = intval(base64_decode($cursor));
+        $nextCursor = $offset + $count;
+
+        if($nextCursor <= $numLocations){
+            // Return Next Page
+            return base64_encode($nextCursor);
+        }else{
+            return '';
+        }
+    }
+
     // Number of Locations
     public function countLocations(){
         // Return
@@ -1599,6 +1730,37 @@ class Location {
                     // Admin-only: All locations with coordinates for map display
                     $this->mapLocations($apiKey);
                     if($this->error){
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                    }
+
+                }elseif(empty($id) && empty($function)){
+                    // List Locations
+                    // GET https://api.catalog.beer/location
+                    // Same paginated shape as GET /brewer and GET /beer.
+                    // index.php nulls $count for /location (the geo lookups
+                    // have their own defaults) — restore the standard default.
+                    if($count === null){
+                        $count = 500;
+                    }
+                    $locationArray = $this->getLocations($cursor, $count);
+                    if(!$this->error){
+                        // Start JSON
+                        $this->json['object'] = 'list';
+                        $this->json['url'] = '/location';
+
+                        // Next Cursor
+                        $nextCursor = $this->nextCursor($cursor, $count);
+                        if(!empty($nextCursor)){
+                            $this->json['has_more'] = true;
+                            $this->json['next_cursor'] = $nextCursor;
+                        }else{
+                            $this->json['has_more'] = false;
+                        }
+
+                        // Append Data
+                        $this->json['data'] = $locationArray;
+                    }else{
                         $this->json['error'] = true;
                         $this->json['error_msg'] = $this->errorMsg;
                     }
