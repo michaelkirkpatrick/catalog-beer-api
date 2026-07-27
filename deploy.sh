@@ -90,6 +90,7 @@ EXCLUDES=(
 	--exclude 'deploy.conf.example'
 	--exclude '*.sh'
 	--exclude '*.sql'
+	--exclude 'migrations/'
 	--exclude 'algolia/test.php'
 	--exclude 'README.md'
 	--exclude 'maintenance.php'
