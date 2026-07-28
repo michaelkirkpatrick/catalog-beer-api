@@ -102,15 +102,26 @@ $settings = array(
     'maxValuesPerFacet' => 300,
 
     /*
-    No customRanking, deliberately.
+    customRanking on type_rank ONLY — a universal attribute every record
+    carries (brewer 40, style 30, location 20, beer 10, set in each
+    generateSearchObject). Universality is the load-bearing property: Algolia
+    sorts records MISSING a customRanking attribute to the bottom, which is
+    why per-type attributes (location_count, abv, beer_count) must never
+    appear here. If per-type ranking becomes worth having, the tool is a
+    replica index with its own customRanking, not a shared rule here.
 
-    This is one index holding several record types, and every candidate
-    tie-breaker (location_count, abv, beer counts) exists on only one of them.
-    Algolia sorts records missing a customRanking attribute to the bottom, so
-    ranking on any of them would push every beer below every brewer. If per-type
-    ranking becomes worth having, the tool is a replica index with its own
-    customRanking, not a shared rule here.
+    customRanking is the LAST criterion — it fires only when every textual
+    criterion (typo/words/proximity/attribute/exact) ties. The case it
+    decides: a query matching both a brewer and records that carry the
+    brewer's name ("Ballast Point" the brewery vs "Ballast Point Victory at
+    Sea" the beer). The brand wins the tie; "sculpin" still ranks the beer
+    first because that's decided on textual relevance long before this.
+    Records without type_rank (until the next full re-index stamps them)
+    simply lose ties, which matches the old behavior of having no rule.
     */
+    'customRanking' => array(
+        'desc(type_rank)'
+    ),
 
     /*
     Explicit retrieval list, replacing '*'. Every hit used to ship its full

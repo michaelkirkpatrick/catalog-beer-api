@@ -615,6 +615,9 @@ class Style {
 
             // SiteSearch Fields
             $array['type'] = 'style';
+            // Cross-type tie-break — a style beats the many beers named after
+            // it ("Kölsch"). See customRanking in algolia/settings.php.
+            $array['type_rank'] = 30;
             // Family reads as parent context, paralleling how beers use the
             // brewer; fall back to the class ("Ale") for family-less styles.
             if(!empty($row['parent_name'])){

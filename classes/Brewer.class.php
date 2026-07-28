@@ -1158,15 +1158,20 @@ class Brewer {
 
         // SiteSearch Fields
         $array['type'] = 'brewer';
+        // Cross-type tie-break for customRanking (see algolia/settings.php):
+        // when textual relevance ties, the brand itself outranks records that
+        // merely carry its name (a beer named "Ballast Point …").
+        $array['type_rank'] = 40;
         $array['page_url'] = '/brewer/' . $this->brewerID;
 
         // Subtitle — parallels how beers and locations use it for parent
-        // context. Where a brewer *is* beats a prose blurb; fall back to the
-        // blurb, and omit the key entirely when there's neither.
+        // context: geography, and only geography. It used to fall back to the
+        // short description, which put the same sentence on a search row twice
+        // (the row renders subtitle as context AND short_description as its
+        // snippet). Omitted entirely for a brewer with no located taproom; the
+        // blurb is still searchable and still snippeted on its own.
         if(!empty($locations['primary'])){
             $array['subtitle'] = $locations['primary'];
-        }elseif(!empty($this->shortDescription)){
-            $array['subtitle'] = $this->shortDescription;
         }
 
         // Return as array

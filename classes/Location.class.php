@@ -1602,6 +1602,8 @@ class Location {
 
         // SiteSearch Fields
         $array['type'] = 'location';
+        // Cross-type tie-break — see customRanking in algolia/settings.php.
+        $array['type_rank'] = 20;
         $array['subtitle'] = $brewer->name;
         // Points at the location's own page. This previously pointed at the
         // parent brewer, which made location and brewer hits collide on one

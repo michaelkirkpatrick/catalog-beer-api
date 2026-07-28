@@ -1364,6 +1364,8 @@ class Beer {
 
         // SiteSearch Fields
         $array['type'] = 'beer';
+        // Cross-type tie-break — see customRanking in algolia/settings.php.
+        $array['type_rank'] = 10;
         $array['subtitle'] = $brewer->name;
         $array['page_url'] = '/beer/' . $this->beerID;
 
