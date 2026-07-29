@@ -670,6 +670,30 @@ class Beer {
             $db->close();
             return;
         }
+
+        // 2e. Family slug or display name. 2c above covers parent_alias, which
+        // is where the common spellings live ("IPA", "NEIPA"), but not the
+        // family's own slug or the `name` GET /style/parent publishes. So a
+        // client could read "Bitter & Mild Ale" off our own list endpoint,
+        // send it straight back as a label, and be rejected by it.
+        //
+        // Deliberately last, after every style-tier lookup. A family name that
+        // is also a style's canonical name or alias ("Porter", "Stout") must
+        // keep resolving to the style it always has — putting this earlier
+        // would silently refile those at the broader family tier, changing the
+        // classification of writes that work today.
+        //
+        // Ordered so an exact slug hit wins over a name hit, in case one
+        // family's slug ever equals another's name; without it the winner
+        // would be whatever InnoDB returned first.
+        $result = $db->query("SELECT slug, beverage_type, class FROM style_parent WHERE slug=? OR name=? ORDER BY (slug=?) DESC LIMIT 1", [$this->style, $this->style, $this->style]);
+        if($db->error){ return $this->resolveDbError($db); }
+        if($result !== null && $result->num_rows >= 1){
+            $row = $result->fetch_assoc();
+            $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type'], 'label');
+            $db->close();
+            return;
+        }
         $db->close();
 
         // 3. Unchanged label on an existing beer: keep its stored
@@ -698,7 +722,7 @@ class Beer {
         // The top suggestion rides along so the log records not just what was
         // rejected but what it most likely meant — the raw material for turning
         // repeat offenders into aliases.
-        $topMatch = $this->suggestions['style']['styles'][0]['style_id'] ?? ($this->suggestions['style']['families'][0]['parent'] ?? 'none');
+        $topMatch = $this->suggestions['style']['styles'][0]['style_id'] ?? 'none';
         $errorLog->badData = $this->style . ' / closest: ' . $topMatch;
         $errorLog->filename = 'API / Beer.class.php';
         $errorLog->write();
@@ -709,7 +733,7 @@ class Beer {
     private function suggestStyles($label){
         $style = new Style();
         $candidates = $style->suggest($label);
-        if(!empty($candidates['styles']) || !empty($candidates['families'])){
+        if(!empty($candidates['styles'])){
             $this->suggestions['style'] = $candidates;
         }
     }

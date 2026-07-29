@@ -301,7 +301,7 @@ class Style {
     }
 
     /*--
-    suggest — candidate styles and families for a label that didn't resolve.
+    suggest — candidate styles for a label that didn't resolve.
 
     Same ranking as search() (exact name/alias, then all-terms, then any-term,
     with catch-alls sorted below specific styles within a tier), but returning
@@ -316,11 +316,20 @@ class Style {
 
     Never sets error state and never throws: this runs while the caller is
     already returning a 400, and a failed suggestion lookup must not turn that
-    into a 500. Anything unexpected yields empty arrays, and the caller omits
+    into a 500. Anything unexpected yields an empty array, and the caller omits
     the key.
+
+    Styles only, no families. An earlier draft also returned families matched
+    exactly on slug/name/alias, on the theory that a bare "IPA" should suggest
+    the family rather than five sub-styles. That branch could never fire:
+    resolveStyle() resolves a label matching a family alias (2c), slug or name
+    (2e) before it ever gives up, so by the time suggest() runs, every input
+    that would have matched has already succeeded. Suggesting a family for a
+    partial match ("Cali Pilsner" -> the pilsner family) is a different and
+    genuinely useful feature, but it is not this one.
     --*/
     public function suggest($label, $limit = 8){
-        $empty = array('styles' => array(), 'families' => array());
+        $empty = array('styles' => array());
 
         $label = trim($label ?? '');
         if($label === '' || strlen($label) > 255){
@@ -373,26 +382,9 @@ class Style {
             );
         }
 
-        // Families, matched exactly on slug/name/alias rather than by relevance
-        // — the same lookup /style/search uses. This is what makes a bare "IPA"
-        // suggest the family it actually means instead of five sub-styles.
-        $families = array();
-        // sort_order has to be in the SELECT list even though it isn't emitted:
-        // DISTINCT plus an ORDER BY on an unselected column is an error under
-        // ONLY_FULL_GROUP_BY, which fails this query outright.
-        $fResult = $db->query("SELECT DISTINCT p.slug, p.name, p.class, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) = LOWER(?) OR LOWER(p.name) = LOWER(?) OR LOWER(pa.alias) = LOWER(?) ORDER BY p.sort_order", [$label, $label, $label]);
-        if(!$db->error && $fResult !== null){
-            while($f = $fResult->fetch_assoc()){
-                $families[] = array(
-                    'parent' => $f['slug'],
-                    'name' => $f['name'],
-                    'class' => $f['class'],
-                );
-            }
-        }
         $db->close();
 
-        return array('styles' => $styles, 'families' => $families);
+        return array('styles' => $styles);
     }
 
     private function search($query, $cursor, $count){
