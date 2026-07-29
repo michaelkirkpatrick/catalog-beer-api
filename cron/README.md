@@ -2,6 +2,11 @@
 
 Scripts in this directory run as scheduled tasks on the server, not via web requests. They are deployed to `public_html/cron/` by `deploy.sh` alongside the API code. Each script has a CLI-only guard that exits immediately if accessed via a web request.
 
+**All of these live in root's crontab (`sudo crontab -e`), which is shared with swim.team.** Two consequences worth knowing before adding anything:
+
+- Running as root is what lets them read `common/passwords.php`, which `deploy.sh` leaves `chmod 600` owned by `www-data`. A job moved to the `michael` crontab would fail to load database credentials.
+- The schedule below is only half the picture. swim.team regenerates its sitemap **every hour on the hour**, and the catalog.beer frontend runs `generate-sitemap.php` at `0 4` on Mondays. Read the live crontab before choosing a time; the top of any hour is never free.
+
 ## update-usage.php
 
 Counts API requests per key per month from `api_logging` and upserts the totals into `api_usage`. This data powers the `GET /usage/currentMonth/{api_key}` endpoint.
@@ -28,7 +33,7 @@ The crontab entry on the server must be set up once (see Scheduling below).
 
 ### Scheduling
 
-Add a crontab entry on the server (`crontab -e`):
+Add a crontab entry on the server (`sudo crontab -e` — see the note at the top of this file):
 
 ```
 # Update API usage counts daily at 2 AM
@@ -74,7 +79,7 @@ Queries the `error_log` database table for the past 7 days, groups errors by `er
 
 ### Scheduling
 
-Runs under the `michael` user (`crontab -e`):
+Added with `sudo crontab -e`, like everything else here:
 
 ```
 # Send weekly app error digest email (Mondays at 7am Pacific)
@@ -116,11 +121,13 @@ Requires the brewer URL-status columns — apply `migrations/2026-07-28-brewer-u
 The default limit of 160/run covers the full catalog (~4,800 URLs) roughly every 30 days when run daily:
 
 ```
-# Check brewer URL health daily at 1 AM (off-peak, ahead of everything else)
-0 1 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
+# Check brewer URL health daily at 1:20 AM (off-peak, ahead of everything else)
+20 1 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
 ```
 
 It goes first in the night's order, ahead of `update-usage.php` at 2 AM, because it is the only job here whose runtime is unbounded in practice.
+
+The `:20` is not cosmetic. The server's crontab is shared with swim.team, which regenerates its sitemap **every hour on the hour** (`0 * * * *`) — so `0 <hour>` is never actually a free slot on this box, whatever the local schedule looks like. Check the real crontab before picking a time, not just this file.
 
 **Budget two hours before `snapshot-metrics.php`, not thirty minutes.** A run is far slower than the per-URL average suggests, because the failures are the slow ones: a dead host burns the full 30s timeout, a 404 adds another 15s re-testing the apex, and every check pays the 0.5s pacing gap. A staging run of 5 URLs hit one 27s timeout — at that rate a 160-URL batch takes roughly 20 minutes, before the 15s RDAP lookup each flagged domain adds in the report phase.
 
@@ -168,11 +175,11 @@ Requires `metrics_daily` and the `createdAt` columns — apply `migrations/2026-
 ### Scheduling
 
 ```
-# Snapshot catalog health metrics daily at 4 AM (three hours after check-urls)
-0 4 * * * php /var/www/html/api.catalog.beer/public_html/cron/snapshot-metrics.php production
+# Snapshot catalog health metrics daily at 4:20 AM (three hours after check-urls)
+20 4 * * * php /var/www/html/api.catalog.beer/public_html/cron/snapshot-metrics.php production
 ```
 
-Run it after `check-urls.php` so each night's `brewer_url_status` counts reflect that morning's checks — leaving a two-hour gap, for the reasons under that script's scheduling notes. Re-running on the same day upserts in place, so it is safe to retry by hand after a failure. Missing a day leaves a gap in the series and suppresses that day's `deleted_*` figures; it does not corrupt anything.
+Run it after `check-urls.php` so each night's `brewer_url_status` counts reflect that morning's checks — leaving a three-hour gap, for the reasons under that script's scheduling notes. The `:20` keeps it clear of the frontend's `generate-sitemap.php` at `0 4` on Mondays, which walks the whole catalog through the API while this walks the same tables with aggregates. Re-running on the same day upserts in place, so it is safe to retry by hand after a failure. Missing a day leaves a gap in the series and suppresses that day's `deleted_*` figures; it does not corrupt anything.
 
 ### Manual run
 
@@ -212,7 +219,7 @@ Reads the server-wide PHP error log (`/var/log/php/error.log` and rotated files)
 
 ### Scheduling
 
-Runs under **root** (`sudo crontab -e`) because `/var/log/php/error.log` is owned by `www-data` and not readable by `michael`:
+Needs root specifically, rather than merely inheriting it: `/var/log/php/error.log` is owned by `www-data` and unreadable by `michael`.
 
 ```
 # Send weekly PHP error digest email (Mondays at 6am Pacific)
