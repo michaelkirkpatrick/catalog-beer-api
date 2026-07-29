@@ -90,6 +90,45 @@ php cron/error-digest.php staging
 
 Defaults to `production` if no argument is given.
 
+## check-urls.php
+
+Link-health monitor for brewer URLs (`classes/UrlCheck.class.php` does the detection). Report-only: it writes the `brewer` URL-status columns (`urlStatus`, `urlCheckedAt`, `urlLastOkAt`, `urlFailCount`, `urlFinal`) and prints a report — it never clears or modifies a brewer's `url`.
+
+### How it works
+
+Each run selects the brewers with the oldest `urlCheckedAt` (never-checked first) and classifies each URL through tiers:
+
+1. **DNS** — `NXDOMAIN` → `gone` (the only unambiguous dead signal)
+2. **HTTP** (GET, browser User-Agent, 30s timeout, redirects followed, body capped at 300 KB) — `401/403/405/406/418/429/451` → `blocked` (never a failure); `5xx` → `server_error`; `404/410` → `url_wrong` (apex re-tested first); no response/TLS failure → `no_answer`
+3. **Off-domain redirect** — registrable-domain comparison with same-entity filtering (www/hyphen/TLD variants and brand-token survival are not flagged) → `moved`, with the destination stored in `urlFinal`
+4. **Parked-page heuristics** — parking-service fingerprints or a near-empty body on an HTTP 200 → `parked`
+
+Escalation: only `no_answer`/`gone` increment `urlFailCount` (`ok` resets it). The report surfaces `moved`/`parked` immediately, sustained failures at `urlFailCount >= 3`, and lists "alive but brewery name absent from page text" as ambiguous. Flagged domains get an RDAP registration-date lookup in the report — a recent date means the domain lapsed and was re-registered by someone else. Nothing is ever deleted automatically; a single observation is never trusted (checks run one at a time with a 0.5s gap — do not add concurrency, high concurrency is what produced a 78% false-negative rate in the original scan).
+
+With `--llm`, ambiguous and flagged pages (capped at 25 per run) are sent to the Claude Messages API for an advisory verdict (`brewery_site` / `parked` / `unrelated_business` / `spam` / `unclear`), printed in the report but never written to the database. Uses `ANTHROPIC_API_KEY` from `common/passwords.php`; error numbers 295 (cURL error) and 296 (non-200).
+
+### Schema dependency
+
+Requires the brewer URL-status columns — apply `migrations/2026-07-28-brewer-url-status.sql` from the [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql) repo (schema v2.3.0) before the first run.
+
+### Scheduling
+
+The default limit of 160/run covers the full catalog (~4,800 URLs) roughly every 30 days when run daily:
+
+```
+# Check brewer URL health daily at 3:30 AM (off-peak)
+30 3 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
+```
+
+### Manual run
+
+```bash
+php cron/check-urls.php staging 20         # check 20 URLs on staging
+php cron/check-urls.php production 50 --llm  # 50 URLs + Claude verdicts on ambiguous ones
+```
+
+Defaults to `production` and a limit of 160 if no arguments are given.
+
 ## snapshot-metrics.php
 
 Writes one row per catalog-health metric per day into `metrics_daily` (`classes/Metrics.class.php` holds the metric definitions). ~77 metrics a night.
