@@ -7,8 +7,9 @@
    2. HTTP fetch — status-code classes per the URL-verification design doc
    3. Off-domain redirect detection — registrable-domain comparison with
       same-entity filtering (www/hyphen/TLD variants, brand-token survival)
-   4. Parked-page content heuristics — parking-service fingerprints, tiny
-      bodies, brewery-name absence
+   4. Parked-page content heuristics — parking-service fingerprints, then
+      tiny bodies (skipped when the brewery name appears in the page, since
+      JS-rendered sites ship near-empty HTML shells)
    5. Optional enrichment — RDAP registration date, Claude classification
 
    Statuses returned by check():
@@ -56,6 +57,7 @@ class UrlCheck {
         'domainmarket.com',
         'dnparking',
         'godaddy.com/domainsearch',
+        'location.href="/lander"',
         'this domain may be for sale',
         'domain is for sale',
         'domain for sale',
@@ -199,7 +201,7 @@ class UrlCheck {
             }
 
             // Tier 4: parked-page content heuristics
-            $parkedReason = $this->parkedReason($body);
+            $parkedReason = $this->parkedReason($body, $result['name_found']);
             if($parkedReason !== null){
                 $result['status'] = 'parked';
                 $result['detail'] = "HTTP $httpCode but page looks parked ($parkedReason)";
@@ -436,15 +438,17 @@ class UrlCheck {
 
     /* ----- Tier 4: parked-page content heuristics ----- */
 
-    private function parkedReason(string $body): ?string {
-        $trimmed = trim($body);
-        if(strlen($trimmed) < self::TINY_BODY_BYTES){
-            return 'body under ' . self::TINY_BODY_BYTES . ' bytes';
-        }
+    private function parkedReason(string $body, ?bool $nameFound): ?string {
         foreach(self::PARKING_FINGERPRINTS as $fingerprint){
             if(stripos($body, $fingerprint) !== false){
                 return "fingerprint: $fingerprint";
             }
+        }
+        // A tiny body usually means a parked lander, but JS-rendered sites
+        // ship near-empty HTML shells too — a shell that names the brewery
+        // (title/meta) is a real site, so only unnamed tiny bodies count.
+        if($nameFound !== true && strlen(trim($body)) < self::TINY_BODY_BYTES){
+            return 'body under ' . self::TINY_BODY_BYTES . ' bytes';
         }
         return null;
     }
