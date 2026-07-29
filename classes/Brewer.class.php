@@ -38,6 +38,7 @@ class Brewer {
         $newBrewer = false;
         $urlVerified = false;
         $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
+        $originalURL = null;    // Set on PUT/PATCH of an existing brewer — a changed URL resets the url-monitoring columns
         switch($method){
             case 'POST':
                 // Generate a new brewer_id
@@ -65,6 +66,8 @@ class Brewer {
                     $originalBV = $this->brewerVerified;
                     // Save original name to detect a rename — drives the Algolia cascade below
                     $originalName = $this->name;
+                    // Save original URL to detect a change — drives the url-monitoring reset below
+                    $originalURL = $this->url;
                 }else{
                     // Brewer doesn't exist, they'd like to add it
                     // Reset Errors from $this->validate()
@@ -100,6 +103,8 @@ class Brewer {
                     $originalBV = $this->brewerVerified;
                     // Save original name to detect a rename — drives the Algolia cascade below
                     $originalName = $this->name;
+                    // Save original URL to detect a change — drives the url-monitoring reset below
+                    $originalURL = $this->url;
                 }
                 break;
             default:
@@ -333,6 +338,17 @@ class Brewer {
                             $setClauses[] = 'url=NULL';
                             $setClauses[] = 'domainName=NULL';
                         }
+                        // A changed URL invalidates the monitoring columns — they
+                        // describe the old URL. Reset to baseline; urlCheckedAt=NULL
+                        // puts the brewer at the front of the check-urls queue.
+                        // (Loose != so a NULL original equals an empty string.)
+                        if($this->url != $originalURL){
+                            $setClauses[] = "urlStatus='unverified'";
+                            $setClauses[] = 'urlCheckedAt=NULL';
+                            $setClauses[] = 'urlLastOkAt=NULL';
+                            $setClauses[] = 'urlFailCount=0';
+                            $setClauses[] = 'urlFinal=NULL';
+                        }
                         $sql = "UPDATE brewer SET " . implode(', ', $setClauses) . " WHERE id=?";
                         $setParams[] = $this->brewerID;
                         $db->query($sql, $setParams);
@@ -371,6 +387,18 @@ class Brewer {
                             $setParams[] = $this->url;
                             $setClauses[] = "domainName=?";
                             $setParams[] = $this->domainName;
+                            // Compare post-validation: "foo.com" normalizes to the
+                            // stored "https://foo.com/", and an unchanged URL keeps
+                            // its monitoring history. A changed one resets to
+                            // baseline; urlCheckedAt=NULL puts the brewer at the
+                            // front of the check-urls queue.
+                            if($this->url != $originalURL){
+                                $setClauses[] = "urlStatus='unverified'";
+                                $setClauses[] = 'urlCheckedAt=NULL';
+                                $setClauses[] = 'urlLastOkAt=NULL';
+                                $setClauses[] = 'urlFailCount=0';
+                                $setClauses[] = 'urlFinal=NULL';
+                            }
                         }
                     }
                 }
@@ -584,27 +612,15 @@ class Brewer {
                 return $returnURL;
             }
 
-            // Perform cURL HEAD request
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL => $url,
-                CURLOPT_NOBODY => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_USERAGENT => 'api.catalog.beer/1.0',
-                CURLOPT_TIMEOUT => 10,
-            ]);
+            // Reachability is UrlCheck's job — same probe the check-urls cron
+            // uses, so a URL accepted here isn't flagged dead by the cron the
+            // next morning, or vice versa.
+            $urlCheck = new UrlCheck();
+            $probe = $urlCheck->reachable($url);
 
-            curl_exec($curl);
-            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-            $finalUrl = curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
-            $curlError = curl_errno($curl);
-            $curlErrorMsg = curl_error($curl);
-            curl_close($curl);
+            $httpCode = $probe['http_code'];
 
-            if($curlError || $httpCode < 200 || $httpCode >= 400){
+            if(!$urlCheck->answered($probe)){
                 // Unreachable URL
                 $this->error = true;
                 $this->validState[$type] = 'invalid';
@@ -613,10 +629,10 @@ class Brewer {
                 $this->responseCode = 400;
 
                 $errorLog = new LogError();
-                if($curlError){
+                if($probe['errno']){
                     $errorLog->errorNumber = 16;
                     $errorLog->errorMsg = 'cURL Error';
-                    $errorLog->badData = "URL: $url / cURL Error: " . $curlErrorMsg;
+                    $errorLog->badData = "URL: $url / cURL Error: " . $probe['error'];
                 }else{
                     $errorLog->errorNumber = 107;
                     $errorLog->errorMsg = 'Invalid URL / Failed cURL';
@@ -628,29 +644,21 @@ class Brewer {
                 return $returnURL;
             }
 
-            // Use the final URL after redirects
-            $returnURL = !empty($finalUrl) ? $finalUrl : $url;
+            if($urlCheck->serving($probe) && !empty($probe['final_url'])){
+                // Use the final URL after redirects
+                $returnURL = $probe['final_url'];
+            }else{
+                // The server answered but didn't serve us the site — a WAF
+                // block, or an outage. Store what was submitted: a challenge
+                // page or error page's redirect target is not the brewery.
+                // check-urls will re-test it on its own schedule.
+                $returnURL = $url;
+            }
 
             // If still HTTP, try HTTPS upgrade
             if(preg_match('/^http:\/\//', $returnURL)){
                 $secureURL = preg_replace('/^http:\/\//', 'https://', $returnURL);
-                $curl = curl_init();
-                curl_setopt_array($curl, [
-                    CURLOPT_URL => $secureURL,
-                    CURLOPT_NOBODY => true,
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_FOLLOWLOCATION => true,
-                    CURLOPT_MAXREDIRS => 10,
-                    CURLOPT_SSL_VERIFYPEER => true,
-                    CURLOPT_USERAGENT => 'api.catalog.beer/1.0',
-                    CURLOPT_TIMEOUT => 10,
-                ]);
-
-                curl_exec($curl);
-                $httpsCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-                curl_close($curl);
-
-                if($httpsCode >= 200 && $httpsCode < 400){
+                if($urlCheck->serving($urlCheck->reachable($secureURL))){
                     $returnURL = $secureURL;
                 }
             }

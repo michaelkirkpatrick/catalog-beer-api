@@ -74,6 +74,7 @@ $statusCounts = array();
 $flagged = array();     // moved/parked — surface after one clean detection
 $escalated = array();   // no_answer/gone with failCount >= 3 — review queue
 $ambiguous = array();   // ok, but brewery name absent from page text
+$upgraded = array();    // http:// promoted to the site's own https:// redirect
 $llmCalls = 0;
 
 foreach($brewers as $brewer){
@@ -88,7 +89,27 @@ foreach($brewers as $brewer){
     switch($status){
         case 'ok':
             $failCount = 0;
-            $db->query("UPDATE brewer SET urlStatus='ok', urlCheckedAt=?, urlLastOkAt=?, urlFailCount=0, urlFinal=NULL WHERE id=?", [$now, $now, $brewer['id']]);
+            // Where the URL actually lands — kept (not NULLed) so an ok row
+            // still records its redirect target. check() sets final_url only
+            // when it differs from the stored URL.
+            $urlFinal = !empty($check['final_url']) ? substr($check['final_url'], 0, 255) : null;
+
+            // The one write this report-only cron makes to the URL itself:
+            // promote http:// to the https:// the site's own redirect landed
+            // on. Same host (www aside), so domainName and staff permissions
+            // can't shift — we're recording the operator's decision, not
+            // making one. Everything broader stays in the report.
+            $promoted = ($urlFinal !== null) ? $urlCheck->httpsUpgrade($brewer['url'], $urlFinal) : null;
+            if($promoted !== null){
+                $db->query("UPDATE brewer SET url=?, urlStatus='ok', urlCheckedAt=?, urlLastOkAt=?, urlFailCount=0, urlFinal=NULL, lastModified=? WHERE id=?", [$promoted, $now, $now, $now, $brewer['id']]);
+                if(!$db->error){
+                    // The Algolia brewer record carries url — keep it in step
+                    Brewer::refreshSearchObject($brewer['id']);
+                    $upgraded[] = array('brewer' => $brewer, 'to' => $promoted);
+                }
+            }else{
+                $db->query("UPDATE brewer SET urlStatus='ok', urlCheckedAt=?, urlLastOkAt=?, urlFailCount=0, urlFinal=? WHERE id=?", [$now, $now, $urlFinal, $brewer['id']]);
+            }
             break;
         case 'no_answer':
         case 'gone':
@@ -134,6 +155,14 @@ echo "\n===== Summary =====\n";
 ksort($statusCounts);
 foreach($statusCounts as $status => $count){
     echo str_pad($status, 14) . $count . "\n";
+}
+
+if(!empty($upgraded)){
+    echo "\n===== https upgrades applied =====\n";
+    foreach($upgraded as $entry){
+        echo "- " . $entry['brewer']['name'] . "\n";
+        echo "  " . $entry['brewer']['url'] . " -> " . $entry['to'] . "\n";
+    }
 }
 
 if(!empty($flagged)){

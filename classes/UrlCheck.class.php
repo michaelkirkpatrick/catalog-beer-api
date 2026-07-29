@@ -28,13 +28,22 @@ class UrlCheck {
     const MAX_BODY_BYTES = 307200;      // 300 KB is plenty for content heuristics
     const TINY_BODY_BYTES = 600;        // parked landers are usually near-empty
 
+    // The write-path probe only needs a status code, and a user is waiting on
+    // it — so cap the body hard and give up sooner than the cron does.
+    const PROBE_BODY_BYTES = 8192;
+    const PROBE_TIMEOUT = 10;
+
     // Any of these means the server answered — the site exists. Never a failure.
-    // 405 can't happen here (we always send GET, never HEAD).
+    // 405 matters for the write-path probe, which tries HEAD before GET.
     const BLOCKED_CODES = array(401, 403, 405, 406, 418, 429, 451);
 
     // Transient. 521/526 are Cloudflare (origin down / bad origin cert) —
     // Cloudflare answered, so the domain is real.
     const SERVER_ERROR_CODES = array(500, 502, 503, 504, 521, 526);
+
+    // The only codes that say something about the URL rather than the server:
+    // this host is fine, that path isn't. The write gate rejects on these.
+    const URL_WRONG_CODES = array(404, 410);
 
     // Case-insensitive body fingerprints of parking/placeholder pages.
     const PARKING_FINGERPRINTS = array(
@@ -235,32 +244,41 @@ class UrlCheck {
 
     /* ----- Tier 2: HTTP ----- */
 
-    private function fetch(string $url): array {
+    // The single outbound-HTTP implementation for URL health in this codebase:
+    // the check-urls cron and the write-path validator in Brewer/Location both
+    // come through here, so they present identically to the sites they hit.
+    public function fetch(string $url, string $method = 'GET', int $maxBytes = self::MAX_BODY_BYTES, int $timeout = self::TIMEOUT): array {
         $body = '';
         $capped = false;
 
-        $curl = curl_init();
-        curl_setopt_array($curl, [
+        $options = [
             CURLOPT_URL => $url,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => self::MAX_REDIRECTS,
             CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
+            CURLOPT_TIMEOUT => $timeout,
             CURLOPT_USERAGENT => self::USER_AGENT,
             CURLOPT_ENCODING => '',
             CURLOPT_HTTPHEADER => [
                 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language: en-US,en;q=0.9'
             ],
-            CURLOPT_WRITEFUNCTION => function($curl, $chunk) use (&$body, &$capped) {
+            CURLOPT_WRITEFUNCTION => function($curl, $chunk) use (&$body, &$capped, $maxBytes) {
                 $body .= $chunk;
-                if(strlen($body) > self::MAX_BODY_BYTES){
+                if(strlen($body) > $maxBytes){
                     $capped = true;
                     return -1; // abort the transfer — we have enough
                 }
                 return strlen($chunk);
             }
-        ]);
+        ];
+
+        if($method === 'HEAD'){
+            $options[CURLOPT_NOBODY] = true;
+        }
+
+        $curl = curl_init();
+        curl_setopt_array($curl, $options);
 
         curl_exec($curl);
         $errno = curl_errno($curl);
@@ -282,6 +300,75 @@ class UrlCheck {
             'errno' => $errno,
             'error' => $error
         );
+    }
+
+    /* ----- Write-path reachability (Brewer/Location validateURL) ----- */
+
+    // Any HTTP status code at all means something is listening on that
+    // hostname and formed a reply — the site exists. A refusal (403/429), an
+    // outage (500/503) and a broken CDN origin (521/526) are all answers, and
+    // none of them are evidence the submitted URL is wrong. So the write gate
+    // rejects only two things: a transport failure (DNS, TLS, refused,
+    // timeout), and 404/410, the codes that specifically mean "not this path".
+    // Everything else is accepted and left to the check-urls cron, which can
+    // re-test later and judge on more than one sample.
+    public function answered(array $probe): bool {
+        if($probe['errno'] || $probe['http_code'] <= 0){
+            return false;
+        }
+        return !in_array($probe['http_code'], self::URL_WRONG_CODES);
+    }
+
+    // Stricter than answered(): is the host actually serving this scheme? A
+    // deliberate refusal still counts (the TLS handshake and request completed
+    // — we just weren't welcome), but a 5xx does not. Used only for the
+    // http→https upgrade, where the wrong answer means storing a broken URL.
+    public function serving(array $probe): bool {
+        if($probe['errno']){
+            return false;
+        }
+        if($probe['http_code'] >= 200 && $probe['http_code'] < 400){
+            return true;
+        }
+        return in_array($probe['http_code'], self::BLOCKED_CODES);
+    }
+
+    // HEAD first because it's cheap, GET on failure because plenty of CDNs and
+    // WAFs refuse HEAD outright. Used to gate writes, so it must not reject a
+    // correct URL just because the far end dislikes our IP or is having a bad
+    // afternoon. Retries on anything short of a page we could actually use.
+    public function reachable(string $url): array {
+        $probe = $this->fetch($url, 'HEAD', self::PROBE_BODY_BYTES, self::PROBE_TIMEOUT);
+        if(!$this->serving($probe)){
+            $probe = $this->fetch($url, 'GET', self::PROBE_BODY_BYTES, self::PROBE_TIMEOUT);
+        }
+        return $probe;
+    }
+
+    // The provably-safe https promotion: the stored URL is http://, and the
+    // site's own redirect landed on https:// at the same host (www aside) —
+    // the operator has declared https canonical, we're just recording it.
+    // Same host means domainName, and with it staff permissions, can't shift.
+    // Anything broader (new path, new host) stays report-only. Returns the
+    // URL to promote to, or null.
+    public function httpsUpgrade(string $storedUrl, string $finalUrl): ?string {
+        if(stripos($storedUrl, 'http://') !== 0 || stripos($finalUrl, 'https://') !== 0){
+            return null;
+        }
+        if(strlen($finalUrl) > 255){
+            return null;
+        }
+        $storedHost = parse_url($storedUrl, PHP_URL_HOST);
+        $finalHost = parse_url($finalUrl, PHP_URL_HOST);
+        if(!is_string($storedHost) || !is_string($finalHost) || $storedHost === '' || $finalHost === ''){
+            return null;
+        }
+        $storedHost = preg_replace('/^www\./', '', strtolower($storedHost));
+        $finalHost = preg_replace('/^www\./', '', strtolower($finalHost));
+        if($storedHost !== $finalHost){
+            return null;
+        }
+        return $finalUrl;
     }
 
     /* ----- Tier 3: registrable-domain comparison ----- */

@@ -97,7 +97,11 @@ Defaults to `production` if no argument is given.
 
 ## check-urls.php
 
-Link-health monitor for brewer URLs (`classes/UrlCheck.class.php` does the detection). Report-only: it writes the `brewer` URL-status columns (`urlStatus`, `urlCheckedAt`, `urlLastOkAt`, `urlFailCount`, `urlFinal`) and prints a report — it never clears or modifies a brewer's `url`.
+Link-health monitor for brewer URLs (`classes/UrlCheck.class.php` does the detection). Report-only, with one deliberate exception: it writes the `brewer` URL-status columns (`urlStatus`, `urlCheckedAt`, `urlLastOkAt`, `urlFailCount`, `urlFinal`) and prints a report — it never clears a brewer's `url`, and the only modification it ever makes is the https promotion below.
+
+**https promotion:** when a stored `http://` URL checks `ok` and the site's own redirect landed on `https://` at the same host (`www` aside), the cron updates `url` to that https URL and refreshes the brewer's Algolia record. This is recording the operator's decision, not making one — and same-host means `domainName`, and with it staff permissions, cannot shift. Any broader difference (new host, subdomain) is never applied; an `ok` URL that lands somewhere other than itself keeps that landing URL in `urlFinal` as evidence for the report.
+
+The API write path is the mirror of this: when a brewer's `url` changes via PUT/PATCH, `Brewer::add()` resets all five monitoring columns to baseline (`unverified`, `urlCheckedAt=NULL`) — a changed URL's history describes the old URL, and the NULL `urlCheckedAt` puts it at the front of this cron's queue for a full check the next night.
 
 ### How it works
 
