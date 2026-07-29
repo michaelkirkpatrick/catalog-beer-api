@@ -116,9 +116,13 @@ Requires the brewer URL-status columns — apply `migrations/2026-07-28-brewer-u
 The default limit of 160/run covers the full catalog (~4,800 URLs) roughly every 30 days when run daily:
 
 ```
-# Check brewer URL health daily at 3:30 AM (off-peak)
-30 3 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
+# Check brewer URL health daily at 2 AM (off-peak)
+0 2 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
 ```
+
+**Budget two hours before `snapshot-metrics.php`, not thirty minutes.** A run is far slower than the per-URL average suggests, because the failures are the slow ones: a dead host burns the full 30s timeout, a 404 adds another 15s re-testing the apex, and every check pays the 0.5s pacing gap. A staging run of 5 URLs hit one 27s timeout — at that rate a 160-URL batch takes roughly 20 minutes, before the 15s RDAP lookup each flagged domain adds in the report phase.
+
+Worse, the slow ones cluster. Brewers are selected oldest-checked first with never-checked ahead of those, so early runs are weighted toward URLs nobody has ever verified — exactly where the dead links live. Overrunning into `snapshot-metrics.php` doesn't corrupt anything, but that night's `brewer_url_status` counts end up a mix of yesterday's values and today's, which is the one thing running them in order was meant to avoid.
 
 ### Manual run
 
@@ -162,11 +166,11 @@ Requires `metrics_daily` and the `createdAt` columns — apply `migrations/2026-
 ### Scheduling
 
 ```
-# Snapshot catalog health metrics daily at 4 AM (after check-urls at 3:30)
+# Snapshot catalog health metrics daily at 4 AM (two hours after check-urls)
 0 4 * * * php /var/www/html/api.catalog.beer/public_html/cron/snapshot-metrics.php production
 ```
 
-Run it after `check-urls.php` so each night's `brewer_url_status` counts reflect that morning's checks. Re-running on the same day upserts in place, so it is safe to retry by hand after a failure. Missing a day leaves a gap in the series and suppresses that day's `deleted_*` figures; it does not corrupt anything.
+Run it after `check-urls.php` so each night's `brewer_url_status` counts reflect that morning's checks — leaving a two-hour gap, for the reasons under that script's scheduling notes. Re-running on the same day upserts in place, so it is safe to retry by hand after a failure. Missing a day leaves a gap in the series and suppresses that day's `deleted_*` figures; it does not corrupt anything.
 
 ### Manual run
 
