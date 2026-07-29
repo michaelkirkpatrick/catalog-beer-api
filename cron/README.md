@@ -116,9 +116,11 @@ Requires the brewer URL-status columns — apply `migrations/2026-07-28-brewer-u
 The default limit of 160/run covers the full catalog (~4,800 URLs) roughly every 30 days when run daily:
 
 ```
-# Check brewer URL health daily at 2 AM (off-peak)
-0 2 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
+# Check brewer URL health daily at 1 AM (off-peak, ahead of everything else)
+0 1 * * * php /var/www/html/api.catalog.beer/public_html/cron/check-urls.php production
 ```
+
+It goes first in the night's order, ahead of `update-usage.php` at 2 AM, because it is the only job here whose runtime is unbounded in practice.
 
 **Budget two hours before `snapshot-metrics.php`, not thirty minutes.** A run is far slower than the per-URL average suggests, because the failures are the slow ones: a dead host burns the full 30s timeout, a 404 adds another 15s re-testing the apex, and every check pays the 0.5s pacing gap. A staging run of 5 URLs hit one 27s timeout — at that rate a 160-URL batch takes roughly 20 minutes, before the 15s RDAP lookup each flagged domain adds in the report phase.
 
@@ -166,7 +168,7 @@ Requires `metrics_daily` and the `createdAt` columns — apply `migrations/2026-
 ### Scheduling
 
 ```
-# Snapshot catalog health metrics daily at 4 AM (two hours after check-urls)
+# Snapshot catalog health metrics daily at 4 AM (three hours after check-urls)
 0 4 * * * php /var/www/html/api.catalog.beer/public_html/cron/snapshot-metrics.php production
 ```
 
