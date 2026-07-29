@@ -23,6 +23,12 @@ class Beer {
     public $errorMsg = null;
     public $validState = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
     public $validMsg = array('brewer_id'=>null, 'name'=>null, 'style'=>null, 'description'=>null, 'abv'=>null, 'ibu'=>null);
+    // Machine-actionable recovery candidates for a rejected field, keyed by
+    // field name like validState/validMsg. Emitted as `suggestions` alongside
+    // them, and only when non-empty. Kept out of validMsg because that string
+    // is rendered to people in the Guided Style Field — prose for humans there,
+    // slugs for clients here.
+    public $suggestions = array();
 
     // API Response
     public $responseHeader = '';
@@ -36,6 +42,18 @@ class Beer {
     // Cached objects to avoid redundant queries
     private $brewerObj = null;
     private $totalCount = 0;
+
+    // How resolveStyle() reached the tier, so resolveConfidence() can tell an
+    // auto-match apart from a mapping judgment. Set via setTier().
+    //   'label'    — the submitted label matched the vocabulary on its own
+    //   'explicit' — style_id/parent/class named the tier
+    //   'carried'  — unchanged label on an existing beer kept its stored tier
+    private $styleResolvedBy = null;
+    // Only meaningful on the 'explicit' style_id path: did the submitted label
+    // match that style's canonical name or one of its aliases anyway, and is
+    // the chosen style a catch-all?
+    private $styleLabelMatched = false;
+    private $styleIsCatchAll = false;
 
 
     public function add($brewerID, $name, $style, $styleID, $parent, $class, $styleConfidence, $description, $abv, $ibu, $userID, $method, $beerID, $patchFields){
@@ -550,12 +568,22 @@ class Beer {
 
         // 1. Explicit picks (most specific first: style_id > parent > class)
         if(!empty($styleID)){
-            $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class FROM style s JOIN style_parent p ON s.parent=p.slug WHERE s.id=?", [$styleID]);
+            // label_match rides along on the same query: it's what separates a
+            // caller spelling out a match the vocabulary would have made anyway
+            // ("NEIPA" + hazy-ipa) from one asserting a mapping we never
+            // could have ("Cali Pilsner" + contemporary-american-pilsner). Only
+            // the second is an override. Case-insensitivity comes from the
+            // utf8mb4_0900_ai_ci collation, as elsewhere in this method.
+            $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, (s.canonical_name = ? OR EXISTS(SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND x.alias = ?)) AS label_match FROM style s JOIN style_parent p ON s.parent=p.slug WHERE s.id=?", [$this->style, $this->style, $styleID]);
             if($db->error){ return $this->resolveDbError($db); }
             if($result !== null && $result->num_rows === 1){
                 $row = $result->fetch_assoc();
+                $this->styleIsCatchAll = (bool) $row['is_catch_all'];
+                // An empty label gets filled from canonical_name below — that's
+                // the caller accepting our name, not overriding it.
+                $this->styleLabelMatched = empty($this->style) || (bool) $row['label_match'];
                 if(empty($this->style)){ $this->style = $row['canonical_name']; }
-                $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
+                $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type'], 'explicit');
                 $db->close();
                 return;
             }
@@ -566,7 +594,7 @@ class Beer {
             if($db->error){ return $this->resolveDbError($db); }
             if($result !== null && $result->num_rows === 1){
                 $row = $result->fetch_assoc();
-                $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type']);
+                $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type'], 'explicit');
                 $db->close();
                 return;
             }
@@ -577,7 +605,7 @@ class Beer {
             if($db->error){ return $this->resolveDbError($db); }
             if($result !== null && $result->num_rows === 1){
                 $row = $result->fetch_assoc();
-                $this->setTier(null, null, $row['slug'], $row['beverage_type']);
+                $this->setTier(null, null, $row['slug'], $row['beverage_type'], 'explicit');
                 $db->close();
                 return;
             }
@@ -606,7 +634,7 @@ class Beer {
         if($db->error){ return $this->resolveDbError($db); }
         if($result !== null && $result->num_rows >= 1){
             $row = $result->fetch_assoc();
-            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
+            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type'], 'label');
             $db->close();
             return;
         }
@@ -616,7 +644,7 @@ class Beer {
         if($db->error){ return $this->resolveDbError($db); }
         if($result !== null && $result->num_rows >= 1){
             $row = $result->fetch_assoc();
-            $this->setTier(null, null, $row['slug'], $row['beverage_type']);
+            $this->setTier(null, null, $row['slug'], $row['beverage_type'], 'label');
             $db->close();
             return;
         }
@@ -626,7 +654,7 @@ class Beer {
         if($db->error){ return $this->resolveDbError($db); }
         if($result !== null && $result->num_rows >= 1){
             $row = $result->fetch_assoc();
-            $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type']);
+            $this->setTier(null, $row['slug'], $row['class'], $row['beverage_type'], 'label');
             $db->close();
             return;
         }
@@ -636,7 +664,7 @@ class Beer {
         if($db->error){ return $this->resolveDbError($db); }
         if($result !== null && $result->num_rows >= 1){
             $row = $result->fetch_assoc();
-            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type']);
+            $this->setTier($row['id'], $row['parent'], $row['class'], $row['beverage_type'], 'label');
             $db->close();
             return;
         }
@@ -648,30 +676,52 @@ class Beer {
         // (e.g. a GET->PUT round-trip of a legacy beer whose label predates
         // the vocabulary).
         if($prevLabel !== null && strcasecmp($this->style, trim($prevLabel)) === 0){
-            $this->setTier($prevTier[0] ?? null, $prevTier[1] ?? null, $prevTier[2] ?? null, $prevTier[3] ?? 'beer');
+            $this->setTier($prevTier[0] ?? null, $prevTier[1] ?? null, $prevTier[2] ?? null, $prevTier[3] ?? 'beer', 'carried');
             return;
         }
 
-        // 4. Unresolved — guide the caller toward the list / a catch-all
+        // 4. Unresolved — guide the caller toward the closest matches.
+        // The message stays prose because the Guided Style Field renders it to
+        // a person verbatim; the slugs that make it actionable for an API
+        // client ride in `suggestions` instead.
         $this->error = true;
         $this->validState['style'] = 'invalid';
-        $this->validMsg['style'] = 'We couldn\'t match "' . $this->style . '" to a known style, family, or class. Pick one from the list, or choose a catch-all like Specialty so nothing is lost.';
+        $this->validMsg['style'] = 'We couldn\'t match "' . $this->style . '" to a known style, family, or class. Choose the closest match, or a catch-all so nothing is lost, and send it back with your label unchanged.';
         $this->responseCode = 400;
+        $this->suggestStyles($this->style);
 
         $errorLog = new LogError();
         $errorLog->errorNumber = 261;
         $errorLog->errorMsg = 'Unresolved beer style (no canonical match)';
-        $errorLog->badData = $this->style;
+        // The top suggestion rides along so the log records not just what was
+        // rejected but what it most likely meant — the raw material for turning
+        // repeat offenders into aliases.
+        $topMatch = $this->suggestions['style']['styles'][0]['style_id'] ?? ($this->suggestions['style']['families'][0]['parent'] ?? 'none');
+        $errorLog->badData = $this->style . ' / closest: ' . $topMatch;
         $errorLog->filename = 'API / Beer.class.php';
         $errorLog->write();
     }
 
+    // Attach recovery candidates for a style value we just rejected. Failure is
+    // silent by design — see Style::suggest().
+    private function suggestStyles($label){
+        $style = new Style();
+        $candidates = $style->suggest($label);
+        if(!empty($candidates['styles']) || !empty($candidates['families'])){
+            $this->suggestions['style'] = $candidates;
+        }
+    }
+
     // Set the resolved tier (style/parent/class), all derived up the tree.
-    private function setTier($styleID, $parent, $class, $beverageType){
+    // $resolvedBy records which of the resolution paths got us here — see the
+    // $styleResolvedBy property. It's a required argument rather than a
+    // property set beside each call so a new branch can't silently skip it.
+    private function setTier($styleID, $parent, $class, $beverageType, $resolvedBy){
         $this->styleID = $styleID;
         $this->parent = $parent;
         $this->class = $class;
         $this->beverageType = $beverageType;
+        $this->styleResolvedBy = $resolvedBy;
         $this->validState['style'] = 'valid';
     }
 
@@ -680,9 +730,10 @@ class Beer {
     // inherently client-authored signal — it records HOW the brewer interacted with
     // the field (e.g. override vs auto-match), which the server cannot reconstruct.
     // Internal only: stored for data-quality review, never returned in beer objects.
-    // A client value is accepted only when it's consistent with the resolved tier;
-    // anything else falls back to the tier-derived default. On PATCH, an unchanged
-    // tier keeps its stored confidence so provenance survives unrelated edits.
+    // A client value is accepted when it's consistent with the resolved tier AND no
+    // stronger than the evidence supports (see capConfidence); anything else falls
+    // back to the tier-derived default. On PATCH, an unchanged tier keeps its stored
+    // confidence so provenance survives unrelated edits.
     private function resolveConfidence($clientConfidence, $prevConfidence = null, $tierUnchanged = false){
         // Values consistent with the resolved tier
         if(!empty($this->styleID)){
@@ -695,18 +746,78 @@ class Beer {
 
         $c = trim((string)($clientConfidence ?? ''));
         if(in_array($c, $valid, true)){
-            $this->styleConfidence = $c;
+            $this->styleConfidence = $this->capConfidence($c);
         }elseif($tierUnchanged && ($prevConfidence === null || in_array($prevConfidence, $valid, true))){
             // Unchanged tier keeps its provenance — including NULL, which marks
             // a backfilled/legacy classification no person has asserted yet.
             $this->styleConfidence = $prevConfidence;
         }elseif(!empty($this->styleID)){
-            $this->styleConfidence = 'confident';
+            // Filed at style tier with no client signal — derive it. A style_id
+            // paired with a label the vocabulary wouldn't have matched on its
+            // own is a mapping judgment, not an auto-match, and the review queue
+            // exists to see exactly those. Defaulting it to 'confident' (as this
+            // did) launders every API-client mapping into a clean match; the
+            // Guided Style Field always sends its own value, so this branch is
+            // reached by API clients only.
+            if(!$this->labelMatchedVocabulary()){
+                $this->styleConfidence = $this->styleIsCatchAll ? 'catch-all' : 'override';
+            }else{
+                $this->styleConfidence = 'confident';
+            }
         }elseif(!empty($this->parent) || !empty($this->class)){
             $this->styleConfidence = 'family';
         }else{
             $this->styleConfidence = 'unresolved';
         }
+    }
+
+    // Did the submitted label resolve against the vocabulary on its own? True
+    // when the label alone reached the tier, and when an explicitly named
+    // style turned out to carry that label as its canonical name or an alias
+    // ("NEIPA" + hazy-ipa). This is the one part of provenance the server can
+    // verify for itself.
+    private function labelMatchedVocabulary(){
+        return $this->styleResolvedBy === 'label' || $this->styleLabelMatched;
+    }
+
+    /*--
+    capConfidence — a client may state a weaker provenance than the evidence
+    supports, never a stronger one.
+
+    Confidence is client-authored because the client knows things we can't: that
+    it inferred the style from the beer's name rather than a stated one, or
+    picked the least-wrong of two plausible families. Those are honest
+    downgrades and we want them.
+
+    What the client must not do is upgrade. Whether the label matches the
+    vocabulary is something we check, not something to take on trust, so a
+    caller pairing an unmatched label with style_confidence 'confident' is
+    claiming an auto-match that demonstrably didn't happen. Left unchecked, any
+    client could route its guesses straight past review — which is the single
+    thing the review queue exists to prevent, and it only takes one careless
+    integration to make the whole signal worthless.
+
+    Capping is silent rather than a 400: the field is internal and never
+    returned, so an error would fail an otherwise good write over metadata the
+    caller can't even read back.
+
+    Ranked strongest first. Only the style tier has multiple values to rank —
+    'family' is the sole legal value at its own tier, so it passes through.
+    --*/
+    private static $confidenceLadder = array('confident', 'override', 'catch-all');
+
+    private function capConfidence($clientValue){
+        $ceiling = $this->labelMatchedVocabulary() ? 'confident' : 'override';
+        $ceilingRank = array_search($ceiling, self::$confidenceLadder, true);
+        $clientRank = array_search($clientValue, self::$confidenceLadder, true);
+
+        if($clientRank === false || $ceilingRank === false){
+            // Not a ranked value (i.e. 'family') — nothing to cap.
+            return $clientValue;
+        }
+
+        // Lower index = stronger claim.
+        return ($clientRank < $ceilingRank) ? $ceiling : $clientValue;
     }
 
     // Shared: a DB error during resolution
@@ -721,8 +832,15 @@ class Beer {
     private function resolveBadId($db, $field, $value){
         $this->error = true;
         $this->validState['style'] = 'invalid';
-        $this->validMsg['style'] = 'The ' . $field . ' you provided doesn\'t match anything in our catalog. Please choose from the list.';
+        $this->validMsg['style'] = 'The ' . $field . ' you provided doesn\'t match anything in our catalog. Choose the closest match and try again.';
         $this->responseCode = 400;
+        $db->close();
+
+        // Suggest from the label where there is one — it describes the beer,
+        // whereas the rejected slug is only a guess at our vocabulary. A slug
+        // still searches usefully as a fallback, since ftTerms() splits on the
+        // hyphens.
+        $this->suggestStyles(!empty($this->style) ? $this->style : $value);
 
         $errorLog = new LogError();
         $errorLog->errorNumber = ($field === 'style_id') ? 262 : 264;
@@ -730,7 +848,6 @@ class Beer {
         $errorLog->badData = $value;
         $errorLog->filename = 'API / Beer.class.php';
         $errorLog->write();
-        $db->close();
     }
 
     private function validateDescription(){
@@ -1800,6 +1917,11 @@ class Beer {
                     $this->json['error_msg'] = $this->errorMsg;
                     $this->json['valid_state'] = $this->validState;
                     $this->json['valid_msg'] = $this->validMsg;
+                    // Additive and optional: present only when we have
+                    // candidates, so clients must treat it as such.
+                    if(!empty($this->suggestions)){
+                        $this->json['suggestions'] = $this->suggestions;
+                    }
                 }
                 break;
             case 'DELETE':
@@ -1847,6 +1969,11 @@ class Beer {
                     $this->json['error_msg'] = $this->errorMsg;
                     $this->json['valid_state'] = $this->validState;
                     $this->json['valid_msg'] = $this->validMsg;
+                    // Additive and optional: present only when we have
+                    // candidates, so clients must treat it as such.
+                    if(!empty($this->suggestions)){
+                        $this->json['suggestions'] = $this->suggestions;
+                    }
                 }
                 break;
             case 'PATCH':
@@ -1900,6 +2027,11 @@ class Beer {
                     $this->json['error_msg'] = $this->errorMsg;
                     $this->json['valid_state'] = $this->validState;
                     $this->json['valid_msg'] = $this->validMsg;
+                    // Additive and optional: present only when we have
+                    // candidates, so clients must treat it as such.
+                    if(!empty($this->suggestions)){
+                        $this->json['suggestions'] = $this->suggestions;
+                    }
                 }
                 break;
             default:

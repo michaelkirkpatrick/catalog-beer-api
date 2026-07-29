@@ -253,6 +253,148 @@ class Style {
     // and editorial descriptions. Aliases carry most real queries: "NEIPA" and
     // "Juicy IPA" only reach hazy-ipa through style_alias. Results are compact
     // style objects in the same shape as GET /style list rows.
+    /*--
+    ftTerms — sanitise a user query into the two FULLTEXT expressions the
+    ranking needs: a BOOLEAN MODE all-terms expression and a NATURAL LANGUAGE
+    term list. Shared by search() and suggest() so the two can't drift.
+
+    A BOOLEAN MODE expression requiring EVERY term separates styles that match
+    the whole query from those matching only part of it. "juicy ipa" must put
+    hazy-ipa (both terms) above american-ipa (one term), and no amount of
+    relevance arithmetic reliably does that.
+
+    Everything that is not a letter or digit becomes a separator. This is an
+    allowlist on purpose: a blacklist of MySQL's operators
+    (+ - < > ~ * parens quotes @) misses others — "%" alone was enough to
+    produce "syntax error, unexpected $end" from the FULLTEXT parser, a 500 on
+    a query a user could plausibly type. \p{L} keeps non-ASCII letters, so
+    "kölsch" and "münchner" still search as single terms.
+
+    An all-punctuation query yields an empty expression, which is left empty
+    rather than falling back to the raw string — falling back would feed the
+    very operators just stripped straight into BOOLEAN MODE.
+    AGAINST('' IN BOOLEAN MODE) matches nothing and raises no error, so the
+    natural-language tiers still apply.
+
+    Terms below innodb_ft_min_token_size are dropped by MySQL rather than
+    failing the AND, so short words degrade instead of returning nothing.
+
+    The same sanitised terms feed the NATURAL LANGUAGE matches, which are not
+    as forgiving as their name suggests: AGAINST('*' IN NATURAL LANGUAGE MODE)
+    is a parser error, not an empty result. A bare "*" therefore 500s — a
+    pre-existing fault in this endpoint since it shipped, reachable by anyone
+    typing a lone asterisk into a search box, and logged as C272 with no
+    indication it was user input rather than a broken query.
+
+    Only the exact-match comparisons keep the raw query, since those are string
+    equality against canonical names and aliases, where punctuation is
+    meaningful and no FULLTEXT parser is involved.
+    --*/
+    private function ftTerms($query){
+        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
+        $boolQuery = '';
+        foreach($boolTerms as $t){
+            $boolQuery .= '+' . $t . ' ';
+        }
+
+        return array(trim($boolQuery), implode(' ', $boolTerms));
+    }
+
+    /*--
+    suggest — candidate styles and families for a label that didn't resolve.
+
+    Same ranking as search() (exact name/alias, then all-terms, then any-term,
+    with catch-alls sorted below specific styles within a tier), but returning
+    compact rows for embedding in someone else's 400 rather than a paginated
+    response body. Beer::resolveStyle() calls it so a rejected label comes back
+    with the handful of style_id values that would fix it — the API's advice to
+    "choose from the list" is fine in the Guided Style Field, which renders a
+    list, and useless to an API client, which has none.
+
+    Rows carry only what's needed to build the retry. Specs, aliases and SRM are
+    a GET /style/{id} away and would bloat an error body.
+
+    Never sets error state and never throws: this runs while the caller is
+    already returning a 400, and a failed suggestion lookup must not turn that
+    into a 500. Anything unexpected yields empty arrays, and the caller omits
+    the key.
+    --*/
+    public function suggest($label, $limit = 8){
+        $empty = array('styles' => array(), 'families' => array());
+
+        $label = trim($label ?? '');
+        if($label === '' || strlen($label) > 255){
+            return $empty;
+        }
+
+        // 8 rather than a tighter 5 because relevance clusters flat: every
+        // pilsner matching "Cali Pilsner" scores identically, so the order
+        // within the cluster falls to beer_count and the best answer
+        // (contemporary-american-pilsner) sits 6th behind more populous
+        // siblings. A few hundred more bytes in an error body is cheaper than
+        // the right style falling off the end.
+        $limit = intval($limit);
+        if($limit < 1 || $limit > 25){
+            $limit = 8;
+        }
+
+        list($boolQuery, $nlQuery) = $this->ftTerms($label);
+
+        $db = new Database();
+        $result = $db->query("SELECT s.id, s.canonical_name, s.parent, p.class, s.is_catch_all, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.is_catch_all, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?", [$label, $label, $boolQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $label, $label, $limit]);
+        if($db->error || $result === null){
+            $db->close();
+            return $empty;
+        }
+
+        $rows = array();
+        $bestTier = 3;
+        while($row = $result->fetch_assoc()){
+            $rows[] = $row;
+            $bestTier = min($bestTier, intval($row['tier']));
+        }
+
+        // Tier 3 matched on description text alone — vienna-lager for "Cali
+        // Pilsner", non-alcoholic-beer for "Hazy Juice Bomb". Worth offering
+        // when nothing better exists, noise the moment something does. Dropping
+        // them can't hide a better candidate: the ORDER BY already placed every
+        // lower tier above them.
+        $styles = array();
+        foreach($rows as $row){
+            if($bestTier < 3 && intval($row['tier']) === 3){
+                continue;
+            }
+            $styles[] = array(
+                'style_id' => $row['id'],
+                'name' => $row['canonical_name'],
+                'parent' => $row['parent'],
+                'class' => $row['class'],
+                'catch_all' => (bool) $row['is_catch_all'],
+            );
+        }
+
+        // Families, matched exactly on slug/name/alias rather than by relevance
+        // — the same lookup /style/search uses. This is what makes a bare "IPA"
+        // suggest the family it actually means instead of five sub-styles.
+        $families = array();
+        // sort_order has to be in the SELECT list even though it isn't emitted:
+        // DISTINCT plus an ORDER BY on an unselected column is an error under
+        // ONLY_FULL_GROUP_BY, which fails this query outright.
+        $fResult = $db->query("SELECT DISTINCT p.slug, p.name, p.class, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) = LOWER(?) OR LOWER(p.name) = LOWER(?) OR LOWER(pa.alias) = LOWER(?) ORDER BY p.sort_order", [$label, $label, $label]);
+        if(!$db->error && $fResult !== null){
+            while($f = $fResult->fetch_assoc()){
+                $families[] = array(
+                    'parent' => $f['slug'],
+                    'name' => $f['name'],
+                    'class' => $f['class'],
+                );
+            }
+        }
+        $db->close();
+
+        return array('styles' => $styles, 'families' => $families);
+    }
+
     private function search($query, $cursor, $count){
         // Validate query
         $query = trim($query ?? '');
@@ -314,45 +456,7 @@ class Style {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // A BOOLEAN MODE expression requiring EVERY term, used to separate
-        // styles that match the whole query from those matching only part of
-        // it. "juicy ipa" must put hazy-ipa (both terms) above american-ipa
-        // (one term), and no amount of relevance arithmetic reliably does that.
-        //
-        // Everything that is not a letter or digit becomes a separator. This is
-        // an allowlist on purpose: a blacklist of MySQL's operators
-        // (+ - < > ~ * parens quotes @) misses others — "%" alone was enough to
-        // produce "syntax error, unexpected $end" from the FULLTEXT parser, a
-        // 500 on a query a user could plausibly type. \p{L} keeps non-ASCII
-        // letters, so "kölsch" and "münchner" still search as single terms.
-        //
-        // An all-punctuation query yields an empty expression, which is left
-        // empty rather than falling back to the raw string — falling back would
-        // feed the very operators just stripped straight into BOOLEAN MODE.
-        // AGAINST('' IN BOOLEAN MODE) matches nothing and raises no error, so
-        // the natural-language tiers below still apply.
-        //
-        // Terms below innodb_ft_min_token_size are dropped by MySQL rather than
-        // failing the AND, so short words degrade instead of returning nothing.
-        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
-        $boolQuery = '';
-        foreach($boolTerms as $t){
-            $boolQuery .= '+' . $t . ' ';
-        }
-        $boolQuery = trim($boolQuery);
-
-        // The same sanitised terms feed the NATURAL LANGUAGE matches, which are
-        // not as forgiving as their name suggests: AGAINST('*' IN NATURAL
-        // LANGUAGE MODE) is a parser error, not an empty result. A bare "*"
-        // therefore 500s — a pre-existing fault in this endpoint since it
-        // shipped, reachable by anyone typing a lone asterisk into a search
-        // box, and logged as C272 with no indication it was user input rather
-        // than a broken query.
-        //
-        // Only the exact-match comparisons keep the raw query, since those are
-        // string equality against canonical names and aliases, where
-        // punctuation is meaningful and no FULLTEXT parser is involved.
-        $nlQuery = implode(' ', $boolTerms);
+        list($boolQuery, $nlQuery) = $this->ftTerms($query);
 
         // Ranking is tiered, not a blended score:
         //
