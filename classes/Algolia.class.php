@@ -249,8 +249,12 @@ class Algolia {
     /**
      * Delete an object from an Algolia index
      *
-     * DELETEs the object from Algolia and removes the local algolia table row.
-     * Errors are logged but do NOT set $this->error.
+     * DELETEs the object from Algolia. Errors are logged but do NOT set
+     * $this->error.
+     *
+     * Does NOT touch the local algolia table. Every caller deletes the entity
+     * row first, and algolia.beer_id/brewer_id/location_id are all ON DELETE
+     * CASCADE, so the row is already gone by the time this runs.
      *
      * @param string $indexName The index ('catalog')
      * @param string $objectID The Algolia objectID to delete
@@ -307,20 +311,7 @@ class Algolia {
             $errorLog->errorMsg = "HTTP Status {$httpStatus}";
             $errorLog->badData = "Index: {$indexName} / objectID: {$objectID} / Response: {$response}";
             $errorLog->write();
-            return;
         }
-
-        // Delete local algolia table row
-        $db = new Database();
-        $db->query("DELETE FROM algolia WHERE algolia_id=?", [$objectID]);
-        if($db->error){
-            // DB Cleanup Error
-            $errorLog->errorNumber = 232;
-            $errorLog->errorMsg = 'Failed to delete algolia table row.';
-            $errorLog->badData = "objectID: {$objectID} / DB Error: {$db->errorMsg}";
-            $errorLog->write();
-        }
-        $db->close();
     }
 
     /**
@@ -405,10 +396,9 @@ class Algolia {
      * their Algolia records must go in the same pass — and a large brewer has
      * hundreds of beers, so N records cost one HTTP call instead of N DELETEs.
      *
-     * Deliberately does NOT touch the local algolia table: the callers'
+     * Like deleteObject(), does NOT touch the local algolia table: the caller's
      * entity rows cascade-delete their algolia rows at the MySQL layer, and by
-     * the time this runs those rows are already gone. (Contrast deleteObject(),
-     * whose single-record callers delete the entity without a cascade path.)
+     * the time this runs those rows are already gone.
      *
      * Errors are logged but do NOT set $this->error — Algolia failures should
      * not fail the API response.
