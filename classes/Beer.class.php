@@ -303,8 +303,10 @@ class Beer {
                     // Construct SQL Statement
                     if($newBeer){
                         // Add Beer (POST/PUT)
-                        $columns = ['id', 'brewerID', 'name', 'style', 'style_id', 'parent', 'class', 'beverage_type', 'style_confidence', 'abv', 'cbVerified', 'brewerVerified', 'lastModified'];
-                        $params = [$this->beerID, $this->brewerID, $this->name, $this->style, $this->styleID, $this->parent, $this->class, $this->beverageType, $this->styleConfidence, $this->abv, $dbCBV, $dbBV, $this->lastModified];
+                        // createdAt is written here only — the PUT and PATCH
+                        // update paths below never touch it
+                        $columns = ['id', 'brewerID', 'name', 'style', 'style_id', 'parent', 'class', 'beverage_type', 'style_confidence', 'abv', 'cbVerified', 'brewerVerified', 'createdAt', 'lastModified'];
+                        $params = [$this->beerID, $this->brewerID, $this->name, $this->style, $this->styleID, $this->parent, $this->class, $this->beverageType, $this->styleConfidence, $this->abv, $dbCBV, $dbBV, $this->lastModified, $this->lastModified];
                         if(!empty($this->description)){
                             $columns[] = 'description';
                             $params[] = $this->description;

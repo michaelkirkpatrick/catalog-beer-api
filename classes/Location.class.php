@@ -283,8 +283,10 @@ class Location {
                     // SQL Query
                     if($newLocation){
                         // Add Location (POST/PUT)
-                        $columns = ['id', 'brewerID', 'name', 'countryCode', 'cbVerified', 'brewerVerified', 'lastModified'];
-                        $params = [$this->locationID, $this->brewerID, $this->name, $this->countryCode, $dbCBV, $dbBV, $this->lastModified];
+                        // createdAt is written here only — the PUT and PATCH
+                        // update paths below never touch it
+                        $columns = ['id', 'brewerID', 'name', 'countryCode', 'cbVerified', 'brewerVerified', 'createdAt', 'lastModified'];
+                        $params = [$this->locationID, $this->brewerID, $this->name, $this->countryCode, $dbCBV, $dbBV, $this->lastModified, $this->lastModified];
                         if(!empty($this->url)){
                             $columns[] = 'url';
                             $params[] = $this->url;

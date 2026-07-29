@@ -286,8 +286,10 @@ class Brewer {
                     // Construct SQL Statement
                     if($newBrewer){
                         // Add Brewer (POST/PUT)
-                        $columns = ['id', 'name', 'cbVerified', 'brewerVerified', 'lastModified'];
-                        $params = [$this->brewerID, $this->name, $dbCBV, $dbBV, $this->lastModified];
+                        // createdAt is written here only — the PUT and PATCH
+                        // update paths below never touch it
+                        $columns = ['id', 'name', 'cbVerified', 'brewerVerified', 'createdAt', 'lastModified'];
+                        $params = [$this->brewerID, $this->name, $dbCBV, $dbBV, $this->lastModified, $this->lastModified];
                         if(!empty($this->description)){
                             $columns[] = 'description';
                             $params[] = $this->description;

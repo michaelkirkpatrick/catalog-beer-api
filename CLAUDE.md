@@ -126,6 +126,8 @@ All secrets are centralized in `common/passwords.php` (gitignored, never committ
 The `cron/` directory contains scripts intended to run as scheduled tasks on the server, not via web requests.
 
 - `cron/update-usage.php` — Counts `api_logging` rows per API key per month and upserts into `api_usage`. Run via: `php cron/update-usage.php [staging|production]` (defaults to production). CLI-only; exits immediately if accessed via web.
+- `cron/snapshot-metrics.php` — Writes ~77 catalog-health metrics per day into `metrics_daily` (definitions in `classes/Metrics.class.php`). Verification flags, completeness and API demand have no history in the schema, so a day not snapshotted is lost. Stores raw counts only — composite "health scores" are computed at display time so the formula can change without invalidating stored history. Deletions are inferred by differencing against yesterday's snapshot, since entity deletes are hard deletes with no tombstone. See `cron/README.md` for the metric families.
+- `cron/backfill-metrics.php` — One-time replay of historical daily size/growth snapshots from the `createdAt` columns. Only that family is reconstructable; verification, completeness and freshness are current-state only and necessarily begin at the first live snapshot. Uses `INSERT IGNORE` so it can never overwrite a real snapshot.
 
 The `cron/` directory is deployed by `deploy.sh` to `public_html/cron/` on the server. Each script has a CLI-only guard that exits immediately if accessed via a web request.
 

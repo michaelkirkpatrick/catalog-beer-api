@@ -90,6 +90,77 @@ php cron/error-digest.php staging
 
 Defaults to `production` if no argument is given.
 
+## snapshot-metrics.php
+
+Writes one row per catalog-health metric per day into `metrics_daily` (`classes/Metrics.class.php` holds the metric definitions). ~77 metrics a night.
+
+Most of what it records cannot be reconstructed later. `cbVerified`/`brewerVerified` are bit flags with no audit trail, "how many beers have a description" is only ever knowable as of right now, and the `api_logging` rows behind the demand metrics are pruned at 3 months. A day that isn't snapshotted is gone.
+
+### Metric families
+
+| Family | Examples |
+|---|---|
+| Size & growth | `total_beer`, `created_brewer_30d`, `deleted_location_1d` |
+| Freshness | `touched_beer_90d`, `stale_brewer_2yr`, `age_beer_p50_days`, `brewer_stale_catalog_2yr` |
+| CB effort | `cb_verified_brewer`, `cb_verified_beer`, `cb_verified_location` |
+| Brewer engagement | `brewer_verified_*`, `brewers_engaged`, `privileges_users`, `users_email_verified` |
+| API demand | `api_get_30d`, `api_write_30d`, `api_keys_active_30d` |
+| Completeness | `brewer_with_location`, `beer_with_ibu`, `location_with_latlng` |
+| Classification | `beer_style_id_resolved`, `beer_style_confidence` (by dimension), `beer_beverage_type` (by dimension) |
+| URL health | `brewer_url_status` (by dimension) |
+
+Two deliberate choices worth keeping:
+
+- **Raw counts only, never composite scores.** A "catalog health = 0–100" number belongs at display time. Bake the weights into stored history and the day you change your mind about them, the whole series becomes uninterpretable.
+- **`beer_with_ibu` counts `ibu > 0`, not `ibu IS NOT NULL`.** The 2020 bulk import filled ~33,000 rows with a `0` sentinel, which is not an IBU. Counting non-null reports 99.7% coverage where the real figure is ~45%. `beer_ibu_zero` and `beer_abv_zero` track the sentinels separately.
+
+Deletions are inferred by differencing against yesterday: `deleted = (yesterday's total + created since) − today's total`. Beer, brewer and location deletes are hard deletes with no tombstone, so this is the only record there is. It undercounts anything created and deleted inside the same day, and is skipped entirely when yesterday's snapshot is missing rather than attributing several days of deletions to one.
+
+### Schema dependency
+
+Requires `metrics_daily` and the `createdAt` columns — apply `migrations/2026-07-28-metrics-daily.sql` and `migrations/2026-07-28-created-at.sql` from the [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql) repo before the first run. The script checks for both and exits with a message naming the missing migration.
+
+### Scheduling
+
+```
+# Snapshot catalog health metrics daily at 4 AM (after check-urls at 3:30)
+0 4 * * * php /var/www/html/api.catalog.beer/public_html/cron/snapshot-metrics.php production
+```
+
+Run it after `check-urls.php` so each night's `brewer_url_status` counts reflect that morning's checks. Re-running on the same day upserts in place, so it is safe to retry by hand after a failure. Missing a day leaves a gap in the series and suppresses that day's `deleted_*` figures; it does not corrupt anything.
+
+### Manual run
+
+```bash
+php cron/snapshot-metrics.php production
+php cron/snapshot-metrics.php staging
+```
+
+Defaults to `production`. Logs error 297 on failure.
+
+## backfill-metrics.php
+
+One-time (idempotent) replay of historical daily snapshots from the `createdAt` columns, so the growth trend lines start in 2017 instead of the day `snapshot-metrics.php` was first installed. Run once after applying the migrations. Roughly 3,200 days and 48,000 rows for the current catalog; takes about a second.
+
+Only the size/growth family can be reconstructed, and only approximately:
+
+- **Totals count records that still exist today.** Anything created and later deleted is invisible, so historical totals run slightly low and every historical day would appear to have zero deletions. `deleted_*` is therefore not written at all — a real zero and an unknowable zero should not look alike in the series.
+- **Verification and completeness are current-state only.** Nothing records when `cbVerified` was set or when a description was added, so those metrics necessarily begin at the first live snapshot.
+- **Freshness is not replayable either.** `lastModified` holds only the most recent edit, so a row edited twice looks untouched in the earlier window and `touched_*` would come out silently low.
+
+Backfilled days are measured at 23:59:59 local where the live cron measures at whatever time it runs; the seam between the two is a few hours wide on the first live day.
+
+By default it uses `INSERT IGNORE`, so it can never overwrite a real snapshot. Pass `--overwrite` to replace existing rows.
+
+### Manual run
+
+```bash
+php cron/backfill-metrics.php production
+php cron/backfill-metrics.php staging --overwrite
+```
+
+Defaults to `production`. Not scheduled — run it by hand once.
+
 ## php-error-digest.php
 
 Reads the server-wide PHP error log (`/var/log/php/error.log` and rotated files), groups errors by normalized message, sends the grouped data to Claude (Haiku) for analysis, and emails a formatted digest via Postmark. Covers all PHP sites on the server.
