@@ -671,21 +671,41 @@ class Beer {
             return;
         }
 
-        // 2e. Family slug or display name. 2c above covers parent_alias, which
+        $db->close();
+
+        // 3. Unchanged label on an existing beer: keep its stored
+        // classification rather than blocking the update. The caller isn't
+        // making a new style claim — they're resending the beer's own data
+        // (e.g. a GET->PUT round-trip of a legacy beer whose label predates
+        // the vocabulary).
+        //
+        // Must stay AHEAD of the family lookup below. A beer can be filed at
+        // style tier under a label that happens to be a family's name —
+        // "Bitter & Mild Ale" + english-pale-mild is a legal write — and for
+        // that beer the family lookup succeeds. Run it first and a GET->PUT
+        // round-trip that changed nothing silently drops style_id and refiles
+        // the beer one tier up. Verified: it did exactly that.
+        if($prevLabel !== null && strcasecmp($this->style, trim($prevLabel)) === 0){
+            $this->setTier($prevTier[0] ?? null, $prevTier[1] ?? null, $prevTier[2] ?? null, $prevTier[3] ?? 'beer', 'carried');
+            return;
+        }
+
+        // 4. Family slug or display name. 2c above covers parent_alias, which
         // is where the common spellings live ("IPA", "NEIPA"), but not the
         // family's own slug or the `name` GET /style/parent publishes. So a
         // client could read "Bitter & Mild Ale" off our own list endpoint,
         // send it straight back as a label, and be rejected by it.
         //
-        // Deliberately last, after every style-tier lookup. A family name that
-        // is also a style's canonical name or alias ("Porter", "Stout") must
-        // keep resolving to the style it always has — putting this earlier
-        // would silently refile those at the broader family tier, changing the
+        // Deliberately after every style-tier lookup. A family name that is
+        // also a style's canonical name or alias ("Porter", "Stout") must keep
+        // resolving to the style it always has — putting this earlier would
+        // silently refile those at the broader family tier, changing the
         // classification of writes that work today.
         //
         // Ordered so an exact slug hit wins over a name hit, in case one
         // family's slug ever equals another's name; without it the winner
         // would be whatever InnoDB returned first.
+        $db = new Database();
         $result = $db->query("SELECT slug, beverage_type, class FROM style_parent WHERE slug=? OR name=? ORDER BY (slug=?) DESC LIMIT 1", [$this->style, $this->style, $this->style]);
         if($db->error){ return $this->resolveDbError($db); }
         if($result !== null && $result->num_rows >= 1){
@@ -696,17 +716,7 @@ class Beer {
         }
         $db->close();
 
-        // 3. Unchanged label on an existing beer: keep its stored
-        // classification rather than blocking the update. The caller isn't
-        // making a new style claim — they're resending the beer's own data
-        // (e.g. a GET->PUT round-trip of a legacy beer whose label predates
-        // the vocabulary).
-        if($prevLabel !== null && strcasecmp($this->style, trim($prevLabel)) === 0){
-            $this->setTier($prevTier[0] ?? null, $prevTier[1] ?? null, $prevTier[2] ?? null, $prevTier[3] ?? 'beer', 'carried');
-            return;
-        }
-
-        // 4. Unresolved — guide the caller toward the closest matches.
+        // 5. Unresolved — guide the caller toward the closest matches.
         // The message stays prose because the Guided Style Field renders it to
         // a person verbatim; the slugs that make it actionable for an API
         // client ride in `suggestions` instead.
