@@ -86,6 +86,34 @@ class Privileges {
         }
     }
 
+    public function isBreweryStaff($users, $brewer, $grantOnDomainMatch = false){
+        /*---
+        Is this user "brewery staff" for this brewer?
+        True when the user's email domain matches the brewer's domainName,
+        or when a privileges row links them.
+
+        $users and $brewer must be validated instances (validate($id, true)).
+        $grantOnDomainMatch = true additionally persists a privileges row on a
+        domain match (the write paths' behavior, so verification "sticks");
+        leave false for read-only checks — this method is otherwise pure.
+
+        This is the single authority on staff-ness: Brewer/Beer/Location::delete()
+        and GET /brewer/{id}/permissions all route through it.
+        ---*/
+        $userEmailDomain = $users->emailDomainName($users->email);
+        $brewerPrivilegesList = $this->brewerList($users->userID);
+
+        if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName){
+            if($grantOnDomainMatch && !in_array($brewer->brewerID, $brewerPrivilegesList)){
+                // Give user privileges for this brewer
+                $this->add($users->userID, $brewer->brewerID, true);
+            }
+            return true;
+        }
+
+        return in_array($brewer->brewerID, $brewerPrivilegesList);
+    }
+
     public function brewerList($userID){
         // Return
         $brewerIDs = array();

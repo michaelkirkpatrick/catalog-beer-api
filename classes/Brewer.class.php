@@ -1014,31 +1014,64 @@ class Brewer {
         return $count;
     }
 
+    public function permissions($brewerID, $userID){
+        /*---
+        GET https://api.catalog.beer/brewer/{brewer_id}/permissions
+        What may the requesting key's user do with this brewer — and, by
+        extension, its beers and locations? Computed per-request for the
+        authenticated key; responses must never be cached across keys.
+
+        edit/delete are the verdicts for the brewer itself. For the subtree:
+        admin/staff may edit and delete everything under the brewer; general
+        users may edit only unverified entities and may never delete.
+        ---*/
+        if($this->validate($brewerID, true)){
+            $users = new Users();
+            if($users->validate($userID, true)){
+                // Read-only staff check — no privilege grant on domain match
+                $privileges = new Privileges();
+                $isBreweryStaff = $privileges->isBreweryStaff($users, $this);
+
+                if($users->admin){
+                    $role = 'admin';
+                }elseif($isBreweryStaff){
+                    $role = 'staff';
+                }else{
+                    $role = 'general';
+                }
+                $canManage = ($users->admin || $isBreweryStaff);
+
+                $this->json['object'] = 'permissions';
+                $this->json['brewer_id'] = $this->brewerID;
+                $this->json['role'] = $role;
+                $this->json['edit'] = ($canManage || (!$this->cbVerified && !$this->brewerVerified));
+                $this->json['delete'] = $canManage;
+            }else{
+                // User Validation Error
+                $this->error = true;
+                $this->errorMsg = 'Whoops, looks like a bug on our end. We\'ve logged the issue and our support team will look into it.';
+                $this->responseCode = 500;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 298;
+                $errorLog->errorMsg = 'Invalid userID for API key, GET /brewer/{id}/permissions';
+                $errorLog->badData = "User: $userID / Brewer: $brewerID";
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+            }
+        }
+    }
+
     public function delete($brewerID, $userID){
         if($this->validate($brewerID, true)){
             // Get User Information
             $users = new Users();
             $users->validate($userID, true);
 
-            // Get User's Email Domain Name
-            $userEmailDomain = $users->emailDomainName($users->email);
-
-            // Get Brewer Privileges
+            // Check Permissions (grant-on-domain-match keeps verification sticky)
             $privileges = new Privileges();
-            $brewerPrivilegesList = $privileges->brewerList($userID);
-
-            // Check Permissions
-            $isBreweryStaff = false;
-            if(!empty($this->domainName) && $userEmailDomain == $this->domainName){
-                $isBreweryStaff = true;
-
-                if(!in_array($brewerID, $brewerPrivilegesList)){
-                    // Give user privileges for this brewer
-                    $privileges->add($userID, $brewerID, true);
-                }
-            }elseif(in_array($brewerID, $brewerPrivilegesList)){
-                $isBreweryStaff = true;
-            }
+            $isBreweryStaff = $privileges->isBreweryStaff($users, $this, true);
 
             if($users->admin || $isBreweryStaff){
                 // Look up Algolia IDs before deleting — the MySQL delete
@@ -1617,6 +1650,7 @@ class Brewer {
         GET https://api.catalog.beer/brewer/{brewer_id}
         GET https://api.catalog.beer/brewer/{brewer_id}/beer
         GET https://api.catalog.beer/brewer/{brewer_id}/locations
+        GET https://api.catalog.beer/brewer/{brewer_id}/permissions
 
         POST https://api.catalog.beer/brewer
 
@@ -1674,6 +1708,18 @@ class Brewer {
                                     $this->json['error_msg'] = $beer->errorMsg;
                                 }
                                 $this->responseCode = $beer->responseCode;
+                                break;
+                            case 'permissions':
+                                // GET https://api.catalog.beer/brewer/{brewer_id}/permissions
+                                // Get userID for the requesting key
+                                $apiKeys = new apiKeys();
+                                $apiKeys->validate($apiKey, true);
+
+                                $this->permissions($id, $apiKeys->userID);
+                                if($this->error){
+                                    $this->json['error'] = true;
+                                    $this->json['error_msg'] = $this->errorMsg;
+                                }
                                 break;
                             case 'locations':
                                 // GET https://api.catalog.beer/brewer/{brewer_id}/locations

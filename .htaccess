@@ -35,6 +35,7 @@ RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&function=locations [L]
+RewriteRule ^brewer(\/[-0-9a-f]{36})/permissions$ index.php?endpoint=brewer&id=$1&function=permissions [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
 

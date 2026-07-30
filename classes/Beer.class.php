@@ -1345,29 +1345,13 @@ class Beer {
             $users = new Users();
             $users->validate($userID, true);
 
-            // Get User's Email Domain Name
-            $userEmailDomain = $users->emailDomainName($users->email);
-
             // Get Brewer Information
             $brewer = new Brewer();
             $brewer->validate($this->brewerID, true);
 
-            // Get Brewer Privileges
+            // Check Permissions (grant-on-domain-match keeps verification sticky)
             $privileges = new Privileges();
-            $brewerPrivilegesList = $privileges->brewerList($userID);
-
-            // Check Permissions
-            $isBreweryStaff = false;
-            if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName){
-                $isBreweryStaff = true;
-
-                if(!in_array($this->brewerID, $brewerPrivilegesList)){
-                    // Give user privileges for this brewer
-                    $privileges->add($userID, $this->brewerID, true);
-                }
-            }elseif(in_array($this->brewerID, $brewerPrivilegesList)){
-                $isBreweryStaff = true;
-            }
+            $isBreweryStaff = $privileges->isBreweryStaff($users, $brewer, true);
 
             if($users->admin || $isBreweryStaff){
                 // Look up Algolia ID before deleting
