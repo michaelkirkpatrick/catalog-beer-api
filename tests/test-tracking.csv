@@ -691,3 +691,16 @@ Style,STYLE-18,"Search - Count Above Range",GET,/style/search?q=ipa&count=101,Ad
 Style,STYLE-19,"Search - Query Too Long",GET,/style/search?q=<300 chars>,Admin,400,Done
 Style,STYLE-20,"Search - Punctuation-Only Query Returns Empty",GET,/style/search?q=*,Admin,200,Done
 Style,STYLE-21,"Search - No Match Returns Empty",GET,/style/search?q=zzzqqqnotastyle,Admin,200,Done
+Billing,BILL-1,"Billing Status",GET,/billing,Billing User,200,Done
+Billing,BILL-2,"Spend Cap Below Minimum",PATCH,/billing,Billing User,400,Done
+Billing,BILL-3,"Spend Cap Wrong Type",PATCH,/billing,Billing User,400,Done
+Billing,BILL-4,"Set Spend Cap",PATCH,/billing,Billing User,200,Done
+Billing,BILL-5,"Restore Spend Cap",PATCH,/billing,Billing User,200,Done
+Billing,BILL-6,"Checkout Session - Missing URLs",POST,/billing/checkout-session,Billing User,400,Done
+Billing,BILL-7,"Checkout Session - Off-Domain URL",POST,/billing/checkout-session,Billing User,400,Done
+Billing,BILL-8,"Checkout Session - Create",POST,/billing/checkout-session,Billing User,201,Done
+Billing,BILL-9,"Portal Session - Off-Domain URL",POST,/billing/portal-session,Billing User,400,Done
+Billing,BILL-10,"Portal Session - Create",POST,/billing/portal-session,Billing User,201,Done
+Billing,BILL-11,"Webhook - Method Not Allowed",GET,/stripe-webhook,None,405,Done
+Billing,BILL-12,"Webhook - No Signature",POST,/stripe-webhook,None,400,Done
+Billing,BILL-13,"Webhook - Bad Signature",POST,/stripe-webhook,None,400,Done
