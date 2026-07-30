@@ -6,6 +6,8 @@ class apiKeys {
     public $userID = '';
     public $requestLimit = 1000;
     public $requestBuffer = 50;
+    public $billingEnabled = false;
+    public $monthlySpendCapCents = 5000;
 
     // Error Handling
     public $error = false;
@@ -77,7 +79,7 @@ class apiKeys {
         if(!empty($apiKey)){
             // Connect to Database
             $db = new Database();
-            $result = $db->query("SELECT userID, requestLimit, requestBuffer FROM api_keys WHERE id=?", [$apiKey]);
+            $result = $db->query("SELECT userID, requestLimit, requestBuffer, billingEnabled, monthlySpendCapCents FROM api_keys WHERE id=?", [$apiKey]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid API Key
@@ -90,6 +92,12 @@ class apiKeys {
                         $this->userID = $array['userID'];
                         $this->requestLimit = intval($array['requestLimit']);
                         $this->requestBuffer = intval($array['requestBuffer']);
+                        if($array['billingEnabled']){
+                            $this->billingEnabled = true;
+                        }else{
+                            $this->billingEnabled = false;
+                        }
+                        $this->monthlySpendCapCents = intval($array['monthlySpendCapCents']);
                     }
                 }elseif($result->num_rows > 1){
                     // Duplicate API Keys

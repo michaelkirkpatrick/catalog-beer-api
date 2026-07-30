@@ -51,6 +51,36 @@ php cron/update-usage.php staging
 
 Defaults to `production` if no argument is given. The script exits immediately if accessed via a web request.
 
+## bill-usage.php
+
+Monthly Stripe billing for API overage (`classes/Billing.class.php` holds the logic; `classes/Stripe.class.php` makes the API calls). For every billing-enabled key that went past its free tier last month, records a `billing_charges` row — $1 per 1,000 requests over the key's `requestLimit`, blocks rounded up, clamped to the key's `monthlySpendCapCents` — then creates a Stripe invoice (auto-charged to the saved card) for each key whose unbilled total has reached the $5 floor. Under the floor, charges roll forward as `status='pending'`; the floor is waived when December is billed so no balance crosses years. Payment outcomes (paid / failed / uncollectible) arrive later via `POST /stripe-webhook`.
+
+Safe to re-run: charge rows use `INSERT IGNORE` against a unique `(apiKey, year, month)` key, each row records its Stripe invoice item so a crashed run never creates a duplicate line, and Stripe calls carry `Idempotency-Key` headers.
+
+### Schema dependency
+
+Requires `billing_charges` plus the `users.stripeCustomerID` and `api_keys.billingEnabled`/`monthlySpendCapCents` columns — apply `migrations/2026-07-29-stripe-billing.sql` from the [catalog-beer-mysql](https://github.com/michaelkirkpatrick/catalog-beer-mysql) repo before the first run. Also requires the `STRIPE_SECRET_KEY` constant in `common/passwords.php`.
+
+### Scheduling
+
+Run once a month, on the 1st, after `update-usage.php` has run at 2 AM (the real-time counter is already accurate; the rollup is a backstop):
+
+```
+# Bill last month's API overage via Stripe (1st of the month, 2:40 AM Pacific)
+40 2 1 * * php /var/www/html/api.catalog.beer/public_html/cron/bill-usage.php production
+```
+
+The `:40` keeps it clear of swim.team's on-the-hour sitemap job and gives `update-usage.php` time to finish.
+
+### Manual run
+
+```bash
+php cron/bill-usage.php production
+php cron/bill-usage.php staging
+```
+
+Defaults to `production`. Prints how many keys had overage recorded, how many were invoiced, and how many rolled forward under the $5 floor. Logs errors 283 (Stripe invoice failures) and 284 (database errors).
+
 ## prune-api-logging.php
 
 Deletes `api_logging` rows older than 3 months to keep the table from growing indefinitely. The cutoff is midnight on the 1st of the month, 3 months ago (e.g., running in February deletes everything before November 1).

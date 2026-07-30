@@ -70,7 +70,7 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()`, `Beer::search()`, and `Brewer::search()` use a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–260). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–287). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -105,6 +105,8 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - `/activity` — Admin-only activity report (`Activity.class.php`); queries `api_logging` for write summary, top contributors, recent activity, GET traffic
 - `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`, `/brewer/count`, `/brewer/search`
 - `/beer`, `/beer/{id}`, `/beer/count`, `/beer/search`
+- `/billing` (GET status / PATCH spend cap / DELETE disable), `/billing/checkout-session`, `/billing/portal-session` — Stripe usage billing (`Billing.class.php`); exempt from the rate-limit gate and from api_logging/api_usage counting so a capped key can still manage billing
+- `/stripe-webhook` — POST-only, no Basic Auth (verified by Stripe webhook signature instead); routed before header/auth checks like `/health`
 - `/location/{id}`, `/location/nearby`, `/location/map` (admin-only, all locations with coordinates for map display)
 - `/address/{id}`
 - `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`
@@ -117,6 +119,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - **USPS Addresses API v3** — Address validation (`USAddresses.class.php`); OAuth 2.0 via `USPSAuth.class.php` using `USPS_CLIENT_ID`, `USPS_CLIENT_SECRET`, `USPS_API_BASE_URL` constants
 - **Google Address Validation API** — Address verification + lat/lng (`USAddresses.class.php`); API key via `GOOGLE_ADDRESS_VALIDATION_KEY` constant. The same constant currently also powers the legacy Maps Geocoding/Places calls in `Location.class.php` (being deprecated, since Address Validation returns lat/lng)
 - **Algolia** — Search indexing; API keys via `ALGOLIA_APPLICATION_ID`, `ALGOLIA_SEARCH_API_KEY`, `ALGOLIA_WRITE_API_KEY` constants (plain strings, not `getenv()`)
+- **Stripe** — Usage billing (`Stripe.class.php` raw-cURL client, `Billing.class.php` logic; no SDK). Keys with a card on file (`api_keys.billingEnabled`) may exceed the free tier at $1 per 1,000 requests (blocks rounded up, clamped to `api_keys.monthlySpendCapCents`, default $50). Metering stays local in `api_usage`; Stripe only stores cards (Checkout setup mode), creates monthly invoices (`cron/bill-usage.php`, $5 invoice floor with roll-forward in `billing_charges`), and reports payment outcomes (`POST /stripe-webhook`). Constants: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (environment-conditional: staging uses test-mode keys)
 - **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant (environment-conditional: staging uses sandbox server)
 
 All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `classes/initialize.php` after the `ENVIRONMENT` constant is set.
@@ -126,6 +129,7 @@ All secrets are centralized in `common/passwords.php` (gitignored, never committ
 The `cron/` directory contains scripts intended to run as scheduled tasks on the server, not via web requests.
 
 - `cron/update-usage.php` — Counts `api_logging` rows per API key per month and upserts into `api_usage`. Run via: `php cron/update-usage.php [staging|production]` (defaults to production). CLI-only; exits immediately if accessed via web.
+- `cron/bill-usage.php` — Monthly Stripe billing (1st of the month). Records last month's overage per billing-enabled key into `billing_charges`, then invoices keys whose unbilled total has reached the $5 floor (floor waived when billing December). Idempotent: `INSERT IGNORE` charge rows, per-row invoice-item tracking, Stripe `Idempotency-Key` headers. Run via: `php cron/bill-usage.php [staging|production]`.
 - `cron/snapshot-metrics.php` — Writes ~77 catalog-health metrics per day into `metrics_daily` (definitions in `classes/Metrics.class.php`). Verification flags, completeness and API demand have no history in the schema, so a day not snapshotted is lost. Stores raw counts only — composite "health scores" are computed at display time so the formula can change without invalidating stored history. Deletions are inferred by differencing against yesterday's snapshot, since entity deletes are hard deletes with no tombstone. See `cron/README.md` for the metric families.
 - `cron/backfill-metrics.php` — One-time replay of historical daily size/growth snapshots from the `createdAt` columns. Only that family is reconstructable; verification, completeness and freshness are current-state only and necessarily begin at the first live snapshot. Uses `INSERT IGNORE` so it can never overwrite a real snapshot.
 

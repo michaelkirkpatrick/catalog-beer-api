@@ -39,6 +39,12 @@ RewriteRule ^brewer(\/[-0-9a-f]{36})/permissions$ index.php?endpoint=brewer&id=$
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
 
+RewriteRule ^billing/checkout-session$ index.php?endpoint=billing&function=checkout-session [L]
+RewriteRule ^billing/portal-session$ index.php?endpoint=billing&function=portal-session [L]
+RewriteRule ^billing/?$ index.php?endpoint=billing [L]
+
+RewriteRule ^stripe-webhook$ index.php?endpoint=stripe-webhook [L]
+
 RewriteRule ^beer/search$ index.php?endpoint=beer&function=search [QSA,L]
 RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]

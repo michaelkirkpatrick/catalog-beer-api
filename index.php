@@ -130,6 +130,26 @@ if($endpoint == 'health'){
     exit;
 }
 
+// --- Stripe Webhook (no Basic Auth; authenticated by signature) ---
+// Handled before header/auth checks: Stripe sends no Authorization header and
+// its own Content-Type/Accept values. The raw body ($input) is required for
+// signature verification — do not use the decoded $data here.
+if($endpoint == 'stripe-webhook'){
+    if($method != 'POST'){
+        http_response_code(405);
+        header('Content-Type: application/json');
+        header('Allow: POST');
+        echo json_encode(array('error' => true, 'error_msg' => 'Method Not Allowed.'));
+        exit;
+    }
+    $billing = new Billing();
+    $billing->webhook($input, $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '');
+    http_response_code($billing->responseCode);
+    header('Content-Type: application/json');
+    echo json_encode($billing->json);
+    exit;
+}
+
 // --- Check Headers ----
 
 // Get all the headers that were sent
@@ -229,7 +249,9 @@ if(isset($_SERVER['HTTPS'])){
 }
 
 // ----- Rate Limit Check -----
-if(!$error && $endpoint != 'usage'){
+// /usage and /billing are exempt: a rate-limited key must still be able to
+// see its usage and add a payment method to lift the cap.
+if(!$error && $endpoint != 'usage' && $endpoint != 'billing'){
     $masterKeys = unserialize(MASTER_API_KEYS);
     if(!in_array($apiKey, $masterKeys)){
         $db = new Database();
@@ -241,19 +263,45 @@ if(!$error && $endpoint != 'usage'){
                 $usageCount = intval($row['count']);
             }
             if($usageCount > $apiKeys->requestLimit + $apiKeys->requestBuffer){
-                $error = true;
-                $rateLimited = true;
-                $responseCode = 429;
-                $json['error'] = true;
-                $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". For more information, visit https://catalog.beer/api-usage. To request a higher limit, contact us at https://catalog.beer/contact or michael@catalog.beer.";
+                if($apiKeys->billingEnabled){
+                    // Card on file: overage past the free tier is billable at
+                    // $1 per 1,000 requests (blocks rounded up, billed monthly
+                    // by cron/bill-usage.php). The per-key spend cap bounds
+                    // it: each $1 of cap buys 1,000 requests past the free
+                    // tier. The one request the > lets through beyond the cap
+                    // is absorbed by Billing::overageCents() clamping the
+                    // charge to the cap.
+                    $maxBillable = intdiv($apiKeys->monthlySpendCapCents, 100) * 1000;
+                    if($usageCount > $apiKeys->requestLimit + $maxBillable){
+                        $error = true;
+                        $rateLimited = true;
+                        $responseCode = 429;
+                        $json['error'] = true;
+                        $json['error_msg'] = "You've reached your monthly spend cap of $" . number_format($apiKeys->monthlySpendCapCents / 100, 2) . " for " . date('F Y') . " (" . number_format($apiKeys->requestLimit) . " free requests + " . number_format($maxBillable) . " billable requests). Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". You can raise the cap with PATCH /billing (monthly_spend_cap_cents) or from your account at https://catalog.beer.";
 
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 257;
-                $errorLog->errorMsg = 'Rate limit exceeded';
-                $errorLog->badData = "apiKey: $apiKey, count: $usageCount, limit: " . $apiKeys->requestLimit;
-                $errorLog->filename = 'API / index.php';
-                $errorLog->write();
+                        // Log Error
+                        $errorLog = new LogError();
+                        $errorLog->errorNumber = 286;
+                        $errorLog->errorMsg = 'Spend cap reached';
+                        $errorLog->badData = "apiKey: $apiKey, count: $usageCount, capCents: " . $apiKeys->monthlySpendCapCents;
+                        $errorLog->filename = 'API / index.php';
+                        $errorLog->write();
+                    }
+                }else{
+                    $error = true;
+                    $rateLimited = true;
+                    $responseCode = 429;
+                    $json['error'] = true;
+                    $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". To keep going now, add a payment method to your Catalog.beer account — usage past the free tier is $1 per 1,000 requests, billed monthly. For more information, visit https://catalog.beer/api-usage, or contact us at https://catalog.beer/contact or michael@catalog.beer.";
+
+                    // Log Error
+                    $errorLog = new LogError();
+                    $errorLog->errorNumber = 257;
+                    $errorLog->errorMsg = 'Rate limit exceeded';
+                    $errorLog->badData = "apiKey: $apiKey, count: $usageCount, limit: " . $apiKeys->requestLimit;
+                    $errorLog->filename = 'API / index.php';
+                    $errorLog->write();
+                }
             }
         }
         $db->close();
@@ -290,6 +338,13 @@ if(!$error){
             $json = $errorReport->json;
             $responseCode = $errorReport->responseCode;
             $responseHeader = $errorReport->responseHeader;
+            break;
+        case 'billing':
+            $billing = new Billing();
+            $billing->api($method, $function, $id, $apiKey, $data);
+            $json = $billing->json;
+            $responseCode = $billing->responseCode;
+            $responseHeader = $billing->responseHeader;
             break;
         case 'brewer':
             $brewer = new Brewer();
@@ -373,7 +428,7 @@ if($json_encoded = json_encode($json)){
 }
 
 $masterKeys = unserialize(MASTER_API_KEYS);
-if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && $endpoint != 'usage'){
+if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && $endpoint != 'usage' && $endpoint != 'billing'){
     // Log Request — rate-limited requests included. A 429 is a user asking for
     // more than the free tier allows, which makes it the most commercially
     // interesting event this API emits. It used to be skipped alongside the

@@ -12,6 +12,7 @@ class Users {
     public $passwordResetSent = 0;
     public $passwordResetKey = '';
     public $admin = false;
+    public $stripeCustomerID = '';
 
     // Validation
     public $error = false;
@@ -34,7 +35,7 @@ class Users {
         if(!empty($userID)){
             // Query Database
             $db = new Database();
-            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordResetSent FROM users WHERE id=?", [$userID]);
+            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordResetSent, stripeCustomerID FROM users WHERE id=?", [$userID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid User
@@ -59,6 +60,7 @@ class Users {
                         }else{
                             $this->admin = false;
                         }
+                        $this->stripeCustomerID = $array['stripeCustomerID'] ?? '';
                     }
                 }elseif($result->num_rows > 1){
                     // Unexpected number of results
