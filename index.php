@@ -211,11 +211,23 @@ if(isset($_SERVER['HTTPS'])){
             if(!empty($apiKey)){
                 $apiKeys = new apiKeys();
                 if(!$apiKeys->validate($apiKey, true)){
-                    // Invalid User
-                    $error = true;
-                    $responseCode = 401;
-                    $json['error'] = true;
-                    $json['error_msg'] = 'Sorry to say this, but your API key appears to be invalid. Please contact Catalog.beer support if you believe you have received this message in error; we will help you figure it out.';
+                    if($apiKeys->error){
+                        // validate() failed internally (database error, duplicate
+                        // keys) — NOT an unknown key. Reporting 401 here once
+                        // disguised a missing migration as bad credentials for
+                        // every caller at once; a 500 tells the truth and shows
+                        // up in monitoring.
+                        $error = true;
+                        $responseCode = $apiKeys->responseCode;
+                        $json['error'] = true;
+                        $json['error_msg'] = $apiKeys->errorMsg;
+                    }else{
+                        // Invalid User
+                        $error = true;
+                        $responseCode = 401;
+                        $json['error'] = true;
+                        $json['error_msg'] = 'Sorry to say this, but your API key appears to be invalid. Please contact Catalog.beer support if you believe you have received this message in error; we will help you figure it out.';
+                    }
                 }
             }else{
                 // Missing Username
@@ -292,7 +304,7 @@ if(!$error && $endpoint != 'usage' && $endpoint != 'billing'){
                     $rateLimited = true;
                     $responseCode = 429;
                     $json['error'] = true;
-                    $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". To keep going now, add a payment method to your Catalog.beer account — usage past the free tier is $1 per 1,000 requests, billed monthly. For more information, visit https://catalog.beer/api-usage, or contact us at https://catalog.beer/contact or michael@catalog.beer.";
+                    $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". To keep going now, add a payment method at https://catalog.beer/billing — usage past the free tier is $1 per 1,000 requests, billed monthly. For more information, visit https://catalog.beer/api-pricing, or contact us at https://catalog.beer/contact or michael@catalog.beer.";
 
                     // Log Error
                     $errorLog = new LogError();
