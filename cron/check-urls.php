@@ -75,6 +75,7 @@ $flagged = array();     // moved/parked — surface after one clean detection
 $escalated = array();   // no_answer/gone with failCount >= 3 — review queue
 $ambiguous = array();   // ok, but brewery name absent from page text
 $upgraded = array();    // http:// promoted to the site's own https:// redirect
+$rdapCounts = array('resolved' => 0, 'no_service' => 0, 'failed' => 0);
 $llmCalls = 0;
 
 foreach($brewers as $brewer){
@@ -144,16 +145,27 @@ foreach($brewers as $brewer){
     courtesy service. Refreshed only when we have no value yet.
     --*/
     $domainRegistered = $brewer['urlDomainRegistered'];
+    $rdapOutcome = ($domainRegistered !== null) ? 'stored' : null;
     if($domainRegistered === null && in_array($status, ['moved', 'parked', 'gone', 'no_answer'])){
         $host = parse_url($brewer['url'], PHP_URL_HOST);
         if(!empty($host)){
-            $domainRegistered = $urlCheck->rdapRegistrationDate($urlCheck->registrableDomain($host));
+            $rdap = $urlCheck->rdapRegistration($urlCheck->registrableDomain($host));
+            $domainRegistered = $rdap['date'];
+            $rdapOutcome = $rdap['outcome'];
+            $rdapCounts[$rdapOutcome] = ($rdapCounts[$rdapOutcome] ?? 0) + 1;
             if($domainRegistered !== null){
                 $db->query("UPDATE brewer SET urlDomainRegistered=? WHERE id=?", [$domainRegistered, $brewer['id']]);
+                if($db->error){
+                    // Not fatal: the date is advisory, and a NULL column simply
+                    // means the next run tries again.
+                    echo "  (could not store registration date for " . $brewer['name'] . ")\n";
+                    $db->error = false;
+                }
             }
         }
     }
     $brewer['urlDomainRegistered'] = $domainRegistered;
+    $brewer['rdapOutcome'] = $rdapOutcome;
 
     $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
     echo "[" . str_pad($status, 12) . "] " . $brewer['name'] . " — " . $brewer['url'];
@@ -181,6 +193,15 @@ echo "\n===== Summary =====\n";
 ksort($statusCounts);
 foreach($statusCounts as $status => $count){
     echo str_pad($status, 14) . $count . "\n";
+}
+
+if(array_sum($rdapCounts) > 0){
+    // Split out so a silent RDAP outage is visible. "failed" is the only line
+    // that means something is wrong — no_service is normal for the TLDs with no
+    // public RDAP (.de, .be, .sk among them).
+    echo "\nRDAP lookups: " . $rdapCounts['resolved'] . " resolved, "
+        . $rdapCounts['no_service'] . " no service, "
+        . $rdapCounts['failed'] . " failed\n";
 }
 
 if(!empty($upgraded)){
@@ -211,6 +232,10 @@ if(!empty($flagged)){
                 echo "  <-- RE-REGISTERED since we catalogued this brewer";
             }
             echo "\n";
+        }elseif(($brewer['rdapOutcome'] ?? null) === 'failed'){
+            // Say so rather than omitting the line: a missing date used to be
+            // indistinguishable from a TLD that has no RDAP at all.
+            echo "  domain registered: (RDAP lookup failed — will retry next run)\n";
         }
     }
 }

@@ -24,6 +24,7 @@ class UrlCheck {
     const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
     const CONNECT_TIMEOUT = 10;
+    const RDAP_RETRY_DELAY = 1500000;   // 1.5s before the single RDAP retry
     const TIMEOUT = 30;
     const MAX_REDIRECTS = 10;
     const MAX_BODY_BYTES = 307200;      // 300 KB is plenty for content heuristics
@@ -493,34 +494,70 @@ class UrlCheck {
     // A registration date after the brewer record was created means the
     // domain lapsed and was re-registered by someone else — the strongest
     // hijack signal available. Returns 'YYYY-MM-DD' or null.
-    public function rdapRegistrationDate(string $domain): ?string {
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://rdap.org/domain/' . rawurlencode($domain),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
-            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_USERAGENT => self::USER_AGENT,
-            CURLOPT_HTTPHEADER => ['Accept: application/rdap+json']
-        ]);
-        $response = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    /*--
+    Registration date of a domain, via RDAP.
 
-        if($httpCode !== 200 || empty($response)){
-            return null;
-        }
-        $decoded = json_decode($response, true);
-        if(!isset($decoded['events']) || !is_array($decoded['events'])){
-            return null;
-        }
-        foreach($decoded['events'] as $event){
-            if(($event['eventAction'] ?? '') === 'registration' && !empty($event['eventDate'])){
-                return substr($event['eventDate'], 0, 10);
+    Returns ['date' => 'YYYY-MM-DD'|null, 'outcome' => ...] where outcome is:
+      resolved    a registration event was found
+      no_service  the registry has no RDAP record for this domain (404) or the
+                  response carried no registration event — expected, and final
+      failed      rate limited, timed out, or a transport error — worth retrying
+
+    The distinction is the point. A bare null conflated "this TLD has no RDAP"
+    (true of .de, .be and .sk, and permanent) with "Verisign just rate-limited
+    us" (transient), which made a ~40% miss rate on .com invisible for weeks.
+    --*/
+    public function rdapRegistration(string $domain): array {
+        // One retry: the failures worth retrying are 429s and timeouts, and a
+        // brief pause clears most of them. A 404 is final, so it never retries.
+        for($attempt = 0; $attempt < 2; $attempt++){
+            if($attempt > 0){
+                usleep(self::RDAP_RETRY_DELAY);
             }
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://rdap.org/domain/' . rawurlencode($domain),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_USERAGENT => self::USER_AGENT,
+                CURLOPT_HTTPHEADER => ['Accept: application/rdap+json']
+            ]);
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+
+            if($httpCode === 404){
+                // The registry answered: it has nothing for this domain.
+                return ['date' => null, 'outcome' => 'no_service'];
+            }
+            if($httpCode !== 200 || empty($response)){
+                continue;
+            }
+
+            $decoded = json_decode($response, true);
+            if(!isset($decoded['events']) || !is_array($decoded['events'])){
+                return ['date' => null, 'outcome' => 'no_service'];
+            }
+            foreach($decoded['events'] as $event){
+                if(($event['eventAction'] ?? '') === 'registration' && !empty($event['eventDate'])){
+                    return ['date' => substr($event['eventDate'], 0, 10), 'outcome' => 'resolved'];
+                }
+            }
+            // A well-formed response without a registration event is as final as
+            // a 404 — retrying will produce the same thing.
+            return ['date' => null, 'outcome' => 'no_service'];
         }
-        return null;
+
+        return ['date' => null, 'outcome' => 'failed'];
+    }
+
+    // Convenience wrapper for callers that only want the date.
+    public function rdapRegistrationDate(string $domain): ?string {
+        $result = $this->rdapRegistration($domain);
+        return $result['date'];
     }
 
     /* ----- Tier 5b: Claude classification ----- */
