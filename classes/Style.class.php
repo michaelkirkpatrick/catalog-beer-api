@@ -343,6 +343,65 @@ class Style {
     }
 
     /*--
+    headMatch — 0 when the label's LAST term appears in the style's identity
+    terms, 1 otherwise. A tiebreak, never a filter, and only for a head term
+    distinctive enough to mean something.
+
+    English beer names are head-final: the modifiers come first and the style
+    sits at the end. "Triple IPA" is an IPA, "Double Dry Hop Citra IPA" is an
+    IPA, "Wood-Aged Doppelbock" is a doppelbock. A candidate matching only the
+    leading modifiers is answering a question about the adjectives. Relevance
+    can't express this — MATCH() scores by term rarity and says nothing about
+    WHERE in the label a term sat — so "Triple IPA" put belgian-tripel second on
+    the strength of "triple" (a rare token, and a false friend), and "Double Dry
+    Hop Citra IPA" led with fresh-hop-beer and dry-mead while omitting
+    american-ipa entirely. Both labels name their style outright, in the same
+    position every English beer name does.
+
+    The same head-final observation already drives the trailing-term backoff in
+    suggest(); this applies it to ordering rather than to reformulation, so it
+    also holds for labels the backoff never fires on.
+
+    Distinctiveness is measured, not assumed. A head term matching a fifth of
+    the taxonomy discriminates nothing and actively harms: "Coconut Ale" would
+    promote all 77 styles carrying the word "ale" over the coconut and
+    fruit-beer styles that are the actual answer — the same failure this change
+    fixes for "Sour Ale". So the tiebreak is dropped unless the head term
+    appears in fewer than a fifth of styles. "ipa" (15 of 196), "porter" (7) and
+    "doppelbock" (1) qualify; "ale" (77) and "beer" (42) don't.
+
+    A one-term label is skipped outright: its head term is the whole query, so
+    every row that matched at all matched it, and the column would be constant.
+    Skipping also saves the frequency query on the commonest shape of query.
+
+    search_name rather than canonical_name, because the head term is often an
+    abbreviation the canonical name spells out — "IPA" reaches american-ipa
+    ("American-Style India Pale Ale") only through its aliases. That is the
+    opposite of the choice nameCovers() makes, and deliberately: nameCovers asks
+    whether a style OWNS the whole query, where alias absorption is the failure
+    mode, while this asks whether one specific word is part of the style's
+    identity at all.
+    --*/
+    private function headMatch($db, $terms){
+        if(count($terms) < 2){
+            return array('0', array());
+        }
+
+        $pattern = '\\b' . end($terms) . '\\b';
+        $result = $db->query("SELECT COUNT(*) AS matches, (SELECT COUNT(*) FROM style) AS styles FROM style WHERE search_name REGEXP ?", array($pattern));
+        if($db->error || $result === null){
+            return array('0', array());
+        }
+
+        $row = $result->fetch_assoc();
+        if(empty($row) || intval($row['styles']) === 0 || intval($row['matches']) * 5 >= intval($row['styles'])){
+            return array('0', array());
+        }
+
+        return array('CASE WHEN s.search_name REGEXP ? THEN 0 ELSE 1 END', array($pattern));
+    }
+
+    /*--
     rankOrderBy — the shared ordering for search() and suggest().
 
     Ranking is tiered, not a blended score:
@@ -391,12 +450,16 @@ class Style {
     case the original ranking could never handle, because the token was absent
     from the column carrying the heaviest weight.
 
-    class_conflict sorts directly under tier, and only suggest() supplies it —
-    see classConflict(). search() passes the constant 0, leaving the ordering
-    otherwise identical between the two.
+    class_conflict is read twice, at two different strengths, and only suggest()
+    supplies it — see classConflict(). search() passes the constant 0, leaving
+    the ordering otherwise identical between the two.
+
+    head_match sits above relevance because relevance cannot see which term
+    matched, and the last term is the one that says what the beer IS — see
+    headMatch().
     --*/
     private function rankOrderBy(){
-        return 'ORDER BY tier, class_conflict, s.is_catch_all, name_rel DESC, name_covers, s.beer_count DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name';
+        return 'ORDER BY tier, class_conflict = 2, s.is_catch_all, head_match, name_rel DESC, name_covers, class_conflict, s.beer_count DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name';
     }
 
     /*--
@@ -419,10 +482,26 @@ class Style {
     "Crisp Golden Lager". Agreeing with the label should beat saying nothing,
     which should beat contradicting it.
 
-    Sorted under tier rather than over it, so a style the caller named outright
-    still wins. If a label somehow matches a style exactly AND names the other
-    class, the exact match is the better answer and the contradiction is a
-    curiosity.
+    The three ranks are read at two DIFFERENT strengths, which is why
+    rankOrderBy() names this column twice. Contradiction is a hard demotion and
+    sorts directly under tier. Agreement over silence is a preference and sorts
+    below relevance, because "says nothing about class" is not evidence of a
+    worse match and must not outweigh evidence of a better one.
+
+    Ranking silence above relevance is what buried the sours in "Sour Ale with
+    Pineapple and Coconut". "Ale" made the class hint, and the sour family
+    carries no class, so american-fruited-sour-ale and american-sour-ale — the
+    only candidates matching the word the label leads with, at 20 and 40 times
+    the relevance — sorted under eight ales whose entire claim was the class
+    word itself. Every suggestion for a beer whose label says Sour was an IPA or
+    a pale ale. The class hint was doing double duty: naming the class AND
+    counting as a match for it. Demoted to a tiebreak it still separates equals,
+    which is all "Crisp Golden Lager" ever needed — name_rel had by then been
+    lifted above beer_count, and that is what actually keeps coffee-beer down.
+
+    Both readings sort under tier, so a style the caller named outright still
+    wins. If a label somehow matches a style exactly AND names the other class,
+    the exact match is the better answer and the contradiction is a curiosity.
 
     Only applied when the terms name exactly ONE class. A label naming both is
     telling us nothing, and a label naming none has nothing to contradict.
@@ -634,6 +713,7 @@ class Style {
         list($boolQuery, $nlQuery, $terms) = $this->ftTerms($label);
         list($coversExpr, $coversParams) = $this->nameCovers($terms);
         list($conflictExpr, $conflictParams) = $this->classConflict($classHint);
+        list($headExpr, $headParams) = $this->headMatch($db, $terms);
 
         $sql = "SELECT s.id, s.canonical_name, s.parent, p.class, s.is_catch_all, "
              . "CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 "
@@ -642,6 +722,7 @@ class Style {
              . "WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 "
              . "ELSE 3 END AS tier, "
              . $conflictExpr . " AS class_conflict, "
+             . $headExpr . " AS head_match, "
              . $coversExpr . " AS name_covers, "
              . "MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, "
              . "COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel "
@@ -655,6 +736,7 @@ class Style {
         $params = array_merge(
             array($label, $label, $boolQuery, $nlQuery),
             $conflictParams,
+            $headParams,
             $coversParams,
             array($nlQuery, $nlQuery, $nlQuery, $nlQuery, $label, $label, $limit)
         );
@@ -854,6 +936,7 @@ class Style {
         // and hiding them would be the endpoint answering a question nobody
         // asked. Suggestion needs an opinion; search needs completeness.
         $db = new Database();
+        list($headExpr, $headParams) = $this->headMatch($db, $terms);
         $sql = "SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, "
              . "CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 "
              . "WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 "
@@ -861,6 +944,7 @@ class Style {
              . "WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 "
              . "ELSE 3 END AS tier, "
              . "0 AS class_conflict, "
+             . $headExpr . " AS head_match, "
              . $coversExpr . " AS name_covers, "
              . "MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, "
              . "COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel "
@@ -872,6 +956,7 @@ class Style {
              . $this->rankOrderBy() . " LIMIT ?, ?";
         $params = array_merge(
             array($query, $query, $boolQuery, $nlQuery),
+            $headParams,
             $coversParams,
             array($nlQuery, $nlQuery, $nlQuery, $nlQuery, $query, $query, $offset, $fetchCount)
         );

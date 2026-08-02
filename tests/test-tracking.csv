@@ -395,6 +395,9 @@ Beer,BEER-148,"Suggestions - A Style Own Name Beats A Populous Alias",POST,/beer
 Beer,BEER-149,"Suggestions - Contradicting Class Is Demoted",POST,/beer,Admin,400,Done
 Beer,BEER-150,"Suggestions - Absent When Nothing Matches",POST,/beer,Admin,400,Done
 Beer,BEER-151,"Suggestions - Invalid style_id Suggests From The Label",POST,/beer,Admin,400,Done
+Beer,BEER-152,"Suggestions - A Sour Label Suggests Sour Styles",POST,/beer,Admin,400,Done
+Beer,BEER-153,"Suggestions - The Head Term Outranks A False Friend",POST,/beer,Admin,400,Done
+Beer,BEER-154,"Suggestions - A Hopping Technique Does Not Bury The Base Style",POST,/beer,Admin,400,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -708,6 +711,8 @@ Style,STYLE-19,"Search - Query Too Long",GET,/style/search?q=<300 chars>,Admin,4
 Style,STYLE-20,"Search - Punctuation-Only Query Returns Empty",GET,/style/search?q=*,Admin,200,Done
 Style,STYLE-21,"Search - No Match Returns Empty",GET,/style/search?q=zzzqqqnotastyle,Admin,200,Done
 Style,STYLE-22,"Search - Name Match Outranks Populous Alias Match",GET,/style/search?q=flanders red ale,Admin,200,Done
+Style,STYLE-23,"Search - Head Term Outranks Leading Modifiers",GET,/style/search?q=imperial stout,Admin,200,Done
+Style,STYLE-24,"Search - Squashed One-Word Compound Resolves",GET,/style/search?q=Berlinerweisse,Admin,200,Done
 Billing,BILL-1,"Billing Status",GET,/billing,Billing User,200,Done
 Billing,BILL-2,"Spend Cap Below Minimum",PATCH,/billing,Billing User,400,Done
 Billing,BILL-3,"Spend Cap Wrong Type",PATCH,/billing,Billing User,400,Done
