@@ -230,12 +230,10 @@ class Algolia {
             $errorLog->errorMsg = curl_error($ch);
             $errorLog->badData = "Index: {$indexName} / objectID: {$objectID}";
             $errorLog->write();
-            curl_close($ch);
             return;
         }
 
         $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if($httpStatus < 200 || $httpStatus >= 300){
             // HTTP Error
@@ -298,12 +296,10 @@ class Algolia {
             $errorLog->errorMsg = curl_error($ch);
             $errorLog->badData = "Index: {$indexName} / objectID: {$objectID}";
             $errorLog->write();
-            curl_close($ch);
             return;
         }
 
         $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if($httpStatus < 200 || $httpStatus >= 300){
             // HTTP Error
@@ -369,12 +365,10 @@ class Algolia {
             $errorLog->errorMsg = curl_error($ch);
             $errorLog->badData = "Index: {$indexName}";
             $errorLog->write();
-            curl_close($ch);
             return false;
         }
 
         $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if($httpStatus < 200 || $httpStatus >= 300){
             // HTTP Error
@@ -465,12 +459,10 @@ class Algolia {
                 $errorLog->errorMsg = curl_error($ch);
                 $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk);
                 $errorLog->write();
-                curl_close($ch);
                 continue;
             }
 
             $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
 
             if($httpStatus < 200 || $httpStatus >= 300){
                 // HTTP Error
@@ -539,12 +531,10 @@ class Algolia {
             $errorLog->errorMsg = curl_error($ch);
             $errorLog->badData = "Index: {$indexName} / " . count($synonyms) . " synonym groups";
             $errorLog->write();
-            curl_close($ch);
             return false;
         }
 
         $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if($httpStatus < 200 || $httpStatus >= 300){
             // HTTP Error
@@ -654,12 +644,10 @@ class Algolia {
                 $errorLog->errorMsg = curl_error($ch);
                 $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk);
                 $errorLog->write();
-                curl_close($ch);
                 continue;
             }
 
             $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
 
             if($httpStatus < 200 || $httpStatus >= 300){
                 // HTTP Error

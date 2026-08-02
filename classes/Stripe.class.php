@@ -58,7 +58,6 @@ class Stripe {
                 $this->error = true;
                 $this->errorMsg = "Unsupported Stripe request method: $method";
                 $this->responseCode = 500;
-                curl_close($curl);
                 return null;
         }
 
@@ -84,12 +83,10 @@ class Stripe {
             $errorLog->filename = 'API / Stripe.class.php';
             $errorLog->write();
 
-            curl_close($curl);
             return null;
         }
 
         $httpStatus = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
 
         $decoded = json_decode($response, true);
         $this->lastResponse = $decoded;

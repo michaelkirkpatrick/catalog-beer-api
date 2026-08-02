@@ -287,7 +287,6 @@ class UrlCheck {
         $error = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
         $finalUrl = curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
-        curl_close($curl);
 
         // Our deliberate body-cap abort surfaces as CURLE_WRITE_ERROR (23)
         if($capped && $errno === CURLE_WRITE_ERROR){
@@ -508,7 +507,6 @@ class UrlCheck {
         ]);
         $response = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-        curl_close($curl);
 
         if($httpCode !== 200 || empty($response)){
             return null;
@@ -599,7 +597,6 @@ class UrlCheck {
         $response = curl_exec($curl);
         $curlError = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
 
         if($curlError){
             $errorLog = new LogError();

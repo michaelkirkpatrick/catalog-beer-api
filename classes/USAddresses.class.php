@@ -536,7 +536,6 @@ class USAddresses {
         $response = curl_exec($curl);
         $err = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
 
         // Log data for error reporting
         $requestData = 'Request: ' . $requestBody;

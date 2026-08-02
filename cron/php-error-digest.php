@@ -329,7 +329,6 @@ if(!empty($filteredEntries) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_
     $response = curl_exec($curl);
     $curlError = curl_error($curl);
     $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
 
     if($curlError){
         echo "Claude API cURL error: $curlError\n";

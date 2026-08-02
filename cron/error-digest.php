@@ -199,7 +199,6 @@ if(!empty($groupedErrors) && defined('ANTHROPIC_API_KEY') && !empty(ANTHROPIC_AP
     $response = curl_exec($curl);
     $curlError = curl_error($curl);
     $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
 
     if($curlError){
         // Log cURL error but continue without analysis
