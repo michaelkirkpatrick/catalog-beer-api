@@ -731,8 +731,14 @@ class Beer {
         $errorLog->errorMsg = 'Unresolved beer style (no canonical match)';
         // The top suggestion rides along so the log records not just what was
         // rejected but what it most likely meant — the raw material for turning
-        // repeat offenders into aliases.
-        $topMatch = $this->suggestions['style']['styles'][0]['style_id'] ?? 'none';
+        // repeat offenders into aliases. A family or class stands in when no
+        // style was offered, since "this label means the lager class" is just as
+        // actionable an alias candidate as a style slug.
+        $suggested = $this->suggestions['style'] ?? array();
+        $topMatch = $suggested['styles'][0]['style_id']
+            ?? $suggested['families'][0]['parent']
+            ?? $suggested['classes'][0]['class']
+            ?? 'none';
         $errorLog->badData = $this->style . ' / closest: ' . $topMatch;
         $errorLog->filename = 'API / Beer.class.php';
         $errorLog->write();
@@ -740,10 +746,15 @@ class Beer {
 
     // Attach recovery candidates for a style value we just rejected. Failure is
     // silent by design — see Style::suggest().
+    //
+    // Families and classes count as candidates in their own right, not as
+    // decoration on a style list: for a label like "Crisp American Lager" the
+    // usable answer is the lager class, and there may be no style worth
+    // offering at all. Testing only `styles` would drop exactly those.
     private function suggestStyles($label){
         $style = new Style();
         $candidates = $style->suggest($label);
-        if(!empty($candidates['styles'])){
+        if(!empty($candidates['styles']) || !empty($candidates['families']) || !empty($candidates['classes'])){
             $this->suggestions['style'] = $candidates;
         }
     }

@@ -70044,6 +70044,828 @@
 									"response": []
 								}
 							]
+						},
+						{
+							"name": "Style Suggestions",
+							"item": [
+								{
+									"name": "BR-207 Create Brewery #47 as Admin",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"pm.environment.set('brewer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_47', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-146 Suggestions - Trailing-Term Backoff Finds The Style",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// \"Crisp American Lager\" matches no style as a whole. The API drops",
+													"// the leading marketing word and matches \"American Lager\", which is",
+													"// what a caller would have had to do by hand with a second request",
+													"// to /style/search. Regression guard for eight consecutive ALES",
+													"// being returned for this exact label.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Rejected on style alone\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.style).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.brewer_id).to.equal('valid');",
+													"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
+													"});",
+													"",
+													"pm.test(\"Leads with american-lager, matched on the shortened label\", function () {",
+													"    var s = pm.response.json().suggestions.style;",
+													"    pm.expect(s.matched_on).to.equal('American Lager');",
+													"    pm.expect(s.styles[0].style_id).to.equal('american-lager');",
+													"    pm.expect(s.styles[0].match).to.equal('exact');",
+													"});",
+													"",
+													"pm.test(\"No ale is offered for a lager label\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s.class, s.style_id).to.not.equal('ale');",
+													"    });",
+													"});",
+													"",
+													"pm.test(\"The lager class is offered as a broader answer\", function () {",
+													"    var s = pm.response.json().suggestions.style;",
+													"    pm.expect(s.classes.map(function (c) { return c.class; })).to.include('lager');",
+													"    pm.expect(s.classes[0]).to.have.all.keys('class', 'name', 'beverage_type');",
+													"});",
+													"",
+													"// Every candidate must carry the full row shape. `match` and `aliases`",
+													"// are what let a client tell a recommendation from a guess; a row",
+													"// missing them is the confidently-wrong list this endpoint used to be.",
+													"pm.test(\"Every candidate states how it matched\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles).to.be.an('array').that.is.not.empty;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s).to.have.all.keys('style_id', 'name', 'parent', 'class', 'catch_all', 'match', 'aliases');",
+													"        pm.expect(s.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+													"        pm.expect(s.aliases).to.be.an('array');",
+													"        pm.expect(s.catch_all).to.be.a('boolean');",
+													"    });",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"Crisp American Lager\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-147 Suggestions - Weak Matches Are Labelled Partial",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Nothing in the vocabulary matches \"Shandy\". Every candidate here",
+													"// is reached through the single common word \"Ale\", and the API must",
+													"// say so rather than presenting the most populous one as an answer.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"All candidates are partial\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s.match, s.style_id).to.equal('partial');",
+													"    });",
+													"});",
+													"",
+													"pm.test(\"No backoff claimed for a two-word label\", function () {",
+													"    // Backing off to one term would match half the catalogue and",
+													"    // present it as confident. The guard is a 3-term minimum.",
+													"    pm.expect(pm.response.json().suggestions.style).to.not.have.property('matched_on');",
+													"});",
+													"",
+													"pm.test(\"The ale class is offered instead\", function () {",
+													"    var s = pm.response.json().suggestions.style;",
+													"    pm.expect(s.classes.map(function (c) { return c.class; })).to.include('ale');",
+													"});",
+													"",
+													"// Every candidate must carry the full row shape. `match` and `aliases`",
+													"// are what let a client tell a recommendation from a guess; a row",
+													"// missing them is the confidently-wrong list this endpoint used to be.",
+													"pm.test(\"Every candidate states how it matched\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles).to.be.an('array').that.is.not.empty;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s).to.have.all.keys('style_id', 'name', 'parent', 'class', 'catch_all', 'match', 'aliases');",
+													"        pm.expect(s.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+													"        pm.expect(s.aliases).to.be.an('array');",
+													"        pm.expect(s.catch_all).to.be.a('boolean');",
+													"    });",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"Shandy Ale\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-148 Suggestions - A Style's Own Name Beats A Populous Alias",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// oud-bruin carries the alias \"Belgian-Style Flanders Oud Bruin or",
+													"// Oud Red Ales\", so it matches every term of this label without the",
+													"// words appearing in its name. It holds ~178 beers to",
+													"// flanders-red-ale's 0, and popularity used to decide the tie —",
+													"// returning a sour as the closest match for a Flanders red.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"flanders-red-ale outranks oud-bruin\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    var ids = styles.map(function (s) { return s.style_id; });",
+													"    pm.expect(ids[0]).to.equal('flanders-red-ale');",
+													"    pm.expect(ids.indexOf('oud-bruin')).to.be.above(0);",
+													"    pm.expect(styles[0].match).to.equal('all_terms');",
+													"});",
+													"",
+													"pm.test(\"No broader fallback when a style matched all terms\", function () {",
+													"    // families/classes are for labels nothing matched outright.",
+													"    var s = pm.response.json().suggestions.style;",
+													"    pm.expect(s).to.not.have.property('families');",
+													"    pm.expect(s).to.not.have.property('classes');",
+													"    pm.expect(s).to.not.have.property('matched_on');",
+													"});",
+													"",
+													"// Every candidate must carry the full row shape. `match` and `aliases`",
+													"// are what let a client tell a recommendation from a guess; a row",
+													"// missing them is the confidently-wrong list this endpoint used to be.",
+													"pm.test(\"Every candidate states how it matched\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles).to.be.an('array').that.is.not.empty;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s).to.have.all.keys('style_id', 'name', 'parent', 'class', 'catch_all', 'match', 'aliases');",
+													"        pm.expect(s.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+													"        pm.expect(s.aliases).to.be.an('array');",
+													"        pm.expect(s.catch_all).to.be.a('boolean');",
+													"    });",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"Flanders Red Ale\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-149 Suggestions - Contradicting Class Is Demoted",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// \"Golden\" is a strong term for several ales, so relevance alone put",
+													"// american-blonde-ale first for a label that says Lager. Ale and Lager",
+													"// are disjoint in the taxonomy; a candidate contradicting the class",
+													"// the label names cannot be the answer.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Leads with a lager, and offers no ale at all\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles[0].class).to.equal('lager');",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s.class, s.style_id).to.not.equal('ale');",
+													"    });",
+													"});",
+													"",
+													"// Every candidate must carry the full row shape. `match` and `aliases`",
+													"// are what let a client tell a recommendation from a guess; a row",
+													"// missing them is the confidently-wrong list this endpoint used to be.",
+													"pm.test(\"Every candidate states how it matched\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles).to.be.an('array').that.is.not.empty;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s).to.have.all.keys('style_id', 'name', 'parent', 'class', 'catch_all', 'match', 'aliases');",
+													"        pm.expect(s.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+													"        pm.expect(s.aliases).to.be.an('array');",
+													"        pm.expect(s.catch_all).to.be.a('boolean');",
+													"    });",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"Crisp Golden Lager\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-150 Suggestions - Absent When Nothing Matches",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// The key is optional. A client must not assume it is there, so the",
+													"// API must not emit an empty shell either.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Still a well-formed style rejection\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_state.style).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.style).to.be.a('string').that.is.not.empty;",
+													"});",
+													"",
+													"pm.test(\"No suggestions key\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    if (jsonData.suggestions !== undefined) {",
+													"        pm.expect(jsonData.suggestions).to.not.have.property('style');",
+													"    }",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"Zzzqqq Notastyle Xyzzy\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-151 Suggestions - Invalid style_id Suggests From The Label",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"pm.environment.set('beer_name_47', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// A rejected slug is only the caller's guess at our vocabulary; the",
+													"// label is what describes the beer. \"NEIPA\" is an exact alias of",
+													"// hazy-ipa, so the recovery candidate comes from the label.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Rejected on the style_id\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_state.style).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.style).to.include('style_id');",
+													"});",
+													"",
+													"pm.test(\"Suggests hazy-ipa from the label, as an exact match\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles[0].style_id).to.equal('hazy-ipa');",
+													"    pm.expect(styles[0].match).to.equal('exact');",
+													"    pm.expect(styles[0].aliases).to.be.an('array').that.is.not.empty;",
+													"});",
+													"",
+													"// Every candidate must carry the full row shape. `match` and `aliases`",
+													"// are what let a client tell a recommendation from a guess; a row",
+													"// missing them is the confidently-wrong list this endpoint used to be.",
+													"pm.test(\"Every candidate states how it matched\", function () {",
+													"    var styles = pm.response.json().suggestions.style.styles;",
+													"    pm.expect(styles).to.be.an('array').that.is.not.empty;",
+													"    styles.forEach(function (s) {",
+													"        pm.expect(s).to.have.all.keys('style_id', 'name', 'parent', 'class', 'catch_all', 'match', 'aliases');",
+													"        pm.expect(s.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+													"        pm.expect(s.aliases).to.be.an('array');",
+													"        pm.expect(s.catch_all).to.be.a('boolean');",
+													"    });",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_47}}\",\n    \"abv\": \"5.5\",\n    \"style\": \"NEIPA\",\n    \"style_id\": \"not-a-real-style\",\n    \"brewer_id\": \"{{brewer_id_47}}\"\n}"
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-208 Delete Brewery #47",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_47}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_47}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
 						}
 					]
 				},
@@ -74579,6 +75401,96 @@
 								}
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-22 Search - Name Match Outranks Populous Alias Match",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// suggest() and search() share one ranking. flanders-red-ale holds no",
+									"// beers and oud-bruin holds ~178, and both match every term — but only",
+									"// one has those words in its own name. Popularity used to decide it.",
+									"pm.test(\"Found OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"flanders-red-ale ranks above oud-bruin\", function () {",
+									"    var ids = pm.response.json().data.map(function (s) { return s.id; });",
+									"    pm.expect(ids[0]).to.equal('flanders-red-ale');",
+									"    pm.expect(ids.indexOf('oud-bruin')).to.be.above(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=flanders red ale&count=5",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "flanders red ale"
+								},
+								{
+									"key": "count",
+									"value": "5"
+								}
+							]
+						},
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						]
 					},
 					"response": []
 				}

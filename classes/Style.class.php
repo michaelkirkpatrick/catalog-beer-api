@@ -289,6 +289,10 @@ class Style {
     Only the exact-match comparisons keep the raw query, since those are string
     equality against canonical names and aliases, where punctuation is
     meaningful and no FULLTEXT parser is involved.
+
+    The term array comes back alongside the two expressions because the ranking
+    (nameCovers) and the family/class lookup both work term-by-term, and
+    re-splitting the query in three places is how the two would drift.
     --*/
     private function ftTerms($query){
         $boolTerms = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
@@ -297,7 +301,138 @@ class Style {
             $boolQuery .= '+' . $t . ' ';
         }
 
-        return array(trim($boolQuery), implode(' ', $boolTerms));
+        return array(trim($boolQuery), implode(' ', $boolTerms), $boolTerms);
+    }
+
+    /*--
+    nameCovers — 0 when every query term appears as a whole word in the style's
+    OWN canonical name, 1 otherwise. A tiebreak, never a filter.
+
+    The all-terms tier is decided against search_name, which is the canonical
+    name plus every alias concatenated. That makes it blind to WHERE the terms
+    matched, and a style with one long alias can absorb a query it has no claim
+    to. "Flanders Red Ale" put oud-bruin above flanders-red-ale because
+    oud-bruin carries the alias "Belgian-Style Flanders Oud Bruin or Oud Red
+    Ales" — every term present, none of them in its actual name — and then won
+    the beer_count tiebreak 178 to 0.
+
+    Word boundaries matter here: a plain LIKE '%ale%' matches "P-ale-Ale" and
+    every other style with "ale" inside a longer word, which is the same
+    substring fault that got a LIKE pass removed from the family lookup below.
+    \b is ICU-aware in MySQL 8+, so it holds for "kölsch" as well as "ale".
+
+    Terms are already sanitised to letters and digits by ftTerms(), so they need
+    no regex escaping — there is no metacharacter left to escape.
+
+    An empty term list yields the constant 1: every row equally uncovered, which
+    leaves the ordering to the tiebreaks on either side of it.
+    --*/
+    private function nameCovers($terms){
+        if(empty($terms)){
+            return array('1', array());
+        }
+
+        $conditions = array();
+        $params = array();
+        foreach($terms as $t){
+            $conditions[] = 's.canonical_name REGEXP ?';
+            $params[] = '\\b' . $t . '\\b';
+        }
+
+        return array('CASE WHEN ' . implode(' AND ', $conditions) . ' THEN 0 ELSE 1 END', $params);
+    }
+
+    /*--
+    rankOrderBy — the shared ordering for search() and suggest().
+
+    Ranking is tiered, not a blended score:
+
+      0  the query IS the style — exact canonical name or exact alias
+      1  EVERY query term appears in the style's identity terms
+      2  SOME query term appears in its identity terms
+      3  a hit only in the editorial description
+
+    Tiers exist because MATCH() relevance cannot carry this weight. Its scores
+    come from IDF and document length within one index, so they are incomparable
+    across columns and, within a column, are decided by document length — a
+    property unrelated to what a searcher meant. Two attempts to rank tier-mates
+    by relevance both failed: concatenated aliases ranked styles by how many
+    synonyms they had, and deduplicated tokens ranked them by how many distinct
+    tokens they had. Neither means anything, so q=ipa surfaced experimental-ipa
+    and new-zealand-ipa — used by zero beers — above american-ipa, used by 6,530.
+
+    WITHIN a tier the order is relevance, then name coverage, then popularity.
+    beer_count used to come first, justified by "tiers already guarantee
+    tier-mates match the query equally well." That holds for tiers 0 and 1. It
+    is false for tier 2, which is defined as SOME term matching and therefore
+    lumps "matched 2 of 3 terms" in with "matched 1 common word" — and then
+    sorted them by popularity. "Crisp American Lager" returned eight consecutive
+    ales: every style matching only "american", ordered by beer count, with
+    american-lager (the only row matching both real terms, at nearly double the
+    relevance) pushed to 9th and off the end of an 8-row suggestion list.
+    name_rel first is what separates them, and it costs tiers 0 and 1 nothing,
+    since tier-mates there genuinely do tie on relevance.
+
+    beer_count still breaks the remaining ties, and still ranks below tier on
+    purpose: promoted above tier it would bury a precisely-matched rare style
+    under a popular vague one, which is why "juicy ipa" needs the all-terms tier
+    to keep hazy-ipa (13 beers) above american-ipa (6,530).
+
+    Catch-all styles sort below specific ones within a tier, because beer_count
+    structurally favours them: they are the buckets beers land in when nothing
+    more precise fits, so they accumulate counts no specific style can match.
+    specialty-beer holds 1,209 beers and its aliases mention stout, which put it
+    second for q=stout — above four actual stouts. A catch-all is a fallback,
+    not an answer. This only applies within a tier, so searching for a catch-all
+    by name still returns it first on the exact-match tier.
+
+    search_name is canonical_name plus every alias in one document, so "IPA"
+    reaches american-ipa even though its name spells out "India Pale Ale" — the
+    case the original ranking could never handle, because the token was absent
+    from the column carrying the heaviest weight.
+
+    class_conflict sorts directly under tier, and only suggest() supplies it —
+    see classConflict(). search() passes the constant 0, leaving the ordering
+    otherwise identical between the two.
+    --*/
+    private function rankOrderBy(){
+        return 'ORDER BY tier, class_conflict, s.is_catch_all, name_rel DESC, name_covers, s.beer_count DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name';
+    }
+
+    /*--
+    classConflict — how a style stands relative to the super-class the label
+    itself names: 0 agrees, 1 is silent, 2 contradicts.
+
+    "Crisp American Lager" led with eight consecutive ales. Each of them matched
+    on "american" and none of them could possibly be right, because the label
+    says Lager and the taxonomy already knows that Ale and Lager are disjoint.
+    Nothing in a FULLTEXT score can express "this candidate contradicts the
+    query"; it is a fact about the vocabulary, not about term statistics, so it
+    has to be stated separately.
+
+    Three ranks rather than two, because the middle case is real and large.
+    Ciders, meads, seltzers and the wheat/sour families sit outside the
+    Ale/Lager split entirely and carry no class. A blank class is "not
+    applicable", not "the other one", so those styles must not be demoted with
+    the contradictions — but a two-way flag left them tied with genuine class
+    matches, and beer_count then floated coffee-beer above american-lager for
+    "Crisp Golden Lager". Agreeing with the label should beat saying nothing,
+    which should beat contradicting it.
+
+    Sorted under tier rather than over it, so a style the caller named outright
+    still wins. If a label somehow matches a style exactly AND names the other
+    class, the exact match is the better answer and the contradiction is a
+    curiosity.
+
+    Only applied when the terms name exactly ONE class. A label naming both is
+    telling us nothing, and a label naming none has nothing to contradict.
+    --*/
+    private function classConflict($classHint){
+        if($classHint === null){
+            return array('0', array());
+        }
+
+        return array("CASE WHEN p.class = ? THEN 0 WHEN p.class IS NULL OR p.class = '' THEN 1 ELSE 2 END", array($classHint));
     }
 
     /*--
@@ -319,14 +454,22 @@ class Style {
     into a 500. Anything unexpected yields an empty array, and the caller omits
     the key.
 
-    Styles only, no families. An earlier draft also returned families matched
-    exactly on slug/name/alias, on the theory that a bare "IPA" should suggest
-    the family rather than five sub-styles. That branch could never fire:
-    resolveStyle() resolves a label matching a family alias (2c), slug or name
-    (2e) before it ever gives up, so by the time suggest() runs, every input
-    that would have matched has already succeeded. Suggesting a family for a
-    partial match ("Cali Pilsner" -> the pilsner family) is a different and
-    genuinely useful feature, but it is not this one.
+    Every row states HOW it matched, because the alternative is a list that
+    cannot be read. The rows were previously identical in shape whether the top
+    one was an exact alias hit or a style that merely shared the word "ale" with
+    the label, which leaves a client no strategy but to trust [0] — and an
+    agent-driven client reported doing exactly that and misfiling eight beers.
+    An honest "partial" is what tells a caller to fall back to a family, a
+    catch-all, or its own GET /style/search. The wrongness was survivable; the
+    confidence was not.
+
+    Aliases ride along for the same reason. They are how a caller recognises
+    that hazy-ipa is the thing it meant by "NEIPA" without spending a second
+    request to find out, and a second request is not free here: unmatched labels
+    are a third of some clients' writes, and every call is metered and billed.
+    Roughly 340 tokens of aliases against a billed round trip is not a close
+    trade. Specs and SRM stay on GET /style/{id}, since nothing about a retry
+    depends on colour.
     --*/
     public function suggest($label, $limit = 8){
         $empty = array('styles' => array());
@@ -347,13 +490,178 @@ class Style {
             $limit = 8;
         }
 
-        list($boolQuery, $nlQuery) = $this->ftTerms($label);
-
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.parent, p.class, s.is_catch_all, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.is_catch_all, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?", [$label, $label, $boolQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $label, $label, $limit]);
-        if($db->error || $result === null){
+
+        // Only the term array is needed here; styleCandidates() re-derives the
+        // FULLTEXT expressions for whichever label it is given, which is not
+        // always this one once the backoff below runs.
+        $terms = $this->ftTerms($label)[2];
+
+        // Resolved before the styles because the class it may name feeds the
+        // style ranking (classConflict). Whether these are EMITTED is decided
+        // further down, once the styles have shown how well they matched.
+        list($families, $classes) = $this->broaderCandidates($db, $terms);
+        $classHint = (count($classes) === 1) ? $classes[0]['class'] : null;
+
+        list($rows, $bestTier) = $this->styleCandidates($db, $label, $limit, $classHint);
+        if($rows === null){
             $db->close();
             return $empty;
+        }
+
+        /*--
+        Trailing-term backoff. English style names are head-final — the style
+        sits at the end of the label and the marketing sits at the front — so
+        when the whole label only ever matches SOME of its terms, the last two
+        are the part worth asking about. "Crisp American Lager" matches nothing
+        as a whole and resolves exactly as "American Lager"; "Belgian-Style
+        Dubbel" reaches belgian-dubbel once "Belgian" is dropped.
+
+        This is the one thing suggest() structurally could not do before, and
+        the reason GET /style/search kept beating it on the same data and the
+        same ranking: a caller reformulates its query, and suggest() only ever
+        saw the label already sent. Doing it server-side is what makes the 400
+        answerable without a second call.
+
+        Guarded three ways, because a heuristic that fires too eagerly is worse
+        than none. It runs only when the full label failed to reach tier 1, only
+        when there are at least three terms (so the truncation is a real
+        reduction and not the same query again), and its result is kept only if
+        it reaches tier 0 or 1. A backoff that lands in the partial tier is just
+        a different pile of noise and is discarded.
+
+        It stops at two terms deliberately. Backing off to one would turn
+        "Shandy Ale" into "Ale", which matches half the catalogue at tier 1 and
+        would present that as a confident answer — more wrong, and more
+        confidently, than what it replaced. Labels whose only usable term is a
+        family or class word are the families/classes block's job below.
+        --*/
+        $matchedOn = null;
+        if($bestTier > 1 && count($terms) >= 3){
+            $shortLabel = implode(' ', array_slice($terms, -2));
+            list($backoffRows, $backoffTier) = $this->styleCandidates($db, $shortLabel, $limit, $classHint);
+            if($backoffRows !== null && $backoffTier <= 1){
+                $rows = $backoffRows;
+                $matchedOn = $shortLabel;
+                // $bestTier stays the ORIGINAL label's tier on purpose: it
+                // gates the families/classes block, and the fact that a
+                // truncated label matched does not mean the submitted one did.
+            }
+        }
+
+        // Tier 3 matched on description text alone — vienna-lager for "Cali
+        // Pilsner", non-alcoholic-beer for "Hazy Juice Bomb". Worth offering
+        // when nothing better exists, noise the moment something does. Dropping
+        // them can't hide a better candidate: the ORDER BY already placed every
+        // lower tier above them.
+        $rowTier = 3;
+        foreach($rows as $row){
+            $rowTier = min($rowTier, intval($row['tier']));
+        }
+
+        $styles = array();
+        $ids = array();
+        foreach($rows as $row){
+            if($rowTier < 3 && intval($row['tier']) === 3){
+                continue;
+            }
+            $styles[] = array(
+                'style_id' => $row['id'],
+                'name' => $row['canonical_name'],
+                'parent' => $row['parent'],
+                'class' => $row['class'],
+                'catch_all' => (bool) $row['is_catch_all'],
+                'match' => $this->matchQuality(intval($row['tier'])),
+                'aliases' => array(),
+            );
+            $ids[] = $row['id'];
+        }
+
+        $styles = $this->attachAliases($db, $styles, $ids);
+
+        /*--
+        Families and classes, offered only when no style matched the submitted
+        label outright.
+
+        A beer may be filed at any of the three tiers, so for a label like
+        "Crisp American Lager" the honest answer is not a style at all — it is
+        the Lager class, or the pale-lager family. The API has accepted those
+        writes all along and the 400 never mentioned them, which left a caller
+        choosing among eight styles when the correct move was to stop guessing
+        and file one tier up.
+
+        An earlier draft of this method dropped families on the grounds that
+        resolveStyle() matches a family alias, slug or name (steps 2c and 4)
+        before it ever gives up, so any family that could match already had.
+        That reasoning holds for the label AS A WHOLE and only for that: it says
+        nothing about a family or class term sitting INSIDE a longer label,
+        which is the case that reaches here. "Crisp American Lager" never
+        resolved as a whole and contains "lager"; that is the gap.
+
+        Gated on the original label's tier so a precise style match isn't buried
+        under broader alternatives nobody asked for, and so the extra bytes are
+        spent only on the requests that are actually stuck. They were looked up
+        further above regardless, since the ranking needs the class either way.
+        --*/
+        if($bestTier <= 1){
+            $families = array();
+            $classes = array();
+        }
+
+        $db->close();
+
+        $suggestions = array('styles' => $styles);
+        if($matchedOn !== null){
+            // Named rather than implied: the rows describe a query the caller
+            // never sent, and a tier-0 row against a label they didn't write
+            // would otherwise read as an exact match on the one they did.
+            $suggestions['matched_on'] = $matchedOn;
+        }
+        if(!empty($families)){
+            $suggestions['families'] = $families;
+        }
+        if(!empty($classes)){
+            $suggestions['classes'] = $classes;
+        }
+
+        return $suggestions;
+    }
+
+    // The ranked style query, run once for the label and again for the backoff.
+    // Returns array($rows, $bestTier), or array(null, 3) on any database error —
+    // suggest() must degrade to no suggestions, never to a 500.
+    private function styleCandidates($db, $label, $limit, $classHint = null){
+        list($boolQuery, $nlQuery, $terms) = $this->ftTerms($label);
+        list($coversExpr, $coversParams) = $this->nameCovers($terms);
+        list($conflictExpr, $conflictParams) = $this->classConflict($classHint);
+
+        $sql = "SELECT s.id, s.canonical_name, s.parent, p.class, s.is_catch_all, "
+             . "CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 "
+             . "WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 "
+             . "WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 "
+             . "WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 "
+             . "ELSE 3 END AS tier, "
+             . $conflictExpr . " AS class_conflict, "
+             . $coversExpr . " AS name_covers, "
+             . "MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, "
+             . "COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel "
+             . "FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id "
+             . "WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) "
+             . "OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) "
+             . "OR LOWER(s.canonical_name) = LOWER(?) "
+             . "OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) "
+             . $this->rankOrderBy() . " LIMIT ?";
+
+        $params = array_merge(
+            array($label, $label, $boolQuery, $nlQuery),
+            $conflictParams,
+            $coversParams,
+            array($nlQuery, $nlQuery, $nlQuery, $nlQuery, $label, $label, $limit)
+        );
+
+        $result = $db->query($sql, $params);
+        if($db->error || $result === null){
+            return array(null, 3);
         }
 
         $rows = array();
@@ -363,28 +671,112 @@ class Style {
             $bestTier = min($bestTier, intval($row['tier']));
         }
 
-        // Tier 3 matched on description text alone — vienna-lager for "Cali
-        // Pilsner", non-alcoholic-beer for "Hazy Juice Bomb". Worth offering
-        // when nothing better exists, noise the moment something does. Dropping
-        // them can't hide a better candidate: the ORDER BY already placed every
-        // lower tier above them.
-        $styles = array();
-        foreach($rows as $row){
-            if($bestTier < 3 && intval($row['tier']) === 3){
-                continue;
-            }
-            $styles[] = array(
-                'style_id' => $row['id'],
-                'name' => $row['canonical_name'],
-                'parent' => $row['parent'],
-                'class' => $row['class'],
-                'catch_all' => (bool) $row['is_catch_all'],
-            );
+        return array($rows, $bestTier);
+    }
+
+    // How a suggestion matched, in the caller's terms rather than the ranking's.
+    // 'partial' is the honest label for the any-term tier and the whole point of
+    // the field: it is the value that says don't trust position 0.
+    private function matchQuality($tier){
+        if($tier === 0){ return 'exact'; }
+        if($tier === 1){ return 'all_terms'; }
+        if($tier === 2){ return 'partial'; }
+        return 'description';
+    }
+
+    // Aliases for the suggested styles, in one query. Failure is silent and
+    // leaves the empty arrays already in place — an alias list is a convenience,
+    // and losing it must not cost the caller the suggestions themselves.
+    private function attachAliases($db, $styles, $ids){
+        if(empty($ids)){
+            return $styles;
         }
 
-        $db->close();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $result = $db->query("SELECT style_id, alias FROM style_alias WHERE style_id IN ($placeholders)", $ids);
+        if($db->error || $result === null){
+            return $styles;
+        }
 
-        return array('styles' => $styles);
+        $byID = array();
+        while($row = $result->fetch_assoc()){
+            $byID[$row['style_id']][] = $row['alias'];
+        }
+
+        foreach($styles as $i => $style){
+            foreach(($byID[$style['style_id']] ?? array()) as $alias){
+                if(strcasecmp($alias, $style['name']) !== 0){
+                    $styles[$i]['aliases'][] = $alias;
+                }
+            }
+        }
+
+        return $styles;
+    }
+
+    /*--
+    broaderCandidates — families and classes named by the terms inside a label
+    that didn't resolve.
+
+    Matching is exact against slug, name and alias, term by term, plus adjacent
+    pairs so two-word families ("pale ale", "brown ale") are reachable. Pairs
+    are tried in both spellings a caller might read off our own endpoints, since
+    GET /style/parent publishes "Pale Ale" while the slug is "pale-ale".
+
+    No substring matching, for the reason recorded in search(): a LIKE '%q%'
+    pass returned 11 of the 26 families for q=ale, Pale Lager among them,
+    because "ale" sits inside "P-ale". Word-level exactness is what keeps this
+    block trustworthy enough to sit in an error body.
+
+    Longest match first: a label naming both a family and a class ("Hazy Pale
+    Ale" -> the pale-ale family and the ale class) should lead with the more
+    specific of the two, and families precede classes for the same reason.
+    --*/
+    private function broaderCandidates($db, $terms){
+        if(empty($terms)){
+            return array(array(), array());
+        }
+
+        // Unigrams and adjacent bigrams, bigrams first so a two-word family
+        // beats the one-word class it contains.
+        $needles = array();
+        for($i = 0; $i < count($terms) - 1; $i++){
+            $needles[] = strtolower($terms[$i] . ' ' . $terms[$i + 1]);
+            $needles[] = strtolower($terms[$i] . '-' . $terms[$i + 1]);
+        }
+        foreach($terms as $t){
+            $needles[] = strtolower($t);
+        }
+        $needles = array_values(array_unique($needles));
+
+        $placeholders = implode(',', array_fill(0, count($needles), '?'));
+
+        $families = array();
+        $result = $db->query("SELECT DISTINCT p.slug, p.name, p.class, p.beverage_type, p.sort_order FROM style_parent p LEFT JOIN parent_alias pa ON pa.parent = p.slug WHERE LOWER(p.slug) IN ($placeholders) OR LOWER(p.name) IN ($placeholders) OR LOWER(pa.alias) IN ($placeholders) ORDER BY p.sort_order", array_merge($needles, $needles, $needles));
+        if(!$db->error && $result !== null){
+            while($row = $result->fetch_assoc()){
+                $families[] = array(
+                    'parent' => $row['slug'],
+                    'name' => $row['name'],
+                    'class' => $row['class'],
+                    'beverage_type' => $row['beverage_type'],
+                );
+            }
+        }
+
+        $classes = array();
+        $result = $db->query("SELECT DISTINCT c.slug, c.name, c.beverage_type, c.sort_order FROM style_class c LEFT JOIN class_alias ca ON ca.class = c.slug WHERE LOWER(c.slug) IN ($placeholders) OR LOWER(c.name) IN ($placeholders) OR LOWER(ca.alias) IN ($placeholders) ORDER BY c.sort_order", array_merge($needles, $needles, $needles));
+        if(!$db->error && $result !== null){
+            while($row = $result->fetch_assoc()){
+                $classes[] = array(
+                    'class' => $row['slug'],
+                    'name' => $row['name'],
+                    'beverage_type' => $row['beverage_type'],
+                );
+            }
+        }
+
+        return array($families, $classes);
     }
 
     private function search($query, $cursor, $count){
@@ -448,49 +840,42 @@ class Style {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        list($boolQuery, $nlQuery) = $this->ftTerms($query);
+        list($boolQuery, $nlQuery, $terms) = $this->ftTerms($query);
+        list($coversExpr, $coversParams) = $this->nameCovers($terms);
 
-        // Ranking is tiered, not a blended score:
+        // Tiers and the within-tier ordering are documented on rankOrderBy(),
+        // which suggest() shares, so a caller that reads a 400's suggestions and
+        // then reruns the label here gets the same answer to the same question.
         //
-        //   0  the query IS the style — exact canonical name or exact alias
-        //   1  EVERY query term appears in the style's identity terms
-        //   2  SOME query term appears in its identity terms
-        //   3  a hit only in the editorial description
-        //
-        // Tiers exist because MATCH() relevance cannot carry this weight. Its
-        // scores come from IDF and document length within one index, so they
-        // are incomparable across columns and, within a column, are decided by
-        // document length — a property unrelated to what a searcher meant. Two
-        // attempts to rank tier-mates by relevance both failed: concatenated
-        // aliases ranked styles by how many synonyms they had, and deduplicated
-        // tokens ranked them by how many distinct tokens they had. Neither
-        // means anything, so q=ipa surfaced experimental-ipa and
-        // new-zealand-ipa — used by zero beers — above american-ipa, used by
-        // 6,530.
-        //
-        // Hence beer_count as the primary order WITHIN a tier: how many
-        // catalogued beers actually use the style. It ranks below tier on
-        // purpose. Tiers already guarantee tier-mates match the query equally
-        // well, so popularity only separates genuine equivalents; promoted
-        // above tier it would bury a precisely-matched rare style under a
-        // popular vague one, which is why "juicy ipa" needs the all-terms tier
-        // to keep hazy-ipa (13 beers) above american-ipa (6,530).
-        //
-        // Catch-all styles sort below specific ones within a tier, because
-        // beer_count structurally favours them: they are the buckets beers land
-        // in when nothing more precise fits, so they accumulate counts no
-        // specific style can match. specialty-beer holds 1,209 beers and its
-        // aliases mention stout, which put it second for q=stout — above four
-        // actual stouts. A catch-all is a fallback, not an answer. This only
-        // applies within a tier, so searching for a catch-all by name still
-        // returns it first on the exact-match tier.
-        //
-        // search_name is canonical_name plus every alias in one document, so
-        // "IPA" reaches american-ipa even though its name spells out "India
-        // Pale Ale" — the case the original ranking could never handle, because
-        // the token was absent from the column carrying the heaviest weight.
+        // The one deliberate difference is class_conflict, held at 0 here.
+        // Demoting the other super-class suits a caller trying to file ONE beer
+        // under a label that names its class; it does not suit someone browsing
+        // the vocabulary, where q=lager legitimately surfaces ales named "lager"
+        // and hiding them would be the endpoint answering a question nobody
+        // asked. Suggestion needs an opinion; search needs completeness.
         $db = new Database();
-        $result = $db->query("SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 ELSE 3 END AS tier, MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR LOWER(s.canonical_name) = LOWER(?) OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) ORDER BY tier, s.is_catch_all, s.beer_count DESC, name_rel DESC, body_rel DESC, CHAR_LENGTH(s.canonical_name), s.canonical_name LIMIT ?, ?", [$query, $query, $boolQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $nlQuery, $query, $query, $offset, $fetchCount]);
+        $sql = "SELECT s.id, s.canonical_name, s.beverage_type, s.parent, p.class, s.is_catch_all, s.srm_min, s.srm_max, "
+             . "CASE WHEN LOWER(s.canonical_name) = LOWER(?) THEN 0 "
+             . "WHEN EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) THEN 0 "
+             . "WHEN MATCH(s.search_name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 "
+             . "WHEN MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) > 0 THEN 2 "
+             . "ELSE 3 END AS tier, "
+             . "0 AS class_conflict, "
+             . $coversExpr . " AS name_covers, "
+             . "MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, "
+             . "COALESCE(MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE), 0) AS body_rel "
+             . "FROM style s LEFT JOIN style_parent p ON s.parent = p.slug LEFT JOIN style_content c ON c.style_id = s.id "
+             . "WHERE MATCH(s.search_name) AGAINST(? IN NATURAL LANGUAGE MODE) "
+             . "OR MATCH(c.description) AGAINST(? IN NATURAL LANGUAGE MODE) "
+             . "OR LOWER(s.canonical_name) = LOWER(?) "
+             . "OR EXISTS (SELECT 1 FROM style_alias x WHERE x.style_id = s.id AND LOWER(x.alias) = LOWER(?)) "
+             . $this->rankOrderBy() . " LIMIT ?, ?";
+        $params = array_merge(
+            array($query, $query, $boolQuery, $nlQuery),
+            $coversParams,
+            array($nlQuery, $nlQuery, $nlQuery, $nlQuery, $query, $query, $offset, $fetchCount)
+        );
+        $result = $db->query($sql, $params);
         if($db->error){
             // Query Error
             $this->responseCode = 500;
