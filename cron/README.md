@@ -131,7 +131,11 @@ Link-health monitor for brewer URLs (`classes/UrlCheck.class.php` does the detec
 
 **https promotion:** when a stored `http://` URL checks `ok` and the site's own redirect landed on `https://` at the same host (`www` aside), the cron updates `url` to that https URL and refreshes the brewer's Algolia record. This is recording the operator's decision, not making one — and same-host means `domainName`, and with it staff permissions, cannot shift. Any broader difference (new host, subdomain) is never applied; an `ok` URL that lands somewhere other than itself keeps that landing URL in `urlFinal` as evidence for the report.
 
-The API write path is the mirror of this: when a brewer's `url` changes via PUT/PATCH, `Brewer::add()` resets all five monitoring columns to baseline (`unverified`, `urlCheckedAt=NULL`) — a changed URL's history describes the old URL, and the NULL `urlCheckedAt` puts it at the front of this cron's queue for a full check the next night.
+The API write path is the mirror of this: when a brewer's `url` is **replaced** via PUT/PATCH, `Brewer::add()` resets all five monitoring columns to baseline (`unverified`, `urlCheckedAt=NULL`) — a changed URL's history describes the old URL, and the NULL `urlCheckedAt` puts it at the front of this cron's queue for a full check the next night.
+
+**Clearing a URL is deliberately not the same as replacing one.** When a URL is cleared (`{"url": ""}`), the monitoring columns are *kept* and the removed address is written to `brewer.urlLastKnown`. The row then still says what went wrong (`urlStatus`) and when that domain last served the brewery's own site (`urlLastOkAt`) — which is the difference between "this brewery has no website" and "this brewery's domain lapsed in 2019 and now redirects to a casino, don't go looking". Resetting those columns on a clear would leave the record reading "no website, never checked", the opposite of what the run just established.
+
+**Every change to `brewer.url` is also appended to `brewer_url_history`** by `Brewer::logURLChange()` — old URL, new URL, the `urlStatus` that prompted it, the source (`api` / `cron` / `cleanup`), the acting user, and an optional note. The cron's https promotion writes a row with source `cron`. Admins can attach a reason to an API write with the write-only `url_note` field on POST/PUT/PATCH `/brewer` (ignored for non-admin keys, never echoed back). The table is internal — no endpoint exposes it.
 
 ### How it works
 

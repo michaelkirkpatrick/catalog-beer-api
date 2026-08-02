@@ -560,6 +560,14 @@ Location,L-175,Location #45 - PATCH clears name (empty string),PATCH,/location/{
 Location,L-176,Location #45 - PUT with name,PUT,/location/{{location_id_45}},Admin,200,Done
 Location,L-177,Location #45 - PUT without name clears it,PUT,/location/{{location_id_45}},Admin,200,Done
 Brewer,BR-198,Delete Brewery #44,DELETE,/brewer/{{brewer_id_44}},Admin,204,Done
+Brewer,BR-199,"Create Brewery #45 with a URL (brewery staff)",POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-200,"Admin clears the URL - badges untouched",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-201,"Create Brewery #46 reusing the freed URL",POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-202,"Admin clears a second URL in a row",PATCH,/brewer/{{brewer_id_46}},Admin,200,Done
+Brewer,BR-203,"Admin repoints Brewery #45 to a working URL",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-204,"Admin edits the name - that IS a verification",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-205,"Delete Brewery #45",DELETE,/brewer/{{brewer_id_45}},Admin,204,Done
+Brewer,BR-206,"Delete Brewery #46",DELETE,/brewer/{{brewer_id_46}},Admin,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done

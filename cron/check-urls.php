@@ -105,6 +105,9 @@ foreach($brewers as $brewer){
                 if(!$db->error){
                     // The Algolia brewer record carries url — keep it in step
                     Brewer::refreshSearchObject($brewer['id']);
+                    // Every URL change goes in the history, including this one —
+                    // it is the only write this cron makes to the URL itself.
+                    Brewer::logURLChange($brewer['id'], $brewer['url'], $promoted, 'ok', 'cron', 'Promoted to the https:// the site redirects to');
                     $upgraded[] = array('brewer' => $brewer, 'to' => $promoted);
                 }
             }else{

@@ -10,6 +10,7 @@ class Brewer {
     public $domainName = '';            // Optional
     public $cbVerified = false;
     public $brewerVerified = false;
+    public $urlStatus = '';             // Internal — never in the brewer object
     public $lastModified = 0;
 
     // Error Handling
@@ -26,7 +27,7 @@ class Brewer {
     public $json = array();
 
     // Add Brewer
-    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields){
+    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields, $urlNote = ''){
 
         // Required Classes
         $db = new Database();
@@ -39,6 +40,7 @@ class Brewer {
         $urlVerified = false;
         $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
         $originalURL = null;    // Set on PUT/PATCH of an existing brewer — a changed URL resets the url-monitoring columns
+        $originalURLStatus = null;  // The monitoring verdict the URL change is reacting to; recorded in brewer_url_history
         switch($method){
             case 'POST':
                 // Generate a new brewer_id
@@ -68,6 +70,7 @@ class Brewer {
                     $originalName = $this->name;
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
+                    $originalURLStatus = $this->urlStatus;
                 }else{
                     // Brewer doesn't exist, they'd like to add it
                     // Reset Errors from $this->validate()
@@ -105,6 +108,7 @@ class Brewer {
                     $originalName = $this->name;
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
+                    $originalURLStatus = $this->urlStatus;
                 }
                 break;
             default:
@@ -120,6 +124,24 @@ class Brewer {
                 $errorLog->badData = $method;
                 $errorLog->filename = $this->filename;
                 $errorLog->write();
+        }
+
+        // ----- URL-only Edit? -----
+        /*--
+        A PATCH that changes nothing but the URL is data cleanup — repairing link
+        rot, clearing a domain that lapsed and was re-registered by someone else.
+        It says nothing about whether the rest of the record is accurate, so the
+        verification badges below are left exactly as they were. Compared against
+        the stored values, not just $patchFields, so resending an unchanged name
+        alongside a new URL still counts as URL-only.
+        --*/
+        $urlOnlyEdit = false;
+        if($method == 'PATCH' && !$this->error && !$newBrewer){
+            $changesURL = in_array('url', $patchFields) && $url != $originalURL;
+            $changesOther = (in_array('name', $patchFields) && $name != $this->name)
+                || (in_array('description', $patchFields) && $description != $this->description)
+                || (in_array('short_description', $patchFields) && $shortDescription != $this->shortDescription);
+            $urlOnlyEdit = $changesURL && !$changesOther;
         }
 
         // ----- Permissions & Validation Badge -----
@@ -194,9 +216,25 @@ class Brewer {
 
                 // Get User Info
                 if($users->admin){
-                    // Catalog.beer Verified
-                    $this->cbVerified = true;
-                    $dbCBV = 1;
+                    if($urlOnlyEdit){
+                        /*--
+                        An admin fixing a broken or hijacked link is cleaning up
+                        bad data, not vouching for the entry. Carry both badges
+                        through untouched: setting cbVerified here would lock the
+                        brewer to admin-only editing, and the shared UPDATE below
+                        writes brewerVerified from $dbBV, which stays 0 on the
+                        admin path — so a brewery's own verification would be
+                        cleared as a side effect of a URL correction.
+                        --*/
+                        $this->cbVerified = $originalCBV;
+                        $dbCBV = $originalCBV ? 1 : 0;
+                        $this->brewerVerified = $originalBV;
+                        $dbBV = $originalBV ? 1 : 0;
+                    }else{
+                        // Catalog.beer Verified
+                        $this->cbVerified = true;
+                        $dbCBV = 1;
+                    }
                 }else{
                     // Not Catalog.beer Verified
                     if(!empty($this->domainName)){
@@ -329,26 +367,7 @@ class Brewer {
                         }else{
                             $setClauses[] = 'shortDescription=NULL';
                         }
-                        if(!empty($this->url)){
-                            $setClauses[] = 'url=?';
-                            $setParams[] = $this->url;
-                            $setClauses[] = 'domainName=?';
-                            $setParams[] = $this->domainName;
-                        }else{
-                            $setClauses[] = 'url=NULL';
-                            $setClauses[] = 'domainName=NULL';
-                        }
-                        // A changed URL invalidates the monitoring columns — they
-                        // describe the old URL. Reset to baseline; urlCheckedAt=NULL
-                        // puts the brewer at the front of the check-urls queue.
-                        // (Loose != so a NULL original equals an empty string.)
-                        if($this->url != $originalURL){
-                            $setClauses[] = "urlStatus='unverified'";
-                            $setClauses[] = 'urlCheckedAt=NULL';
-                            $setClauses[] = 'urlLastOkAt=NULL';
-                            $setClauses[] = 'urlFailCount=0';
-                            $setClauses[] = 'urlFinal=NULL';
-                        }
+                        $this->urlSetClauses($originalURL, $setClauses, $setParams);
                         $sql = "UPDATE brewer SET " . implode(', ', $setClauses) . " WHERE id=?";
                         $setParams[] = $this->brewerID;
                         $db->query($sql, $setParams);
@@ -383,22 +402,7 @@ class Brewer {
                     if($url != $this->url){
                         $this->url = $this->validateURL($url, 'url', 'brewer');
                         if(!$this->error){
-                            $setClauses[] = "url=?";
-                            $setParams[] = $this->url;
-                            $setClauses[] = "domainName=?";
-                            $setParams[] = $this->domainName;
-                            // Compare post-validation: "foo.com" normalizes to the
-                            // stored "https://foo.com/", and an unchanged URL keeps
-                            // its monitoring history. A changed one resets to
-                            // baseline; urlCheckedAt=NULL puts the brewer at the
-                            // front of the check-urls queue.
-                            if($this->url != $originalURL){
-                                $setClauses[] = "urlStatus='unverified'";
-                                $setClauses[] = 'urlCheckedAt=NULL';
-                                $setClauses[] = 'urlLastOkAt=NULL';
-                                $setClauses[] = 'urlFailCount=0';
-                                $setClauses[] = 'urlFinal=NULL';
-                            }
+                            $this->urlSetClauses($originalURL, $setClauses, $setParams);
                         }
                     }
                 }
@@ -471,6 +475,21 @@ class Brewer {
                         // name, and this is the expensive path.
                         if($originalName !== null && $originalName !== $this->name){
                             $this->cascadeNameToChildren();
+                        }
+
+                        /*--
+                        Record the URL change, after the row is updated so a
+                        failed write leaves no phantom entry. Loose != so an
+                        unchanged URL is not logged and a NULL original equals an
+                        empty submission — a brewer whose URL we cleared earlier
+                        has a NULL original, and gaining a URL back is a real
+                        change worth recording.
+                        --*/
+                        if($this->url != $originalURL){
+                            // url_note is a curation field: admins only. It is
+                            // never echoed back, so there is nothing for a
+                            // general key to gain by writing to it.
+                            self::logURLChange($this->brewerID, $originalURL, $this->url, $originalURLStatus, 'api', ($users->admin ? $urlNote : null), $userID);
                         }
                     }
 
@@ -585,6 +604,103 @@ class Brewer {
         }
     }
 
+    /*--
+    Builds the url/domainName/url-monitoring half of an UPDATE for PUT and PATCH.
+    $this->url and $this->domainName must already be validated. Appends to
+    $setClauses/$setParams by reference so both callers stay in step — the two
+    paths drifting apart is what let PATCH write '' where PUT wrote NULL.
+    --*/
+    private function urlSetClauses($originalURL, &$setClauses, &$setParams){
+        if($this->url !== ''){
+            $setClauses[] = 'url=?';
+            $setParams[] = $this->url;
+            $setClauses[] = 'domainName=?';
+            $setParams[] = $this->domainName;
+        }else{
+            // Clearing. Both go to NULL, never '' — each column carries a UNIQUE
+            // index, where '' is an ordinary value, so the second brewer cleared
+            // this way would collide with the first.
+            $setClauses[] = 'url=NULL';
+            $setClauses[] = 'domainName=NULL';
+        }
+
+        // Compare post-validation: "foo.com" normalizes to the stored
+        // "https://foo.com/", and an unchanged URL keeps its monitoring history.
+        // (Loose != so a NULL original equals an empty string.)
+        if($this->url == $originalURL){
+            return;
+        }
+
+        if($this->url === '' && !empty($originalURL)){
+            /*--
+            The URL was cleared, not replaced — almost always because the
+            monitoring cron found it dead, parked or hijacked. Keep the verdict
+            and the timestamps: urlStatus says what went wrong, urlLastOkAt says
+            when the domain last served this brewery's own site, and
+            urlLastKnown holds the address itself. Wiping them would leave the
+            record reading "no website, never checked", which is the opposite of
+            what we just learned, and would send the next person searching for a
+            brewery that has probably closed.
+            --*/
+            $setClauses[] = 'urlLastKnown=?';
+            $setParams[] = $originalURL;
+        }else{
+            // Replaced with a different URL. The monitoring columns describe the
+            // old address, so reset to baseline; urlCheckedAt=NULL puts the
+            // brewer at the front of the check-urls queue.
+            $setClauses[] = "urlStatus='unverified'";
+            $setClauses[] = 'urlCheckedAt=NULL';
+            $setClauses[] = 'urlLastOkAt=NULL';
+            $setClauses[] = 'urlFailCount=0';
+            $setClauses[] = 'urlFinal=NULL';
+            $setClauses[] = 'urlLastKnown=NULL';
+        }
+    }
+
+    /*--
+    Append-only record of every change to a brewer's URL, so a future reader can
+    tell "this brewery has no website" from "this brewery's domain lapsed in 2019
+    and now redirects to a casino, don't go looking". Never blocks the write it
+    describes: a failure here is logged and swallowed.
+
+    $verdict is the urlStatus the change reacted to; $source is 'api', 'cron' or
+    'cleanup'; $changedBy is the acting userID, or null for the cron.
+    --*/
+    public static function logURLChange($brewerID, $oldURL, $newURL, $verdict, $source, $note = null, $changedBy = null){
+        if(empty($brewerID)){
+            return;
+        }
+
+        $db = new Database();
+        if($db->error){
+            return;
+        }
+
+        $db->query("INSERT INTO brewer_url_history (brewerID, oldURL, newURL, verdict, source, note, changedBy, changedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
+            $brewerID,
+            !empty($oldURL) ? $oldURL : null,
+            !empty($newURL) ? $newURL : null,
+            !empty($verdict) ? $verdict : null,
+            $source,
+            !empty($note) ? substr($note, 0, 255) : null,
+            !empty($changedBy) ? $changedBy : null,
+            time()
+        ]);
+
+        if($db->error){
+            // Database::query() already logged the SQL detail. Note the context
+            // here so a missing history row is traceable to the brewer.
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 288;
+            $errorLog->errorMsg = 'Failed to record brewer URL history';
+            $errorLog->badData = "Brewer: $brewerID / Old: $oldURL / New: $newURL";
+            $errorLog->filename = 'API / Brewer.class.php';
+            $errorLog->write();
+        }
+
+        $db->close();
+    }
+
     public function validateURL($url, $type, $class){
         $returnURL = '';
 
@@ -683,10 +799,12 @@ class Brewer {
         }
 
         // Domain name check for brewers
-        if(!empty($returnURL)){
-            if($type == 'url' && $class == 'brewer'){
-                $this->domainName = $this->urlDomainName($returnURL);
-            }
+        if($type == 'url' && $class == 'brewer'){
+            // An empty URL clears the domain with it. domainName is what grants
+            // brewery staff editing rights by email domain, so leaving the old
+            // host behind on a cleared URL would hand those rights to whoever
+            // registers the domain next.
+            $this->domainName = !empty($returnURL) ? $this->urlDomainName($returnURL) : '';
         }
 
         return $returnURL;
@@ -771,7 +889,7 @@ class Brewer {
         if(!empty($brewerID)){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, lastModified FROM brewer WHERE id=?", [$brewerID]);
+            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, urlStatus, lastModified FROM brewer WHERE id=?", [$brewerID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid
@@ -796,6 +914,7 @@ class Brewer {
                         }
                         $this->url = $array['url'];
                         $this->domainName = $array['domainName'];
+                        $this->urlStatus = $array['urlStatus'];
                         $this->lastModified = intval($array['lastModified']);
 
                         if($array['cbVerified']){
@@ -1813,9 +1932,10 @@ class Brewer {
                 if(empty($data->description)){$data->description = '';}
                 if(empty($data->short_description)){$data->short_description = '';}
                 if(empty($data->url)){$data->url = '';}
+                if(empty($data->url_note)){$data->url_note = '';}
 
                 // Add Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array());
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array(), $data->url_note);
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -1836,9 +1956,10 @@ class Brewer {
                 if(empty($data->description)){$data->description = '';}
                 if(empty($data->short_description)){$data->short_description = '';}
                 if(empty($data->url)){$data->url = '';}
+                if(empty($data->url_note)){$data->url_note = '';}
 
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array());
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array(), $data->url_note);
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -1869,8 +1990,16 @@ class Brewer {
                 if(isset($data->url)){$patchFields[] = 'url';}
                 else{$data->url = '';}
 
+                /*--
+                url_note is write-only and admin-only: a short reason recorded
+                against the URL change in brewer_url_history ("domain lapsed,
+                now a casino"). It is not a brewer field, so it never joins
+                $patchFields and never appears in the response.
+                --*/
+                if(empty($data->url_note)){$data->url_note = '';}
+
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields);
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields, $data->url_note);
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
