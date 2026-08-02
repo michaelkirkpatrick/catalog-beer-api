@@ -53,11 +53,16 @@ From the project root:
 
 ```bash
 # Run against staging
-newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --bail --verbose
+tests/run-tests.sh tests/staging.env.json --bail --verbose
 
 # Run against production
-newman run tests/Catalog.beer.postman_collection.json -e tests/production.env.json --bail --verbose
+tests/run-tests.sh tests/production.env.json --bail --verbose
 ```
+
+`run-tests.sh` is a thin wrapper around Newman that runs `cleanup-test-data.js`
+afterwards no matter how the run ended, and exits with Newman's status. Calling
+`newman run` directly still works — just read the Cleanup section below first,
+because a run that stops early leaves data behind.
 
 ### Useful Options
 
@@ -77,25 +82,45 @@ newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json 
 
 ### Cleanup
 
-Tests create users, brewers, beers, and locations that are deleted by the `User - End Requests` folder at the end of the collection. If a test run is interrupted (e.g., via `--bail`) or only a specific folder is run, stale test data may remain in the database and cause failures on the next run.
+A **completed** run cleans up after itself. Each `Brewery #N` folder deletes the
+brewer it created, and the `brewer` foreign keys cascade, so the beers and
+locations underneath go with it. `User - End Requests` deletes the three test
+users — and only the users; it does not touch brewers, beers, or locations.
 
-To reset, run the cleanup folder:
+An **interrupted** run does not. The requests are sequential and dependent, and
+the deletes come at the end of each folder, so anything that stops the run part
+way — `--bail` on a failed assertion, a dropped connection, Ctrl-C — strands
+every entity created up to that point. Against production that junk is live: it
+shows up in `/brewer`, in search results, and in Algolia.
+
+Re-running a single folder is not a fix. The ids live in environment variables
+(`{{brewer_id_14}}` and friends) that are set during the run and held in memory;
+Newman does not write them back to the env file. A standalone `--folder` run
+sends the placeholder unresolved and deletes nothing.
+
+Use the cleanup script instead. Every entity the collection creates is named
+with the `[Postman API Test] ` prefix, so it matches on that exact string and
+will not touch anything else:
 
 ```bash
-newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --folder "User - End Requests"
+# Show what would be removed
+node tests/cleanup-test-data.js tests/staging.env.json
+
+# Actually remove it
+node tests/cleanup-test-data.js tests/staging.env.json --apply
 ```
 
-To automatically run cleanup after a bailed test run:
+It pages through `/brewer` rather than using `/brewer/search`, so a stranded row
+is still found if the FULLTEXT index is out of sync. It also checks the brewers
+the collection *borrows* rather than creates — a few tests reassign a test beer
+or location to Ballast Point, and those survive the cascade — reading those ids
+out of the collection at runtime so it stays correct if the tests change.
 
-```bash
-# Run tests, then always run cleanup regardless of pass/fail
-newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --bail; \
-newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json --folder "User - End Requests"
-```
+Safe to run any time; on a clean database it reports `Nothing to clean up`.
 
 ## Collection Structure
 
-The collection contains **595 requests** organized into sequential test groups. The `--folder` flag can target any folder at any nesting level by name.
+The collection contains **720 requests** organized into sequential test groups. The `--folder` flag can target any folder at any nesting level by name.
 
 ```
 Catalog.beer
@@ -227,9 +252,11 @@ Each email uses Postman's `{{$randomUUID}}` for the plus-address, making collisi
 
 | Folder | Requests | What it tests |
 |--------|----------|---------------|
-| `Users` | 35 | User creation, updates, email verification, admin operations |
+| `Users` | 36 | User creation, updates, email verification, admin operations |
 | `Login` | 9 | Authentication, API key validation |
-| `Breweries, Beer, Locations` | 527 | Full CRUD for brewers, beers, locations, and addresses |
+| `Breweries, Beer, Locations` | 618 | Full CRUD for brewers, beers, locations, and addresses |
+| `Usage` | 11 | Request counting and per-key usage reporting |
+| `Styles` | 22 | Style vocabulary: list, detail, families, classes, search ranking |
 | `Invalid API Requests - Technical` | 12 | Malformed requests, missing headers, bad content types |
 | `User - End Requests` | 12 | Password reset, account deletion, cleanup |
 
