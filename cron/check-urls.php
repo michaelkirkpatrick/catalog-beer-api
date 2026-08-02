@@ -48,7 +48,7 @@ if($db->error){
 }
 
 // Oldest-checked first; never-checked brewers before all of them
-$result = $db->query("SELECT id, name, url, urlFailCount FROM brewer WHERE url IS NOT NULL AND url != '' ORDER BY (urlCheckedAt IS NULL) DESC, urlCheckedAt ASC LIMIT ?", [$limit]);
+$result = $db->query("SELECT id, name, url, urlFailCount, urlDomainRegistered, createdAt FROM brewer WHERE url IS NOT NULL AND url != '' ORDER BY (urlCheckedAt IS NULL) DESC, urlCheckedAt ASC LIMIT ?", [$limit]);
 if($db->error || $result === null){
     // Database::query() already logged the details. The most likely cause is
     // the url-status migration not being applied yet.
@@ -132,6 +132,29 @@ foreach($brewers as $brewer){
         exit(1);
     }
 
+    /*--
+    Registration date of the domain, for the statuses where "did this brewery
+    close, or did someone else take the domain?" is the open question. A date
+    later than the brewer's createdAt means the domain lapsed after we catalogued
+    it and was re-registered by a third party — which is the difference between a
+    closure and a hijack, and the one signal urlLastOkAt cannot supply
+    retroactively.
+
+    Looked up once and kept: registration dates do not change, and RDAP is a
+    courtesy service. Refreshed only when we have no value yet.
+    --*/
+    $domainRegistered = $brewer['urlDomainRegistered'];
+    if($domainRegistered === null && in_array($status, ['moved', 'parked', 'gone', 'no_answer'])){
+        $host = parse_url($brewer['url'], PHP_URL_HOST);
+        if(!empty($host)){
+            $domainRegistered = $urlCheck->rdapRegistrationDate($urlCheck->registrableDomain($host));
+            if($domainRegistered !== null){
+                $db->query("UPDATE brewer SET urlDomainRegistered=? WHERE id=?", [$domainRegistered, $brewer['id']]);
+            }
+        }
+    }
+    $brewer['urlDomainRegistered'] = $domainRegistered;
+
     $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
     echo "[" . str_pad($status, 12) . "] " . $brewer['name'] . " — " . $brewer['url'];
     if($check['detail'] !== ''){
@@ -179,14 +202,15 @@ if(!empty($flagged)){
             echo "  final:  " . $check['final_url'] . "\n";
         }
         echo "  detail: " . $check['detail'] . "\n";
-        // Registration date on the flagged domain: a recent date means the
-        // domain lapsed and was re-registered by someone else
-        $host = parse_url($brewer['url'], PHP_URL_HOST);
-        if(!empty($host)){
-            $registered = $urlCheck->rdapRegistrationDate($urlCheck->registrableDomain($host));
-            if($registered !== null){
-                echo "  domain registered: $registered\n";
+        // Looked up and stored in the main loop above — a registration date after
+        // the brewer was catalogued means the domain changed hands since.
+        $registered = $brewer['urlDomainRegistered'];
+        if($registered !== null){
+            echo "  domain registered: $registered";
+            if(!empty($brewer['createdAt']) && strtotime($registered) > intval($brewer['createdAt'])){
+                echo "  <-- RE-REGISTERED since we catalogued this brewer";
             }
+            echo "\n";
         }
     }
 }
