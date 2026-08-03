@@ -84,15 +84,22 @@ EXCLUDES=(
 	--exclude '.editorconfig'
 	--exclude '.DS_Store'
 	--exclude 'scratch/'
-	--exclude 'CLAUDE.md'
 	--exclude 'deploy.sh'
 	--exclude 'deploy.conf'
 	--exclude 'deploy.conf.example'
 	--exclude '*.sh'
 	--exclude '*.sql'
 	--exclude 'migrations/'
+	# Documentation is never web content, so it ships nowhere by default.
+	# The two exceptions are read at runtime by the digest crons as system
+	# prompts, so they must reach the server. rsync takes the FIRST matching
+	# rule, which is why these includes precede the exclude -- reordering them
+	# below it silently stops both prompts from deploying, and the crons then
+	# fall back to sending a digest with no analysis rather than failing loudly.
+	--include 'cron/error-context.md'
+	--include 'cron/php-error-context.md'
+	--exclude '*.md'
 	--exclude 'algolia/test.php'
-	--exclude 'README.md'
 	--exclude 'maintenance.php'
 	--exclude 'tests/'
 )
