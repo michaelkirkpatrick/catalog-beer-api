@@ -398,6 +398,10 @@ Beer,BEER-151,"Suggestions - Invalid style_id Suggests From The Label",POST,/bee
 Beer,BEER-152,"Suggestions - A Sour Label Suggests Sour Styles",POST,/beer,Admin,400,Done
 Beer,BEER-153,"Suggestions - The Head Term Outranks A False Friend",POST,/beer,Admin,400,Done
 Beer,BEER-154,"Suggestions - A Hopping Technique Does Not Bury The Base Style",POST,/beer,Admin,400,Done
+Beer,BEER-155,Unicode Search - Create Beer #25 (Accented Name),POST,/beer,Admin,201,Done
+Beer,BEER-156,Search Beer - Decomposed (NFD) Query Finds Accented Beer,GET,/beer/search?q={{beer_search_25_nfd}},Admin,200,Done
+Beer,BEER-157,Search Beer - Invalid UTF-8 Rejected,GET,/beer/search?q=%DCberbrew,Admin,400,Done
+Beer,BEER-158,Unicode Search - Delete Beer #25,DELETE,/beer/{{beer_id_25}},Admin,204,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -579,6 +583,11 @@ Brewer,BR-205,"Delete Brewery #45",DELETE,/brewer/{{brewer_id_45}},Admin,204,Don
 Brewer,BR-206,"Delete Brewery #46",DELETE,/brewer/{{brewer_id_46}},Admin,204,Done
 Brewer,BR-207,"Create Brewery #47 as Admin",POST,/brewer,Admin,201,Done
 Brewer,BR-208,"Delete Brewery #47",DELETE,/brewer/{{brewer_id_47}},Admin,204,Done
+Brewer,BR-209,Unicode Search - Create Brewery #48 (Accented Name),POST,/brewer,Admin,201,Done
+Brewer,BR-210,Search Brewers - Decomposed (NFD) Query Finds Accented Brewer,GET,/brewer/search?q={{brewer_search_48_nfd}},Admin,200,Done
+Brewer,BR-211,Search Brewers - Precomposed (NFC) Control,GET,/brewer/search?q={{brewer_search_48_nfc}},Admin,200,Done
+Brewer,BR-212,Search Brewers - Invalid UTF-8 Rejected,GET,/brewer/search?q=%DCberbrew,Admin,400,Done
+Brewer,BR-213,Unicode Search - Delete Brewery #48,DELETE,/brewer/{{brewer_id_48}},Admin,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
@@ -715,6 +724,7 @@ Style,STYLE-21,"Search - No Match Returns Empty",GET,/style/search?q=zzzqqqnotas
 Style,STYLE-22,"Search - Name Match Outranks Populous Alias Match",GET,/style/search?q=flanders red ale,Admin,200,Done
 Style,STYLE-23,"Search - Head Term Outranks Leading Modifiers",GET,/style/search?q=imperial stout,Admin,200,Done
 Style,STYLE-24,"Search - Squashed One-Word Compound Resolves",GET,/style/search?q=Berlinerweisse,Admin,200,Done
+Style,STYLE-25,Search - Invalid UTF-8 Rejected,GET,/style/search?q=%DCbier,Admin,400,Done
 Billing,BILL-1,"Billing Status",GET,/billing,Billing User,200,Done
 Billing,BILL-2,"Spend Cap Below Minimum",PATCH,/billing,Billing User,400,Done
 Billing,BILL-3,"Spend Cap Wrong Type",PATCH,/billing,Billing User,400,Done

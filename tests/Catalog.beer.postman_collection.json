@@ -71362,6 +71362,807 @@
 									"response": []
 								}
 							]
+						},
+						{
+							"name": "Unicode Search",
+							"item": [
+								{
+									"name": "BR-209 Create Brewery #48 - Accented Name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"// Both discriminating words carry an umlaut on purpose. A query whose",
+													"// only accented word sits beside a plain one is rescued by the plain",
+													"// token in the natural-language tier, and a query equal to the whole",
+													"// name is rescued by the exact-name tier, which compares the raw",
+													"// query under an accent-insensitive collation. Either would let",
+													"// BR-210 pass against the unfixed sanitiser and prove nothing.",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('brewer_search_48_nfc', 'Z\\u00fcrich Br\\u00e4uhaus');",
+													"pm.environment.set('brewer_search_48_nfd', 'Zu\\u0308rich Bra\\u0308uhaus');",
+													"pm.environment.set('brewer_name_48', '[Postman API Test] Z\\u00fcrich Br\\u00e4uhaus ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Name stored precomposed (NFC), as the catalog holds it\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_48'));",
+													"    pm.expect(jsonData.name).to.include('\\u00fc');",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_48', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_48}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-210 Search Brewers - Decomposed (NFD) Query Finds Accented Brewer",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// The regression test. \"Ü\" reaches the API two ways: precomposed",
+													"// U+00DC, or \"U\" followed by a combining diaeresis U+0308. Clients emit",
+													"// the decomposed form silently. SearchQuery::terms() treated the",
+													"// combining mark as a separator, so one word split into two fragments",
+													"// (\"+Zu* +rich*\") that match nothing, and this returned zero rows while",
+													"// the identical-looking NFC query in BR-211 returned the brewer.",
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Brewery #48 is in the results\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var ids = jsonData.data.map(function (b) { return b.id; });",
+													"    pm.expect(ids).to.include(pm.environment.get('brewer_id_48'));",
+													"});",
+													"",
+													"pm.test(\"Ranked first - the folded terms hit the name tier\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('brewer_id_48'));",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/search?q={{brewer_search_48_nfd}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"search"
+											],
+											"query": [
+												{
+													"key": "q",
+													"value": "{{brewer_search_48_nfd}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-211 Search Brewers - Precomposed (NFC) Control",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Control for BR-210: the same query precomposed. This one passed both",
+													"// before and after the fix; it is here so a future failure tells you",
+													"// whether accented search broke generally or only for decomposed input.",
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Brewery #48 ranked first, same as the NFD form\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('brewer_id_48'));",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/search?q={{brewer_search_48_nfc}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"search"
+											],
+											"query": [
+												{
+													"key": "q",
+													"value": "{{brewer_search_48_nfc}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-212 Search Brewers - Invalid UTF-8 Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// %DC is \"Ü\" percent-encoded as Latin-1 rather than UTF-8 (%C3%9C).",
+													"// PCRE's /u flag refuses to run on malformed UTF-8, so this used to reach",
+													"// json_encode(), fail there too, and come back as a 200 carrying the",
+													"// generic \"encoding error\" body. It is bad input and must answer 400.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid error response\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('UTF-8');",
+													"});",
+													"",
+													"pm.test(\"Not the generic encoding-error fallback\", function () {",
+													"    pm.expect(pm.response.json().error_msg).to.not.include('support team');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/search?q=%DCberbrew",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"search"
+											],
+											"query": [
+												{
+													"key": "q",
+													"value": "%DCberbrew"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-155 Create Beer #25 - Accented Name",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON - same two-accented-words rule as BR-209.",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_search_25_nfd', 'Zu\\u0308rich Ko\\u0308lsch');",
+													"pm.environment.set('beer_name_25', '[Postman API Test] Z\\u00fcrich K\\u00f6lsch ' + suffix);",
+													"",
+													"// abv is required on POST /beer",
+													"pm.environment.set('beer_abv_25', Math.floor(Math.random() * 12) + 0.5);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('beer_id_25', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_25}}\",\n    \"style\": \"Common Cider\",\n    \"abv\": \"{{beer_abv_25}}\",\n    \"brewer_id\": \"{{brewer_id_48}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-156 Search Beer - Decomposed (NFD) Query Finds Accented Beer",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Beer::search() shares SearchQuery with Brewer::search(); see BR-210.",
+													"// Unlike the brewer case the decomposed fragments here do match other",
+													"// rows through the natural-language tier (\"rich\" is a common",
+													"// description word), so presence of THIS beer is the assertion, not a",
+													"// non-empty list.",
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Beer #25 is in the results\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var ids = jsonData.data.map(function (b) { return b.id; });",
+													"    pm.expect(ids).to.include(pm.environment.get('beer_id_25'));",
+													"});",
+													"",
+													"pm.test(\"Ranked first - the folded terms hit the name tier\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('beer_id_25'));",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer/search?q={{beer_search_25_nfd}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"search"
+											],
+											"query": [
+												{
+													"key": "q",
+													"value": "{{beer_search_25_nfd}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-157 Search Beer - Invalid UTF-8 Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// %DC is \"Ü\" percent-encoded as Latin-1 rather than UTF-8 (%C3%9C).",
+													"// PCRE's /u flag refuses to run on malformed UTF-8, so this used to reach",
+													"// json_encode(), fail there too, and come back as a 200 carrying the",
+													"// generic \"encoding error\" body. It is bad input and must answer 400.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid error response\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('UTF-8');",
+													"});",
+													"",
+													"pm.test(\"Not the generic encoding-error fallback\", function () {",
+													"    pm.expect(pm.response.json().error_msg).to.not.include('support team');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer/search?q=%DCberbrew",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"search"
+											],
+											"query": [
+												{
+													"key": "q",
+													"value": "%DCberbrew"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-158 Delete Beer #25",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_25}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_25}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-213 Delete Brewery #48",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_48}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_48}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
 						}
 					]
 				},
@@ -74032,8 +74833,8 @@
 									"    pm.expect(d.data).to.be.an(\"array\");",
 									"});",
 									"",
-									"pm.test(\"Version is 2.5.1\", function () {",
-									"    pm.expect(pm.response.json().version).to.equal(\"2.5.1\");",
+									"pm.test(\"Version is 2.6.0\", function () {",
+									"    pm.expect(pm.response.json().version).to.equal(\"2.6.0\");",
 									"});",
 									"",
 									"pm.test(\"196 styles returned\", function () {",
@@ -76158,6 +76959,98 @@
 								{
 									"key": "count",
 									"value": "5"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "STYLE-25 Search - Invalid UTF-8 Rejected",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// %DC is \"Ü\" percent-encoded as Latin-1 rather than UTF-8 (%C3%9C).",
+									"// PCRE's /u flag refuses to run on malformed UTF-8, so this used to reach",
+									"// json_encode(), fail there too, and come back as a 200 carrying the",
+									"// generic \"encoding error\" body. It is bad input and must answer 400.",
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Valid error response\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(jsonData.error).to.equal(true);",
+									"    pm.expect(jsonData.error_msg).to.include('UTF-8');",
+									"});",
+									"",
+									"pm.test(\"Not the generic encoding-error fallback\", function () {",
+									"    pm.expect(pm.response.json().error_msg).to.not.include('support team');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/style/search?q=%DCbier",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"style",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "%DCbier"
 								}
 							]
 						}

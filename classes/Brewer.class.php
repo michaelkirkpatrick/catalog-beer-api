@@ -1662,6 +1662,24 @@ class Brewer {
             return;
         }
 
+        if(!SearchQuery::validUtf8($query)){
+            // Malformed UTF-8 — see SearchQuery::validUtf8(). Caught here so it
+            // answers 400 instead of reaching json_encode() and returning a 200
+            // that carries index.php's generic "encoding error" body.
+            $this->error = true;
+            $this->errorMsg = 'Search query is not valid UTF-8. Percent-encode non-ASCII characters as UTF-8 (Ü is %C3%9C, not %DC).';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 299;
+            $errorLog->errorMsg = 'Search query is not valid UTF-8';
+            $errorLog->badData = bin2hex(substr($query, 0, 64));
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
+
         if(strlen($query) > 255){
             // Query Too Long
             $this->error = true;

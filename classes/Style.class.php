@@ -295,7 +295,19 @@ class Style {
     re-splitting the query in three places is how the two would drift.
     --*/
     private function ftTerms($query){
-        $boolTerms = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $query)), -1, PREG_SPLIT_NO_EMPTY);
+        // Tokenisation is SearchQuery's, shared so the two cannot drift — this
+        // held a second copy of the same expression, and so also the same NFD
+        // fault it was fixed for. A decomposed label that exactly matches a
+        // style name or alias still resolves, since those comparisons keep the
+        // raw query and run under an accent-insensitive collation; what a
+        // decomposed label degraded was everything reached through FULLTEXT —
+        // the ranking here, and the suggestions offered alongside a 400 from
+        // POST /beer when a label resolves to nothing.
+        //
+        // Only the boolean expression below is Style's own (no wildcard, since
+        // a style vocabulary is closed and prefix matches over-reach; no
+        // stopword filter, since "Best Bitter" needs every term).
+        $boolTerms = SearchQuery::tokens($query);
         $boolQuery = '';
         foreach($boolTerms as $t){
             $boolQuery .= '+' . $t . ' ';
@@ -875,6 +887,24 @@ class Style {
             $errorLog->errorNumber = 269;
             $errorLog->errorMsg = 'Missing style search query';
             $errorLog->badData = '';
+            $errorLog->filename = 'API / Style.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        if(!SearchQuery::validUtf8($query)){
+            // Malformed UTF-8 — see SearchQuery::validUtf8(). Caught here so it
+            // answers 400 instead of reaching json_encode() and returning a 200
+            // that carries index.php's generic "encoding error" body.
+            $this->responseCode = 400;
+            $this->json['error'] = true;
+            $this->json['error_msg'] = 'Search query is not valid UTF-8. Percent-encode non-ASCII characters as UTF-8 (Ü is %C3%9C, not %DC).';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 301;
+            $errorLog->errorMsg = 'Style search query is not valid UTF-8';
+            $errorLog->badData = bin2hex(substr($query, 0, 64));
             $errorLog->filename = 'API / Style.class.php';
             $errorLog->write();
             return;
