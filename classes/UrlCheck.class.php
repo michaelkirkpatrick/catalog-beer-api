@@ -347,30 +347,79 @@ class UrlCheck {
         return $probe;
     }
 
-    // The provably-safe https promotion: the stored URL is http://, and the
-    // site's own redirect landed on https:// at the same host (www aside) —
+    // What to store from a write-path probe: the submitted URL, with only
+    // provable canonicalisation adopted from where its redirects landed. An
+    // age gate, cookie wall or login bounce answers 200 from its own path,
+    // so the redirect target is a function of our cookie jar, not the
+    // brewery's address — and once stored it can't be fixed from outside,
+    // because re-validating a PATCH just follows the same redirect
+    // (unitedbreweries.com/age-gate/1, octopibrewing.com/verify?destination=
+    // node/1, zywiec.com.pl/bramka/). Adopted, component by component:
+    //  - nothing, if the redirect left the registrable domain — that's
+    //    check()'s `moved` status, a human's call, not a silent write (and
+    //    it keeps domainName, so staff permissions, anchored to what was
+    //    submitted rather than to wherever a lapsed domain now points)
+    //  - host: www <-> apex normalisation only, never another subdomain
+    //  - scheme: http -> https upgrade only, and only when the host was
+    //    adopted — a redirect to https on some other subdomain doesn't
+    //    prove the submitted host serves TLS
+    //  - path: trailing-slash normalisation only, and never a query string
+    public function adoptFinalUrl(string $submittedUrl, string $finalUrl): string {
+        if($finalUrl === '' || $finalUrl === $submittedUrl){
+            return $submittedUrl;
+        }
+
+        $sub = parse_url($submittedUrl);
+        $fin = parse_url($finalUrl);
+        if(empty($sub['host']) || empty($fin['host'])){
+            return $submittedUrl;
+        }
+
+        $subHost = strtolower($sub['host']);
+        $finHost = strtolower($fin['host']);
+        if($this->registrableDomain($subHost) !== $this->registrableDomain($finHost)){
+            return $submittedUrl;
+        }
+
+        $scheme = strtolower($sub['scheme'] ?? 'http');
+        $host = $subHost;
+        if(preg_replace('/^www\./', '', $finHost) === preg_replace('/^www\./', '', $subHost)){
+            $host = $finHost;
+            if($scheme === 'http' && strtolower($fin['scheme'] ?? '') === 'https'){
+                $scheme = 'https';
+            }
+        }
+
+        $subPath = $sub['path'] ?? '';
+        $pathAndQuery = $subPath . (isset($sub['query']) ? '?' . $sub['query'] : '');
+        $finPath = $fin['path'] ?? '';
+        if($host === $finHost && !isset($sub['query']) && !isset($fin['query'])
+            && rtrim($finPath, '/') === rtrim($subPath, '/')){
+            $pathAndQuery = $finPath;
+        }
+
+        $port = isset($sub['port']) ? ':' . $sub['port'] : '';
+        $fragment = isset($sub['fragment']) ? '#' . $sub['fragment'] : '';
+
+        return $scheme . '://' . $host . $port . $pathAndQuery . $fragment;
+    }
+
+    // The provably-safe https promotion: the stored URL is http://, and
+    // adoptFinalUrl() accepted an https scheme from the site's own redirect —
     // the operator has declared https canonical, we're just recording it.
-    // Same host means domainName, and with it staff permissions, can't shift.
-    // Anything broader (new path, new host) stays report-only. Returns the
-    // URL to promote to, or null.
+    // Host adoption is www <-> apex only, so domainName, and with it staff
+    // permissions, can't shift; and the path is never adopted, so an age
+    // gate or cookie wall can't ride along on the promotion. Anything
+    // broader stays report-only. Returns the URL to promote to, or null.
     public function httpsUpgrade(string $storedUrl, string $finalUrl): ?string {
-        if(stripos($storedUrl, 'http://') !== 0 || stripos($finalUrl, 'https://') !== 0){
+        if(stripos($storedUrl, 'http://') !== 0){
             return null;
         }
-        if(strlen($finalUrl) > 255){
+        $adopted = $this->adoptFinalUrl($storedUrl, $finalUrl);
+        if(stripos($adopted, 'https://') !== 0 || strlen($adopted) > 255){
             return null;
         }
-        $storedHost = parse_url($storedUrl, PHP_URL_HOST);
-        $finalHost = parse_url($finalUrl, PHP_URL_HOST);
-        if(!is_string($storedHost) || !is_string($finalHost) || $storedHost === '' || $finalHost === ''){
-            return null;
-        }
-        $storedHost = preg_replace('/^www\./', '', strtolower($storedHost));
-        $finalHost = preg_replace('/^www\./', '', strtolower($finalHost));
-        if($storedHost !== $finalHost){
-            return null;
-        }
-        return $finalUrl;
+        return $adopted;
     }
 
     /* ----- Tier 3: registrable-domain comparison ----- */

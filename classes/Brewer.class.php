@@ -761,8 +761,13 @@ class Brewer {
             }
 
             if($urlCheck->serving($probe) && !empty($probe['final_url'])){
-                // Use the final URL after redirects
-                $returnURL = $probe['final_url'];
+                // Where the redirects landed, filtered: adopt only provable
+                // canonicalisation (https, www, trailing slash). An age gate
+                // or cookie wall answers 200 from its own path — storing
+                // that path would bake our cookie jar's state into the
+                // record, unfixably, since re-validating a corrective PATCH
+                // follows the same redirect.
+                $returnURL = $urlCheck->adoptFinalUrl($url, $probe['final_url']);
             }else{
                 // The server answered but didn't serve us the site — a WAF
                 // block, or an outage. Store what was submitted: a challenge
