@@ -630,7 +630,9 @@ class USAddresses {
             }
             $this->address2 = ucwords(strtolower($street));
             $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
-            $this->city = ucwords(strtolower($std['city'] ?? ''));
+            // USPS city names are capped at 13 characters ("Snoqualmie Ps"), so
+            // prefer Google's unabbreviated locality for display.
+            $this->city = ucwords(strtolower($postal['locality'] ?? ($std['city'] ?? '')));
             $this->stateShort = strval($std['state'] ?? '');
             // Keep ZIPs as strings and pad — intval() here silently dropped the
             // leading zero on every MA/NH/RI/CT/NJ address (01085 -> 1085).
