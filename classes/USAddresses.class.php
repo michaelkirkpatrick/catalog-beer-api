@@ -680,10 +680,12 @@ class USAddresses {
 
     // Split a USPS-standardized street line into [street, secondary unit].
     // USPS secondary-unit designators per Publication 28, Appendix C2.
+    // The pound sign gets its own alternative: USPS formats it with a trailing
+    // space ("# 3"), so a \b after it would never match.
     private function splitSecondaryUnit($line){
         $line = trim($line ?? '');
         $designators = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
-        if(preg_match('/^(.*?)\s+((?:' . $designators . '|#)\b.*)$/i', $line, $m)){
+        if(preg_match('/^(.*?)\s+((?:' . $designators . ')\b.*|#\s*\S.*)$/i', $line, $m)){
             return array(trim($m[1]), trim($m[2]));
         }
         return array($line, '');
