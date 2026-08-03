@@ -9,9 +9,9 @@ class USAddresses {
     public $sub_code = '';      // City + Sub Code OR zip5
     public $stateShort = '';
     public $stateLong = '';
-    public $zip5 = 0;           // City + Sub Code OR zip5
-    public $zip4 = 0;
-    public $telephone = 0;
+    public $zip5 = '';          // City + Sub Code OR zip5. String, not int: ZIP
+    public $zip4 = '';          // codes have significant leading zeros (01085).
+    public $telephone = 0;      // int is fine: NANP area codes never start with 0
 
     // Error Handling
     public $error = false;
@@ -632,8 +632,10 @@ class USAddresses {
             $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
             $this->city = ucwords(strtolower($std['city'] ?? ''));
             $this->stateShort = strval($std['state'] ?? '');
-            $this->zip5 = intval($std['zipCode'] ?? 0);
-            $this->zip4 = !empty($std['zipCodeExtension']) ? intval($std['zipCodeExtension']) : 0;
+            // Keep ZIPs as strings and pad — intval() here silently dropped the
+            // leading zero on every MA/NH/RI/CT/NJ address (01085 -> 1085).
+            $this->zip5 = $this->padZip($std['zipCode'] ?? '', 5);
+            $this->zip4 = $this->padZip($std['zipCodeExtension'] ?? '', 4);
         }else{
             // Fall back to Google's post-processed postal address
             $lines = $postal['addressLines'] ?? array();
@@ -650,11 +652,11 @@ class USAddresses {
             $postalCode = $postal['postalCode'] ?? '';
             if(strpos($postalCode, '-') !== false){
                 list($z5, $z4) = explode('-', $postalCode, 2);
-                $this->zip5 = intval($z5);
-                $this->zip4 = intval($z4);
+                $this->zip5 = $this->padZip($z5, 5);
+                $this->zip4 = $this->padZip($z4, 4);
             }else{
-                $this->zip5 = intval($postalCode);
-                $this->zip4 = 0;
+                $this->zip5 = $this->padZip($postalCode, 5);
+                $this->zip4 = '';
             }
         }
 
@@ -685,6 +687,30 @@ class USAddresses {
             return array(trim($m[1]), trim($m[2]));
         }
         return array($line, '');
+    }
+
+    // Normalize a ZIP part to a fixed-width digit string.
+    //
+    // ZIP codes are identifiers, not numbers: 00501-09999 (New England, NJ, PR,
+    // VI) carry a significant leading zero, and nothing does arithmetic on one.
+    // Anything that round-trips a ZIP through int loses that zero — which is
+    // exactly what happened before August 2026, when zip5/zip4 were int columns
+    // and this class intval()'d them on every read. Westfield MA 01085 came back
+    // as 1085, and re-submitting that 4-digit value then failed validateAddress()
+    // with valid_state.zip5 = "invalid".
+    //
+    // Returns '' for an absent value so the existing !empty() checks still work.
+    //
+    // Callers pass an already-split part (zip5 OR zip4). Anything longer than
+    // $width after stripping punctuation is therefore a combined ZIP+4 that
+    // slipped through — "92878-3289" or the unhyphenated "928783289" USPS also
+    // emits — so keep the leading $width digits, which is the zip5 in both
+    // cases. Truncating here beats writing 9 digits at a char(5) column.
+    private function padZip($value, $width){
+        $digits = preg_replace('/\D/', '', strval($value ?? ''));
+        if($digits === '' || intval($digits) === 0){return '';}
+        if(strlen($digits) > $width){$digits = substr($digits, 0, $width);}
+        return str_pad($digits, $width, '0', STR_PAD_LEFT);
     }
 
     // Validate Telephone
@@ -784,8 +810,9 @@ class USAddresses {
                         $this->address2 = $array['address2'];
                         $this->city = $array['city'];
                         $this->sub_code = $array['sub_code'];
-                        $this->zip5 = intval($array['zip5']);
-                        $this->zip4 = intval($array['zip4']);
+                        // Strings, not intval() — see the $zip5 property comment
+                        $this->zip5 = $this->padZip($array['zip5'] ?? '', 5);
+                        $this->zip4 = $this->padZip($array['zip4'] ?? '', 4);
                         $this->telephone = intval($array['telephone']);
 
                         if(!empty($array['sub_code'])){

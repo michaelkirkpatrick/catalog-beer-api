@@ -618,6 +618,8 @@ Address,A-48,"Update Address #6 - address1, address2, zip5",PATCH,/address/{{loc
 Address,A-49,"Update Address #6 - address1, address2, zip5, zip4",PATCH,/address/{{location_id_6}},Admin,200,Done
 Address,A-50,"Update Address #6 - address1, address2, zip5, zip4, telephone",PATCH,/address/{{location_id_6}},Admin,200,Done
 Address,A-51,Update Address #6 - telephone,PATCH,/address/{{location_id_6}},Admin,200,Done
+Address,A-123,"Update Address #6 - leading-zero ZIP (01085)",PATCH,/address/{{location_id_6}},Admin,200,Done
+Address,A-124,"Update Address #6 - re-submit the ZIP read back",PATCH,/address/{{location_id_6}},Admin,200,Done
 Address,A-52,Address #9 - telephone only,PUT,/address/{{location_id_9}},Admin,400,Done
 Address,A-53,"Address #9 - address2, zip5, zip4, invalid telephone",PUT,/address/{{location_id_9}},Admin,400,Done
 Address,A-54,"Address #9 - address2, zip5, zip4, telephone",PUT,/address/{{location_id_9}},Admin,201,Done

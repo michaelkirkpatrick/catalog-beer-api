@@ -643,8 +643,10 @@ class Location {
                             'sub_code'=>$array['sub_code'],
                             'state_short'=>!empty($array['sub_code']) ? substr($array['sub_code'], 3, 2) : null,
                             'state_long'=>!empty($array['sub_name']) ? $array['sub_name'] : null,
-                            'zip5'=>intval($array['zip5']),
-                            'zip4'=>!empty($array['zip4']) ? intval($array['zip4']) : null,
+                            // Strings: ZIP codes have significant leading zeros,
+                            // and intval() here emitted 1085 for Westfield MA 01085.
+                            'zip5'=>strval($array['zip5']),
+                            'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null,
                             'telephone'=>!empty($array['telephone']) ? intval($array['telephone']) : null
                         );
                     }
@@ -886,7 +888,7 @@ class Location {
                         }
 
                         // Build Response Array
-                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>$array['zip5'], 'zip4'=>$array['zip4'])), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
+                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>!empty($array['zip5']) ? strval($array['zip5']) : null, 'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
                         // Add to Array
                         $locationArray[] = $locationInfo;
