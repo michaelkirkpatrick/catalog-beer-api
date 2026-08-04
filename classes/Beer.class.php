@@ -311,7 +311,10 @@ class Beer {
                             $columns[] = 'description';
                             $params[] = $this->description;
                         }
-                        if(!empty($this->ibu)){
+                        // !== null, not !empty(): a real 0 IBU has to reach the
+                        // column. validateIBU() has already normalised unknown
+                        // to null, so this is the only test needed.
+                        if($this->ibu !== null){
                             $columns[] = 'ibu';
                             $params[] = $this->ibu;
                         }
@@ -328,7 +331,7 @@ class Beer {
                         }else{
                             $setClauses[] = 'description=NULL';
                         }
-                        if(!empty($this->ibu)){
+                        if($this->ibu !== null){
                             $setClauses[] = 'ibu=?';
                             $setParams[] = $this->ibu;
                         }else{
@@ -405,12 +408,33 @@ class Beer {
                 }
 
                 // Validate ABV
+                // Validate first, compare after. The old order compared the raw
+                // input against the stored value with a loose != and skipped
+                // validation on a match, so input that merely loosely-equalled
+                // the stored value was never checked at all.
                 if(in_array('abv', $patchFields)){
-                    if($abv != $this->abv){
-                        // Validate ABV
+                    if($abv === null){
+                        // abv is NOT NULL in the schema, so an explicit null is
+                        // a client error rather than a request to clear. Caught
+                        // here because null == 0 loosely — a stored 0 would
+                        // otherwise swallow it as "no change".
+                        $this->error = true;
+                        $this->validState['abv'] = 'invalid';
+                        $this->validMsg['abv'] = 'ABV is required and cannot be cleared. Please enter a number for the ABV percentage.';
+                        $this->responseCode = 400;
+
+                        // Log Error
+                        $errorLog = new LogError();
+                        $errorLog->errorNumber = 302;
+                        $errorLog->errorMsg = $this->validMsg['abv'];
+                        $errorLog->badData = 'null';
+                        $errorLog->filename = 'API / Beer.class.php';
+                        $errorLog->write();
+                    }else{
+                        $currentABV = $this->abv;
                         $this->abv = $abv;
                         $this->validateABV();
-                        if(!$this->error){
+                        if(!$this->error && $this->abv !== $currentABV){
                             $setClauses[] = "abv=?";
                             $setParams[] = $this->abv;
                         }
@@ -418,15 +442,17 @@ class Beer {
                 }
 
                 // Validate IBU
+                // Same validate-then-compare order, and for the same reason
+                // twice over: now that 0 is storable, the old loose != read
+                // null, '' and 0 as one value, so "clear a 0 IBU" and "set an
+                // unknown IBU to 0" both looked like no-ops.
                 if(in_array('ibu', $patchFields)){
-                    if($ibu != $this->ibu){
-                        // Validate IBU
-                        $this->ibu = $ibu;
-                        $this->validateIBU();
-                        if(!$this->error){
-                            $setClauses[] = "ibu=?";
-                            $setParams[] = $this->ibu;
-                        }
+                    $currentIBU = $this->ibu;
+                    $this->ibu = $ibu;
+                    $this->validateIBU();
+                    if(!$this->error && $this->ibu !== $currentIBU){
+                        $setClauses[] = "ibu=?";
+                        $setParams[] = $this->ibu;
                     }
                 }
 
@@ -925,12 +951,20 @@ class Beer {
 
     private function validateABV(){
         // Validate ABV
+        // 0 is a legitimate value — non-alcoholic beers are real beers — so
+        // this guards with is_numeric(), never empty(), which swallows zero.
         if(is_numeric($this->abv)){
-            // It's a number
-            $this->abv = round($this->abv, 1);
+            // Reject negatives against the raw input: round(-0.04, 1) is -0.0,
+            // which passes a >= 0 test and would quietly store as 0.0.
+            $rawABV = (float) $this->abv;
+
+            // Round before the range check, not after. The column is
+            // decimal(4,1), so 99.95 becomes 100.0 and has to fail on the
+            // rounded value the database would actually see.
+            $this->abv = round($rawABV, 1);
 
             // Between Limits?
-            if($this->abv >= 0 && $this->abv < 100){
+            if($rawABV >= 0 && $this->abv <= 99.9){
                 // Success
                 $this->validState['abv'] = 'valid';
             }else{
@@ -966,17 +1000,30 @@ class Beer {
 
     private function validateIBU(){
         // Validate IBU
-        if(!empty($this->ibu)){
-            // Save as integer
-            $this->ibu = intval($this->ibu);
+        // 0 is a real, storable value — a beer brewed with no measurable
+        // bitterness is not the same claim as a beer whose IBU we don't know.
+        // Guard with isset()/'' rather than empty(), which treats 0 as absent
+        // and silently downgraded every 0 IBU write into "unknown".
+        if(isset($this->ibu) && $this->ibu !== ''){
+            // Must be a whole number. Test before intval(), which happily
+            // truncates 45.7 to 45 and turns "abc" into 0 — the latter used to
+            // fall through to the range check and report the wrong message.
+            if(is_numeric($this->ibu) && floor((float) $this->ibu) == $this->ibu){
+                // Save as integer
+                $this->ibu = intval($this->ibu);
 
-            // Process
-            if(is_int($this->ibu)){
-                if($this->ibu > 0 && $this->ibu <= 9999){
+                // Between Limits? The ceiling sits above the highest
+                // independently lab-verified beer (Dogfish Head's Hoo Lawd, 658
+                // IBU) and above the highest genuine label claim in the catalog
+                // (Mikkeller's "1000 IBU"), while still catching a mistyped
+                // extra digit. Brewing chemistry caps real bitterness near 100
+                // IBU; everything above that is a calculated marketing figure
+                // we record as published rather than adjudicate.
+                if($this->ibu >= 0 && $this->ibu <= 1000){
                     $this->validState['ibu'] = 'valid';
                 }else{
                     $this->error = true;
-                    $this->validMsg['ibu'] = 'The range for IBU values we can accept is (0, 9999].';
+                    $this->validMsg['ibu'] = 'The range for IBU values we can accept is 0 to 1000.';
                     $this->validState['ibu'] = 'invalid';
                     $this->responseCode = 400;
 
@@ -990,7 +1037,7 @@ class Beer {
                 }
             }else{
                 $this->error = true;
-                $this->validMsg['ibu'] = 'Please enter an integer value for IBU\'s.';
+                $this->validMsg['ibu'] = 'Please enter a whole number for IBU\'s.';
                 $this->validState['ibu'] = 'invalid';
                 $this->responseCode = 400;
 
@@ -1003,7 +1050,7 @@ class Beer {
                 $errorLog->write();
             }
         }else{
-            // Empty, IBU not provided, input null
+            // Not provided, or an explicit null — IBU unknown
             $this->ibu = null;
         }
     }
@@ -1044,7 +1091,10 @@ class Beer {
                             $this->description = $array['description'];
                         }
                         $this->abv = floatval($array['abv']);
-                        $this->ibu = intval($array['ibu']);
+                        // Preserve the null. intval(null) is 0, which made an
+                        // unknown IBU indistinguishable from a stored 0 the
+                        // moment it was read back out of the database.
+                        $this->ibu = is_null($array['ibu']) ? null : intval($array['ibu']);
                         $this->lastModified = intval($array['lastModified']);
                         if($array['cbVerified']){
                             $this->cbVerified = true;
@@ -1410,7 +1460,8 @@ class Beer {
 
         // Optional Values that may be stored as null, return as empty ("")
         if(empty($this->description)){$this->description = null;}
-        if(empty($this->ibu)){$this->ibu = null;}
+        // Null only when genuinely unknown — a stored 0 IBU is reported as 0.
+        if($this->ibu === null || $this->ibu === ''){$this->ibu = null;}
         else{$this->ibu = intval($this->ibu);}
 
         // Get Brewery Data
@@ -1476,14 +1527,16 @@ class Beer {
             if(!empty($family['class_name'])){$array['style_class'] = $family['class_name'];}
         }
         if(!empty($this->description)){$array['description'] = $this->description;}
-        // Omit unknown numerics rather than indexing zero. filterOnly(abv)
-        // range filters match a literal 0, so an unknown ABV indexed as 0 would
-        // put the beer inside every "under X%" refinement. Records missing the
-        // attribute are excluded from numeric filters — correct for unknown.
-        if(!empty($this->abv)){
-            $array['abv'] = floatval($this->abv);
-        }
-        if(!empty($this->ibu)){
+        // abv is NOT NULL in the schema, so it is always known — index it
+        // unconditionally, zero included. The old !empty() test dropped a
+        // genuine 0% beer from the index entirely, which kept it out of the
+        // one refinement it belongs in ("Under 5%"), because records missing a
+        // filterOnly() attribute are excluded from numeric filters.
+        $array['abv'] = floatval($this->abv);
+        // ibu IS nullable and is unknown for most of the catalog. Omit it when
+        // null so those records stay out of the numeric filters rather than
+        // piling into "Under 20" — but index a real 0, which belongs there.
+        if($this->ibu !== null){
             $array['ibu'] = intval($this->ibu);
         }
 
@@ -1752,7 +1805,7 @@ class Beer {
                 $beerObj['beverage_type'] = $row['beverage_type'] ?? 'beer';
                 $beerObj['description'] = $row['description'] ?? null;
                 $beerObj['abv'] = floatval($row['abv']);
-                $beerObj['ibu'] = !empty($row['ibu']) ? intval($row['ibu']) : null;
+                $beerObj['ibu'] = is_null($row['ibu']) ? null : intval($row['ibu']);
                 $beerObj['cb_verified'] = $row['cbVerified'] ? true : false;
                 $beerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
                 $beerObj['last_modified'] = intval($row['lastModified']);
@@ -2056,10 +2109,14 @@ class Beer {
                 if(isset($data->description)){$patchFields[] = 'description';}
                 else{$data->description = '';}
 
-                if(isset($data->abv)){$patchFields[] = 'abv';}
+                // property_exists(), not isset(): isset() is false for an
+                // explicit null, and null is meaningful on both fields — it
+                // clears ibu back to unknown, and is a 400 on abv, which the
+                // schema requires. isset() silently ignored both.
+                if(property_exists($data, 'abv')){$patchFields[] = 'abv';}
                 else{$data->abv = '';}
 
-                if(isset($data->ibu)){$patchFields[] = 'ibu';}
+                if(property_exists($data, 'ibu')){$patchFields[] = 'ibu';}
                 else{$data->ibu = '';}
 
                 // Validate API Key for userID

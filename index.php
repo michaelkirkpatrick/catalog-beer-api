@@ -17,8 +17,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 $input = file_get_contents('php://input');
 if(!empty($input)){
     $data = json_decode($input);
-    if(empty($data)){
-        // Set new, empty class for empty data sets
+    if(!is_object($data)){
+        // Set new, empty class for empty data sets. !is_object() rather than
+        // empty(): a body that is valid JSON but not an object ("5", [1,2])
+        // decodes to a scalar or array, and every endpoint below assumes an
+        // object — reading $data->field is merely false, but the `else` that
+        // assigns a default is a fatal on an array.
         $data = new stdClass();
     }
     if(json_last_error() > 0){

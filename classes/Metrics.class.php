@@ -163,10 +163,19 @@ class Metrics {
 
         $m[] = array('beer_with_description', '', $this->scalar($db,
             "SELECT COUNT(*) FROM beer WHERE description IS NOT NULL AND description != ''"));
-        // ibu > 0, not ibu IS NOT NULL: the 2020 import filled tens of
-        // thousands of rows with a 0 sentinel, which is not an IBU.
-        $m[] = array('beer_with_ibu', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE ibu > 0"));
+        // IS NOT NULL, not ibu > 0. The 2020 import filled tens of thousands of
+        // rows with a 0 sentinel, so this used to have to skip zero to stay
+        // honest; migrations/2026-08-04-ibu-zero-to-null.sql converted those
+        // sentinels to NULL, and 0 is now a storable IBU meaning "no measurable
+        // bitterness". The two definitions agree on the migrated data, so the
+        // history stays continuous across the change.
+        $m[] = array('beer_with_ibu', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE ibu IS NOT NULL"));
+        // Now a real count of no-bitterness beers rather than a backlog gauge.
         $m[] = array('beer_ibu_zero', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE ibu = 0"));
+        // abv has no such distinction to make: the column is NOT NULL, so a 0
+        // is either a genuine non-alcoholic beer or an unfilled placeholder and
+        // nothing in the schema separates them. beer_abv_zero is the gauge for
+        // that ambiguity — see the cleanup note in the same migration.
         $m[] = array('beer_with_abv', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE abv > 0"));
         $m[] = array('beer_abv_zero', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE abv = 0"));
 

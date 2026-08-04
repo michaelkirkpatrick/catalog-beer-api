@@ -402,6 +402,21 @@ Beer,BEER-155,Unicode Search - Create Beer #25 (Accented Name),POST,/beer,Admin,
 Beer,BEER-156,Search Beer - Decomposed (NFD) Query Finds Accented Beer,GET,/beer/search?q={{beer_search_25_nfd}},Admin,200,Done
 Beer,BEER-157,Search Beer - Invalid UTF-8 Rejected,GET,/beer/search?q=%DCberbrew,Admin,400,Done
 Beer,BEER-158,Unicode Search - Delete Beer #25,DELETE,/beer/{{beer_id_25}},Admin,204,Done
+Beer,BEER-159,ABV & IBU - Create Beer #26 Zero ABV and Zero IBU,POST,/beer,Admin,201,Done
+Beer,BEER-160,ABV & IBU - Zero ABV and IBU Survive a Round Trip,GET,/beer/{{beer_id_26}},Admin,200,Done
+Beer,BEER-161,ABV & IBU - Omitted IBU Is Unknown Not Zero,POST,/beer,Admin,201,Done
+Beer,BEER-162,ABV & IBU - Explicit null IBU Is Also Unknown,POST,/beer,Admin,201,Done
+Beer,BEER-163,ABV & IBU - PATCH Unknown IBU To Zero,PATCH,/beer/{{beer_id_27}},Admin,200,Done
+Beer,BEER-164,ABV & IBU - PATCH IBU Back To Unknown With null,PATCH,/beer/{{beer_id_26}},Admin,200,Done
+Beer,BEER-165,ABV & IBU - PATCH abv null Is Rejected,PATCH,/beer/{{beer_id_27}},Admin,400,Done
+Beer,BEER-166,ABV & IBU - IBU Ceiling of 1000 Is Accepted,POST,/beer,Admin,201,Done
+Beer,BEER-167,ABV & IBU - IBU Above 1000 Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-168,ABV & IBU - Negative IBU Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-169,ABV & IBU - Fractional IBU Reports Whole-Number Message,POST,/beer,Admin,400,Done
+Beer,BEER-170,ABV & IBU - Non-Numeric IBU Reports Whole-Number Message,POST,/beer,Admin,400,Done
+Beer,BEER-171,ABV & IBU - ABV Rounding Past The Ceiling Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-172,ABV & IBU - ABV At The Ceiling Is Accepted,POST,/beer,Admin,201,Done
+Beer,BEER-173,ABV & IBU - Negative ABV Is Rejected,POST,/beer,Admin,400,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -588,6 +603,8 @@ Brewer,BR-210,Search Brewers - Decomposed (NFD) Query Finds Accented Brewer,GET,
 Brewer,BR-211,Search Brewers - Precomposed (NFC) Control,GET,/brewer/search?q={{brewer_search_48_nfc}},Admin,200,Done
 Brewer,BR-212,Search Brewers - Invalid UTF-8 Rejected,GET,/brewer/search?q=%DCberbrew,Admin,400,Done
 Brewer,BR-213,Unicode Search - Delete Brewery #48,DELETE,/brewer/{{brewer_id_48}},Admin,204,Done
+Brewer,BR-214,ABV & IBU - Create Brewery #49,POST,/brewer,Admin,201,Done
+Brewer,BR-215,ABV & IBU - Delete Brewery #49,DELETE,/brewer/{{brewer_id_49}},Admin,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done

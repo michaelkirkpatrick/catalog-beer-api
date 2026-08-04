@@ -7906,7 +7906,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_3', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"pm.environment.set('beer_ibu_3', ibu);",
 											"",
 											""
@@ -8185,7 +8185,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_4', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_4', ibu);",
 											"",
 											""
@@ -8462,7 +8462,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -8707,7 +8707,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -8832,7 +8832,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"//pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -9079,7 +9079,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"//pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -9217,7 +9217,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"//pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -9355,7 +9355,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"//pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -9493,7 +9493,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -9631,7 +9631,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"//pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"pm.environment.set('beer_ibu_6', ibu);",
 											"",
 											""
@@ -10003,7 +10003,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_6', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"pm.environment.set('beer_ibu_6', ibu);"
 										],
 										"type": "text/javascript"
@@ -17293,7 +17293,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_1', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_1', ibu);"
 										],
 										"type": "text/javascript"
@@ -17881,7 +17881,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_2', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_2', ibu);"
 										],
 										"type": "text/javascript"
@@ -19545,7 +19545,7 @@
 											"if (abv > 100) { abv = abv - 1; }",
 											"pm.environment.set('beer_abv_5', abv);",
 											"",
-											"var ibu = Math.floor((Math.random() * 10000) + 1);",
+											"var ibu = Math.floor((Math.random() * 1000) + 1);",
 											"//pm.environment.set('beer_ibu_5', ibu);"
 										],
 										"type": "text/javascript"
@@ -26728,7 +26728,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_7', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_7', ibu);"
 												],
 												"type": "text/javascript"
@@ -27103,7 +27103,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_8', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_8', ibu);"
 												],
 												"type": "text/javascript"
@@ -27255,7 +27255,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_9', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_9', ibu);"
 												],
 												"type": "text/javascript"
@@ -28173,7 +28173,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_10', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_10', ibu);"
 												],
 												"type": "text/javascript"
@@ -28327,7 +28327,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_11', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_11', ibu);"
 												],
 												"type": "text/javascript"
@@ -28481,7 +28481,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -28616,7 +28616,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -29079,7 +29079,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_6', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_6', ibu);"
 												],
 												"type": "text/javascript"
@@ -29215,7 +29215,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_12', ibu);",
 													""
 												],
@@ -29352,7 +29352,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_12', ibu);",
 													""
 												],
@@ -29489,7 +29489,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_12', ibu);",
 													""
 												],
@@ -29626,7 +29626,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -29762,7 +29762,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -29898,7 +29898,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -42865,7 +42865,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_14', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_8', ibu);"
 												],
 												"type": "text/javascript"
@@ -43016,7 +43016,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_15', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_15', ibu);"
 												],
 												"type": "text/javascript"
@@ -43318,7 +43318,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_17', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_17', ibu);"
 												],
 												"type": "text/javascript"
@@ -43471,7 +43471,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -43703,7 +43703,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -43837,7 +43837,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_12', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_12', ibu);"
 												],
 												"type": "text/javascript"
@@ -43972,7 +43972,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -44107,7 +44107,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -44242,7 +44242,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -44377,7 +44377,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"//pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -44512,7 +44512,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"//pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -44647,7 +44647,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_18', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_18', ibu);"
 												],
 												"type": "text/javascript"
@@ -53248,7 +53248,7 @@
 															"if (abv > 100) { abv = abv - 1; }",
 															"pm.environment.set('beer_abv_19', abv);",
 															"",
-															"var ibu = Math.floor((Math.random() * 10000) + 1);",
+															"var ibu = Math.floor((Math.random() * 1000) + 1);",
 															"pm.environment.set('beer_ibu_19', ibu);"
 														],
 														"type": "text/javascript"
@@ -53379,7 +53379,7 @@
 															"if (abv > 100) { abv = abv - 1; }",
 															"pm.environment.set('beer_abv_19', abv);",
 															"",
-															"var ibu = Math.floor((Math.random() * 10000) + 1);",
+															"var ibu = Math.floor((Math.random() * 1000) + 1);",
 															"pm.environment.set('beer_ibu_19', ibu);"
 														],
 														"type": "text/javascript"
@@ -53511,7 +53511,7 @@
 															"//if (abv > 100) { abv = abv - 1; }",
 															"//pm.environment.set('beer_abv_19', abv);",
 															"",
-															"//var ibu = Math.floor((Math.random() * 10000) + 1);",
+															"//var ibu = Math.floor((Math.random() * 1000) + 1);",
 															"//pm.environment.set('beer_ibu_19', ibu);"
 														],
 														"type": "text/javascript"
@@ -53743,7 +53743,7 @@
 															"if (abv > 100) { abv = abv - 1; }",
 															"pm.environment.set('beer_abv_19', abv);",
 															"",
-															"//var ibu = Math.floor((Math.random() * 10000) + 1);",
+															"//var ibu = Math.floor((Math.random() * 1000) + 1);",
 															"//pm.environment.set('beer_ibu_19', ibu);"
 														],
 														"type": "text/javascript"
@@ -56987,7 +56987,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_20', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_20', ibu);"
 												],
 												"type": "text/javascript"
@@ -58640,7 +58640,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_21', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_21', ibu);"
 												],
 												"type": "text/javascript"
@@ -59986,7 +59986,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_22', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_22', ibu);"
 												],
 												"type": "text/javascript"
@@ -60898,7 +60898,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_23', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_23', ibu);"
 												],
 												"type": "text/javascript"
@@ -61682,7 +61682,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_24', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_24', ibu);"
 												],
 												"type": "text/javascript"
@@ -68138,7 +68138,7 @@
 													"if (abv > 100) { abv = abv - 1; }",
 													"pm.environment.set('beer_abv_25', abv);",
 													"",
-													"var ibu = Math.floor((Math.random() * 10000) + 1);",
+													"var ibu = Math.floor((Math.random() * 1000) + 1);",
 													"pm.environment.set('beer_ibu_25', ibu);"
 												],
 												"type": "text/javascript"
@@ -72157,6 +72157,1572 @@
 											"path": [
 												"brewer",
 												"{{brewer_id_48}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "ABV & IBU Values",
+							"item": [
+								{
+									"name": "BR-214 Create Brewery #49 - ABV & IBU Values",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('brewer_name_49', '[Postman API Test] Zero Point Brewing ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_49', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-159 Create Beer #26 - Zero ABV and Zero IBU",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_26', '[Postman API Test] Zero Zero ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Both values are real measurements, not missing data. Before the",
+													"// August 2026 fix, empty() treated a 0 IBU as absent and stored NULL,",
+													"// so this returned \"ibu\": null with a 201 and no indication why.",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Zero ABV is stored as 0, not rejected\", function () {",
+													"    pm.expect(pm.response.json().abv).to.equal(0);",
+													"});",
+													"",
+													"pm.test(\"Zero IBU is stored as 0, not silently nulled\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.ibu).to.equal(0);",
+													"    pm.expect(jsonData.ibu).to.not.equal(null);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('beer_id_26', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_26}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 0,\n    \"ibu\": 0,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-160 Zero ABV and IBU Survive a Round Trip",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// A read path can re-introduce the bug independently of the write path:",
+													"// intval(null) is 0 and empty(0) is true, so both directions had to be",
+													"// fixed for the value to survive.",
+													"pm.test(\"Success - OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"GET still reports abv 0 and ibu 0\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.abv).to.equal(0);",
+													"    pm.expect(jsonData.ibu).to.equal(0);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_26}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_26}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-161 Create Beer #27 - Omitted IBU Is Unknown, Not Zero",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_27', '[Postman API Test] Unknown IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// The distinction the fix exists to preserve: an omitted IBU is null",
+													"// (never recorded), which is a different claim from 0 (no bitterness).",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Omitted IBU is null, not 0\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.ibu).to.equal(null);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('beer_id_27', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_27}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-162 Explicit null IBU Is Also Unknown",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_28', '[Postman API Test] Null IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Explicit null IBU stores as null\", function () {",
+													"    pm.expect(pm.response.json().ibu).to.equal(null);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('beer_id_28', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_28}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"ibu\": null,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-163 PATCH Unknown IBU To Zero",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Previously a silent no-op: the stored NULL read back as 0 via",
+													"// intval(), and the loose != comparison then saw \"no change\".",
+													"pm.test(\"Success - OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Unknown IBU becomes a real 0\", function () {",
+													"    pm.expect(pm.response.json().ibu).to.equal(0);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"ibu\": 0\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_27}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_27}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-164 PATCH IBU Back To Unknown With null",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// null is how a client clears IBU now that 0 means something. isset()",
+													"// is false for null, so this used to be dropped before it was read.",
+													"pm.test(\"Success - OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"null clears IBU back to unknown\", function () {",
+													"    pm.expect(pm.response.json().ibu).to.equal(null);",
+													"});",
+													"",
+													"pm.test(\"ABV is untouched by an IBU-only PATCH\", function () {",
+													"    pm.expect(pm.response.json().abv).to.equal(0);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"ibu\": null\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_26}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_26}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-165 PATCH abv null Is Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// abv is NOT NULL in the schema, so null is a client error rather than",
+													"// a clear. It has to be caught explicitly: null == 0 loosely, so a",
+													"// stored 0 would otherwise absorb it as \"no change\" and return 200.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Flagged invalid with a reason\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_state.abv).to.equal(\"invalid\");",
+													"    pm.expect(jsonData.valid_msg.abv).to.include(\"cannot be cleared\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"abv\": null\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_27}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_27}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-166 IBU Ceiling of 1000 Is Accepted",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_29', '[Postman API Test] Ceiling IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// 1000 is a real published label claim (Mikkeller names the beer after",
+													"// it) and already exists in the catalog, so the ceiling has to admit it.",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"IBU 1000 stored\", function () {",
+													"    pm.expect(pm.response.json().ibu).to.equal(1000);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_29}}\",\n    \"style\": \"Imperial or Double India Pale Ale\",\n    \"abv\": 12.2,\n    \"ibu\": 1000,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-167 IBU Above 1000 Is Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_30', '[Postman API Test] Over Ceiling ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Reports the range, which now starts at 0\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_state.ibu).to.equal(\"invalid\");",
+													"    pm.expect(jsonData.valid_msg.ibu).to.equal(\"The range for IBU values we can accept is 0 to 1000.\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_30}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"ibu\": 1001,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-168 Negative IBU Is Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_31', '[Postman API Test] Negative IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Reports the range\", function () {",
+													"    pm.expect(pm.response.json().valid_msg.ibu).to.include(\"0 to 1000\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_31}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"ibu\": -1,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-169 Fractional IBU Reports The Whole-Number Message",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_32', '[Postman API Test] Fractional IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Used to be truncated to 45 and accepted silently, because intval()",
+													"// ran before the check that the input was a whole number.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Says whole number, not out of range\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_msg.ibu).to.include(\"whole number\");",
+													"    pm.expect(jsonData.valid_msg.ibu).to.not.include(\"range\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_32}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"ibu\": 45.7,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-170 Non-Numeric IBU Reports The Whole-Number Message",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_33', '[Postman API Test] Text IBU ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// intval(\"abc\") is 0, which used to fall through to the range check and",
+													"// report \"the range is (0, 9999]\" for input that was never a number.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Says whole number, not out of range\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_msg.ibu).to.include(\"whole number\");",
+													"    pm.expect(jsonData.valid_msg.ibu).to.not.include(\"range\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_33}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 5.2,\n    \"ibu\": \"abc\",\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-171 ABV Rounding Past The Ceiling Is Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_34', '[Postman API Test] Over ABV ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// 99.95 is under 100 but rounds to 100.0, which decimal(4,1) would",
+													"// store and the message does not permit. The range check runs on the",
+													"// rounded value for exactly this case.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Reports the ABV range\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.valid_state.abv).to.equal(\"invalid\");",
+													"    pm.expect(jsonData.valid_msg.abv).to.equal(\"ABV must be between 0 and 99.9.\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_34}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 99.95,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-172 ABV At The Ceiling Is Accepted",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_35', '[Postman API Test] Max ABV ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Rounds to 99.9, the largest value the column can hold.",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Rounded to 99.9\", function () {",
+													"    pm.expect(pm.response.json().abv).to.equal(99.9);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_35}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": 99.94,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-173 Negative ABV Is Rejected",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_36', '[Postman API Test] Negative ABV ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// -0.04 rounds to -0.0, which passes a naive >= 0 test and would store",
+													"// as 0.0 — a negative input quietly becoming a valid zero.",
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Reports the ABV range\", function () {",
+													"    pm.expect(pm.response.json().valid_state.abv).to.equal(\"invalid\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_36}}\",\n    \"style\": \"Golden or Blonde Ale\",\n    \"abv\": -0.04,\n    \"brewer_id\": \"{{brewer_id_49}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-215 Delete Brewery #49",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Cascades to every beer created in this folder.",
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_49}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_49}}"
 											]
 										}
 									},
