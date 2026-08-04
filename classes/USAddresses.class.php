@@ -684,10 +684,20 @@ class USAddresses {
     // USPS secondary-unit designators per Publication 28, Appendix C2.
     // The pound sign gets its own alternative: USPS formats it with a trailing
     // space ("# 3"), so a \b after it would never match.
+    //
+    // Several designators are also real street names — Pier Ave, Key Biscayne
+    // Blvd, Stop 30 Rd, Side Rd. Those match immediately after the house
+    // number, which is what tells them apart: a genuine secondary unit always
+    // leaves a whole street behind it ("3717 Las Vegas Blvd S"), while a street
+    // name mistaken for one leaves a bare number ("1"). So refuse the split
+    // when that is all that remains. "Pier 39 Ste 200" still splits correctly.
     private function splitSecondaryUnit($line){
         $line = trim($line ?? '');
         $designators = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
         if(preg_match('/^(.*?)\s+((?:' . $designators . ')\b.*|#\s*\S.*)$/i', $line, $m)){
+            if(preg_match('/^\d+[A-Za-z]?$/', trim($m[1]))){
+                return array($line, '');
+            }
             return array(trim($m[1]), trim($m[2]));
         }
         return array($line, '');
