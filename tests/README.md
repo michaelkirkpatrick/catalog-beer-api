@@ -47,6 +47,29 @@ The API validates brewer and location URLs by making a live HTTP request. Tests 
 
 If any of these pages are missing or return a non-200 response, URL validation tests will fail.
 
+## Address parsing (offline, no server needed)
+
+`address-parse.php` is a plain PHP regression test for
+`USAddresses::parseValidatedAddress()` — the code that turns a Google Address
+Validation response into `address2` (street) and `address1` (unit).
+
+```bash
+php tests/address-parse.php        # 37 fixtures, exit 1 on failure
+php tests/address-parse.php -v     # also dump each fixture's components
+```
+
+No network and no database: `fixtures/google-address-validation.json` holds
+real captured API responses. **Run it for any change to address parsing** —
+Newman cannot cover this ground, because Google is live and its answer for the
+same address varies with the request shape.
+
+Every expected value in the table has been checked by a human against what
+USPS and Google actually returned. That is what makes a failure meaningful, so
+when behaviour legitimately changes, edit the expectations by hand rather than
+pasting in whatever the parser now emits. New address shapes should arrive as
+new fixtures captured from the live API (see `scratch/address-audit/`), not as
+hand-written JSON.
+
 ## Running Tests
 
 From the project root:

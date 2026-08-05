@@ -707,9 +707,9 @@ class USAddresses {
             $stdCity = strval($std['city'] ?? '');
             $cassConfirmed = !empty($std['zipCode']);
             if($cassConfirmed && $stdCity !== '' && strlen($stdCity) < 13){
-                $this->city = $this->smartCase($stdCity);
+                $this->city = self::smartCase($stdCity);
             }else{
-                $this->city = $this->smartCase($postal['locality'] ?? $stdCity);
+                $this->city = self::smartCase($postal['locality'] ?? $stdCity);
             }
             /*--
             A premise-level verdict does not guarantee a complete CASS block.
@@ -739,7 +739,7 @@ class USAddresses {
             // No CASS block: city/state/ZIP fall back to Google's
             // post-processed postal address (street and unit already came
             // from the components above).
-            $this->city = $this->smartCase($postal['locality'] ?? '');
+            $this->city = self::smartCase($postal['locality'] ?? '');
             $this->stateShort = strval($postal['administrativeArea'] ?? '');
             $this->zip5 = $this->padZip($postalZip5, 5);
             $this->zip4 = $this->padZip($postalZip4, 4);
@@ -930,7 +930,7 @@ class USAddresses {
             // candidate at all, and Google's route stands.
             $cassStreet = '';
             if(!empty($std['firstAddressLine']) && ($number === ''
-                || preg_match('/(?:^|\s)' . preg_quote(strtoupper($number), '/') . '(?:\s|$)/i', $std['firstAddressLine']))){
+                || preg_match('/(?:^|\s)' . preg_quote($number, '/') . '(?:\s|$)/i', $std['firstAddressLine']))){
                 $cassStreet = $cassStreetRemainder !== '' ? $cassStreetRemainder : trim($std['firstAddressLine']);
                 if($cassStreetRemainder === '' && $unit !== ''){
                     // The unit came from CASS's second line, but CASS often
@@ -1020,12 +1020,30 @@ class USAddresses {
         $n = count($tokens);
         if($n < 3){ return implode(' ', $tokens); }   // too short to hold suffix + name
 
-        $directionalIsName = isset($TYPE[$tokens[2] ?? '']) && ($n === 3 || ($n === 4 && isset($DIR[$tokens[3]])));
-        if($n >= 4 && isset($DIR[$tokens[1]]) && !$directionalIsName){ $tokens[1] = $DIR[$tokens[1]]; }
+        /*--
+        RECOGNISING a directional or type has to work on either spelling, and
+        REWRITING only ever applies to the spelled-out one. Keeping those apart
+        matters because this function sees both: Google's text spells words out
+        ("North Avenue Northeast") while a CASS-sourced street arrives already
+        abbreviated ("North Ave NE"). When recognition was spelled-only, the
+        guard below could not see that "NE" was a directional, decided the
+        leading "North" was not part of the name, and turned Atlanta's North
+        Avenue into "N Ave NE" — the same street rendering two ways depending
+        on which source won.
+        --*/
+        $isDir  = function($t){ return isset(self::DIRECTIONAL_CANON[strtoupper($t)]); };
+        $isType = function($t){ return isset(self::STREET_TYPE_CANON[strtoupper($t)]); };
+
+        // Directional + type + at most a trailing directional means the
+        // directional IS the name ("680 North Avenue NE").
+        $directionalIsName = $isType($tokens[2]) && ($n === 3 || ($n === 4 && $isDir($tokens[3])));
+        if($n >= 4 && $isDir($tokens[1]) && !$directionalIsName && isset($DIR[$tokens[1]])){
+            $tokens[1] = $DIR[$tokens[1]];
+        }
 
         $last = $n - 1;
-        if(isset($DIR[$tokens[$last]])){
-            $tokens[$last] = $DIR[$tokens[$last]];
+        if($isDir($tokens[$last])){
+            if(isset($DIR[$tokens[$last]])){ $tokens[$last] = $DIR[$tokens[$last]]; }
             $last--;    // street type may sit just before it
         }
         if($last >= 2 && isset($TYPE[$tokens[$last]])){ $tokens[$last] = $TYPE[$tokens[$last]]; }
