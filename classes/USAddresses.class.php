@@ -862,10 +862,62 @@ class USAddresses {
         }
 
         // The unit identifier survives every rendering: "Suite 12", "BLDG 12"
-        // and "#12" all end in "12". It anchors both unit cuts below.
+        // and "#12" all end in "12". It anchors the cuts below.
         $unitId = '';
         if($unitG !== '' && preg_match('/([A-Za-z0-9][A-Za-z0-9\-\/]*)\s*$/', $unitG, $m)){ $unitId = $m[1]; }
-        $unitCutRegex = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+)?#?\s*' . preg_quote($unitId, '/') . '$/i';
+
+        // ----- address1 (resolved first: the street cut needs it) -----
+        // $cassStreetRemainder is what's left of CASS's first line once its
+        // folded unit is removed — the designation street path reuses it.
+        $unit = '';
+        $cassStreetRemainder = '';
+        if(!empty($std['secondAddressLine'])){
+            $cassSecond = trim($std['secondAddressLine']);
+            if($number === '' || !preg_match('/(?:^|\s)' . preg_quote($number, '/') . '(?:\s|$)/i', $cassSecond)){
+                $unit = $cassSecond;
+            }
+        }
+        if($unit === '' && !empty($std['firstAddressLine'])){
+            /*--
+            CASS folded the unit into line one. Two ways to cut it, both
+            applied ONLY to CASS output — a closed vocabulary (Pub 28 C2)
+            that USPS itself generated. The same dictionary against client
+            free text is what produced the I10 bug family, which is why it
+            never runs there.
+
+            1. Anchored at Google's identifier, when Google saw the unit.
+               Allows one designator abbreviation and/or # ahead of it
+               ("BLDG 12", "# 12", "STE 800"). The word must come from the
+               USPS list: a bare [A-Za-z]+ here ate "RD B1" whole.
+            2. Dictionary split, when Google reported NO subpremise at all.
+               Google drops units it cannot confirm — "#406" at a large
+               complex comes back with no subpremise component while CASS
+               still standardizes it to "STE 406" (caught by A-42). Trusting
+               CASS here is the deliberate call: it is the mail authority,
+               and dropping the unit silently loses real data.
+
+            Both refuse a split that would leave only a house number, which
+            is what tells a genuine unit from a street named for a
+            designator (Pier Ave, Key Biscayne Blvd).
+            --*/
+            $cassFirst = $std['firstAddressLine'];
+            $cut = null;
+            if($unitId !== ''){
+                $re = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+)?#?\s*' . preg_quote($unitId, '/') . '$/i';
+                if(preg_match($re, $cassFirst, $m2, PREG_OFFSET_CAPTURE)){ $cut = $m2[0][1]; }
+            }elseif($unitG === ''){
+                $re = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+\S|#\s*\S)/i';
+                if(preg_match($re, $cassFirst, $m2, PREG_OFFSET_CAPTURE)){ $cut = $m2[0][1]; }
+            }
+            if($cut !== null){
+                $rest = trim(substr($cassFirst, 0, $cut));
+                if($rest !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $rest)){
+                    $unit = trim(substr($cassFirst, $cut));
+                    $cassStreetRemainder = $rest;
+                }
+            }
+        }
+        if($unit === '' && $unitG !== ''){ $unit = $unitG; }   // Google-only unit
 
         // ----- address2 -----
         if($postBox !== '' && $number === '' && $route === ''){
@@ -878,39 +930,22 @@ class USAddresses {
             $cassIsStreet = !empty($std['firstAddressLine']) && ($number === ''
                 || preg_match('/(?:^|\s)' . preg_quote(strtoupper($number), '/') . '(?:\s|$)/i', $std['firstAddressLine']));
             if($isDesignation && $cassIsStreet){
-                $cassStreet = $std['firstAddressLine'];
-                // CASS folds any unit into this line — cut it before rendering.
-                if($unitId !== '' && preg_match($unitCutRegex, $cassStreet, $m1, PREG_OFFSET_CAPTURE)){
-                    $rest = trim(substr($cassStreet, 0, $m1[0][1]));
-                    if($rest !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $rest)){ $cassStreet = $rest; }
+                $cassStreet = $cassStreetRemainder !== '' ? $cassStreetRemainder : $std['firstAddressLine'];
+                if($cassStreetRemainder === '' && $unit !== ''){
+                    // The unit came from CASS's second line, but CASS often
+                    // ALSO folds it into the first ("2200 S I-35 FRONTAGE RD
+                    // B1" / second "B1"). Strip the duplicate, or address2
+                    // ships with the unit still attached — the I10 bug.
+                    $stripped = preg_replace('/\s+' . preg_quote($unit, '/') . '$/i', '', $cassStreet, 1);
+                    if(trim($stripped) !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', trim($stripped))){
+                        $cassStreet = trim($stripped);
+                    }
                 }
                 $street = self::apAbbreviate(self::smartCase($cassStreet));
             }else{
                 $street = self::apAbbreviate(trim($number . ' ' . $route));
             }
         }
-
-        // ----- address1 -----
-        $unit = '';
-        if(!empty($std['secondAddressLine'])){
-            $cassSecond = trim($std['secondAddressLine']);
-            if($number === '' || !preg_match('/(?:^|\s)' . preg_quote($number, '/') . '(?:\s|$)/i', $cassSecond)){
-                $unit = $cassSecond;
-            }
-        }
-        if($unit === '' && $unitId !== '' && !empty($std['firstAddressLine'])){
-            // CASS folded the unit into line one — cut at the identifier,
-            // allowing one USPS designator abbreviation and/or # ahead of it
-            // ("BLDG 12", "# 12", "STE 800"). The word must come from the
-            // USPS vocabulary: a bare [A-Za-z]+ here ate "RD B1" whole.
-            if(preg_match($unitCutRegex, $std['firstAddressLine'], $m2, PREG_OFFSET_CAPTURE)){
-                $candidate = trim(substr($std['firstAddressLine'], $m2[0][1]));
-                $rest = trim(substr($std['firstAddressLine'], 0, $m2[0][1]));
-                // Only believe it if what precedes is still a street.
-                if($rest !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $rest)){ $unit = $candidate; }
-            }
-        }
-        if($unit === '' && $unitG !== ''){ $unit = $unitG; }   // Google-only unit
 
         // Street is NOT smartCased on the components path: Google's text is
         // already properly cased ("La Orilla", "McKinley") and re-casing
