@@ -66,7 +66,13 @@ $settings = array(
         // surface taprooms, not their brewer or its beers. Ranked below
         // brewer.name so a street match never outranks a name match, and
         // above the prose for the same reason descriptions rank last.
-        'unordered(address.address1)',
+        //
+        // address2 is the STREET, not address1 — USPS ordering, which the
+        // rest of USAddresses follows (address2 is the required field; the
+        // "missing the street address" validation fires on it). address1 is
+        // the secondary unit ("Ste 401") and stays unsearchable: nobody
+        // finds a brewery by its suite number.
+        'unordered(address.address2)',
         'unordered(address.zip5)',
         'short_description',
         'description'
