@@ -232,11 +232,11 @@ class USAddresses {
                         }
 
                         if(!$db->error){
-                            // Store Latitude and Longitude (captured during validation; fall back to a geocode lookup)
+                            // Store Latitude and Longitude (captured during
+                            // validation — Address Validation geocodes every
+                            // accepted address, so no fallback lookup)
                             if($this->latLongFound){
                                 $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
-                            }else{
-                                $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
                             }
 
                             // Update Last Modified
@@ -255,7 +255,7 @@ class USAddresses {
                             //
                             // Re-validate rather than reusing $location: the
                             // coordinates were rewritten moments ago by
-                            // saveCoordinates()/googleMapsAPI(), so the copy
+                            // saveCoordinates(), so the copy
                             // loaded at the top of add() is already stale.
                             if(!$this->error){
                                 $syncLocation = new Location();
@@ -343,11 +343,11 @@ class USAddresses {
                         // location object, not an error.
                         if(!$this->error && !empty($setClauses)){
                             if($patchAddress){
-                                // Store Latitude and Longitude (captured during validation; fall back to a geocode lookup)
+                                // Store Latitude and Longitude (captured during
+                                // validation — Address Validation geocodes every
+                                // accepted address, so no fallback lookup)
                                 if($this->latLongFound){
                                     $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
-                                }else{
-                                    $location->googleMapsAPI($this->locationID, $this->generateGoogleAddressString(), 'geocode');
                                 }
                             }
 
@@ -367,7 +367,7 @@ class USAddresses {
                             //
                             // Re-validate rather than reusing $location: the
                             // coordinates were rewritten moments ago by
-                            // saveCoordinates()/googleMapsAPI(), so the copy
+                            // saveCoordinates(), so the copy
                             // loaded at the top of add() is already stale.
                             if(!$this->error){
                                 $syncLocation = new Location();
@@ -679,53 +679,16 @@ class USAddresses {
             $postalZip4 = '';
         }
 
+        // Street + unit come from the typed addressComponents, not from
+        // re-parsing rendered lines — see parseValidatedAddress() for the
+        // full division of labour (decided 2026-08-05, audit of all 587
+        // stored addresses in scratch/address-audit, replayed by
+        // tests/address-parse.php).
+        $parsed = self::parseValidatedAddress($result);
+        $this->address2 = $parsed['address2'];
+        $this->address1 = $parsed['address1'];
+
         if(!empty($std)){
-            // CASS street and unit. Google folds any secondary unit
-            // (STE/APT/etc.) into firstAddressLine rather than
-            // secondAddressLine, so split it back out to keep address1 (unit)
-            // and address2 (street) separate.
-            if(!empty($std['secondAddressLine'])){
-                $street = $std['firstAddressLine'] ?? '';
-                $secondary = $std['secondAddressLine'];
-            }else{
-                list($street, $secondary) = $this->splitSecondaryUnit($std['firstAddressLine'] ?? '');
-            }
-            /*--
-            Street display prefers Google's postal lines, which spell the
-            street out in full where CASS abbreviates it — "WOOD RED RD NE"
-            vs "Woodinville Redmond Rd NE" for the same premise (I4). But
-            postalAddress.addressLines is substantially an echo of the input
-            with no guaranteed structure: a bare unit number can arrive as
-            line one ahead of the street (["800", "1270 Lincoln Ave"]), and a
-            spelling correction can arrive split across lines
-            (["2215 India", "India St"]). So the postal street is accepted
-            only when it is recognizably an expansion of the CASS street —
-            same house number, at least as many words. Everything else keeps
-            CASS, which is the authority on structure.
-            --*/
-            $lines = $postal['addressLines'] ?? array();
-            if(count($lines) > 1){
-                $postalStreet = $lines[0];
-                $postalSecondary = $lines[1];
-            }else{
-                list($postalStreet, $postalSecondary) = $this->splitSecondaryUnit($lines[0] ?? '');
-            }
-            if(!empty($postalStreet) && !empty($street)){
-                $cassWords = preg_split('/\s+/', trim($street), -1, PREG_SPLIT_NO_EMPTY);
-                $postalWords = preg_split('/\s+/', trim($postalStreet), -1, PREG_SPLIT_NO_EMPTY);
-                if($postalWords[0] === $cassWords[0] && count($postalWords) >= count($cassWords)){
-                    $street = $postalStreet;
-                }
-            }
-            // The unit stays CASS-sourced — CASS is the authority on unit
-            // designators ("800" in, "STE 800" out). A postal second line
-            // fills in only when CASS found none AND it actually reads as a
-            // unit, since for Google it is just as often the street.
-            if(empty($secondary) && !empty($postalSecondary) && preg_match('/^(?:' . self::SECONDARY_DESIGNATORS . ')\b|^#/i', trim($postalSecondary))){
-                $secondary = $postalSecondary;
-            }
-            $this->address2 = $this->smartCase($street);
-            $this->address1 = !empty($secondary) ? $this->smartCase($secondary) : '';
             /*--
             City is USPS's own mailing city ("BONNER", not the census place
             "Bonner-West Riverside" Google reports) — with two fallbacks to
@@ -773,16 +736,9 @@ class USAddresses {
                 $this->zip4 = $this->padZip($std['zipCodeExtension'] ?? '', 4);
             }
         }else{
-            // Fall back to Google's post-processed postal address
-            $lines = $postal['addressLines'] ?? array();
-            if(count($lines) > 1){
-                $street = $lines[0];
-                $secondary = $lines[1];
-            }else{
-                list($street, $secondary) = $this->splitSecondaryUnit($lines[0] ?? '');
-            }
-            $this->address2 = $this->smartCase($street);
-            $this->address1 = !empty($secondary) ? $this->smartCase($secondary) : '';
+            // No CASS block: city/state/ZIP fall back to Google's
+            // post-processed postal address (street and unit already came
+            // from the components above).
             $this->city = $this->smartCase($postal['locality'] ?? '');
             $this->stateShort = strval($postal['administrativeArea'] ?? '');
             $this->zip5 = $this->padZip($postalZip5, 5);
@@ -834,31 +790,197 @@ class USAddresses {
         }
     }
 
-    // Split a USPS-standardized street line into [street, secondary unit].
-    // USPS secondary-unit designators per Publication 28, Appendix C2.
-    // The pound sign gets its own alternative: USPS formats it with a trailing
-    // space ("# 3"), so a \b after it would never match.
-    //
-    // Several designators are also real street names — Pier Ave, Key Biscayne
-    // Blvd, Stop 30 Rd, Side Rd. Those match immediately after the house
-    // number, which is what tells them apart: a genuine secondary unit always
-    // leaves a whole street behind it ("3717 Las Vegas Blvd S"), while a street
-    // name mistaken for one leaves a bare number ("1"). So refuse the split
-    // when that is all that remains. "Pier 39 Ste 200" still splits correctly.
-    // USPS secondary-unit designators per Publication 28, Appendix C2. Shared
-    // by splitSecondaryUnit() and the postal-line unit guard above so the two
-    // can't drift apart.
+    // USPS secondary-unit designators per Publication 28, Appendix C2. Used
+    // to cut CASS's unit rendering out of its own folded line — and ONLY
+    // there, anchored to an identifier Google already confirmed. This
+    // dictionary never decides whether a unit exists; Google's subpremise
+    // component does. (Its predecessor, splitSecondaryUnit(), guessed
+    // structure from rendered text and produced the I10 bug family.)
     private const SECONDARY_DESIGNATORS = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
 
-    private function splitSecondaryUnit($line){
-        $line = trim($line ?? '');
-        if(preg_match('/^(.*?)\s+((?:' . self::SECONDARY_DESIGNATORS . ')\b.*|#\s*\S.*)$/i', $line, $m)){
-            if(preg_match('/^\d+[A-Za-z]?$/', trim($m[1]))){
-                return array($line, '');
+    /*--
+    Parse street (address2) and secondary unit (address1) from a Google
+    Address Validation result. Pure — no DB, no logging — so
+    tests/address-parse.php can replay it against captured fixtures.
+
+    Division of labour (decided 2026-08-05; every rule below exists because a
+    real stored address demanded it — see the fixture set):
+
+      Google addressComponents    structure AND street text: street_number +
+                                  route, or post_box. The components type the
+                                  address correctly no matter how the client
+                                  wrote it ("Suite 12" inline, bare "B1",
+                                  "# 1", unit-before-street).
+      apAbbreviate()              display form: AP-style abbreviations over
+                                  Google's spelled-out route.
+      CASS standardizedAddress    unit rendering ("Suite 12" in, "BLDG 12"
+                                  out), and street rendering for road
+                                  DESIGNATIONS — a bare number token in the
+                                  route ("West Arizona 92", "Farm to Market
+                                  Road 423") means Google is reporting its
+                                  internal Maps road name, and CASS holds the
+                                  USPS display form ("W HIGHWAY 92", "FM 423").
+      Google subpremise           whether a unit exists + its identifier.
+                                  CASS's second line is still trusted when
+                                  Google saw no unit — unless it carries the
+                                  street number, in which case it IS the
+                                  street (business-name-on-line-1 shape).
+
+    An unconfirmed subpremise on an unconfirmed route is a parse artifact,
+    not a unit ("State Route 5 And 20" -> subpremise "And 20"); one on a
+    CONFIRMED route stays ("Building B", "Taproom").
+    --*/
+    public static function parseValidatedAddress($result){
+        $std = $result['uspsData']['standardizedAddress'] ?? array();
+
+        $comp = array();
+        $conf = array();
+        foreach(($result['address']['addressComponents'] ?? array()) as $c){
+            $type = $c['componentType'] ?? '';
+            $text = trim($c['componentName']['text'] ?? '');
+            if($type !== '' && $text !== '' && !isset($comp[$type])){
+                $comp[$type] = $text;
+                $conf[$type] = $c['confirmationLevel'] ?? '';
             }
-            return array(trim($m[1]), trim($m[2]));
         }
-        return array($line, '');
+        $number  = $comp['street_number'] ?? '';
+        $route   = $comp['route'] ?? '';
+        $unitG   = $comp['subpremise'] ?? '';
+        $postBox = $comp['post_box'] ?? '';
+
+        // Unconfirmed unit on an unconfirmed street: parse artifact.
+        if($unitG !== '' && ($conf['subpremise'] ?? '') === 'UNCONFIRMED_BUT_PLAUSIBLE'
+            && ($conf['route'] ?? '') !== 'CONFIRMED'){
+            $unitG = '';
+        }
+
+        // Grid street numbers (Wisconsin's "N71W13040") reach Google in the
+        // client's casing; CASS canonicalizes them.
+        if($number !== '' && preg_match('/[A-Za-z]/', $number) && !empty($std['firstAddressLine'])
+            && stripos($std['firstAddressLine'], strtoupper($number)) === 0){
+            $number = strtoupper($number);
+        }
+
+        // The unit identifier survives every rendering: "Suite 12", "BLDG 12"
+        // and "#12" all end in "12". It anchors both unit cuts below.
+        $unitId = '';
+        if($unitG !== '' && preg_match('/([A-Za-z0-9][A-Za-z0-9\-\/]*)\s*$/', $unitG, $m)){ $unitId = $m[1]; }
+        $unitCutRegex = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+)?#?\s*' . preg_quote($unitId, '/') . '$/i';
+
+        // ----- address2 -----
+        if($postBox !== '' && $number === '' && $route === ''){
+            $street = $postBox;
+        }else{
+            $isDesignation = $route !== '' && preg_match('/(?:^|\s)\d+(?:\s|$)/', $route);
+            // CASS's line must actually BE the street: when a business name
+            // occupies it, it carries no street number — fall through to
+            // Google's route rather than storing the firm name as the street.
+            $cassIsStreet = !empty($std['firstAddressLine']) && ($number === ''
+                || preg_match('/(?:^|\s)' . preg_quote(strtoupper($number), '/') . '(?:\s|$)/i', $std['firstAddressLine']));
+            if($isDesignation && $cassIsStreet){
+                $cassStreet = $std['firstAddressLine'];
+                // CASS folds any unit into this line — cut it before rendering.
+                if($unitId !== '' && preg_match($unitCutRegex, $cassStreet, $m1, PREG_OFFSET_CAPTURE)){
+                    $rest = trim(substr($cassStreet, 0, $m1[0][1]));
+                    if($rest !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $rest)){ $cassStreet = $rest; }
+                }
+                $street = self::apAbbreviate(self::smartCase($cassStreet));
+            }else{
+                $street = self::apAbbreviate(trim($number . ' ' . $route));
+            }
+        }
+
+        // ----- address1 -----
+        $unit = '';
+        if(!empty($std['secondAddressLine'])){
+            $cassSecond = trim($std['secondAddressLine']);
+            if($number === '' || !preg_match('/(?:^|\s)' . preg_quote($number, '/') . '(?:\s|$)/i', $cassSecond)){
+                $unit = $cassSecond;
+            }
+        }
+        if($unit === '' && $unitId !== '' && !empty($std['firstAddressLine'])){
+            // CASS folded the unit into line one — cut at the identifier,
+            // allowing one USPS designator abbreviation and/or # ahead of it
+            // ("BLDG 12", "# 12", "STE 800"). The word must come from the
+            // USPS vocabulary: a bare [A-Za-z]+ here ate "RD B1" whole.
+            if(preg_match($unitCutRegex, $std['firstAddressLine'], $m2, PREG_OFFSET_CAPTURE)){
+                $candidate = trim(substr($std['firstAddressLine'], $m2[0][1]));
+                $rest = trim(substr($std['firstAddressLine'], 0, $m2[0][1]));
+                // Only believe it if what precedes is still a street.
+                if($rest !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $rest)){ $unit = $candidate; }
+            }
+        }
+        if($unit === '' && $unitG !== ''){ $unit = $unitG; }   // Google-only unit
+
+        // Street is NOT smartCased on the components path: Google's text is
+        // already properly cased ("La Orilla", "McKinley") and re-casing
+        // would mangle it. Units go through casing because CASS renders them
+        // ALL CAPS, and Google echoes client lowercase ("b1").
+        return array(
+            'address2' => $street,
+            'address1' => $unit !== '' ? self::unitCase($unit) : '',
+        );
+    }
+
+    /*--
+    AP-style display abbreviation (decided 2026-08-05). Google's route is
+    fully spelled out ("4th Street Northwest"); the catalog's display
+    convention is the traditional abbreviated form ("4th St NW").
+    Abbreviating is the SAFE direction — a finite lookup at fixed positions —
+    unlike expanding ("St" -> Saint or Street?), which is why rendering
+    starts from Google's verbose text rather than CASS's over-abbreviated
+    one ("COMRCL CTR BLVD").
+
+    Position rules (interior name words are never touched):
+    - "Interstate N" -> "I-N" anywhere (AP second-reference style)
+    - directional abbreviated right after the house number or at line end
+      — EXCEPT directional + type + at most a trailing directional, where
+      the directional IS the name ("680 North Avenue NE" is Atlanta's North
+      Avenue; but "East Court Street" and "West Avenue O" still abbreviate)
+    - street type abbreviated only in final position (or just before a
+      trailing directional) — "US Highway 281" and "Route 59" keep their
+      spelled forms because the number, not the type, ends the name
+    Deliberately NOT abbreviated: Way, Loop, Route, Center, Plaza, Park —
+    AP spells them, famous addresses spell them, and several end real names.
+    --*/
+    private static function apAbbreviate($street){
+        $DIR = array('North'=>'N', 'South'=>'S', 'East'=>'E', 'West'=>'W',
+            'Northeast'=>'NE', 'Northwest'=>'NW', 'Southeast'=>'SE', 'Southwest'=>'SW');
+        $TYPE = array('Street'=>'St', 'Avenue'=>'Ave', 'Boulevard'=>'Blvd', 'Road'=>'Rd',
+            'Drive'=>'Dr', 'Lane'=>'Ln', 'Court'=>'Ct', 'Circle'=>'Cir', 'Place'=>'Pl',
+            'Square'=>'Sq', 'Terrace'=>'Ter', 'Trail'=>'Trl', 'Parkway'=>'Pkwy',
+            'Highway'=>'Hwy', 'Freeway'=>'Fwy', 'Expressway'=>'Expy', 'Turnpike'=>'Tpke');
+
+        $street = preg_replace('/\bInterstate\s+(\d+)\b/i', 'I-$1', trim($street ?? ''));
+        $tokens = preg_split('/\s+/', $street, -1, PREG_SPLIT_NO_EMPTY);
+        $n = count($tokens);
+        if($n < 3){ return implode(' ', $tokens); }   // too short to hold suffix + name
+
+        $directionalIsName = isset($TYPE[$tokens[2] ?? '']) && ($n === 3 || ($n === 4 && isset($DIR[$tokens[3]])));
+        if($n >= 4 && isset($DIR[$tokens[1]]) && !$directionalIsName){ $tokens[1] = $DIR[$tokens[1]]; }
+
+        $last = $n - 1;
+        if(isset($DIR[$tokens[$last]])){
+            $tokens[$last] = $DIR[$tokens[$last]];
+            $last--;    // street type may sit just before it
+        }
+        if($last >= 2 && isset($TYPE[$tokens[$last]])){ $tokens[$last] = $TYPE[$tokens[$last]]; }
+
+        return implode(' ', $tokens);
+    }
+
+    // smartCase for units, plus: unit identifiers like b1 / k100 / 12a
+    // uppercase (Google echoes the client's lowercase; CASS never would).
+    private static function unitCase($value){
+        $value = self::smartCase($value);
+        $tokens = preg_split('/(\s+)/', $value, -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach($tokens as &$token){
+            if(preg_match('/^[A-Za-z]\d+[A-Za-z]?$/', $token) || preg_match('/^#[A-Za-z0-9]+$/', $token)){
+                $token = strtoupper($token);
+            }
+        }
+        unset($token);
+        return implode('', $tokens);
     }
 
     /*--
@@ -875,7 +997,7 @@ class USAddresses {
       N/S/E/W already survive the base case unchanged)
     - PO and US upper:                PO BOX 12  -> PO Box 12, US HWY 41
     --*/
-    private function smartCase($value){
+    private static function smartCase($value){
         $value = ucwords(strtolower(trim($value ?? '')), " -/");
         $tokens = preg_split('/(\s+|-|\/)/', $value, -1, PREG_SPLIT_DELIM_CAPTURE);
         foreach($tokens as &$token){
@@ -883,7 +1005,7 @@ class USAddresses {
                 $token = strtolower($token);
             }elseif(preg_match('/^\d+[A-Za-z]{1,2}$/', $token)){
                 $token = strtoupper($token);
-            }elseif(preg_match('/^(Ne|Nw|Se|Sw|Po|Us)$/i', $token)){
+            }elseif(preg_match('/^(Ne|Nw|Se|Sw|Po|Us|Fm)$/i', $token)){
                 $token = strtoupper($token);
             }
         }
@@ -953,42 +1075,6 @@ class USAddresses {
         }else{
             $this->telephone = 0;
         }
-    }
-
-    // Generate Google API Address String
-    private function generateGoogleAddressString(){
-        // Address2
-        $addressString = $this->address2;
-
-        // Address1
-        if(!empty($this->address1)){
-            $addressString .= ' ' . $this->address1;
-        }
-
-        $addressString .= ', ';
-
-        // City
-        if(!empty($this->city)){
-            $addressString .= $this->city . ', ';
-        }
-
-        // State
-        if(!empty($this->stateShort)){
-            $addressString .= $this->stateShort;
-        }
-
-        // ZIP Code
-        if(!empty($this->zip5)){
-            $addressString .= ' ' . $this->zip5;
-            if(!empty($this->zip4)){
-                $addressString .= '-' . $this->zip4;
-            }
-        }
-
-        // Add United States of America
-        $addressString .= ', USA';
-
-        return $addressString;
     }
 
     // Validate

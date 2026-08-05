@@ -10,6 +10,8 @@ common/passwords.php
 # Tests: track collection and example env, ignore real env files
 !tests/Catalog.beer.postman_collection.json
 !tests/env.example.json
+# Captured Google Address Validation responses — the address-parse.php fixtures
+!tests/fixtures/google-address-validation.json
 tests/staging.env.json
 tests/production.env.json
 
