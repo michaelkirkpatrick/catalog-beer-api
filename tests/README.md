@@ -53,16 +53,14 @@ From the project root:
 
 ```bash
 # Run against staging
-tests/run-tests.sh tests/staging.env.json --bail --verbose
+newman run tests/Catalog.beer.postman_collection.json -e tests/staging.env.json
 
 # Run against production
-tests/run-tests.sh tests/production.env.json --bail --verbose
+newman run tests/Catalog.beer.postman_collection.json -e tests/production.env.json
 ```
 
-`run-tests.sh` is a thin wrapper around Newman that runs `cleanup-test-data.js`
-afterwards no matter how the run ended, and exits with Newman's status. Calling
-`newman run` directly still works — just read the Cleanup section below first,
-because a run that stops early leaves data behind.
+Read the Cleanup section below before running against production: a run that
+stops early leaves test data behind, and clearing it is a manual job.
 
 ### Useful Options
 
@@ -93,42 +91,43 @@ way — `--bail` on a failed assertion, a dropped connection, Ctrl-C — strands
 every entity created up to that point. Against production that junk is live: it
 shows up in `/brewer`, in search results, and in Algolia.
 
-Re-running a single folder is not a fix. The ids live in environment variables
-(`{{brewer_id_14}}` and friends) that are set during the run and held in memory;
-Newman does not write them back to the env file. A standalone `--folder` run
-sends the placeholder unresolved and deletes nothing.
+Clearing it is manual, done directly in the database. Brewers, beers and
+locations are all named with the `[Postman API Test] ` prefix, so they can be
+found by exact string match rather than by guesswork:
 
-Use the cleanup script instead. Every entity the collection creates is named
-with the `[Postman API Test] ` prefix, so it matches on that exact string and
-will not touch anything else:
-
-```bash
-# Show what would be removed
-node tests/cleanup-test-data.js tests/staging.env.json
-
-# Actually remove it
-node tests/cleanup-test-data.js tests/staging.env.json --apply
+```sql
+SELECT id, name FROM brewer WHERE name LIKE '[Postman API Test] %';
+SELECT id, name FROM beer   WHERE name LIKE '[Postman API Test] %';
 ```
 
-It pages through `/brewer` rather than using `/brewer/search`, so a stranded row
-is still found if the FULLTEXT index is out of sync. It also checks the brewers
-the collection *borrows* rather than creates — a few tests reassign a test beer
-or location to Ballast Point, and those survive the cascade — reading those ids
-out of the collection at runtime so it stays correct if the tests change.
+The three test **users** are the exception — they are created with
+`{{$randomFullName}}`, so they carry no prefix and look like ordinary accounts.
+Find them by their plus-addressed emails instead, which no real account uses:
 
-That covers brewers, beers and locations. It does **not** cover the three test
-users, and cannot: `/users` has no list endpoint, so there is nothing to scan,
-and the ids exist only in the running collection's memory. `User - End Requests`
-is the last folder in the collection, so an interrupted run strands all three
-almost every time. Clearing them means taking the ids from the Newman output —
-or from the `users` table — and calling `DELETE /users/{id}` by hand.
+```sql
+SELECT id, email, name FROM users
+WHERE email LIKE 'michael+%@catalog.beer'
+   OR email LIKE 'michael+%@mekstudios.com';
+```
 
-One edge to know about on locations: the match is on the name, and
-`location.name` is optional. A test location created *without* a name is still
-caught when its own brewer is deleted (it goes with the cascade), but one
-reassigned to a borrowed brewer would be missed. No current test does that.
+Deleting the brewers takes their beers and locations with them via the `brewer`
+foreign keys. One set of rows escapes that cascade: a few tests move a test beer
+or location to a *real* brewer (BEER-95, BEER-102, L-82, L-127 all use Ballast
+Point), so those outlive the test brewers. The prefixed `beer` query above still
+finds them. For locations, note that `location.name` is optional, so a test
+location created without one won't match — check `location` rows under a real
+brewer whose address looks like test data.
 
-Safe to run any time; on a clean database it reports `Nothing to clean up`.
+Two things to remember when cleaning up production:
+
+- Deleting rows in MySQL leaves them in **Algolia** and in the FULLTEXT indexes.
+  Re-run `algolia/batch-upload.php` if stale test records still show up in
+  search afterwards.
+- Re-running a single folder is not a way to clean up. The ids live in
+  environment variables (`{{brewer_id_14}}` and friends) that are set during the
+  run and held in memory; Newman does not write them back to the env file, so a
+  standalone `--folder` run sends the placeholder unresolved and deletes
+  nothing.
 
 ## Collection Structure
 
