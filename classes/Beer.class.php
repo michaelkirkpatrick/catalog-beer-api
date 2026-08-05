@@ -1817,6 +1817,10 @@ class Beer {
                 $beerObj['cb_verified'] = $row['cbVerified'] ? true : false;
                 $beerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
                 $beerObj['last_modified'] = intval($row['lastModified']);
+                // Why this row matched — see SearchQuery::matchQuality() (I6).
+                // For beers, 'description' means the hit is outside the name:
+                // in the style or the description (one blended index).
+                $beerObj['match'] = SearchQuery::matchQuality($row['tier'], $row['name_rel']);
 
                 // Build brewer sub-object
                 $brewerObj = array();

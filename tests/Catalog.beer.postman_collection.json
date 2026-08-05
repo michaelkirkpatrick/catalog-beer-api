@@ -62713,12 +62713,19 @@
 															"pm.test(\"Valid brewer object\", function () {",
 															"    var jsonData = pm.response.json();",
 															"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'description',",
-															"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"        'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified', 'match');",
 															"    pm.expect(jsonData.data[0].object).to.equal('brewer');",
 															"});",
 															"",
 															"pm.test(\"Content-Type Header Present\", function () {",
 															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});",
+															"",
+															"pm.test(\"Every result labels why it matched\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    jsonData.data.forEach(function (row) {",
+															"        pm.expect(row.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+															"    });",
 															"});"
 														],
 														"type": "text/javascript"
@@ -62987,6 +62994,7 @@
 															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
 															"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('brewer_id_42'));",
 															"    pm.expect(jsonData.data[0].name).to.equal(pm.environment.get('brewer_name_42'));",
+															"    pm.expect(jsonData.data[0].match).to.equal('exact');",
 															"});"
 														],
 														"type": "text/javascript"
@@ -63679,7 +63687,7 @@
 															"pm.test(\"Valid beer object\", function () {",
 															"    var jsonData = pm.response.json();",
 															"    pm.expect(jsonData.data[0]).to.have.all.keys('id', 'object', 'name', 'style', 'style_id', 'parent', 'class', 'beverage_type', 'description',",
-															"        'abv', 'ibu', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer');",
+															"        'abv', 'ibu', 'cb_verified', 'brewer_verified', 'last_modified', 'brewer', 'match');",
 															"    pm.expect(jsonData.data[0].object).to.equal('beer');",
 															"});",
 															"",
@@ -63692,6 +63700,13 @@
 															"",
 															"pm.test(\"Content-Type Header Present\", function () {",
 															"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+															"});",
+															"",
+															"pm.test(\"Every result labels why it matched\", function () {",
+															"    var jsonData = pm.response.json();",
+															"    jsonData.data.forEach(function (row) {",
+															"        pm.expect(row.match).to.be.oneOf(['exact', 'all_terms', 'partial', 'description']);",
+															"    });",
 															"});"
 														],
 														"type": "text/javascript"
@@ -63960,6 +63975,7 @@
 															"    pm.expect(jsonData.data.length).to.be.at.least(1);",
 															"    pm.expect(jsonData.data[0].id).to.equal(pm.environment.get('beer_id_24'));",
 															"    pm.expect(jsonData.data[0].name).to.equal(pm.environment.get('beer_name_24'));",
+															"    pm.expect(jsonData.data[0].match).to.equal('exact');",
 															"});"
 														],
 														"type": "text/javascript"

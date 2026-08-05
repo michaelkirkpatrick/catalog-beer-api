@@ -1737,12 +1737,15 @@ class Brewer {
 
         // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
         $searchTerms = SearchQuery::terms($query);
+        // Distinctive terms drive the match label only, never the ranking —
+        // see SearchQuery::brewerDistinctiveTerms()
+        $distinctiveTerms = SearchQuery::brewerDistinctiveTerms($query);
 
         // Tiered ranking; same scheme as Beer::search() — exact name, then
         // all-terms-in-name (prefix match), then the natural-language match,
         // with name relevance ranked above blended relevance within a tier.
         $db = new Database();
-        $result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, CASE WHEN LOWER(name) = LOWER(?) THEN 0 WHEN MATCH(name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(name) AGAINST(? IN BOOLEAN MODE) OR LOWER(name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, name, id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, CASE WHEN LOWER(name) = LOWER(?) THEN 0 WHEN MATCH(name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel_distinctive, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(name) AGAINST(? IN BOOLEAN MODE) OR LOWER(name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, name, id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $distinctiveTerms, $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();
@@ -1764,6 +1767,10 @@ class Brewer {
                 $brewerObj['cb_verified'] = $row['cbVerified'] ? true : false;
                 $brewerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
                 $brewerObj['last_modified'] = intval($row['lastModified']);
+                // Why this row matched — see SearchQuery::matchQuality() (I6).
+                // Judged on the distinctive relevance: "Brewing" matching the
+                // name is not name evidence.
+                $brewerObj['match'] = SearchQuery::matchQuality($row['tier'], $row['name_rel_distinctive']);
 
                 $data[] = $brewerObj;
             }

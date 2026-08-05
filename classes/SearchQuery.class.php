@@ -86,4 +86,58 @@ class SearchQuery {
 
         return array('bool' => trim($boolQuery), 'nl' => implode(' ', $terms));
     }
+
+    /* Words that are structure, not identity, in a brewery's name. A name
+       match on one of these alone is no evidence of a name match at all —
+       "GOAL Brewing" name-matches half the catalog via "Brewing". Used to
+       decide the partial/description label, never for ranking (FULLTEXT IDF
+       already ranks the rare term above these). Deliberately brewer-specific:
+       in a BEER name, words like "ale" carry real identity. */
+    private static $genericBrewerTerms = ['brewing', 'brewery', 'breweries', 'brewer', 'brewers', 'brew', 'brews', 'brewhouse', 'beer', 'company', 'co', 'inc', 'llc'];
+
+    /* The query's distinctive terms as a NATURAL LANGUAGE string, for the
+       name-evidence test in Brewer::search(). Falls back to all terms when
+       the query is nothing but generic words ("Brewing Co") — then any name
+       word is as distinctive as the query gets. */
+    public static function brewerDistinctiveTerms($query){
+        $terms = self::tokens($query);
+        $distinctive = array();
+        foreach($terms as $t){
+            if(!in_array(strtolower($t), self::$genericBrewerTerms, true)){
+                $distinctive[] = $t;
+            }
+        }
+        if(empty($distinctive)){
+            $distinctive = $terms;
+        }
+        return implode(' ', $distinctive);
+    }
+
+    /* Labels why a search row matched, from the tier CASE and a name-only
+       relevance the search queries already compute. Shared by
+       Brewer::search() and Beer::search() so the vocabulary cannot drift; the
+       values are the ones POST /beer style suggestions established.
+
+       Exists because a description mention is indistinguishable from a name
+       match in the response (OPEN-ITEMS I6): searching "GOAL Brewing" before
+       creating the brewery returned three plausible-looking rows that had
+       merely mentioned "goal" in a description — and a first cut that
+       labelled any name word "partial" still called those rows name matches,
+       because "Brewing" is in every brewery's name. Hence the distinctive
+       filter above.
+
+       - exact:       the name equals the query
+       - all_terms:   every query term prefix-matches a word in the name
+       - partial:     a distinctive query term matches the name (brewer), or
+                      any query term does (beer, where the caller passes the
+                      full-terms relevance)
+       - description: no name evidence — the hit is in the blended text
+                      (brewer: description/short_description; beer: style or
+                      description). For duplicate screening these rows are
+                      mentions, not candidates. */
+    public static function matchQuality($tier, $nameRelevance){
+        if(intval($tier) === 0){ return 'exact'; }
+        if(intval($tier) === 1){ return 'all_terms'; }
+        return floatval($nameRelevance) > 0 ? 'partial' : 'description';
+    }
 }
