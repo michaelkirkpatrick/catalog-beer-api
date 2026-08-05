@@ -923,27 +923,52 @@ class USAddresses {
         if($postBox !== '' && $number === '' && $route === ''){
             $street = $postBox;
         }else{
-            $isDesignation = $route !== '' && preg_match('/(?:^|\s)\d+(?:\s|$)/', $route);
+            $googleStreet = trim($number . ' ' . $route);
+
             // CASS's line must actually BE the street: when a business name
-            // occupies it, it carries no street number — fall through to
-            // Google's route rather than storing the firm name as the street.
-            $cassIsStreet = !empty($std['firstAddressLine']) && ($number === ''
-                || preg_match('/(?:^|\s)' . preg_quote(strtoupper($number), '/') . '(?:\s|$)/i', $std['firstAddressLine']));
-            if($isDesignation && $cassIsStreet){
-                $cassStreet = $cassStreetRemainder !== '' ? $cassStreetRemainder : $std['firstAddressLine'];
+            // occupies it, it carries no street number — then it is not a
+            // candidate at all, and Google's route stands.
+            $cassStreet = '';
+            if(!empty($std['firstAddressLine']) && ($number === ''
+                || preg_match('/(?:^|\s)' . preg_quote(strtoupper($number), '/') . '(?:\s|$)/i', $std['firstAddressLine']))){
+                $cassStreet = $cassStreetRemainder !== '' ? $cassStreetRemainder : trim($std['firstAddressLine']);
                 if($cassStreetRemainder === '' && $unit !== ''){
                     // The unit came from CASS's second line, but CASS often
                     // ALSO folds it into the first ("2200 S I-35 FRONTAGE RD
                     // B1" / second "B1"). Strip the duplicate, or address2
                     // ships with the unit still attached — the I10 bug.
-                    $stripped = preg_replace('/\s+' . preg_quote($unit, '/') . '$/i', '', $cassStreet, 1);
-                    if(trim($stripped) !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', trim($stripped))){
-                        $cassStreet = trim($stripped);
+                    $stripped = trim(preg_replace('/\s+' . preg_quote($unit, '/') . '$/i', '', $cassStreet, 1));
+                    if($stripped !== '' && !preg_match('/^\d+(?:\s+\d+\/\d+)?$/', $stripped)){
+                        $cassStreet = $stripped;
                     }
                 }
+            }
+
+            /*--
+            Two cases hand the street back to CASS:
+
+            1. Road DESIGNATIONS — a bare number token in the route means
+               Google is reporting internal Maps naming ("West Arizona 92",
+               "Farm to Market Road 423", "State Road 656" for a road locals
+               call Pine View Rd). CASS holds the USPS display form.
+            2. TRUNCATED routes. Google will echo an incomplete street
+               straight back as the route — "India" for India St — and mark
+               it CONFIRMED, with nothing in the response saying a suffix is
+               missing (caught by A-80, where the request carried a state and
+               ZIP but no city). The tell is that Google's street is a strict
+               token-prefix of CASS's: same tokens, then CASS adds more.
+               Any other disagreement is Google being MORE complete — a
+               spelled-out name ("COMRCL CTR BLVD" -> "Commercial Center
+               Boulevard"), a restored hyphen ("SUB ZERO" -> "Sub-Zero"), an
+               added directional ("APPLETON AVE" -> "West Appleton Avenue")
+               — and Google keeps it.
+            --*/
+            $isDesignation = $route !== '' && preg_match('/(?:^|\s)\d+(?:\s|$)/', $route);
+            if($cassStreet !== '' && ($isDesignation || $googleStreet === ''
+                || self::isTokenPrefix($googleStreet, $cassStreet))){
                 $street = self::apAbbreviate(self::smartCase($cassStreet));
             }else{
-                $street = self::apAbbreviate(trim($number . ' ' . $route));
+                $street = self::apAbbreviate($googleStreet);
             }
         }
 
@@ -1002,6 +1027,19 @@ class USAddresses {
         if($last >= 2 && isset($TYPE[$tokens[$last]])){ $tokens[$last] = $TYPE[$tokens[$last]]; }
 
         return implode(' ', $tokens);
+    }
+
+    // Is $a's token sequence a strict prefix of $b's? Case-insensitive, so
+    // it answers "same street, but $b carries more of it" — not "$b is
+    // spelled differently", which is the common and desirable case.
+    private static function isTokenPrefix($a, $b){
+        $at = preg_split('/\s+/', strtoupper(trim($a)), -1, PREG_SPLIT_NO_EMPTY);
+        $bt = preg_split('/\s+/', strtoupper(trim($b)), -1, PREG_SPLIT_NO_EMPTY);
+        if(empty($at) || count($at) >= count($bt)){ return false; }
+        foreach($at as $i => $token){
+            if($token !== $bt[$i]){ return false; }
+        }
+        return true;
     }
 
     // smartCase for units, plus: unit identifiers like b1 / k100 / 12a

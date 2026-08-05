@@ -116,6 +116,18 @@ the collection *borrows* rather than creates — a few tests reassign a test bee
 or location to Ballast Point, and those survive the cascade — reading those ids
 out of the collection at runtime so it stays correct if the tests change.
 
+That covers brewers, beers and locations. It does **not** cover the three test
+users, and cannot: `/users` has no list endpoint, so there is nothing to scan,
+and the ids exist only in the running collection's memory. `User - End Requests`
+is the last folder in the collection, so an interrupted run strands all three
+almost every time. Clearing them means taking the ids from the Newman output —
+or from the `users` table — and calling `DELETE /users/{id}` by hand.
+
+One edge to know about on locations: the match is on the name, and
+`location.name` is optional. A test location created *without* a name is still
+caught when its own brewer is deleted (it goes with the cascade), but one
+reassigned to a borrowed brewer would be missed. No current test does that.
+
 Safe to run any time; on a clean database it reports `Nothing to clean up`.
 
 ## Collection Structure

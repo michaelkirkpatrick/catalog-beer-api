@@ -66,6 +66,7 @@ $expected = array(
     'H6' => array('N71W13040 W Appleton Ave',           ''),        // grid number cased per CASS; W added by Google
     'H7' => array('680 North Ave NE',                   ''),        // directional IS the name — stays "North"
     'I1' => array('5401 Linda Vista Rd',                'Ste 406'), // Google reports NO subpremise; CASS standardized it
+    'I2' => array('2215 India St',                      ''),        // Google route "India" (truncated, CONFIRMED); CASS has "ST"
 );
 
 $rows = json_decode(file_get_contents(__DIR__ . '/fixtures/google-address-validation.json'), true);
