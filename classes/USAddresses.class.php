@@ -38,7 +38,11 @@ class USAddresses {
         if($location->validate($locationID, true)){
             // location_id is valid, proceed
             // Does an address already exist for this location?
-            if($this->validate($locationID, false)){
+            // saveToClass on PATCH: a partial patch has to merge with the
+            // stored address before re-validating, so load it. Previously this
+            // passed false and the un-patched fields went to Google as empty
+            // strings — a two-field patch validated a mostly-empty address.
+            if($this->validate($locationID, $method == 'PATCH')){
                 $addressOnFile = true;
                 $newAddress = false;
             }else{
@@ -143,15 +147,49 @@ class USAddresses {
 
 
             if(!$this->error){
-                // Save to Class
+                /*--
+                Save to Class. On PATCH, validate() above loaded the stored
+                address, so only the fields the request actually sent may
+                overwrite it — the rest keep their stored values and the merged
+                whole goes to Google as one complete address. POST and PUT
+                replace everything, as before.
+                --*/
+                $patching = ($method == 'PATCH');
                 $this->locationID = $locationID;
-                $this->address1 = $address1;
-                $this->address2 = $address2;
-                $this->city = $city;
-                $this->sub_code = $sub_code;
-                $this->zip5 = $zip5;
-                $this->zip4 = $zip4;
-                $this->telephone = $telephone;
+                if(!$patching || in_array('address1', $patchFields)){$this->address1 = $address1;}
+                if(!$patching || in_array('address2', $patchFields)){$this->address2 = $address2;}
+                if(!$patching || in_array('city', $patchFields)){$this->city = $city;}
+                if(!$patching || in_array('sub_code', $patchFields)){$this->sub_code = $sub_code;}
+                if(!$patching || in_array('zip5', $patchFields)){$this->zip5 = $zip5;}
+                if(!$patching || in_array('zip4', $patchFields)){$this->zip4 = $zip4;}
+                if(!$patching || in_array('telephone', $patchFields)){$this->telephone = $telephone;}
+
+                /*--
+                city+sub_code and zip5 are two spellings of the same fact — the
+                locality. When a patch supplies one group and not the other,
+                the stored other group describes the PREVIOUS locality, and
+                merging it in hands Google a contradiction it resolves
+                unpredictably: a stale city next to a fresh ZIP degraded CASS
+                enough to store an unnormalized "# 800" unit, and a stale
+                CA sub_code beat a patched Massachusetts ZIP outright. Drop
+                the un-patched group instead — Google re-derives it from the
+                one the client vouched for. A patch touching neither group
+                (address1, address2, telephone) keeps the stored pair, which
+                was validated together and cannot disagree with itself.
+                --*/
+                if($patching){
+                    $zipPatched = in_array('zip5', $patchFields);
+                    $cityPatched = in_array('city', $patchFields) || in_array('sub_code', $patchFields);
+                    if($zipPatched && !$cityPatched){
+                        $this->city = '';
+                        $this->sub_code = '';
+                        $this->stateShort = '';
+                        $this->stateLong = '';
+                    }elseif($cityPatched && !$zipPatched){
+                        $this->zip5 = '';
+                        $this->zip4 = '';
+                    }
+                }
 
                 if($method == 'POST' || $method == 'PUT'){
                     // Validate & standardize the address (Google Address Validation)
@@ -245,8 +283,14 @@ class USAddresses {
                         $this->validateTelephone();
                         $patchTelephone = true;
                     }
-                    if(count($patchFields) > 1){
-                        // They'd like to update something about the address, validate it
+                    /*--
+                    Any address field re-validates the (merged) address. The old
+                    gate was count($patchFields) > 1, which read "more than just
+                    the telephone" but actually meant a single address field
+                    patched alone — {"city": "..."} — validated nothing, built
+                    no clauses, wrote nothing, and still bumped lastModified.
+                    --*/
+                    if(count(array_diff($patchFields, array('telephone'))) > 0){
                         $this->validateAddress();
                         $patchAddress = true;
                     }
@@ -256,10 +300,10 @@ class USAddresses {
                         $setParams = array();
 
                         if($patchTelephone){
-                            if(!empty($this->telephone)){
-                                $setClauses[] = "telephone=?";
-                                $setParams[] = $this->telephone;
-                            }
+                            // NULL when cleared — the old !empty() guard could
+                            // write a number but never remove one.
+                            $setClauses[] = "telephone=?";
+                            $setParams[] = !empty($this->telephone) ? $this->telephone : null;
                         }
 
                         if($patchAddress){
@@ -285,7 +329,19 @@ class USAddresses {
                             $db->query($sql, $setParams);
                         }
 
-                        if(!$db->error){
+                        if($db->error){
+                            // Query Error
+                            $this->error = true;
+                            $this->errorMsg = $db->errorMsg;
+                            $this->responseCode = $db->responseCode;
+                        }
+                        // Post-write work only when something was written. An
+                        // empty PATCH body used to fall through to
+                        // updateLastModified() and bump the timestamp with
+                        // nothing stored — the same phantom-write shape as the
+                        // rest of this cluster. It returns the unchanged
+                        // location object, not an error.
+                        if(!$this->error && !empty($setClauses)){
                             if($patchAddress){
                                 // Store Latitude and Longitude (captured during validation; fall back to a geocode lookup)
                                 if($this->latLongFound){
@@ -321,11 +377,6 @@ class USAddresses {
                                     Brewer::refreshSearchObject($syncLocation->brewerID, true);
                                 }
                             }
-                        }else{
-                            // Query Error
-                            $this->error = true;
-                            $this->errorMsg = $db->errorMsg;
-                            $this->responseCode = $db->responseCode;
                         }
                     }
                 }
@@ -618,26 +669,109 @@ class USAddresses {
         }
 
         // ----- Accepted: populate standardized fields -----
+        // Split Google's combined ZIP ("53508" or "98271-9157") once — it fills
+        // whatever the CASS block leaves out below.
+        $postalCode = $postal['postalCode'] ?? '';
+        if(strpos($postalCode, '-') !== false){
+            list($postalZip5, $postalZip4) = explode('-', $postalCode, 2);
+        }else{
+            $postalZip5 = $postalCode;
+            $postalZip4 = '';
+        }
+
         if(!empty($std)){
-            // Prefer USPS-standardized (CASS) fields. Google folds any secondary
-            // unit (STE/APT/etc.) into firstAddressLine rather than secondAddressLine,
-            // so split it back out to keep address1 (unit) and address2 (street) separate.
+            // CASS street and unit. Google folds any secondary unit
+            // (STE/APT/etc.) into firstAddressLine rather than
+            // secondAddressLine, so split it back out to keep address1 (unit)
+            // and address2 (street) separate.
             if(!empty($std['secondAddressLine'])){
                 $street = $std['firstAddressLine'] ?? '';
                 $secondary = $std['secondAddressLine'];
             }else{
                 list($street, $secondary) = $this->splitSecondaryUnit($std['firstAddressLine'] ?? '');
             }
-            $this->address2 = ucwords(strtolower($street));
-            $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
-            // USPS city names are capped at 13 characters ("Snoqualmie Ps"), so
-            // prefer Google's unabbreviated locality for display.
-            $this->city = ucwords(strtolower($postal['locality'] ?? ($std['city'] ?? '')));
+            /*--
+            Street display prefers Google's postal lines, which spell the
+            street out in full where CASS abbreviates it — "WOOD RED RD NE"
+            vs "Woodinville Redmond Rd NE" for the same premise (I4). But
+            postalAddress.addressLines is substantially an echo of the input
+            with no guaranteed structure: a bare unit number can arrive as
+            line one ahead of the street (["800", "1270 Lincoln Ave"]), and a
+            spelling correction can arrive split across lines
+            (["2215 India", "India St"]). So the postal street is accepted
+            only when it is recognizably an expansion of the CASS street —
+            same house number, at least as many words. Everything else keeps
+            CASS, which is the authority on structure.
+            --*/
+            $lines = $postal['addressLines'] ?? array();
+            if(count($lines) > 1){
+                $postalStreet = $lines[0];
+                $postalSecondary = $lines[1];
+            }else{
+                list($postalStreet, $postalSecondary) = $this->splitSecondaryUnit($lines[0] ?? '');
+            }
+            if(!empty($postalStreet) && !empty($street)){
+                $cassWords = preg_split('/\s+/', trim($street), -1, PREG_SPLIT_NO_EMPTY);
+                $postalWords = preg_split('/\s+/', trim($postalStreet), -1, PREG_SPLIT_NO_EMPTY);
+                if($postalWords[0] === $cassWords[0] && count($postalWords) >= count($cassWords)){
+                    $street = $postalStreet;
+                }
+            }
+            // The unit stays CASS-sourced — CASS is the authority on unit
+            // designators ("800" in, "STE 800" out). A postal second line
+            // fills in only when CASS found none AND it actually reads as a
+            // unit, since for Google it is just as often the street.
+            if(empty($secondary) && !empty($postalSecondary) && preg_match('/^(?:' . self::SECONDARY_DESIGNATORS . ')\b|^#/i', trim($postalSecondary))){
+                $secondary = $postalSecondary;
+            }
+            $this->address2 = $this->smartCase($street);
+            $this->address1 = !empty($secondary) ? $this->smartCase($secondary) : '';
+            /*--
+            City is USPS's own mailing city ("BONNER", not the census place
+            "Bonner-West Riverside" Google reports) — with two fallbacks to
+            Google's locality:
+
+            - CASS's 13-char field cap truncated it ("SNOQUALMIE PS"). A
+              legitimate exactly-13-char city falls back harmlessly: Google
+              renders it identically. ("QUIL CEDA VLG" is capped AND Google
+              mirrors the abbreviation, so that one is unfixable from either
+              source.)
+            - CASS didn't actually confirm the address (no zipCode in the
+              block). Then std.city is only an echo of what the client sent —
+              "Paoli" — not a USPS determination, and Google's locality holds
+              the real mailing city ("Belleville").
+            --*/
+            $stdCity = strval($std['city'] ?? '');
+            $cassConfirmed = !empty($std['zipCode']);
+            if($cassConfirmed && $stdCity !== '' && strlen($stdCity) < 13){
+                $this->city = $this->smartCase($stdCity);
+            }else{
+                $this->city = $this->smartCase($postal['locality'] ?? $stdCity);
+            }
+            /*--
+            A premise-level verdict does not guarantee a complete CASS block.
+            When USPS does not recognise the submitted community as a mailing
+            city ("Paoli WI", an unincorporated place whose post office is
+            Belleville), standardizedAddress comes back partial — city and
+            state but no ZIP, or ZIP but no state — while Google's own
+            postalAddress in the same response has the full resolved picture.
+            Backfill from it. Trusting the partial block wholesale is what
+            turned these addresses into constraint-violation 500s: '' in zip5
+            hit chk_zip5_format, '' in sub_code hit fk_sub_code.
+            --*/
             $this->stateShort = strval($std['state'] ?? '');
+            if(empty($this->stateShort)){
+                $this->stateShort = strval($postal['administrativeArea'] ?? '');
+            }
             // Keep ZIPs as strings and pad — intval() here silently dropped the
             // leading zero on every MA/NH/RI/CT/NJ address (01085 -> 1085).
             $this->zip5 = $this->padZip($std['zipCode'] ?? '', 5);
-            $this->zip4 = $this->padZip($std['zipCodeExtension'] ?? '', 4);
+            if(empty($this->zip5)){
+                $this->zip5 = $this->padZip($postalZip5, 5);
+                $this->zip4 = $this->padZip($postalZip4, 4);
+            }else{
+                $this->zip4 = $this->padZip($std['zipCodeExtension'] ?? '', 4);
+            }
         }else{
             // Fall back to Google's post-processed postal address
             $lines = $postal['addressLines'] ?? array();
@@ -647,19 +781,12 @@ class USAddresses {
             }else{
                 list($street, $secondary) = $this->splitSecondaryUnit($lines[0] ?? '');
             }
-            $this->address2 = ucwords(strtolower($street));
-            $this->address1 = !empty($secondary) ? ucwords(strtolower($secondary)) : '';
-            $this->city = ucwords(strtolower($postal['locality'] ?? ''));
+            $this->address2 = $this->smartCase($street);
+            $this->address1 = !empty($secondary) ? $this->smartCase($secondary) : '';
+            $this->city = $this->smartCase($postal['locality'] ?? '');
             $this->stateShort = strval($postal['administrativeArea'] ?? '');
-            $postalCode = $postal['postalCode'] ?? '';
-            if(strpos($postalCode, '-') !== false){
-                list($z5, $z4) = explode('-', $postalCode, 2);
-                $this->zip5 = $this->padZip($z5, 5);
-                $this->zip4 = $this->padZip($z4, 4);
-            }else{
-                $this->zip5 = $this->padZip($postalCode, 5);
-                $this->zip4 = '';
-            }
+            $this->zip5 = $this->padZip($postalZip5, 5);
+            $this->zip4 = $this->padZip($postalZip4, 4);
         }
 
         // Derive sub_code and state_long
@@ -670,6 +797,33 @@ class USAddresses {
                 $this->sub_code = $subdivisions->sub_code;
                 $this->stateLong = $subdivisions->sub_name;
             }
+        }
+
+        /*--
+        Completeness gate. Everything below feeds columns with hard schema
+        constraints — zip5 has a CHECK for five digits, sub_code a foreign key
+        into subdivisions — so an address still incomplete after the backfill
+        above has to stop here as a 400 the client can act on, not surface as
+        the database's own 500 with every valid_state key null.
+        --*/
+        if(!preg_match('/^[0-9]{5}$/', $this->zip5) || empty($this->sub_code) || empty($this->city) || empty($this->address2)){
+            $this->error = true;
+            $this->errorMsg = 'We found this location but could not fully standardize its mailing address. If the community is not a USPS mailing city (common for unincorporated places), try the city its post office uses, or provide the ZIP code.';
+            $this->responseCode = 400;
+            // Blame the field the client can most usefully change.
+            $blame = !preg_match('/^[0-9]{5}$/', $this->zip5) ? 'zip5' : (empty($this->sub_code) ? 'sub_code' : (empty($this->city) ? 'city' : 'address2'));
+            $this->validState[$blame] = 'invalid';
+            $this->validMsg[$blame] = $this->errorMsg;
+
+            // Log Error — badData carries the raw response, same as 267, so
+            // these edge-case addresses are diagnosable without a repro.
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 303;
+            $errorLog->errorMsg = 'Address standardization incomplete after postalAddress backfill';
+            $errorLog->badData = $requestData . ' // Response: ' . $response;
+            $errorLog->filename = 'API / USAddresses.class.php';
+            $errorLog->write();
+            return;
         }
 
         // Capture coordinates from the same response (no separate geocode call needed)
@@ -691,16 +845,50 @@ class USAddresses {
     // leaves a whole street behind it ("3717 Las Vegas Blvd S"), while a street
     // name mistaken for one leaves a bare number ("1"). So refuse the split
     // when that is all that remains. "Pier 39 Ste 200" still splits correctly.
+    // USPS secondary-unit designators per Publication 28, Appendix C2. Shared
+    // by splitSecondaryUnit() and the postal-line unit guard above so the two
+    // can't drift apart.
+    private const SECONDARY_DESIGNATORS = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
+
     private function splitSecondaryUnit($line){
         $line = trim($line ?? '');
-        $designators = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
-        if(preg_match('/^(.*?)\s+((?:' . $designators . ')\b.*|#\s*\S.*)$/i', $line, $m)){
+        if(preg_match('/^(.*?)\s+((?:' . self::SECONDARY_DESIGNATORS . ')\b.*|#\s*\S.*)$/i', $line, $m)){
             if(preg_match('/^\d+[A-Za-z]?$/', trim($m[1]))){
                 return array($line, '');
             }
             return array(trim($m[1]), trim($m[2]));
         }
         return array($line, '');
+    }
+
+    /*--
+    Title-case a CASS/postal address component without mangling the tokens
+    USPS writes in caps. A bare ucwords(strtolower()) turned "RD NE" into
+    "Rd Ne", "STE 105B" into "Ste 105b" and "BONNER-WEST RIVERSIDE" into
+    "Bonner-west Riverside" — every one observed in production, filed as I9.
+
+    Token rules, applied after the base title-case (which also capitalizes
+    after hyphens and slashes for hyphenated localities):
+    - ordinals stay lowercase:        232ND ST   -> 232nd St
+    - short digit+letter units upper: STE 105B   -> Ste 105B
+    - directionals upper:             RD NE      -> Rd NE  (single letters
+      N/S/E/W already survive the base case unchanged)
+    - PO and US upper:                PO BOX 12  -> PO Box 12, US HWY 41
+    --*/
+    private function smartCase($value){
+        $value = ucwords(strtolower(trim($value ?? '')), " -/");
+        $tokens = preg_split('/(\s+|-|\/)/', $value, -1, PREG_SPLIT_DELIM_CAPTURE);
+        foreach($tokens as &$token){
+            if(preg_match('/^\d+(St|Nd|Rd|Th)$/i', $token)){
+                $token = strtolower($token);
+            }elseif(preg_match('/^\d+[A-Za-z]{1,2}$/', $token)){
+                $token = strtoupper($token);
+            }elseif(preg_match('/^(Ne|Nw|Se|Sw|Po|Us)$/i', $token)){
+                $token = strtoupper($token);
+            }
+        }
+        unset($token);
+        return implode('', $tokens);
     }
 
     // Normalize a ZIP part to a fixed-width digit string.
@@ -881,25 +1069,33 @@ class USAddresses {
         // Handle Empty Fields
         $patchFields = array();
 
-        if(isset($data->address1)){$patchFields[] = 'address1';}
+        /*--
+        property_exists(), not isset(): isset() is false for an explicit null,
+        so "clear this field" arrived identical to "leave this field alone" —
+        the same defect fixed on Brewer/Beer/Location/Users. It only becomes
+        safe here now that PATCH merges with the stored address: telephone
+        clears to NULL, address1 and zip4 re-derive from the validated address,
+        and a null on a required component simply fails validation with a 400.
+        --*/
+        if(property_exists($data, 'address1')){$patchFields[] = 'address1';}
         else{$data->address1 = '';}
 
-        if(isset($data->address2)){$patchFields[] = 'address2';}
+        if(property_exists($data, 'address2')){$patchFields[] = 'address2';}
         else{$data->address2 = '';}
 
-        if(isset($data->city)){$patchFields[] = 'city';}
+        if(property_exists($data, 'city')){$patchFields[] = 'city';}
         else{$data->city = '';}
 
-        if(isset($data->sub_code)){$patchFields[] = 'sub_code';}
+        if(property_exists($data, 'sub_code')){$patchFields[] = 'sub_code';}
         else{$data->sub_code = '';}
 
-        if(isset($data->zip5)){$patchFields[] = 'zip5';}
+        if(property_exists($data, 'zip5')){$patchFields[] = 'zip5';}
         else{$data->zip5 = '';}
 
-        if(isset($data->zip4)){$patchFields[] = 'zip4';}
+        if(property_exists($data, 'zip4')){$patchFields[] = 'zip4';}
         else{$data->zip4 = '';}
 
-        if(isset($data->telephone)){$patchFields[] = 'telephone';}
+        if(property_exists($data, 'telephone')){$patchFields[] = 'telephone';}
         else{$data->telephone = '';}
 
         switch($method){
