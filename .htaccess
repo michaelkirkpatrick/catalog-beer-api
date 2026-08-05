@@ -56,7 +56,11 @@ RewriteRule ^style/class$ index.php?endpoint=style&function=class [L]
 RewriteRule ^style/([a-z0-9-]+)$ index.php?endpoint=style&id=$1 [L]
 RewriteRule ^style/?$ index.php?endpoint=style [L]
 
-RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [L]
+# QSA is load-bearing on the list rule: GET /location relies on count= and
+# cursor= surviving the rewrite. Without it the query string is replaced and
+# pagination silently restarts at offset 0 -- invisible below 500 rows
+# (count's default matches), an infinite loop for any paginating client above.
+RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [QSA,L]
 RewriteRule ^location/map$ index.php?endpoint=location&function=map [L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
 RewriteRule ^location/zip$ index.php?endpoint=location&function=zip [QSA,L]
