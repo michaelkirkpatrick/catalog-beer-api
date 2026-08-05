@@ -407,27 +407,40 @@ class Brewer {
                     }
                 }
 
-                // Validate Description
+                /*--
+                Validate first, compare after, and normalise '' to null before
+                storing — the same shape beer's abv/ibu use, for three reasons:
+
+                - The column is nullable and PUT clears it to NULL. PATCH wrote
+                  '' here, so the two paths disagreed on what "no description"
+                  looks like and a cleared record read back as '' from one and
+                  null from the other.
+                - Loose != treats null and '' as equal, so a row cleared to ''
+                  by the old path could never be moved to NULL. Strict !==
+                  against the stored value repairs those rows on next write.
+                - Comparing before validating skipped validation entirely on a
+                  loose match.
+                --*/
                 if(in_array('description', $patchFields)){
-                    if($description != $this->description){
-                        $this->description = $description;
-                        $this->validateDescription();
-                        if(!$this->error){
-                            $setClauses[] = "description=?";
-                            $setParams[] = $this->description;
-                        }
+                    $currentDescription = $this->description;
+                    $this->description = $description;
+                    $this->validateDescription();
+                    if($this->description === ''){$this->description = null;}
+                    if(!$this->error && $this->description !== $currentDescription){
+                        $setClauses[] = "description=?";
+                        $setParams[] = $this->description;
                     }
                 }
 
                 // Validate Short Description
                 if(in_array('short_description', $patchFields)){
-                    if($shortDescription != $this->shortDescription){
-                        $this->shortDescription = $shortDescription;
-                        $this->validateShortDescription();
-                        if(!$this->error){
-                            $setClauses[] = "shortDescription=?";
-                            $setParams[] = $this->shortDescription;
-                        }
+                    $currentShortDescription = $this->shortDescription;
+                    $this->shortDescription = $shortDescription;
+                    $this->validateShortDescription();
+                    if($this->shortDescription === ''){$this->shortDescription = null;}
+                    if(!$this->error && $this->shortDescription !== $currentShortDescription){
+                        $setClauses[] = "shortDescription=?";
+                        $setParams[] = $this->shortDescription;
                     }
                 }
 
@@ -2001,16 +2014,28 @@ class Brewer {
                 // Which fields are we updating?
                 $patchFields = array();
 
-                if(isset($data->name)){$patchFields[] = 'name';}
+                /*--
+                property_exists(), not isset(): isset() is false for an explicit
+                null, so "clear this field" and "don't touch this field" arrived
+                here as the same request. The field never joined $patchFields,
+                nothing was written, and the 200 that came back looked like a
+                successful clear.
+
+                Required fields are listed the same way on purpose. Their
+                validators below already reject an empty value with a 400, so an
+                explicit null on name is answered "we need a name" instead of
+                being silently discarded.
+                --*/
+                if(property_exists($data, 'name')){$patchFields[] = 'name';}
                 else{$data->name = '';}
 
-                if(isset($data->description)){$patchFields[] = 'description';}
+                if(property_exists($data, 'description')){$patchFields[] = 'description';}
                 else{$data->description = '';}
 
-                if(isset($data->short_description)){$patchFields[] = 'short_description';}
+                if(property_exists($data, 'short_description')){$patchFields[] = 'short_description';}
                 else{$data->short_description = '';}
 
-                if(isset($data->url)){$patchFields[] = 'url';}
+                if(property_exists($data, 'url')){$patchFields[] = 'url';}
                 else{$data->url = '';}
 
                 /*--

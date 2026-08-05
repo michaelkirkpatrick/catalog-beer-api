@@ -594,6 +594,10 @@ Brewer,BR-201,"Create Brewery #46 reusing the freed URL",POST,/brewer,Brewery St
 Brewer,BR-202,"Admin clears a second URL in a row",PATCH,/brewer/{{brewer_id_46}},Admin,200,Done
 Brewer,BR-203,"Admin repoints Brewery #45 to a working URL",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
 Brewer,BR-204,"Admin edits the name - that IS a verification",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-216,"Brewery #45 - add descriptions before the null clear",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-217,"Brewery #45 - PATCH url null clears it, descriptions untouched",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Location,L-178,"Location #46 under Brewery #45, with a URL",POST,/location,Admin,201,Done
+Location,L-179,"Location #46 - PATCH url null clears it",PATCH,/location/{{location_id_46}},Admin,200,Done
 Brewer,BR-205,"Delete Brewery #45",DELETE,/brewer/{{brewer_id_45}},Admin,204,Done
 Brewer,BR-206,"Delete Brewery #46",DELETE,/brewer/{{brewer_id_46}},Admin,204,Done
 Brewer,BR-207,"Create Brewery #47 as Admin",POST,/brewer,Admin,201,Done

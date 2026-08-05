@@ -351,6 +351,20 @@ class Location {
                                 $this->validState['url'] = 'valid';
                                 $setClauses[] = 'url=?';
                                 $setParams[] = $this->url;
+                            }else{
+                                /*--
+                                Cleared. Without this branch the clause was
+                                simply never added, so the UPDATE ran without
+                                the url column and the request returned 200
+                                having changed nothing but lastModified.
+
+                                NULL, not '': the column is nullable and PUT
+                                clears it to NULL, so both paths have to agree
+                                on what "no website" looks like.
+                                --*/
+                                $this->url = null;
+                                $this->validState['url'] = 'valid';
+                                $setClauses[] = 'url=NULL';
                             }
                         }else{
                             // Invalid URL
@@ -1860,20 +1874,29 @@ class Location {
                 // Which fields are we updating?
                 $patchFields = array();
 
-                // Handle Empty Fields
-                if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
+                /*--
+                Handle Empty Fields
+
+                property_exists, not isset — isset() is false for an explicit
+                null, which is exactly how a client clears a field. name and url
+                are both nullable and both clear this way. brewer_id and
+                country_code are NOT NULL; they are listed the same way so their
+                validators can answer an explicit null with a 400 rather than
+                letting it pass as "field not supplied".
+
+                index.php guarantees $data is an object, so no is_object() guard
+                is needed here.
+                --*/
+                if(property_exists($data, 'brewer_id')){$patchFields[] = 'brewerID';}
                 else{$data->brewer_id = '';}
 
-                // property_exists, not isset — name is nullable, and isset() is
-                // false for an explicit "name": null, which is exactly how a
-                // client clears the field.
-                if(is_object($data) && property_exists($data, 'name')){$patchFields[] = 'name';}
+                if(property_exists($data, 'name')){$patchFields[] = 'name';}
                 else{$data->name = '';}
 
-                if(isset($data->url)){$patchFields[] = 'url';}
+                if(property_exists($data, 'url')){$patchFields[] = 'url';}
                 else{$data->url = '';}
 
-                if(isset($data->country_code)){$patchFields[] = 'countryCode';}
+                if(property_exists($data, 'country_code')){$patchFields[] = 'countryCode';}
                 else{$data->country_code = '';}
 
                 // Validate API Key for userID

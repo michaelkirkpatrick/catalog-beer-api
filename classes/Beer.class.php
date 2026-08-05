@@ -394,16 +394,24 @@ class Beer {
                     }
                 }
 
-                // Validate Description
+                /*--
+                Validate Description
+
+                Validate first, compare after, and normalise '' to null before
+                storing — the same order abv and ibu use below. PUT clears this
+                column to NULL, so PATCH writing '' left the two paths
+                disagreeing about what "no description" looks like; and a loose
+                != read null and '' as one value, so a row already cleared to ''
+                could never be moved to NULL. Strict !== repairs those rows.
+                --*/
                 if(in_array('description', $patchFields)){
-                    if($description != $this->description){
-                        // Validate Description
-                        $this->description = $description;
-                        $this->validateDescription();
-                        if(!$this->error){
-                            $setClauses[] = "description=?";
-                            $setParams[] = $this->description;
-                        }
+                    $currentDescription = $this->description;
+                    $this->description = $description;
+                    $this->validateDescription();
+                    if($this->description === ''){$this->description = null;}
+                    if(!$this->error && $this->description !== $currentDescription){
+                        $setClauses[] = "description=?";
+                        $setParams[] = $this->description;
                     }
                 }
 
@@ -2083,15 +2091,24 @@ class Beer {
                 // Which fields are we updating?
                 $patchFields = array();
 
-                // Handle Empty Fields
-                if(isset($data->brewer_id)){$patchFields[] = 'brewerID';}
+                /*--
+                Handle Empty Fields
+
+                property_exists(), not isset(): isset() is false for an explicit
+                null, so "clear this field" and "leave this field alone" reached
+                add() as the same request. description is nullable and an
+                explicit null clears it; brewer_id, name and style are NOT NULL,
+                and their validators already answer an empty value with a 400,
+                so a null there is rejected rather than silently discarded.
+                --*/
+                if(property_exists($data, 'brewer_id')){$patchFields[] = 'brewerID';}
                 else{$data->brewer_id = '';}
 
-                if(isset($data->name)){$patchFields[] = 'name';}
+                if(property_exists($data, 'name')){$patchFields[] = 'name';}
                 else{$data->name = '';}
 
                 // Style change triggered by any of style, style_id, parent, or class
-                if(isset($data->style) || isset($data->style_id) || isset($data->parent) || isset($data->class)){
+                if(property_exists($data, 'style') || property_exists($data, 'style_id') || property_exists($data, 'parent') || property_exists($data, 'class')){
                     $patchFields[] = 'style';
                     if(!isset($data->style)){$data->style = '';}
                     if(!isset($data->style_id)){$data->style_id = '';}
@@ -2106,13 +2123,11 @@ class Beer {
                     $data->style_confidence = '';
                 }
 
-                if(isset($data->description)){$patchFields[] = 'description';}
+                if(property_exists($data, 'description')){$patchFields[] = 'description';}
                 else{$data->description = '';}
 
-                // property_exists(), not isset(): isset() is false for an
-                // explicit null, and null is meaningful on both fields — it
-                // clears ibu back to unknown, and is a 400 on abv, which the
-                // schema requires. isset() silently ignored both.
+                // Same reasoning as above: null clears ibu back to unknown, and
+                // is a 400 on abv, which the schema requires.
                 if(property_exists($data, 'abv')){$patchFields[] = 'abv';}
                 else{$data->abv = '';}
 

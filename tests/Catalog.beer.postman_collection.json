@@ -70091,6 +70091,407 @@
 									"response": []
 								},
 								{
+									"name": "BR-216 Brewery #45: add descriptions before the null clear",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Both descriptions set\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.description).to.equal(\"A full description that must survive a url clear.\");",
+													"    pm.expect(jsonData.short_description).to.equal(\"Must survive the url clear.\");",
+													"});",
+													"",
+													"// Snapshot the badges for BR-217. This request is a content edit by an",
+													"// admin, so it legitimately stamps cb_verified — which is exactly why the",
+													"// next test cannot hardcode a badge value and has to compare against",
+													"// whatever state it actually inherits.",
+													"pm.environment.set(\"brewer_45_cb_verified\", String(pm.response.json().cb_verified));",
+													"pm.environment.set(\"brewer_45_brewer_verified\", String(pm.response.json().brewer_verified));"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"description\": \"A full description that must survive a url clear.\",\n    \"short_description\": \"Must survive the url clear.\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-217 Brewery #45: PATCH url null clears it, descriptions untouched",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// An explicit JSON null means \"clear this field\". It used to be",
+													"// indistinguishable from an absent key (isset() is false for null), so",
+													"// this returned 200 and left the old URL in place. The only workaround",
+													"// was a full PUT, which clears every optional field the body omits —",
+													"// which is why this test asserts the descriptions are still here.",
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"URL cleared to null\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.url).to.equal(null);",
+													"});",
+													"",
+													"pm.test(\"Clearing one field leaves the others alone\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get(\"brewer_name_45\"));",
+													"    pm.expect(jsonData.description).to.equal(\"A full description that must survive a url clear.\");",
+													"    pm.expect(jsonData.short_description).to.equal(\"Must survive the url clear.\");",
+													"});",
+													"",
+													"pm.test(\"A URL-only edit leaves the verification badges exactly as they were\", function () {",
+													"    // Compared against the state BR-216 recorded rather than a literal:",
+													"    // \"URL-only edit\" means the badge write is skipped, so the assertion is",
+													"    // that nothing moved — not that the flags hold any particular value.",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(String(jsonData.cb_verified)).to.equal(pm.environment.get(\"brewer_45_cb_verified\"));",
+													"    pm.expect(String(jsonData.brewer_verified)).to.equal(pm.environment.get(\"brewer_45_brewer_verified\"));",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_45}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_45}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"url\": null\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-178 Location #46 under Brewery #45, with a URL",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"pm.environment.set('location_name_46', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}} Taproom'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"URL saved\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.url).to.equal(pm.environment.get(\"brewer_url_45\"));",
+													"});",
+													"",
+													"// Save Variables — no teardown needed, BR-205 deletes Brewery #45 and",
+													"// the location cascades with it.",
+													"pm.environment.set(\"location_id_46\", pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_45}}\",\n    \"name\": \"{{location_name_46}}\",\n    \"country_code\": \"US\",\n    \"url\": \"{{brewer_url_45}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-179 Location #46: PATCH url null clears it",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// Two separate bugs made this a no-op: isset() dropped the explicit",
+													"// null before it reached add(), and the clear branch in add() had no",
+													"// else, so no url clause was ever added to the UPDATE. An empty string",
+													"// did not work here either — unlike on /brewer.",
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"URL cleared to null\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.url).to.equal(null);",
+													"});",
+													"",
+													"pm.test(\"Other fields untouched\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get(\"location_name_46\"));",
+													"    pm.expect(jsonData.country_code).to.equal(\"US\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											},
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_46}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_46}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"url\": null\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
 									"name": "BR-205 Delete Brewery #45",
 									"event": [
 										{

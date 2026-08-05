@@ -1197,13 +1197,23 @@ class Users {
                 // Which fields are we updating?
                 $patchFields = array();
 
-                if(isset($data->name)){$patchFields[] = 'name';}
+                /*--
+                property_exists(), not isset(): isset() is false for an explicit
+                null, so a null arrived indistinguishable from an absent key and
+                was silently dropped. All three columns are NOT NULL and none of
+                them is clearable, so the point here is the opposite of the
+                nullable fields elsewhere — routing the null into the validators
+                below, which answer it with a 400, rather than returning a 200
+                that changed nothing. validateName(), validateEmail() and
+                validatePassword() are all null-safe.
+                --*/
+                if(property_exists($data, 'name')){$patchFields[] = 'name';}
                 else{$data->name = '';}
 
-                if(isset($data->email)){$patchFields[] = 'email';}
+                if(property_exists($data, 'email')){$patchFields[] = 'email';}
                 else{$data->email = '';}
 
-                if(isset($data->password)){$patchFields[] = 'password';}
+                if(property_exists($data, 'password')){$patchFields[] = 'password';}
                 else{$data->password = '';}
 
                 // Update User Info
