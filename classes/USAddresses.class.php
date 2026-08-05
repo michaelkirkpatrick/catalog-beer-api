@@ -957,26 +957,19 @@ class USAddresses {
                missing (caught by A-80, where the request carried a state and
                ZIP but no city). The tell is that Google's street is a strict
                token-prefix of CASS's: same tokens, then CASS adds more.
-            3. A different street TYPE. Google's road data and USPS's can
-               genuinely disagree about whether an address sits on a Street
-               or an Avenue, a Boulevard or a Way — and where they do, USPS
-               is the one that routes the mail (608 Topeka St is dpv=Y while
-               Google calls it Topeka Avenue). Google's answer can also be
-               unstable there: 10520 Quil Ceda comes back "Way" when asked
-               about "Blvd" and "Boulevard" when asked about "Way", so
-               taking Google's would rewrite the row on every future save.
+            3. A different SKELETON — the directionals and street type, which
+               is the structure USPS owns and Google's road data regularly
+               disagrees with. See streetSkeleton().
 
-            Everything else is Google being MORE complete, and it keeps the
-            street: a spelled-out name ("COMRCL CTR BLVD" -> "Commercial
-            Center Boulevard"), a restored hyphen ("SUB ZERO" -> "Sub-Zero"),
-            an added directional ("APPLETON AVE" -> "West Appleton Avenue"),
-            or an expanded suffix ("ALY" -> "Alley"), which is the SAME type
-            spelled differently and so not a conflict.
+            What is left for Google is the spelling of the name itself, which
+            is what it is genuinely better at: "COMRCL CTR BLVD" ->
+            "Commercial Center Boulevard", "SUB ZERO" -> "Sub-Zero", "ALY" ->
+            "Alley", "MCMURRAY" -> "McMurray", "KALAKAUA" -> "Kalākaua".
             --*/
             $isDesignation = $route !== '' && preg_match('/(?:^|\s)\d+(?:\s|$)/', $route);
             if($cassStreet !== '' && ($isDesignation || $googleStreet === ''
                 || self::isTokenPrefix($googleStreet, $cassStreet)
-                || self::streetTypeConflict($googleStreet, $cassStreet))){
+                || self::streetStructureConflict($googleStreet, $cassStreet))){
                 $street = self::apAbbreviate(self::smartCase($cassStreet));
             }else{
                 $street = self::apAbbreviate($googleStreet);
@@ -1066,24 +1059,47 @@ class USAddresses {
         'RUN'=>'RUN', 'PASS'=>'PASS', 'PIKE'=>'PIKE', 'BEND'=>'BEND',
     );
 
-    // The street's own type: the LAST recognised type token, so "Commercial
-    // Center Boulevard" reads as BLVD rather than CTR. Returns '' when the
-    // name carries no type at all ("South Broadway", "1000 N Broadway").
-    private static function streetType($street){
-        $tokens = preg_split('/\s+/', strtoupper(trim($street ?? '')), -1, PREG_SPLIT_NO_EMPTY);
-        for($i = count($tokens) - 1; $i >= 1; $i--){
-            if(isset(self::STREET_TYPE_CANON[$tokens[$i]])){ return self::STREET_TYPE_CANON[$tokens[$i]]; }
+    private const DIRECTIONAL_CANON = array(
+        'N'=>'N', 'NORTH'=>'N', 'S'=>'S', 'SOUTH'=>'S', 'E'=>'E', 'EAST'=>'E', 'W'=>'W', 'WEST'=>'W',
+        'NE'=>'NE', 'NORTHEAST'=>'NE', 'NW'=>'NW', 'NORTHWEST'=>'NW',
+        'SE'=>'SE', 'SOUTHEAST'=>'SE', 'SW'=>'SW', 'SOUTHWEST'=>'SW',
+    );
+
+    /*--
+    The street's SKELETON: its directional and type tokens in order, each
+    reduced to one canonical form, with the name words dropped.
+
+        "980 East Northeast 4th Street"  ->  dirs [E, NE]  types [ST]
+        "980 E 4TH ST"                   ->  dirs [E]      types [ST]
+
+    This is the part USPS owns. Google is the better source for how a NAME is
+    spelled — McDowell, AleSmith, Kalākaua, Sub-Zero, Three Notch'd, "Intl
+    Arpt" -> "International Airport" — but its road data disagrees with USPS
+    about structure often enough to matter, and always in a way that changes
+    where mail goes: it drops the S from 18525 S Main St, adds an N to 1151
+    Main St, and turns 980 E 4th St into "East Northeast 4th Street". CASS
+    confirms delivery (dpv=Y) at its own rendering for every one of those.
+
+    So: same skeleton means the two only disagree about spelling, and Google
+    wins. A different skeleton is a structural disagreement, and USPS wins.
+    Comparing skeletons rather than whole strings is what lets a hyphen or an
+    expanded word through ("SUB ZERO PKWY" -> "Sub-Zero Pkwy" changes the
+    token count but not the skeleton) while stopping a moved directional.
+    --*/
+    private static function streetSkeleton($street){
+        $dirs = array(); $types = array();
+        foreach(preg_split('/\s+/', strtoupper(trim($street ?? '')), -1, PREG_SPLIT_NO_EMPTY) as $token){
+            $token = trim($token, '.,');
+            if(isset(self::DIRECTIONAL_CANON[$token])){ $dirs[] = self::DIRECTIONAL_CANON[$token]; }
+            elseif(isset(self::STREET_TYPE_CANON[$token])){ $types[] = self::STREET_TYPE_CANON[$token]; }
         }
-        return '';
+        return array($dirs, $types);
     }
 
-    // Do the two renderings disagree about the street TYPE? Only when both
-    // name one: a type present on one side and absent on the other is a
-    // completeness question, which the token-prefix rule already answers.
-    private static function streetTypeConflict($googleStreet, $cassStreet){
-        $g = self::streetType($googleStreet);
-        $c = self::streetType($cassStreet);
-        return $g !== '' && $c !== '' && $g !== $c;
+    private static function streetStructureConflict($googleStreet, $cassStreet){
+        list($gd, $gt) = self::streetSkeleton($googleStreet);
+        list($cd, $ct) = self::streetSkeleton($cassStreet);
+        return $gd !== $cd || $gt !== $ct;
     }
 
     // Is $a's token sequence a strict prefix of $b's? Case-insensitive, so
@@ -1134,6 +1150,12 @@ class USAddresses {
             if(preg_match('/^\d+(St|Nd|Rd|Th)$/i', $token)){
                 $token = strtolower($token);
             }elseif(preg_match('/^\d+[A-Za-z]{1,2}$/', $token)){
+                $token = strtoupper($token);
+            }elseif(preg_match('/^[A-Za-z]?\d+[A-Za-z]\d+[A-Za-z]?$/', $token)){
+                // Grid house numbers (Wisconsin's "N71W13040", "W226N6339")
+                // are letter-digit-letter-digit; title case turns them into
+                // "N71w13040". Ordinals never match — they have no digit
+                // AFTER the letters.
                 $token = strtoupper($token);
             }elseif(preg_match('/^(Ne|Nw|Se|Sw|Po|Us|Fm)$/i', $token)){
                 $token = strtoupper($token);

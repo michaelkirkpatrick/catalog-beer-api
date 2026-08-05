@@ -62,6 +62,12 @@ $settings = array(
         'unordered(style_family)',
         'unordered(cities)',
         'unordered(states)',
+        // Street and ZIP — only location records carry address.*, so these
+        // surface taprooms, not their brewer or its beers. Ranked below
+        // brewer.name so a street match never outranks a name match, and
+        // above the prose for the same reason descriptions rank last.
+        'unordered(address.address1)',
+        'unordered(address.zip5)',
         'short_description',
         'description'
     ),
@@ -167,7 +173,16 @@ $settings = array(
 
     // Typo tolerance off for very short tokens — "IPA" must not match "APA".
     'minWordSizefor1Typo'  => 4,
-    'minWordSizefor2Typos' => 8
+    'minWordSizefor2Typos' => 8,
+
+    /*
+    A ZIP is five digits, so minWordSizefor1Typo=4 would let 97701 match
+    97702 — a different town, presented as a hit. There is no such thing as
+    a near-miss postal code; either it's the code or it isn't.
+    */
+    'disableTypoToleranceOnAttributes' => array(
+        'address.zip5'
+    )
 );
 
 // Push to Algolia
