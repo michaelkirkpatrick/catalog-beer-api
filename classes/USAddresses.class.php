@@ -945,7 +945,7 @@ class USAddresses {
             }
 
             /*--
-            Two cases hand the street back to CASS:
+            Three cases hand the street back to CASS:
 
             1. Road DESIGNATIONS — a bare number token in the route means
                Google is reporting internal Maps naming ("West Arizona 92",
@@ -957,15 +957,26 @@ class USAddresses {
                missing (caught by A-80, where the request carried a state and
                ZIP but no city). The tell is that Google's street is a strict
                token-prefix of CASS's: same tokens, then CASS adds more.
-               Any other disagreement is Google being MORE complete — a
-               spelled-out name ("COMRCL CTR BLVD" -> "Commercial Center
-               Boulevard"), a restored hyphen ("SUB ZERO" -> "Sub-Zero"), an
-               added directional ("APPLETON AVE" -> "West Appleton Avenue")
-               — and Google keeps it.
+            3. A different street TYPE. Google's road data and USPS's can
+               genuinely disagree about whether an address sits on a Street
+               or an Avenue, a Boulevard or a Way — and where they do, USPS
+               is the one that routes the mail (608 Topeka St is dpv=Y while
+               Google calls it Topeka Avenue). Google's answer can also be
+               unstable there: 10520 Quil Ceda comes back "Way" when asked
+               about "Blvd" and "Boulevard" when asked about "Way", so
+               taking Google's would rewrite the row on every future save.
+
+            Everything else is Google being MORE complete, and it keeps the
+            street: a spelled-out name ("COMRCL CTR BLVD" -> "Commercial
+            Center Boulevard"), a restored hyphen ("SUB ZERO" -> "Sub-Zero"),
+            an added directional ("APPLETON AVE" -> "West Appleton Avenue"),
+            or an expanded suffix ("ALY" -> "Alley"), which is the SAME type
+            spelled differently and so not a conflict.
             --*/
             $isDesignation = $route !== '' && preg_match('/(?:^|\s)\d+(?:\s|$)/', $route);
             if($cassStreet !== '' && ($isDesignation || $googleStreet === ''
-                || self::isTokenPrefix($googleStreet, $cassStreet))){
+                || self::isTokenPrefix($googleStreet, $cassStreet)
+                || self::streetTypeConflict($googleStreet, $cassStreet))){
                 $street = self::apAbbreviate(self::smartCase($cassStreet));
             }else{
                 $street = self::apAbbreviate($googleStreet);
@@ -1027,6 +1038,52 @@ class USAddresses {
         if($last >= 2 && isset($TYPE[$tokens[$last]])){ $tokens[$last] = $TYPE[$tokens[$last]]; }
 
         return implode(' ', $tokens);
+    }
+
+    /*--
+    Street-type vocabulary for CONFLICT DETECTION — every spelling mapped to
+    one canonical form, so "Alley"/"ALY" and "Center"/"CTR" read as the same
+    type while "Avenue" and "ST" read as different ones.
+
+    Wider than apAbbreviate()'s table on purpose: that one only lists types we
+    ABBREVIATE for display, while this one has to recognise types we
+    deliberately leave spelled out (Way, Loop, Route, Plaza, Green) — Quil
+    Ceda's Boulevard/Way disagreement is invisible without them.
+    --*/
+    private const STREET_TYPE_CANON = array(
+        'STREET'=>'ST', 'ST'=>'ST', 'AVENUE'=>'AVE', 'AVE'=>'AVE', 'AV'=>'AVE',
+        'BOULEVARD'=>'BLVD', 'BLVD'=>'BLVD', 'ROAD'=>'RD', 'RD'=>'RD',
+        'DRIVE'=>'DR', 'DR'=>'DR', 'LANE'=>'LN', 'LN'=>'LN', 'COURT'=>'CT', 'CT'=>'CT',
+        'CIRCLE'=>'CIR', 'CIR'=>'CIR', 'PLACE'=>'PL', 'PL'=>'PL', 'SQUARE'=>'SQ', 'SQ'=>'SQ',
+        'TERRACE'=>'TER', 'TER'=>'TER', 'TRAIL'=>'TRL', 'TRL'=>'TRL',
+        'PARKWAY'=>'PKWY', 'PKWY'=>'PKWY', 'HIGHWAY'=>'HWY', 'HWY'=>'HWY',
+        'FREEWAY'=>'FWY', 'FWY'=>'FWY', 'EXPRESSWAY'=>'EXPY', 'EXPY'=>'EXPY',
+        'TURNPIKE'=>'TPKE', 'TPKE'=>'TPKE', 'WAY'=>'WAY', 'WY'=>'WAY',
+        'LOOP'=>'LOOP', 'ALLEY'=>'ALY', 'ALY'=>'ALY', 'PLAZA'=>'PLZ', 'PLZ'=>'PLZ',
+        'ROUTE'=>'RTE', 'RTE'=>'RTE', 'EXTENSION'=>'EXT', 'EXT'=>'EXT',
+        'GREEN'=>'GRN', 'GRN'=>'GRN', 'POINT'=>'PT', 'PT'=>'PT',
+        'CROSSING'=>'XING', 'XING'=>'XING', 'CENTER'=>'CTR', 'CTR'=>'CTR',
+        'RUN'=>'RUN', 'PASS'=>'PASS', 'PIKE'=>'PIKE', 'BEND'=>'BEND',
+    );
+
+    // The street's own type: the LAST recognised type token, so "Commercial
+    // Center Boulevard" reads as BLVD rather than CTR. Returns '' when the
+    // name carries no type at all ("South Broadway", "1000 N Broadway").
+    private static function streetType($street){
+        $tokens = preg_split('/\s+/', strtoupper(trim($street ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+        for($i = count($tokens) - 1; $i >= 1; $i--){
+            if(isset(self::STREET_TYPE_CANON[$tokens[$i]])){ return self::STREET_TYPE_CANON[$tokens[$i]]; }
+        }
+        return '';
+    }
+
+    // Do the two renderings disagree about the street TYPE? Only when both
+    // name one: a type present on one side and absent on the other is a
+    // completeness question, which the token-prefix rule already answers.
+    private static function streetTypeConflict($googleStreet, $cassStreet){
+        $g = self::streetType($googleStreet);
+        $c = self::streetType($cassStreet);
+        return $g !== '' && $c !== '' && $g !== $c;
     }
 
     // Is $a's token sequence a strict prefix of $b's? Case-insensitive, so
