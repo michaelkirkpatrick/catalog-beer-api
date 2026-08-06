@@ -11,6 +11,7 @@ class Brewer {
     public $cbVerified = false;
     public $brewerVerified = false;
     public $urlStatus = '';             // Internal — never in the brewer object
+    private $urlNote = '';              // Write-only curation note — never in the brewer object
     public $lastModified = 0;
 
     // Error Handling
@@ -304,6 +305,18 @@ class Brewer {
             // Track whether we should run the query
             $runQuery = false;
 
+            /*--
+            url_note reaches every write method, so validate it once here rather
+            than in each branch. Gated on admin because that is the only case
+            where the note is kept — a non-admin's note is dropped at the
+            logURLChange() call below and never stored, so validating it would
+            reject a request over a value we were going to discard anyway.
+            --*/
+            if($users->admin){
+                $this->urlNote = $urlNote;
+                $this->validateURLNote();
+            }
+
             if($method == 'POST' || $method == 'PUT'){
                 // Validate Name
                 $this->name = $name;
@@ -502,7 +515,7 @@ class Brewer {
                             // url_note is a curation field: admins only. It is
                             // never echoed back, so there is nothing for a
                             // general key to gain by writing to it.
-                            self::logURLChange($this->brewerID, $originalURL, $this->url, $originalURLStatus, 'api', ($users->admin ? $urlNote : null), $userID);
+                            self::logURLChange($this->brewerID, $originalURL, $this->url, $originalURLStatus, 'api', ($users->admin ? $this->urlNote : null), $userID);
                         }
                     }
 
@@ -527,7 +540,30 @@ class Brewer {
 
     private function validateName(){
         // Must set $this->name
-        $this->name = trim($this->name ?? '');
+        $this->name = TextInput::trim($this->name);
+
+        /*--
+        Shape before length: a control character is a hard reject at any length,
+        and naming the offending character is far more use to the submitter than
+        "too long" would be. TextInput::check() returns '' for an empty value, so
+        the required/optional handling below is unaffected.
+        --*/
+        $problem = TextInput::check($this->name);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['name'] = 'invalid';
+            $this->validMsg['name'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in brewer name';
+            $errorLog->badData = $this->name;
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->name)){
             if(strlen($this->name) <= 255){
@@ -567,23 +603,46 @@ class Brewer {
 
     private function validateDescription(){
         // Must set $this->description
-        $this->description = trim($this->description ?? '');
+        $this->description = TextInput::trim($this->description);
+
+        // Newlines allowed here — 77% of brewer descriptions in production use
+        // them, and the frontend renders them with white-space: pre-line.
+        $problem = TextInput::check($this->description, true);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['description'] = 'invalid';
+            $this->validMsg['description'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in brewer description';
+            $errorLog->badData = $this->description;
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->description)){
-            if(strlen($this->description) <= 65536){
+            // 65,535 is the TEXT column's capacity, not 65,536. Allowing the
+            // extra byte let a description pass validation and then fail on
+            // INSERT with MySQL 1406 — a 500 where the user should have been
+            // told 400. The limit counts bytes, not characters.
+            if(strlen($this->description) <= 65535){
                 // Valid
                 $this->validState['description'] = 'valid';
             }else{
                 // Description Too Long
                 $this->error = true;
                 $this->validState['description'] = 'invalid';
-                $this->validMsg['description'] = 'We hate to say it but this brewery description is too long for our database. Descriptions are limited to 65,536 bytes. Any chance you can shorten it?';
+                $this->validMsg['description'] = 'We hate to say it but this brewery description is too long for our database. Descriptions are limited to 65,535 bytes. Any chance you can shorten it?';
                 $this->responseCode = 400;
 
                 // Log Error
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 20;
-                $errorLog->errorMsg = 'Brewery description too long (>65536 Characters)';
+                $errorLog->errorMsg = 'Brewery description too long (>65535 bytes)';
                 $errorLog->badData = $this->description;
                 $errorLog->filename = $this->filename;
                 $errorLog->write();
@@ -593,7 +652,26 @@ class Brewer {
 
     private function validateShortDescription(){
         // Must set $this->shortDescription
-        $this->shortDescription = trim($this->shortDescription ?? '');
+        $this->shortDescription = TextInput::trim($this->shortDescription);
+
+        // Single line: this is the <meta name="description"> source, and no
+        // production row has ever contained a newline.
+        $problem = TextInput::check($this->shortDescription);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['short_description'] = 'invalid';
+            $this->validMsg['short_description'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in brewer short description';
+            $errorLog->badData = $this->shortDescription;
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->shortDescription)){
             if(strlen($this->shortDescription) <= 160){
@@ -615,6 +693,88 @@ class Brewer {
                 $errorLog->write();
             }
         }
+    }
+
+    /*--
+    url_note is write-only curation metadata: admins only, never echoed back,
+    and stored on the brewer_url_history row rather than on the brewer. It was
+    the one writable free-text field with no trim and no length check — an
+    overlong note was silently byte-truncated on its way into the history row.
+
+    Reported through errorMsg rather than validMsg because validState/validMsg
+    mirror the fields of the brewer object, and url_note is not one of them.
+    Adding a key there would also change the shape of every brewer 400.
+    --*/
+    private function validateURLNote(){
+        $this->urlNote = TextInput::trim($this->urlNote);
+
+        if($this->urlNote === ''){
+            return;
+        }
+
+        // Single line. Reported through errorMsg for the same reason as the
+        // length failure below — url_note is not a field of the brewer object.
+        $problem = TextInput::check($this->urlNote);
+        if($problem !== ''){
+            $this->error = true;
+            $this->errorMsg = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in brewer url_note';
+            $errorLog->badData = $this->urlNote;
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
+
+        /*--
+        Count characters, not bytes: the note column is varchar(255) and MySQL
+        measures varchar in characters. preg_match_all() returns false only on
+        malformed UTF-8, which index.php has already rejected before we get
+        here — so treating that as invalid is the safe reading.
+        --*/
+        $length = preg_match_all('/./us', $this->urlNote);
+
+        if($length !== false && $length <= 255){
+            return;
+        }
+
+        // Note Too Long
+        $this->error = true;
+        $this->errorMsg = 'Sorry, the note explaining this URL change is too long. Notes are limited to 255 characters. Any chance you can shorten it?';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 304;
+        $errorLog->errorMsg = 'Brewer url_note too long (>255 characters)';
+        $errorLog->badData = $this->urlNote;
+        $errorLog->filename = $this->filename;
+        $errorLog->write();
+    }
+
+    /*--
+    Trim a note to the note column's 255 characters without splitting a
+    multibyte character. substr() counts bytes, so it could hand bind_param a
+    dangling lead byte — MySQL then rejects the row with error 1366 and the
+    history entry is lost silently, since logURLChange() only logs that failure
+    rather than surfacing it. mb_substr() is not an option: production has no
+    mbstring extension.
+
+    validateURLNote() already 400s an overlong note from the API, so this is the
+    backstop for the other callers of the public static logURLChange().
+    --*/
+    private static function truncateNote($note){
+        if(preg_match('/^.{0,255}/us', $note, $match)){
+            return $match[0];
+        }
+
+        // Malformed UTF-8 would fail in MySQL the same way, so drop the note
+        // rather than lose the whole history row with it.
+        return null;
     }
 
     /*--
@@ -695,7 +855,7 @@ class Brewer {
             !empty($newURL) ? $newURL : null,
             !empty($verdict) ? $verdict : null,
             $source,
-            !empty($note) ? substr($note, 0, 255) : null,
+            !empty($note) ? self::truncateNote($note) : null,
             !empty($changedBy) ? $changedBy : null,
             time()
         ]);

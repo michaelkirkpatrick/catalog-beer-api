@@ -457,7 +457,30 @@ class Location {
         // the community it sits in, and while this was required the field just
         // collected the city over and over. An absent name is stored as NULL;
         // consumers compose a display name from the brewer and the address.
-        $this->name = trim($this->name ?? '');
+        $this->name = TextInput::trim($this->name);
+
+        /*--
+        Shape before length: a control character is a hard reject at any length,
+        and naming the offending character is far more use to the submitter than
+        "too long" would be. TextInput::check() returns '' for an empty value, so
+        the optional-name handling below is unaffected.
+        --*/
+        $problem = TextInput::check($this->name);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['name'] = 'invalid';
+            $this->validMsg['name'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in location name';
+            $errorLog->badData = $this->name;
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->name)){
             if(strlen($this->name) <= 255){

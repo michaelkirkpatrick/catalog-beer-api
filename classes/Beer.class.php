@@ -523,7 +523,30 @@ class Beer {
 
     private function validateName(){
         // Trim
-        $this->name = trim($this->name ?? '');
+        $this->name = TextInput::trim($this->name);
+
+        /*--
+        Shape before length: a control character is a hard reject at any length,
+        and naming the offending character is far more use to the submitter than
+        "too long" would be. TextInput::check() returns '' for an empty value, so
+        the required/optional handling below is unaffected.
+        --*/
+        $problem = TextInput::check($this->name);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['name'] = 'invalid';
+            $this->validMsg['name'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in beer name';
+            $errorLog->badData = $this->name;
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->name)){
             if(strlen($this->name) <= 255){
@@ -579,10 +602,29 @@ class Beer {
     --*/
     private function resolveStyle($styleID, $parent = '', $class = '', $prevLabel = null, $prevTier = null){
         // Trim
-        $this->style = trim($this->style ?? '');
+        $this->style = TextInput::trim($this->style);
         $styleID = trim($styleID ?? '');
         $parent = trim($parent ?? '');
         $class = trim($class ?? '');
+
+        // Label shape guard. A style label is single-line free text whenever it
+        // falls outside the controlled vocabulary, so it needs the same check
+        // as a name.
+        $styleProblem = TextInput::check($this->style);
+        if($styleProblem !== ''){
+            $this->error = true;
+            $this->validState['style'] = 'invalid';
+            $this->validMsg['style'] = $styleProblem;
+            $this->responseCode = 400;
+
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in beer style';
+            $errorLog->badData = $this->style;
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            return;
+        }
 
         // Label length guard (style is varchar(255))
         if(!empty($this->style) && strlen($this->style) > 255){
@@ -933,23 +975,46 @@ class Beer {
 
     private function validateDescription(){
         // Trim
-        $this->description = trim($this->description ?? '');
+        $this->description = TextInput::trim($this->description);
+
+        // Newlines allowed; tabs are not. Every tab in production arrived by
+        // pasting a brewery web page, padding out a duplicate "ABV | IBU" line.
+        $problem = TextInput::check($this->description, true);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['description'] = 'invalid';
+            $this->validMsg['description'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in beer description';
+            $errorLog->badData = $this->description;
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->description)){
-            if(strlen($this->description) <= 65536){
+            // 65,535 is the TEXT column's capacity, not 65,536. Allowing the
+            // extra byte let a description pass validation and then fail on
+            // INSERT with MySQL 1406 — a 500 where the user should have been
+            // told 400. The limit counts bytes, not characters.
+            if(strlen($this->description) <= 65535){
                 // Valid Style
                 $this->validState['description'] = 'valid';
             }else{
                 // Description Too Long
                 $this->error = true;
                 $this->validState['description'] = 'invalid';
-                $this->validMsg['description'] = 'We hate to say it but this beer description is too long for our database. Descriptions are limited to 65,536 bytes. Any chance you can shorten it?';
+                $this->validMsg['description'] = 'We hate to say it but this beer description is too long for our database. Descriptions are limited to 65,535 bytes. Any chance you can shorten it?';
                 $this->responseCode = 400;
 
                 // Log Error
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 18;
-                $errorLog->errorMsg = 'Beer description too long (>65536 Characters)';
+                $errorLog->errorMsg = 'Beer description too long (>65535 bytes)';
                 $errorLog->badData = $this->description;
                 $errorLog->filename = 'API / Beer.class.php';
                 $errorLog->write();

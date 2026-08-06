@@ -404,7 +404,30 @@ class Users {
 
     private function validateName(){
         // Trim Name
-        $this->name = trim($this->name ?? '');
+        $this->name = TextInput::trim($this->name);
+
+        /*--
+        Shape before length: a control character is a hard reject at any length,
+        and naming the offending character is far more use to the submitter than
+        "too long" would be. TextInput::check() returns '' for an empty value, so
+        the required-name handling below is unaffected.
+        --*/
+        $problem = TextInput::check($this->name);
+        if($problem !== ''){
+            $this->error = true;
+            $this->validState['name'] = 'invalid';
+            $this->validMsg['name'] = $problem;
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 305;
+            $errorLog->errorMsg = 'Forbidden characters in user name';
+            $errorLog->badData = $this->name;
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
 
         if(!empty($this->name)){
             if(strlen($this->name) <= 255){

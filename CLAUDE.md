@@ -69,8 +69,20 @@ Staff status determined by: user email domain matching brewer's `domainName`, or
 ### Pagination
 Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is base64 of the offset number. Count queries are cached in `$this->totalCount` to avoid duplicate `COUNT` calls between validation and `nextCursor()`. `Location::nearbyLatLng()`, `Beer::search()`, and `Brewer::search()` use a `LIMIT count+1` approach instead of a separate count query — if the extra row is returned, there are more results.
 
+### Text Input Validation
+`TextInput.class.php` is the single shape check for user-submitted free text, called from the `validate*()` methods of `Brewer`, `Beer`, `Location` and `Users` (9 sites, all logging error number 305). Each validator keeps its own error number and per-field message for length and required-ness — `TextInput` only answers "may these characters be stored at all."
+
+**The rule: store raw bytes, escape at the point of output, but reject characters that have no visual form and exist only to steer a parser.** `index.php` 400s *raw* control bytes via `JSON_ERROR_CTRL_CHAR`, but the JSON-*escaped* forms (`\u0000`, `\u2028`, bidi overrides) are valid JSON and used to land in the column intact.
+
+- `TextInput::trim($v)` — `trim()` widened to Unicode: strips `\p{Z}`, NBSP, ZWSP, LRM/RLM and BOM from both ends. Because `\p{Z}` covers `U+2028`/`U+2029`, a value whose only problem is a trailing line separator is *cleaned* rather than rejected.
+- `TextInput::check($v, $allowNewlines = false)` — returns `''` when storable, else a ready-to-show message. Rejects C0 except LF/CR, plus DEL, TAB, `U+2028`/`U+2029` and bidi overrides (`U+202A-202E`, `U+2066-2069`). With `$allowNewlines = false` (names, `style`, `short_description`, `url_note`) it also rejects LF/CR.
+
+**Zero-width is trimmed at the edges, never rejected** — `U+200C` ZWNJ and `U+200D` ZWJ are required by Persian, Arabic and Indic scripts and by emoji sequences, so a blanket ban on the range would break legitimate international names.
+
+**Offline regression test: `php tests/text-input.php`** — no DB, no network; includes the real production values that motivated each rule. Run it for any change to the character policy, and add a case before adding a rule.
+
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber` (integers, currently ranging 1–287). When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber`. **Re-grep for the current maximum rather than trusting any written figure** — `grep -rhoE "errorNumber *= *[0-9]+" classes/ cron/ *.php algolia/ | grep -oE "[0-9]+" | sort -n | uniq | tail -5`. Note `errors.php` deliberately uses 405/500/503 as HTTP-status-shaped error numbers, which are not part of the sequential range. When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:

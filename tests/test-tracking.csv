@@ -417,6 +417,10 @@ Beer,BEER-170,ABV & IBU - Non-Numeric IBU Reports Whole-Number Message,POST,/bee
 Beer,BEER-171,ABV & IBU - ABV Rounding Past The Ceiling Is Rejected,POST,/beer,Admin,400,Done
 Beer,BEER-172,ABV & IBU - ABV At The Ceiling Is Accepted,POST,/beer,Admin,201,Done
 Beer,BEER-173,ABV & IBU - Negative ABV Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-174,Description Length - 65535 Bytes Is Accepted,POST,/beer,Admin,201,Done
+Beer,BEER-175,Description Length - 65536 Bytes Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-176,Text Input - Bidi Override In A Name Is Rejected,POST,/beer,Admin,400,Done
+Beer,BEER-177,Text Input - ZWNJ Survives,POST,/beer,Admin,201,Done
 Location,L-1,Location - No Data,POST,/location,Admin,400,Done
 Location,L-2,Location - Invalid brewer_id,POST,/location,Admin,400,Done
 Location,L-3,Location - brewer_id only,POST,/location,Admin,400,Done
@@ -609,6 +613,23 @@ Brewer,BR-212,Search Brewers - Invalid UTF-8 Rejected,GET,/brewer/search?q=%DCbe
 Brewer,BR-213,Unicode Search - Delete Brewery #48,DELETE,/brewer/{{brewer_id_48}},Admin,204,Done
 Brewer,BR-214,ABV & IBU - Create Brewery #49,POST,/brewer,Admin,201,Done
 Brewer,BR-215,ABV & IBU - Delete Brewery #49,DELETE,/brewer/{{brewer_id_49}},Admin,204,Done
+Brewer,BR-218,Description Length - Create Brewery #50,POST,/brewer,Admin,201,Done
+Brewer,BR-219,Description Length - 65535 Bytes Is Accepted,PATCH,/brewer/{{brewer_id_50}},Admin,200,Done
+Brewer,BR-220,Description Length - 65536 Bytes Is Rejected,PATCH,/brewer/{{brewer_id_50}},Admin,400,Done
+Brewer,BR-221,Description Length - Delete Brewery #50,DELETE,/brewer/{{brewer_id_50}},Admin,204,Done
+Brewer,BR-222,URL Note - Create Brewery #51,POST,/brewer,Admin,201,Done
+Brewer,BR-223,URL Note - 255 Characters Is Accepted,PATCH,/brewer/{{brewer_id_51}},Admin,200,Done
+Brewer,BR-224,URL Note - Multibyte 255 Characters Is Accepted,PATCH,/brewer/{{brewer_id_51}},Admin,200,Done
+Brewer,BR-225,URL Note - Over 255 Characters Is Rejected,PATCH,/brewer/{{brewer_id_51}},Admin,400,Done
+Brewer,BR-226,URL Note - Non-Admin Overlong Note Is Ignored,PATCH,/brewer/{{brewer_id_51}},Non-Admin,200,Done
+Brewer,BR-227,URL Note - Delete Brewery #51,DELETE,/brewer/{{brewer_id_51}},Admin,204,Done
+Brewer,BR-228,Text Input - Create Brewery #52,POST,/brewer,Admin,201,Done
+Brewer,BR-229,Text Input - Escaped NUL In A Name Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
+Brewer,BR-230,Text Input - Newline In A Name Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
+Brewer,BR-231,Text Input - Newlines In A Description Are Kept,PATCH,/brewer/{{brewer_id_52}},Admin,200,Done
+Brewer,BR-232,Text Input - Tab In A Description Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
+Brewer,BR-233,Text Input - Edge Zero-Width Is Trimmed,PATCH,/brewer/{{brewer_id_52}},Admin,200,Done
+Brewer,BR-234,Text Input - Delete Brewery #52,DELETE,/brewer/{{brewer_id_52}},Admin,204,Done
 Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
 Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
 Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
