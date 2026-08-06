@@ -71069,7 +71069,10 @@
 											"script": {
 												"exec": [
 													"// Role — a general key, not an admin.",
-													"pm.environment.set('api_key', pm.environment.get('api_key_1'));"
+													"pm.environment.set('api_key', pm.environment.get('api_key_1'));",
+													"",
+													"// Body JSON",
+													"pm.environment.set('brewer_name_53', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
 												],
 												"type": "text/javascript"
 											}
@@ -71078,11 +71081,106 @@
 											"listen": "test",
 											"script": {
 												"exec": [
-													"// url_note is admin-only: a non-admin note is dropped before it reaches",
-													"// the history row, so validating it would 400 a request over a value we",
-													"// were going to discard anyway. Silence here is deliberate.",
-													"pm.test(\"Success - OK (HTTP 200)\", function () {",
-													"    pm.response.to.have.status(200);",
+													"// url_note is admin-only. A general key's note is discarded before it",
+													"// can reach the history row, so validating it would 400 a request over a",
+													"// value we were going to throw away. The silence is deliberate.",
+													"//",
+													"// This is a POST rather than a PATCH on purpose: validateURLNote() runs",
+													"// for every write method, and a general key cannot PATCH Brewery #51 at",
+													"// all — an admin-created brewer is cb_verified, so that would 403 for",
+													"// reasons that have nothing to do with url_note.",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"The overlong note is discarded, not echoed\", function () {",
+													"    pm.expect(pm.response.json()).to.not.have.property(\"url_note\");",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_53', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_53}}\",\n    \"url_note\": \"{{url_note_over_limit}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-235 Delete Brewery #53",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role — admin, because the general key cannot delete a brewer.",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
 													"});"
 												],
 												"type": "text/javascript"
@@ -71114,36 +71212,23 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "DELETE",
 										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
 											{
 												"key": "Accept",
 												"value": "application/json"
 											}
 										],
 										"url": {
-											"raw": "https://{{base_url}}/brewer/{{brewer_id_51}}",
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_53}}",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
 												"brewer",
-												"{{brewer_id_51}}"
+												"{{brewer_id_53}}"
 											]
-										},
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"url_note\": \"{{url_note_over_limit}}\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
 										}
 									},
 									"response": []

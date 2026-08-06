@@ -621,7 +621,8 @@ Brewer,BR-222,URL Note - Create Brewery #51,POST,/brewer,Admin,201,Done
 Brewer,BR-223,URL Note - 255 Characters Is Accepted,PATCH,/brewer/{{brewer_id_51}},Admin,200,Done
 Brewer,BR-224,URL Note - Multibyte 255 Characters Is Accepted,PATCH,/brewer/{{brewer_id_51}},Admin,200,Done
 Brewer,BR-225,URL Note - Over 255 Characters Is Rejected,PATCH,/brewer/{{brewer_id_51}},Admin,400,Done
-Brewer,BR-226,URL Note - Non-Admin Overlong Note Is Ignored,PATCH,/brewer/{{brewer_id_51}},Non-Admin,200,Done
+Brewer,BR-226,URL Note - Non-Admin Overlong Note Is Ignored,POST,/brewer,Non-Admin,201,Done
+Brewer,BR-235,URL Note - Delete Brewery #53,DELETE,/brewer/{{brewer_id_53}},Admin,204,Done
 Brewer,BR-227,URL Note - Delete Brewery #51,DELETE,/brewer/{{brewer_id_51}},Admin,204,Done
 Brewer,BR-228,Text Input - Create Brewery #52,POST,/brewer,Admin,201,Done
 Brewer,BR-229,Text Input - Escaped NUL In A Name Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
