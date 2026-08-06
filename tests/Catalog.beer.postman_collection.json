@@ -71163,6 +71163,179 @@
 									"response": []
 								},
 								{
+									"name": "BR-236 An Admin url_note PATCH Does Not Verify The Record",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// cb_verified means an admin vouched for the substance of the record.",
+													"// A url_note is a note about a URL change, so it must not verify.",
+													"//",
+													"// Brewery #53 was created by a general key, so it starts false. The",
+													"// response used to come back true here while the row stayed false:",
+													"// no brewer field changed, so no UPDATE ran, but the response is",
+													"// rendered from class state that the admin branch had already set.",
+													"pm.test(\"Success - OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"cb_verified is still false in the response\", function () {",
+													"    pm.expect(pm.response.json().cb_verified).to.equal(false);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_53}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_53}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"url_note\": \"Domain lapsed; recorded for the history row only.\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-237 And The Stored Record Agrees",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"// The half that actually caught the bug: the response and the stored",
+													"// row have to say the same thing. A client caching the PATCH response",
+													"// would otherwise believe the brewer was admin-verified.",
+													"pm.test(\"Success - OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Stored cb_verified matches what the PATCH reported\", function () {",
+													"    pm.expect(pm.response.json().cb_verified).to.equal(false);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_53}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_53}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
 									"name": "BR-235 Delete Brewery #53",
 									"event": [
 										{

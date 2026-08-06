@@ -469,6 +469,27 @@ class Brewer {
                     $params[] = $this->brewerID;
                     $db->query($sql, $params);
                     $runQuery = true;
+                }elseif(!$this->error){
+                    /*--
+                    Nothing to write: the PATCH carried no brewer field, or every
+                    value it carried already matched the stored one. The UPDATE
+                    above is the only statement that writes the badges, so they
+                    are still whatever the row already held — report those, not
+                    the values the admin branch put in memory further up.
+
+                    Without this, an admin PATCH of url_note alone (or of {})
+                    came back cb_verified: true over a row that still said false,
+                    because the response is rendered from class state. The stored
+                    value was the correct one: a note about a URL change is not a
+                    review of the record, so it should not verify it. Only the
+                    response was wrong.
+                    --*/
+                    if(isset($originalCBV)){
+                        $this->cbVerified = $originalCBV;
+                    }
+                    if(isset($originalBV)){
+                        $this->brewerVerified = $originalBV;
+                    }
                 }
             }
 
