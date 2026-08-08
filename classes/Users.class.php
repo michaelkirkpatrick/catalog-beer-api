@@ -854,7 +854,17 @@ class Users {
                             $minutesUntilAttemptAgain = $minutesBetweenAttempts - $sentMinutesAgo;
                             $this->error = true;
                             $this->errorMsg = "We sent you a password reset email $sentMinutesAgo minutes ago. Please wait at least $minutesUntilAttemptAgain minutes for that email to arrive before requesting another password reset email.";
-                            $this->responseCode = 400;
+
+                            // 429, not 400: the request is well-formed and the
+                            // caller is entitled to make it — they're just
+                            // early. This is the one genuine rate limit in the
+                            // API (the quota gate in index.php is a 402), so it
+                            // gets the code that means "retry later" and the
+                            // Retry-After that tells a client how much later.
+                            // Seconds off $nextAttempt, not the rounded minutes
+                            // in the message above, which can floor to 0.
+                            $this->responseCode = 429;
+                            $this->responseHeader = 'Retry-After: ' . max(1, $nextAttempt - time());
 
                             // Log Error
                             $errorLog = new LogError();

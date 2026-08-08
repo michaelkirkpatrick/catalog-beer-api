@@ -100,9 +100,21 @@ class Usage {
         $startingTimestamp = mktime(0, 0, 0, $month, 1, $year);
         $endingTimestamp = mktime(23, 59, 59, $month, (int)date('t', $startingTimestamp), $year);
 
-        // Count all API calls per key for the period and upsert in one query
+        // Count API calls per key for the period and upsert in one query.
+        //
+        // 402s are excluded. A request rejected for being over the monthly
+        // allowance was never served, so charging it against that same
+        // allowance would be double-counting — and because this write is an
+        // authoritative overwrite (count=VALUES(count)), counting them would
+        // undo the freeze index.php applies at the moment of rejection and let
+        // a blocked key's count climb on every retry. index.php skips the live
+        // increment for the same reason; the two must agree on what counts.
+        //
+        // NOT (responseCode <=> 402) rather than responseCode != 402: the
+        // column is nullable, and != would evaluate to NULL for those rows and
+        // silently drop them from the count. <=> is the NULL-safe comparison.
         $now = time();
-        $db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) SELECT UUID(), apiKey, ?, ?, COUNT(id), ? FROM api_logging WHERE timestamp BETWEEN ? AND ? GROUP BY apiKey ON DUPLICATE KEY UPDATE count=VALUES(count), lastUpdated=VALUES(lastUpdated)", [$year, $month, $now, $startingTimestamp, $endingTimestamp]);
+        $db->query("INSERT INTO api_usage (id, apiKey, year, month, count, lastUpdated) SELECT UUID(), apiKey, ?, ?, COUNT(id), ? FROM api_logging WHERE timestamp BETWEEN ? AND ? AND NOT (responseCode <=> 402) GROUP BY apiKey ON DUPLICATE KEY UPDATE count=VALUES(count), lastUpdated=VALUES(lastUpdated)", [$year, $month, $now, $startingTimestamp, $endingTimestamp]);
 
         $db->close();
     }

@@ -264,9 +264,17 @@ if(isset($_SERVER['HTTPS'])){
     $json['error_msg'] = 'In order to connect to the Catalog.beer API, you will need to connect using a secure connection (HTTPS). Please try your request again.';
 }
 
-// ----- Rate Limit Check -----
-// /usage and /billing are exempt: a rate-limited key must still be able to
-// see its usage and add a payment method to lift the cap.
+// ----- Quota Check -----
+// Both rejections below are 402, not 429. Nothing here limits the RATE of
+// requests — there is no per-second or per-minute throttle in this API at all
+// (the only true rate limiting is fail2ban at the web-server layer). These are
+// a monthly allowance and a dollar ceiling, and slowing down doesn't clear
+// either one; paying does. 429 also means "retry with backoff" to every HTTP
+// client that special-cases it, which is exactly the wrong advice when the
+// wall stands for up to 31 days — see the frozen-counter note further down.
+//
+// /usage and /billing are exempt: a blocked key must still be able to see its
+// usage and add a payment method to lift the cap.
 if(!$error && $endpoint != 'usage' && $endpoint != 'billing'){
     $masterKeys = unserialize(MASTER_API_KEYS);
     if(!in_array($apiKey, $masterKeys)){
@@ -291,7 +299,7 @@ if(!$error && $endpoint != 'usage' && $endpoint != 'billing'){
                     if($usageCount > $apiKeys->requestLimit + $maxBillable){
                         $error = true;
                         $rateLimited = true;
-                        $responseCode = 429;
+                        $responseCode = 402;
                         $json['error'] = true;
                         $json['error_msg'] = "You've reached your monthly spend cap of $" . number_format($apiKeys->monthlySpendCapCents / 100, 2) . " for " . date('F Y') . " (" . number_format($apiKeys->requestLimit) . " free requests + " . number_format($maxBillable) . " billable requests). Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". You can raise the cap with PATCH /billing (monthly_spend_cap_cents) or from your account at https://catalog.beer.";
 
@@ -306,7 +314,7 @@ if(!$error && $endpoint != 'usage' && $endpoint != 'billing'){
                 }else{
                     $error = true;
                     $rateLimited = true;
-                    $responseCode = 429;
+                    $responseCode = 402;
                     $json['error'] = true;
                     $json['error_msg'] = "You've reached your " . number_format($apiKeys->requestLimit) . " request limit for " . date('F Y') . ". Your count resets on " . date('F j, Y', strtotime('first day of next month')) . ". To keep going now, add a payment method at https://catalog.beer/billing — usage past the free tier is $1 per 1,000 requests, billed monthly. For more information, visit https://catalog.beer/api-pricing, or contact us at https://catalog.beer/contact or michael@catalog.beer.";
 
@@ -445,18 +453,25 @@ if($json_encoded = json_encode($json)){
 
 $masterKeys = unserialize(MASTER_API_KEYS);
 if(!empty($apiKey) && !in_array($apiKey, $masterKeys) && $endpoint != 'usage' && $endpoint != 'billing'){
-    // Log Request — rate-limited requests included. A 429 is a user asking for
+    // Log Request — quota-blocked requests included. A 402 is a user asking for
     // more than the free tier allows, which makes it the most commercially
     // interesting event this API emits. It used to be skipped alongside the
-    // counter increment below, so rejections were invisible: not one 429 had
-    // ever been recorded, and users who hit the wall churned silently.
+    // counter increment below, so rejections were invisible: not one had ever
+    // been recorded, and users who hit the wall churned silently.
     $apiLogging = new apiLogging();
     $apiLogging->add($apiKey, $method, $_SERVER['REQUEST_URI'], $data, $json_encoded ?: '', $responseCode);
 
-    // Increment Usage Counter — but NOT when rate limited. The count must
-    // freeze at requestLimit + requestBuffer + 1 rather than climbing while a
-    // blocked key keeps retrying. That frozen value is also how a blocked key
-    // is identified after the fact.
+    // Increment Usage Counter — but NOT when quota-blocked. A 402 was never
+    // served, so it doesn't spend the allowance it was rejected against. The
+    // count stops at requestLimit + requestBuffer + 1 rather than climbing
+    // while a blocked key keeps retrying.
+    //
+    // Usage::updateUsage() must keep agreeing with this: it recounts the month
+    // from api_logging and writes count=VALUES(count), an authoritative
+    // overwrite, so if it ever counted the 402 rows logged above it would undo
+    // this freeze on its next run. It excludes them — see the note there.
+    // Rejections are still recoverable from api_logging (responseCode 402) and
+    // from error_log (error numbers 257 and 286); the count is not the record.
     if(!$rateLimited){
         $now = time();
         $year = date('Y');
