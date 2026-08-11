@@ -188,7 +188,7 @@ class UrlCheck {
             $body = $fetch['body'];
             $result['title'] = $this->extractTitle($body);
             $result['text_excerpt'] = $this->extractText($body);
-            $result['name_found'] = $this->nameInText($brewerName, $result['title'] . ' ' . $result['text_excerpt']);
+            $result['name_found'] = $this->nameInText($brewerName, $result['title'] . ' ' . $result['text_excerpt'], $origDomain);
 
             // Tier 3: off-domain redirect — the strongest spam-under-brewery-
             // name detector. A lapsed domain bought by an aggregator returns
@@ -504,7 +504,14 @@ class UrlCheck {
 
     // true = a distinctive name token appears; false = none do; null = the
     // name has no distinctive tokens (e.g. "The Brew Co") or no text to search
-    private function nameInText(string $brewerName, string $text): ?bool {
+    //
+    // $ownDomain is the registrable domain of the URL being checked, and the
+    // page's mentions of it are removed before matching — see stripOwnDomain().
+    public function nameInText(string $brewerName, string $text, string $ownDomain = ''): ?bool {
+        // Emptiness is judged on the page as fetched, not on what survives the
+        // strip: a page whose entire text is its own address has told us
+        // nothing about the brewery, and that must land on false (the reviewed
+        // "ok, name absent" bucket) rather than null (never reviewed).
         if(trim($text) === ''){
             return null;
         }
@@ -512,12 +519,43 @@ class UrlCheck {
         if(empty($tokens)){
             return null;
         }
+        $text = $this->stripOwnDomain($text, $ownDomain);
         foreach($tokens as $token){
             if(stripos($text, $token) !== false){
                 return true;
             }
         }
         return false;
+    }
+
+    /*--
+    Remove the page's mentions of the domain it is served from.
+
+    The domain is derived from the URL under test, so it can never be
+    independent evidence that the page belongs to the brewery — but
+    nameInText() matches substrings, so a title of "nextdoorbrewing.com"
+    contains the brand tokens "next" and "door" and scores as a healthy name
+    match. Next Door Brewing's domain was rebuilt in place as a content farm
+    and passed exactly that way; the row scored `ok`, and `ok` rows never reach
+    review. Every content farm that titles itself with the domain it squats
+    slips the net identically.
+
+    Only hostname-shaped forms are removed — "nextdoorbrewing.com",
+    "www.nextdoorbrewing.com", "https://shop.nextdoorbrewing.com/beer",
+    "info@nextdoorbrewing.com". The bare label is deliberately left alone,
+    because for a one-word brand the label IS the name ("Ninkasi Brewing
+    Company" / ninkasi.com) and stripping it would score every such brewery's
+    real site as name-absent.
+    --*/
+    public function stripOwnDomain(string $text, string $domain): string {
+        if($domain === ''){
+            return $text;
+        }
+        // Subdomains are consumed too, so "www." can't survive as a fragment.
+        // The lookbehind stops the domain matching inside a longer label
+        // (notnextdoorbrewing.com); the space keeps neighbouring words apart.
+        $pattern = '/(?<![a-z0-9.-])(?:[a-z0-9-]+\.)*' . preg_quote($domain, '/') . '(?![a-z0-9-])/i';
+        return preg_replace($pattern, ' ', $text) ?? $text;
     }
 
     private function extractTitle(string $body): string {
