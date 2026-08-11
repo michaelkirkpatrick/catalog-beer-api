@@ -72,6 +72,8 @@ RewriteRule ^health$ index.php?endpoint=health [L]
 
 RewriteRule ^login$ index.php?endpoint=login [L]
 
+RewriteRule ^metrics/?$ index.php?endpoint=metrics [L]
+
 RewriteRule ^usage/my-usage/?$ index.php?endpoint=usage&function=my-usage [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]
 

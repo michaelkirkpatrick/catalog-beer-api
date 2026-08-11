@@ -392,6 +392,13 @@ if(!$error){
             $responseCode = $users->responseCode;
             $responseHeader = $users->responseHeader;
             break;
+        case 'metrics':
+            $metricsReport = new MetricsReport();
+            $metricsReport->api($method, $function, $id, $apiKey);
+            $json = $metricsReport->json;
+            $responseCode = $metricsReport->responseCode;
+            $responseHeader = $metricsReport->responseHeader;
+            break;
         case 'style':
             $style = new Style();
             $style->api($method, $function, $id);

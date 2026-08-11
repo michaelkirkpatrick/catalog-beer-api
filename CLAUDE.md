@@ -123,6 +123,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - `/address/{id}`
 - `/users/{id}`, `/users/{id}/api-key`, `/users/verify-email/{id}`, `/users/{id}/reset-password`, `/users/password-reset/{id}`
 - `/login`
+- `/metrics` — Admin-only catalog health metrics feed (`MetricsReport.class.php`); serves `metrics_daily` as chartable series, split into `history` (backfilled `total_*`/`created_*`, to 2017) and `live` (everything, from the first snapshot) — the two regimes must never be mixed
 - `/usage`, `/usage/my-usage`
 - `/health` — Unauthenticated GET-only health check; returns `{"status":"ok"}` (200) or `{"status":"error"}` (503). Verifies Apache + PHP + MySQL. No logging. Used by exit1.dev for uptime monitoring.
 
