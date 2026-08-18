@@ -649,10 +649,25 @@ class USAddresses {
             return;
         }
 
-        // Accept only building-level matches — a human can physically find it.
-        // DPV (mail deliverability) is intentionally informational, not a gate.
+        // What the client described, before standardization overwrites it —
+        // the relocation gate below compares Google's match against these.
+        $sentStreet = $this->address2;
+        $sentCity = $this->city;
+
+        /*--
+        Accept building-level matches — a human can physically find those —
+        and below-building matches that USPS itself confirms as a delivery
+        point (dpvConfirms: dpv Y/D/S with a complete CASS block). A street
+        Google's road data doesn't know can still be a fully USPS-confirmed
+        address: "1 Helmsley Pl, Exeter RI" validates at ROUTE granularity
+        with dpv=Y and a complete CASS block (OPEN-ITEMS I16), and rejecting
+        it left that address with no storable correct form at all. On the
+        dpv path parseValidatedAddress() takes CASS's street rendering
+        wholesale, since ROUTE granularity is Google saying it could not
+        parse the line to a premise.
+        --*/
         $buildingLevel = array('SUB_PREMISE', 'PREMISE', 'PREMISE_PROXIMITY');
-        if(!in_array($granularity, $buildingLevel)){
+        if(!in_array($granularity, $buildingLevel) && !self::dpvConfirms($result)){
             // Not a findable place
             $this->error = true;
             $this->errorMsg = 'We were not able to find a location based on the address you provided. Please double check the street, city, and ZIP code.';
@@ -663,6 +678,38 @@ class USAddresses {
             $errorLog->errorNumber = 267;
             $errorLog->errorMsg = 'Address Not Found - Google Address Validation';
             $errorLog->badData = 'Granularity: ' . $granularity . ' // ' . $requestData . ' // Response: ' . $response;
+            $errorLog->filename = 'API / USAddresses.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        /*--
+        Relocation gate: a 200 must never move the venue (OPEN-ITEMS I15,
+        I21). Google returns a well-formed, plausible match even when it has
+        matched a DIFFERENT street ("1158 Broadway" -> "909 E Union St", the
+        house number reinterpreted as a unit) or a different city 100 miles
+        away ("5054 N US Highway 31, Peru IN" -> Columbus IN, the sent city
+        REPLACED). Both shapes are detectable from the response; storing them
+        poisons `GET /location/zip` with a venue that is not there, which is
+        worse than any 400. The one legitimate locality replacement — USPS
+        relabeling the same building's mailing city ("San Francisco" ->
+        "Presidio", dpv=Y on the exact street sent) — passes, verified
+        against all 587 audited production addresses.
+        --*/
+        $conflict = self::relocationConflict($result, $sentStreet);
+        if($conflict !== null){
+            $this->error = true;
+            $this->errorMsg = 'The closest match we could find is on a different ' . $conflict['type'] . ' — ' . $conflict['found'] . ' — so we haven\'t saved it, rather than silently relocate this venue. Please double check the address. For a rural route or numbered highway, try zip5 with a short street form (e.g. "5054 N US 31").';
+            $this->responseCode = 400;
+            $blame = $conflict['type'] === 'street' ? 'address2' : 'city';
+            $this->validState[$blame] = 'invalid';
+            $this->validMsg[$blame] = $this->errorMsg;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = $conflict['type'] === 'street' ? 310 : 311;
+            $errorLog->errorMsg = 'Address match relocated the ' . $conflict['type'] . ' - Google Address Validation';
+            $errorLog->badData = 'Found: ' . $conflict['found'] . ' // ' . $requestData . ' // Response: ' . $response;
             $errorLog->filename = 'API / USAddresses.class.php';
             $errorLog->write();
             return;
@@ -689,28 +736,14 @@ class USAddresses {
         $this->address1 = $parsed['address1'];
 
         if(!empty($std)){
-            /*--
-            City is USPS's own mailing city ("BONNER", not the census place
-            "Bonner-West Riverside" Google reports) — with two fallbacks to
-            Google's locality:
-
-            - CASS's 13-char field cap truncated it ("SNOQUALMIE PS"). A
-              legitimate exactly-13-char city falls back harmlessly: Google
-              renders it identically. ("QUIL CEDA VLG" is capped AND Google
-              mirrors the abbreviation, so that one is unfixable from either
-              source.)
-            - CASS didn't actually confirm the address (no zipCode in the
-              block). Then std.city is only an echo of what the client sent —
-              "Paoli" — not a USPS determination, and Google's locality holds
-              the real mailing city ("Belleville").
-            --*/
-            $stdCity = strval($std['city'] ?? '');
-            $cassConfirmed = !empty($std['zipCode']);
-            if($cassConfirmed && $stdCity !== '' && strlen($stdCity) < 13){
-                $this->city = self::smartCase($stdCity);
-            }else{
-                $this->city = self::smartCase($postal['locality'] ?? $stdCity);
-            }
+            // City: USPS's mailing city, un-abbreviated. The full derivation
+            // and its evidence live on deriveCity() — the short version is
+            // that CASS abbreviates ANY city name longer than 13 characters
+            // ("COLORADO SPGS", "LONG IS CITY", "P C BEACH"), so the result
+            // length says nothing, and the old strlen<13 branch stored the
+            // abbreviations (OPEN-ITEMS I17) and once even swapped in a
+            // different post office's name (I20).
+            $this->city = self::deriveCity($result, $sentCity);
             /*--
             A premise-level verdict does not guarantee a complete CASS block.
             When USPS does not recognise the submitted community as a mailing
@@ -799,6 +832,211 @@ class USAddresses {
     private const SECONDARY_DESIGNATORS = 'APT|BSMT|BLDG|DEPT|FL|FRNT|HNGR|KEY|LBBY|LOT|LOWR|OFC|PH|PIER|REAR|RM|SIDE|SLIP|SPC|STOP|STE|TRLR|UNIT|UPPR';
 
     /*--
+    USPS city-name contractions (Publication 28 / observed CASS output), for
+    un-abbreviating a mailing city when no source in the response carries the
+    full form. Every entry is either witnessed in the production audit corpus
+    (COLORADO SPGS, BLK RIVER FLS, LONG IS CITY, GT BARRINGTON, ELK GROVE
+    VLG, MOUNTLAKE TER, MT PLEASANT, SALT LAKE CTY, LK HAVASU CTY...) or a
+    Pub 28 standard. Tokens NOT here stay as CASS wrote them — expanding is
+    only safe from a closed vocabulary; guessing at squeezed words
+    ("HUNTINGTN") is not, and those cases are covered instead by the
+    full-form candidates in deriveCity().
+    --*/
+    private const CITY_TOKEN_EXPANSIONS = array(
+        'SPGS'=>'Springs', 'SPG'=>'Spring', 'FLS'=>'Falls', 'VLG'=>'Village',
+        'VLY'=>'Valley', 'HTS'=>'Heights', 'JCT'=>'Junction', 'BCH'=>'Beach',
+        'CTY'=>'City', 'CTR'=>'Center', 'TER'=>'Terrace', 'MT'=>'Mount',
+        'MTN'=>'Mountain', 'IS'=>'Island', 'LK'=>'Lake', 'GT'=>'Great',
+        'BLK'=>'Black', 'PRT'=>'Port', 'FT'=>'Fort', 'PT'=>'Point',
+        'HBR'=>'Harbor', 'TWP'=>'Township',
+    );
+
+    // Single-letter directionals expand only as a city name's FIRST token
+    // ("N CHARLESTON", "S EL MONTE", "E FALMOUTH") — anywhere else a bare
+    // letter is initials ("P C BEACH") and guessing would corrupt it.
+    private const CITY_LEADING_DIRECTIONALS = array(
+        'N'=>'North', 'S'=>'South', 'E'=>'East', 'W'=>'West',
+    );
+
+    // USPS confirms this exact delivery point: dpv Y (deliverable), D
+    // (deliverable, secondary missing) or S (deliverable, secondary ignored),
+    // with a CASS block complete enough to store (city + ZIP).
+    public static function dpvConfirms($result){
+        $usps = $result['uspsData'] ?? array();
+        $std = $usps['standardizedAddress'] ?? array();
+        return in_array($usps['dpvConfirmation'] ?? '', array('Y', 'D', 'S'), true)
+            && !empty($std['zipCode']) && !empty($std['city']);
+    }
+
+    /*--
+    Does Google's match describe the place the client described? Returns null
+    when it does, else array(type => 'street'|'city', found => what Google
+    matched instead) for the 400. Pure — replayed by tests/address-parse.php.
+
+    Two prongs, each anchored to a real relocation (2026-08-17 captures):
+
+    1. The sent house number must survive as the match's street number.
+       "1158 Broadway, 98122" comes back as street 909 E UNION ST with
+       subpremise "#1158" — the number became a unit on a different street
+       (I15). Checked against the street_number component OR CASS's first
+       line (Google parses "1 Helmsley Pl" as an unnumbered route while CASS
+       carries the 1 — that must pass). Skipped when Google produced no
+       street at all: that is the unparsed-street shape, handled by the
+       passthrough in parseValidatedAddress(), not a relocation.
+    2. A REPLACED route or locality component. Locality replacement alone is
+       legitimate when USPS relabels the same building's mailing city
+       ("San Francisco" -> "Presidio", dpv=Y on the exact street sent), so it
+       only rejects without dpvConfirms(); with no USPS corroboration it is
+       "5054 N US Highway 31, Peru IN" -> Columbus, 100 miles away (I21).
+       Zero false positives across the 587-address audit corpus.
+    --*/
+    public static function relocationConflict($result, $sentStreet){
+        $comps = array();
+        foreach(($result['address']['addressComponents'] ?? array()) as $c){
+            $t = $c['componentType'] ?? '';
+            if($t !== '' && !isset($comps[$t])){ $comps[$t] = $c; }
+        }
+        $std = $result['uspsData']['standardizedAddress'] ?? array();
+        $cassFirst = strval($std['firstAddressLine'] ?? '');
+
+        $hasStreet = isset($comps['street_number']) || isset($comps['route']);
+        if($hasStreet && preg_match('/^(\d+)[\s-]/', trim($sentStreet ?? ''), $m)){
+            $foundNumber = trim($comps['street_number']['componentName']['text'] ?? '');
+            $numberSurvives = ($foundNumber !== '' && strpos($foundNumber, $m[1]) === 0)
+                || ($cassFirst !== '' && strpos($cassFirst, $m[1]) === 0);
+            if(!$numberSurvives){
+                $found = $cassFirst !== '' ? $cassFirst
+                    : trim($foundNumber . ' ' . ($comps['route']['componentName']['text'] ?? ''));
+                return array('type' => 'street', 'found' => self::smartCase($found));
+            }
+        }
+
+        if(!empty($comps['route']['replaced'])){
+            $found = $cassFirst !== '' ? $cassFirst : strval($comps['route']['componentName']['text'] ?? '');
+            return array('type' => 'street', 'found' => self::smartCase($found));
+        }
+
+        if(!empty($comps['locality']['replaced']) && !self::dpvConfirms($result)){
+            $foundCity = strval($comps['locality']['componentName']['text'] ?? '');
+            $foundZip = strval($result['address']['postalAddress']['postalCode'] ?? '');
+            return array('type' => 'city', 'found' => trim($foundCity . ' ' . $foundZip));
+        }
+
+        return null;
+    }
+
+    /*--
+    Derive the stored city. Pure — replayed by tests/address-parse.php.
+
+    The authority is CASS's mailing city, but CASS abbreviates ANY name
+    longer than its 13-character field ("COLORADO SPGS", "LONG IS CITY",
+    "HUNTINGTN BCH", "P C BEACH") — so the abbreviated result can be any
+    length, and nothing in the block says whether abbreviation happened. The
+    old strlen<13 branch was built on the opposite assumption and stored the
+    abbreviations (I17); worse, its "fallback" to Google's locality replaced
+    an exactly-13-char CORRECT city with a different post office's name
+    ("EAST FALMOUTH" -> Google's municipality "Falmouth", I20).
+
+    So, in order:
+    1. CASS didn't standardize (no ZIP in the block) or has no city: its city
+       is at best an echo of the client's input, and Google's locality holds
+       the real mailing city ("Paoli" -> "Belleville"). Unchanged behaviour.
+    2. A candidate carries the unabbreviated form of the SAME name — Google's
+       locality/sublocality/neighborhood, or the client's own sent city
+       (postal.locality is NOT reliable for this: on zip5-only requests it
+       often just echoes CASS's abbreviation). cityExpands() accepts a
+       candidate only when it expands CASS's tokens one-for-one, so
+       "Bonner-West Riverside" never replaces BONNER and "Falmouth" never
+       replaces EAST FALMOUTH.
+    3. No full-form candidate: expand CASS's tokens from the closed USPS
+       vocabulary (COLORADO SPGS -> Colorado Springs even when every source
+       in the response echoes the abbreviation).
+    4. Nothing to expand: keep a same-name candidate's styling if one exists
+       ("Sault Ste. Marie" keeps Google's period), else CASS's own text.
+    --*/
+    public static function deriveCity($result, $sentCity = ''){
+        $std = $result['uspsData']['standardizedAddress'] ?? array();
+        $postal = $result['address']['postalAddress'] ?? array();
+        $stdCity = strval($std['city'] ?? '');
+
+        if(empty($std['zipCode']) || $stdCity === ''){
+            return self::smartCase(strval($postal['locality'] ?? $stdCity));
+        }
+
+        $candidates = array(strval($postal['locality'] ?? ''));
+        foreach(($result['address']['addressComponents'] ?? array()) as $c){
+            if(in_array($c['componentType'] ?? '', array('locality', 'sublocality_level_1', 'neighborhood'), true)){
+                $candidates[] = strval($c['componentName']['text'] ?? '');
+            }
+        }
+        $candidates[] = strval($sentCity ?? '');
+
+        foreach($candidates as $candidate){
+            if(self::cityExpands($stdCity, $candidate)){
+                return self::smartCase($candidate);
+            }
+        }
+
+        $expanded = self::expandCityTokens($stdCity);
+        if($expanded !== null){
+            return self::smartCase($expanded);
+        }
+
+        foreach($candidates as $candidate){
+            if($candidate !== '' && self::sameCityTokens($stdCity, $candidate)){
+                return self::smartCase($candidate);
+            }
+        }
+        return self::smartCase($stdCity);
+    }
+
+    // True when $candidate is the SAME city name with at least one of
+    // CASS's tokens un-abbreviated: token counts match, and every CASS token
+    // equals its counterpart or is a shorter same-first-letter subsequence
+    // of it (SPGS ⊂ SPRINGS, IS ⊂ ISLAND, KNG ⊂ KING, P ⊂ PANAMA).
+    private static function cityExpands($cassCity, $candidate){
+        $ct = preg_split('/[^A-Z0-9]+/', strtoupper(trim($cassCity)), -1, PREG_SPLIT_NO_EMPTY);
+        $kt = preg_split('/[^A-Z0-9]+/', strtoupper(trim($candidate ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+        if(empty($ct) || count($ct) !== count($kt)){ return false; }
+        $expandedAny = false;
+        foreach($ct as $i => $c){
+            $k = $kt[$i];
+            if($c === $k){ continue; }
+            if(strlen($c) >= strlen($k) || $c[0] !== $k[0]){ return false; }
+            $pos = 0;
+            for($j = 0, $len = strlen($c); $j < $len; $j++){
+                $pos = strpos($k, $c[$j], $pos);
+                if($pos === false){ return false; }
+                $pos++;
+            }
+            $expandedAny = true;
+        }
+        return $expandedAny;
+    }
+
+    private static function sameCityTokens($a, $b){
+        return preg_split('/[^A-Z0-9]+/', strtoupper(trim($a)), -1, PREG_SPLIT_NO_EMPTY)
+            === preg_split('/[^A-Z0-9]+/', strtoupper(trim($b)), -1, PREG_SPLIT_NO_EMPTY);
+    }
+
+    // Expand CASS's abbreviations from the closed vocabularies above.
+    // Returns the expanded string, or null when no token changed.
+    private static function expandCityTokens($cassCity){
+        $tokens = preg_split('/\s+/', strtoupper(trim($cassCity)), -1, PREG_SPLIT_NO_EMPTY);
+        $changed = false;
+        foreach($tokens as $i => $t){
+            if($i === 0 && count($tokens) > 1 && isset(self::CITY_LEADING_DIRECTIONALS[$t])){
+                $tokens[$i] = self::CITY_LEADING_DIRECTIONALS[$t];
+                $changed = true;
+            }elseif(isset(self::CITY_TOKEN_EXPANSIONS[$t])){
+                $tokens[$i] = self::CITY_TOKEN_EXPANSIONS[$t];
+                $changed = true;
+            }
+        }
+        return $changed ? implode(' ', $tokens) : null;
+    }
+
+    /*--
     Parse street (address2) and secondary unit (address1) from a Google
     Address Validation result. Pure — no DB, no logging — so
     tests/address-parse.php can replay it against captured fixtures.
@@ -854,6 +1092,41 @@ class USAddresses {
             $unitG = '';
         }
 
+        /*--
+        Below building level (reachable only via the dpvConfirms() acceptance
+        path): ROUTE granularity is Google saying it could not parse the line
+        to a premise, so its components are not trustworthy structure — "1
+        Helmsley Pl" comes back with the whole line as an unnumbered route.
+        USPS confirmed the delivery point, so USPS's rendering is the street.
+        --*/
+        $granularity = $result['verdict']['validationGranularity'] ?? '';
+        if(!in_array($granularity, array('SUB_PREMISE', 'PREMISE', 'PREMISE_PROXIMITY'))
+            && !empty($std['firstAddressLine'])){
+            $cassUnit = trim($std['secondAddressLine'] ?? '');
+            return array(
+                'address2' => self::apAbbreviate(self::smartCase($std['firstAddressLine'])),
+                'address1' => $cassUnit !== '' ? self::unitCase($cassUnit) : '',
+            );
+        }
+
+        /*--
+        Google parsed NO street at all — no street_number, no route, no
+        post_box; the entire line landed in subpremise ("1 Hemsley Place" on
+        a street CASS doesn't know, OPEN-ITEMS I16). Any split of that line
+        is invented structure — the dictionary path below once turned it into
+        address2 "1 Hemsley" + address1 "Place", a street that doesn't exist.
+        Pass the line through as the street and derive no unit from it.
+        --*/
+        if($number === '' && $route === '' && $postBox === ''){
+            $line = trim(strval($std['firstAddressLine'] ?? $unitG));
+            if($line !== ''){
+                return array(
+                    'address2' => self::apAbbreviate(self::smartCase($line)),
+                    'address1' => '',
+                );
+            }
+        }
+
         // Grid street numbers (Wisconsin's "N71W13040") reach Google in the
         // client's casing; CASS canonicalizes them.
         if($number !== '' && preg_match('/[A-Za-z]/', $number) && !empty($std['firstAddressLine'])
@@ -862,9 +1135,21 @@ class USAddresses {
         }
 
         // The unit identifier survives every rendering: "Suite 12", "BLDG 12"
-        // and "#12" all end in "12". It anchors the cuts below.
+        // and "#12" all end in "12". It anchors the cuts below. A zero-padded
+        // number is the one exception — CASS strips the padding ("Suite 001"
+        // renders as "STE 1"), so the anchor pattern accepts both spellings;
+        // without that the anchor missed, the raw padded string fell through
+        // to address1 verbatim AND the street kept the folded unit (I14).
         $unitId = '';
+        $unitIdPattern = '';
         if($unitG !== '' && preg_match('/([A-Za-z0-9][A-Za-z0-9\-\/]*)\s*$/', $unitG, $m)){ $unitId = $m[1]; }
+        if($unitId !== ''){
+            $unitIdPattern = preg_quote($unitId, '/');
+            $unpadded = ltrim($unitId, '0');
+            if(ctype_digit($unitId) && $unpadded !== '' && $unpadded !== $unitId){
+                $unitIdPattern = '(?:' . $unitIdPattern . '|' . preg_quote($unpadded, '/') . ')';
+            }
+        }
 
         // ----- address1 (resolved first: the street cut needs it) -----
         // $cassStreetRemainder is what's left of CASS's first line once its
@@ -903,7 +1188,7 @@ class USAddresses {
             $cassFirst = $std['firstAddressLine'];
             $cut = null;
             if($unitId !== ''){
-                $re = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+)?#?\s*' . preg_quote($unitId, '/') . '$/i';
+                $re = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+)?#?\s*' . $unitIdPattern . '$/i';
                 if(preg_match($re, $cassFirst, $m2, PREG_OFFSET_CAPTURE)){ $cut = $m2[0][1]; }
             }elseif($unitG === ''){
                 $re = '/\s+(?:(?:' . self::SECONDARY_DESIGNATORS . ')\s+\S|#\s*\S)/i';

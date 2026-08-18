@@ -67,20 +67,87 @@ $expected = array(
     'H7' => array('680 North Ave NE',                   ''),        // directional IS the name — stays "North"
     'I1' => array('5401 Linda Vista Rd',                'Ste 406'), // Google reports NO subpremise; CASS standardized it
     'I2' => array('2215 India St',                      ''),        // Google route "India" (truncated, CONFIRMED); CASS has "ST"
+
+    // §I22 family, captured 2026-08-17 — one fixture per defect shape plus
+    // its passing shape. See OPEN-ITEMS.md §I22 in catalog-beer-cleanup.
+    'I14a' => array('37 Paynes Way',        'Ste 1'),   // zero-padded "Suite 001" anchors to CASS's STE 1
+    'I15b' => array('1158 Broadway',        ''),        // suffixless street, locality form — clean
+    'I16a' => array('1 Hemsley Pl',         ''),        // street CASS doesn't know: passthrough, no invented unit
+    'I16b' => array('1 Helmsley Pl',        ''),        // USPS spelling, ROUTE granularity + dpv=Y: CASS line wholesale
+    'I20a' => array('876 E Falmouth Hwy',   ''),
+    'I20b' => array('876 E Falmouth Hwy',   ''),
+    'I21b' => array('5054 N US 31',         ''),        // rural highway, zip5 form — clean
+    'I17a' => array('2402 Waynoka Rd',      ''),
+    'I17b' => array('2402 Waynoka Rd',      ''),
+    'I17c' => array('2937 41st Ave',        ''),
+    'I17d' => array('2937 41st Ave',        ''),
+    'I17e' => array('501 Willow Blvd',      ''),
+);
+
+// label-prefix => expected deriveCity() output (asserted only where listed).
+// The fixture's own 'city' field is passed as the client-sent city.
+$expectedCity = array(
+    'I14a' => 'Asheville',
+    'I15b' => 'Seattle',
+    'I16a' => 'Exeter',
+    'I16b' => 'Exeter',
+    'I20a' => 'East Falmouth',      // CASS is right; Google's municipality "Falmouth" must NOT win (I20)
+    'I20b' => 'East Falmouth',
+    'I21b' => 'Peru',
+    'I17a' => 'Colorado Springs',   // every source echoes "Colorado Spgs" — vocabulary expansion
+    'I17b' => 'Colorado Springs',   // sent city is the full-form witness
+    'I17c' => 'Long Island City',   // vocabulary expansion (IS -> Island)
+    'I17d' => 'Long Island City',
+    'I17e' => 'Willow Springs',     // Google's locality is the full-form witness
+    'A1'   => 'El Paso',            // legacy lock: short names pass through untouched
+    'D4'   => 'Belleville',         // legacy lock: CASS unconfirmed -> Google's locality (Paoli case)
+);
+
+// label-prefix => expected relocationConflict() type. Fixtures listed here
+// must be REJECTED; every other fixture must produce no conflict.
+$expectedConflict = array(
+    'I15a' => 'street',             // "1158 Broadway" -> 909 E Union St, #1158 as unit
+    'I21a' => 'city',               // Peru IN -> Columbus IN, 100 miles south
 );
 
 $rows = json_decode(file_get_contents(__DIR__ . '/fixtures/google-address-validation.json'), true);
 $pass = 0; $fail = 0;
 foreach($rows as $r){
     $prefix = explode(' ', $r['label'])[0];
+    $conflict = USAddresses::relocationConflict($r['result'], $r['in'][0] ?? '');
+
+    if(isset($expectedConflict[$prefix])){
+        $ok = $conflict !== null && $conflict['type'] === $expectedConflict[$prefix];
+        if($ok){ $pass++; } else { $fail++; }
+        printf("%s %-58s reject=%s\n", $ok ? 'PASS' : 'FAIL', $r['label'],
+            $conflict === null ? 'NONE (expected ' . $expectedConflict[$prefix] . ')'
+                : $conflict['type'] . " ('" . $conflict['found'] . "')");
+        continue;
+    }
+
     $parsed = USAddresses::parseValidatedAddress($r['result']);
     $exp = $expected[$prefix] ?? null;
     $ok = $exp !== null && $parsed['address2'] === $exp[0] && $parsed['address1'] === $exp[1];
+    $problems = array();
+    if($conflict !== null){
+        $ok = false;
+        $problems[] = 'unexpected reject: ' . $conflict['type'] . " ('" . $conflict['found'] . "')";
+    }
+    if(isset($expectedCity[$prefix])){
+        $city = USAddresses::deriveCity($r['result'], $r['city'] ?? '');
+        if($city !== $expectedCity[$prefix]){
+            $ok = false;
+            $problems[] = "city='$city' expected '{$expectedCity[$prefix]}'";
+        }
+    }
     if($ok){ $pass++; } else { $fail++; }
     printf("%s %-58s a2=%-38s a1=%s\n", $ok ? 'PASS' : 'FAIL', $r['label'],
         "'" . $parsed['address2'] . "'", "'" . $parsed['address1'] . "'");
     if(!$ok && $exp !== null){
         printf("     %-58s a2=%-38s a1=%s\n", 'expected:', "'{$exp[0]}'", "'{$exp[1]}'");
+    }
+    foreach($problems as $p){
+        printf("     %s\n", $p);
     }
     if($verbose){
         foreach(($r['result']['address']['addressComponents'] ?? array()) as $c){

@@ -49,12 +49,13 @@ If any of these pages are missing or return a non-200 response, URL validation t
 
 ## Address parsing (offline, no server needed)
 
-`address-parse.php` is a plain PHP regression test for
-`USAddresses::parseValidatedAddress()` — the code that turns a Google Address
-Validation response into `address2` (street) and `address1` (unit).
+`address-parse.php` is a plain PHP regression test for the pure halves of
+`USAddresses` — `parseValidatedAddress()` (street/unit), `deriveCity()` (the
+un-abbreviated USPS mailing city), and `relocationConflict()` (the gate that
+400s a match on a different street or city instead of storing it).
 
 ```bash
-php tests/address-parse.php        # 37 fixtures, exit 1 on failure
+php tests/address-parse.php        # 51 fixtures, exit 1 on failure
 php tests/address-parse.php -v     # also dump each fixture's components
 ```
 
