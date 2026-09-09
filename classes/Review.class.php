@@ -394,7 +394,10 @@ class Review {
                 $messages['needs_decision'] = 'needs_decision must be true or false.';
             }elseif($data->needs_decision){
                 $needsDecision = 1;
-                if(is_null($question)){
+                // Only "required" when nothing was sent. A question that was
+                // sent but too long already has its own message; overwriting
+                // it here told an agent its 717-character question was absent.
+                if(is_null($question) && !isset($messages['question'])){
                     $messages['question'] = 'question is required when needs_decision is true.';
                 }
             }
@@ -456,7 +459,7 @@ class Review {
             return null;
         }
         if(mb_strlen($value) > $max){
-            $messages[$field] = "$field must be $max characters or fewer.";
+            $messages[$field] = "$field must be $max characters or fewer (" . mb_strlen($value) . " sent). Shorten it; the detail belongs in notes.";
             return null;
         }
         return $value;

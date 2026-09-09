@@ -90,6 +90,8 @@ check("unknown key gets 404", $code === 404);
 check("missing outcome -> 400 with validation", $code === 400 && isset($j['validation']['outcome']));
 [$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'needs_decision' => true]);
 check("needs_decision without question -> 400", $code === 400 && isset($j['validation']['question']));
+[$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'needs_decision' => true, 'question' => str_repeat('x', 717)]);
+check("over-long question -> 400 that says too long, not missing", $code === 400 && str_contains($j['validation']['question'] ?? '', '500 characters or fewer') && str_contains($j['validation']['question'], '717 sent'));
 [$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'beers_added' => -1]);
 check("negative counter -> 400", $code === 400 && isset($j['validation']['beers_added']));
 [$code, $j] = call('POST', '', 'cccccccc-0000-4000-8000-0000000000ff', $ADMIN, (object)['outcome' => 'updated']);
