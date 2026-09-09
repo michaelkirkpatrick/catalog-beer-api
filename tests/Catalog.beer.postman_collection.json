@@ -78264,7 +78264,7 @@
 									"    var jsonData = pm.response.json();",
 									"    if (jsonData.data.length > 0) {",
 									"        var item = jsonData.data[0];",
-									"        pm.expect(item).to.have.all.keys('name', 'email', 'api_key', 'year', 'month', 'count');",
+									"        pm.expect(item).to.have.all.keys('name', 'email', 'user_id', 'api_key_last4', 'year', 'month', 'count');",
 									"        pm.expect(item.year).to.be.a('number');",
 									"        pm.expect(item.month).to.be.a('number');",
 									"        pm.expect(item.month).to.be.within(1, 12);",
