@@ -132,6 +132,12 @@ $db = new Database(); $db->query("UPDATE brewer SET claimedAt = claimedAt - 2000
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 10]);
 $names = array_map(fn($r) => $r['name'], $j['data']);
 check("re-claim: expired claim is free; the decided brewer sorts first", $names === ['Beta Brewing', 'Alpha Brewing']);
+check("claim reports how many carry a decision", ($j['decided'] ?? null) === 1);
+// a decision is claimed regardless of count: count=1 still returns the decided brewer PLUS one more
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN (?, ?)", [$ALPHA, $BETA]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 1]);
+$names = array_map(fn($r) => $r['name'], $j['data']);
+check("count=1 with one decision waiting returns two rows, decided first", $names === ['Beta Brewing', 'Alpha Brewing'] && $j['decided'] === 1);
 check("re-claim carries last_review with decision", $j['data'][0]['last_review']['decision'] === 'Franchise. Not a location.' && $j['data'][0]['reviewed_at'] > 0);
 
 // 8b. once the decision is acted on (a newer review posted), the brewer drops back behind the never-reviewed row.

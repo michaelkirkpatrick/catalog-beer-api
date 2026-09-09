@@ -2,7 +2,7 @@
 /*--
 The brewer review loop's queue and record. Admin-only.
 
-  POST  /review/claim            take the next N brewers off the queue and hold them (decided first)
+  POST  /review/claim            every brewer with an unactioned decision, plus the next N; all held
   POST  /review/{brewer_id}      record a completed review; sets brewer.reviewedAt, clears the claim
   GET   /review                  recent reviews; ?needs_decision=1 is the human check-in list
   GET   /review/{id}             one review
@@ -150,11 +150,18 @@ class Review {
 
     // ----- POST /review/claim -----
     // Selects the next N brewers and holds them, in one transaction, so two
-    // agents claiming at once cannot be handed the same row. Order: an
-    // unactioned human decision first, then never reviewed, then a non-ok
-    // cron verdict (step 1 has work to do), then oldest review. SKIP LOCKED
-    // lets concurrent claimers pass each other instead of queueing on the
-    // same rows.
+    // agents claiming at once cannot be handed the same row. Two selections:
+    //
+    //   1. Every brewer whose LATEST review carries a decision -- a human
+    //      answered and nobody has posted a review since, so nobody has acted
+    //      on it. These are claimed regardless of count: an answer must never
+    //      wait on the size of tonight's run. (The acting review becomes the
+    //      latest row and has no decision, which drops the brewer out.)
+    //   2. Then `count` more, ordered never-reviewed first, then a non-ok cron
+    //      verdict (step 1 has work to do), then oldest review.
+    //
+    // SKIP LOCKED lets concurrent claimers pass each other instead of queueing
+    // on the same rows.
     public function claim($count){
         $count = intval($count);
         if($count < 1){$count = 10;}
@@ -167,19 +174,38 @@ class Review {
         $conn = $db->getConnection();
         $conn->begin_transaction();
 
-        // Order: a brewer whose LATEST review carries a decision comes first —
-        // a human answered and nobody has posted a review since, so nobody
-        // has acted on it (the acting review becomes the latest row and has
-        // no decision, which drops the brewer back into normal order). Then
-        // never reviewed; then a non-ok cron verdict; then oldest review.
-        $result = $db->query("SELECT b.id FROM brewer b LEFT JOIN brewer_review r ON r.id = (SELECT id FROM brewer_review WHERE brewerID = b.id ORDER BY reviewedAt DESC LIMIT 1) WHERE b.url IS NOT NULL AND b.url <> '' AND (b.claimedAt IS NULL OR b.claimedAt < ?) ORDER BY (r.decidedAt IS NOT NULL) DESC, (b.reviewedAt IS NULL) DESC, (b.urlStatus <> 'ok') DESC, b.reviewedAt ASC, b.lastModified ASC LIMIT ? FOR UPDATE SKIP LOCKED", [$free, $count]);
+        $latest = "LEFT JOIN brewer_review r ON r.id = (SELECT id FROM brewer_review WHERE brewerID = b.id ORDER BY reviewedAt DESC LIMIT 1)";
+        $eligible = "b.url IS NOT NULL AND b.url <> '' AND (b.claimedAt IS NULL OR b.claimedAt < ?)";
+
+        // 1. Unactioned decisions, all of them
+        $result = $db->query("SELECT b.id FROM brewer b $latest WHERE $eligible AND r.decidedAt IS NOT NULL ORDER BY r.decidedAt ASC LIMIT ? FOR UPDATE SKIP LOCKED", [$free, self::CLAIM_MAX]);
+        if($db->error){
+            $conn->rollback();
+            $this->dbError($db, 'POST /review/claim - decided');
+            $db->close();
+            return;
+        }
+        $ids = array();
+        while($row = $result->fetch_assoc()){
+            $ids[] = $row['id'];
+        }
+        $decided = count($ids);
+
+        // 2. Then count more, excluding what step 1 took
+        $exclude = '';
+        $params = [$free];
+        if(!empty($ids)){
+            $exclude = ' AND b.id NOT IN (' . implode(', ', array_fill(0, count($ids), '?')) . ')';
+            $params = array_merge($params, $ids);
+        }
+        $params[] = $count;
+        $result = $db->query("SELECT b.id FROM brewer b $latest WHERE $eligible$exclude ORDER BY (b.reviewedAt IS NULL) DESC, (b.urlStatus <> 'ok') DESC, b.reviewedAt ASC, b.lastModified ASC LIMIT ? FOR UPDATE SKIP LOCKED", $params);
         if($db->error){
             $conn->rollback();
             $this->dbError($db, 'POST /review/claim - select');
             $db->close();
             return;
         }
-        $ids = array();
         while($row = $result->fetch_assoc()){
             $ids[] = $row['id'];
         }
@@ -247,6 +273,7 @@ class Review {
         $this->json['url'] = '/review/claim';
         $this->json['claimed_by'] = $this->userID;
         $this->json['claim_expires_at'] = $now + self::CLAIM_TTL;
+        $this->json['decided'] = $decided;   // how many of these carry a decision to act on first
         $this->json['data'] = $data;
     }
 
