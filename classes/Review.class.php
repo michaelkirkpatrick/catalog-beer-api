@@ -119,6 +119,7 @@ class Review {
             'id' => $row['id'],
             'object' => 'review',
             'brewer_id' => $row['brewerID'],
+            'brewer_name' => $row['brewerName'],
             'reviewed_at' => intval($row['reviewedAt']),
             'reviewer' => $row['reviewer'],
             'brief_version' => $row['briefVersion'],
@@ -142,7 +143,10 @@ class Review {
         );
     }
 
-    const REVIEW_COLUMNS = "id, brewerID, reviewedAt, reviewer, briefVersion, outcome, urlVerdict, brewerChanged, beersAdded, beersUpdated, dupesDeleted, locationsAdded, locationsUpdated, locationsDeleted, sources, changes, notes, needsDecision+0 AS needsDecision, question, decision, decidedAt, decidedBy";
+    // Selected FROM brewer_review r LEFT JOIN brewer b, so every review carries
+    // the brewer's current name and the check-in page needs no second call.
+    const REVIEW_COLUMNS = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.sources, r.changes, r.notes, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
+    const REVIEW_FROM = "brewer_review r LEFT JOIN brewer b ON b.id = r.brewerID";
 
     // ----- POST /review/claim -----
     // Selects the next N brewers and holds them, in one transaction, so two
@@ -435,7 +439,7 @@ class Review {
     public function get($reviewID){
         $reviewID = trim($reviewID ?? '');
         $db = new Database();
-        $result = $db->query("SELECT " . self::REVIEW_COLUMNS . " FROM brewer_review WHERE id=?", [$reviewID]);
+        $result = $db->query("SELECT " . self::REVIEW_COLUMNS . " FROM " . self::REVIEW_FROM . " WHERE r.id=?", [$reviewID]);
         if($db->error){
             $this->dbError($db, 'GET /review/{id}');
             $db->close();
@@ -473,17 +477,17 @@ class Review {
         $where = array();
         $params = array();
         if(!is_null($brewerID)){
-            $where[] = 'brewerID=?';
+            $where[] = 'r.brewerID=?';
             $params[] = $brewerID;
         }
         if($needsDecisionOnly){
-            $where[] = 'needsDecision=1';
+            $where[] = 'r.needsDecision=1';
         }
-        $sql = "SELECT " . self::REVIEW_COLUMNS . " FROM brewer_review";
+        $sql = "SELECT " . self::REVIEW_COLUMNS . " FROM " . self::REVIEW_FROM;
         if(!empty($where)){
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
-        $sql .= $needsDecisionOnly ? ' ORDER BY reviewedAt ASC' : ' ORDER BY reviewedAt DESC';
+        $sql .= $needsDecisionOnly ? ' ORDER BY r.reviewedAt ASC' : ' ORDER BY r.reviewedAt DESC';
         $sql .= ' LIMIT ? OFFSET ?';
         $params[] = $count + 1;
         $params[] = $offset;

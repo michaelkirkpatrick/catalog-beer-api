@@ -102,6 +102,7 @@ $body = (object)['outcome' => 'updated', 'url_verdict' => 'ok', 'brief_version' 
     'notes' => "Site is live again.\nFour lagers added.", 'needs_decision' => true, 'question' => 'Is the Beta Taproom in Dayton a location or a franchise?'];
 [$code, $j, $hdr] = call('POST', '', $BETA, $ADMIN, $body);
 check("post review -> 201 with Location", $code === 201 && strpos($hdr, 'Location: https://staging.catalog.beer/review/') === 0);
+check("review carries brewer_name", ($j['brewer_name'] ?? null) === 'Beta Brewing');
 check("review object round-trips", $j['object'] === 'review' && $j['beers_added'] === 4 && count($j['sources']) === 2 && $j['changes'][0]->field === 'description' && $j['needs_decision'] === true && $j['reviewer'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 $reviewID = $j['id'];
 $db = new Database(); $row = $db->query("SELECT reviewedAt, claimedBy, claimedAt, urlStatus, urlFailCount, urlLastOkAt FROM brewer WHERE id=?", [$BETA])->fetch_assoc(); $db->close();
