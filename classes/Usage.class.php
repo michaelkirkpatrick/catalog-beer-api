@@ -3,7 +3,6 @@
 class Usage {
 
     public $id = '';
-    public $apiKey = '';
     public $year = 0;
     public $month = 0;
     public $count = 0;
@@ -36,7 +35,6 @@ class Usage {
             $result = $db->query("SELECT count, lastUpdated FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, $year, $month]);
             if(!$db->error){
                 // Save to Class
-                $this->apiKey = $apiKey;
                 $this->year = $year;
                 $this->month = $month;
                 $this->requestLimit = intval($apiKeys->requestLimit);
@@ -237,7 +235,6 @@ class Usage {
                         $this->myUsage($apiKey);
                         if(!$this->error){
                             $this->json['object'] = 'usage';
-                            $this->json['api_key'] = $this->apiKey;
                             $this->json['year'] = intval($this->year);
                             $this->json['month'] = intval($this->month);
                             $this->json['count'] = intval($this->count);

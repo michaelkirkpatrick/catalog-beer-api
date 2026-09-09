@@ -150,7 +150,6 @@ class Billing {
 
         $billableRequests = max(0, $count - $apiKeys->requestLimit);
         $this->json['object'] = 'billing';
-        $this->json['api_key'] = $apiKey;
         $this->json['billing_enabled'] = $apiKeys->billingEnabled;
         $this->json['monthly_spend_cap_cents'] = $apiKeys->monthlySpendCapCents;
         $this->json['card'] = $card;
@@ -368,7 +367,6 @@ class Billing {
         $db->close();
 
         $this->json['object'] = 'billing';
-        $this->json['api_key'] = $apiKey;
         $this->json['billing_enabled'] = $apiKeys->billingEnabled;
         $this->json['monthly_spend_cap_cents'] = $cap;
     }
@@ -409,7 +407,6 @@ class Billing {
         $db->close();
 
         $this->json['object'] = 'billing';
-        $this->json['api_key'] = $apiKey;
         $this->json['billing_enabled'] = false;
         $this->json['monthly_spend_cap_cents'] = $apiKeys->monthlySpendCapCents;
     }

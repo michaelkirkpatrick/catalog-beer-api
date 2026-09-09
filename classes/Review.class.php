@@ -6,7 +6,8 @@ The brewer review loop's queue and record. Admin-only.
   POST  /review/{brewer_id}      record a completed review; sets brewer.reviewedAt, clears the claim
   GET   /review                  recent reviews; ?needs_decision=1 is the human check-in list
   GET   /review/{id}             one review
-  PATCH /review/{id}             answer a review's question (decision)
+  PATCH /review/{id}             answer a review's question (decision), or amend
+                                 notes/question while the row is still undecided
   GET   /brewer/{brewer_id}/review   a brewer's review history (routed here by .htaccess)
 
 The queue is three columns on brewer (reviewedAt, claimedBy, claimedAt); the
@@ -97,10 +98,10 @@ class Review {
         $errorLog->write();
     }
 
-    private function validationError($messages, $context){
+    private function validationError($messages, $context, $code = 400){
         $this->error = true;
         $this->errorMsg = implode(' ', array_values($messages));
-        $this->responseCode = 400;
+        $this->responseCode = $code;
         $this->json['validation'] = $messages;
 
         $errorLog = new LogError();
@@ -322,16 +323,7 @@ class Review {
         $question = $this->singleLine($data, 'question', 500, $messages);
 
         // notes — free text, newlines allowed
-        $notes = null;
-        if(isset($data->notes) && $data->notes !== ''){
-            $notes = TextInput::trim(strval($data->notes));
-            $msg = TextInput::check($notes, true);
-            if($msg !== ''){
-                $messages['notes'] = $msg;
-            }elseif(mb_strlen($notes) > 20000){
-                $messages['notes'] = 'notes must be 20,000 characters or fewer.';
-            }
-        }
+        $notes = $this->multiLine($data, 'notes', 20000, $messages);
 
         // Counters
         $counters = array();
@@ -465,6 +457,26 @@ class Review {
         return $value;
     }
 
+    private function multiLine($data, $field, $max, &$messages){
+        if(!isset($data->$field) || $data->$field === '' || is_null($data->$field)){
+            return null;
+        }
+        $value = TextInput::trim(strval($data->$field));
+        if($value === ''){
+            return null;
+        }
+        $msg = TextInput::check($value, true);
+        if($msg !== ''){
+            $messages[$field] = $msg;
+            return null;
+        }
+        if(mb_strlen($value) > $max){
+            $messages[$field] = "$field must be " . number_format($max) . " characters or fewer (" . number_format(mb_strlen($value)) . " sent).";
+            return null;
+        }
+        return $value;
+    }
+
     // ----- GET /review/{id} -----
     public function get($reviewID){
         $reviewID = trim($reviewID ?? '');
@@ -552,12 +564,31 @@ class Review {
     }
 
     // ----- PATCH /review/{id} -----
-    // Records a human's answer. The next claim of that brewer carries it.
-    public function decide($reviewID, $data){
+    // Two jobs, both admin-only like the rest of the endpoint:
+    //
+    //   decision   a human's answer to the review's question. The next claim
+    //              of that brewer carries it. Unchanged from the first cut.
+    //   notes,     amendments to the posted row, allowed only while decision
+    //   question   is null -- so a bad post is corrected in place rather
+    //              than becoming a permanent row a human has to answer. Plain
+    //              replace semantics; the same shape and cap as on POST.
+    //
+    // Once a decision is on the row, the question it answered and the notes
+    // behind it are fixed (409). question is only amendable on a row posted
+    // with needs_decision: true -- the flag is set at post time on purpose,
+    // and a question on a row nobody is asked to answer is just notes.
+    public function update($reviewID, $data){
         $messages = array();
         $decision = $this->singleLine($data, 'decision', 500, $messages);
-        if(is_null($decision) && !isset($messages['decision'])){
-            $messages['decision'] = 'decision is required.';
+        $amendNotes = property_exists($data, 'notes');
+        $amendQuestion = property_exists($data, 'question');
+        $notes = $amendNotes ? $this->multiLine($data, 'notes', 20000, $messages) : null;
+        $question = $amendQuestion ? $this->singleLine($data, 'question', 500, $messages) : null;
+        if(is_null($decision) && !$amendNotes && !$amendQuestion && !isset($messages['decision'])){
+            $messages['decision'] = 'decision is required, unless notes or question is being amended.';
+        }
+        if($amendQuestion && is_null($question) && !isset($messages['question'])){
+            $messages['question'] = 'question cannot be cleared while needs_decision is true.';
         }
         if(!empty($messages)){
             $this->validationError($messages, 'PATCH /review/{id}');
@@ -568,10 +599,50 @@ class Review {
         if($this->error){
             return;
         }
+        $row = $this->json;
         $this->json = array();
 
+        // State checks against the row as it stands
+        if($amendNotes || $amendQuestion){
+            if(!is_null($row['decision'])){
+                foreach(array('notes' => $amendNotes, 'question' => $amendQuestion) as $field => $sent){
+                    if($sent){
+                        $messages[$field] = "$field cannot change once a decision has been recorded.";
+                    }
+                }
+                $this->validationError($messages, 'PATCH /review/{id} - decided', 409);
+                return;
+            }
+            if($amendQuestion && !$row['needs_decision']){
+                $messages['question'] = 'question can only be amended on a review posted with needs_decision: true.';
+                $this->validationError($messages, 'PATCH /review/{id} - no decision needed');
+                return;
+            }
+        }
+
+        $set = array();
+        $params = array();
+        if($amendNotes){
+            $set[] = 'notes=?';
+            $params[] = $notes;
+        }
+        if($amendQuestion){
+            $set[] = 'question=?';
+            $params[] = $question;
+        }
+        if(!is_null($decision)){
+            $set[] = 'decision=?';
+            $set[] = 'decidedAt=?';
+            $set[] = 'decidedBy=?';
+            $set[] = 'needsDecision=0';
+            $params[] = $decision;
+            $params[] = time();
+            $params[] = $this->userID;
+        }
+        $params[] = $reviewID;
+
         $db = new Database();
-        $db->query("UPDATE brewer_review SET decision=?, decidedAt=?, decidedBy=?, needsDecision=0 WHERE id=?", [$decision, time(), $this->userID, $reviewID]);
+        $db->query("UPDATE brewer_review SET " . implode(', ', $set) . " WHERE id=?", $params);
         if($db->error){
             $this->dbError($db, 'PATCH /review/{id}');
             $db->close();
@@ -621,7 +692,7 @@ class Review {
                 break;
             case 'PATCH':
                 if(empty($function) && !empty($id)){
-                    $this->decide($id, $data);
+                    $this->update($id, $data);
                 }else{
                     $this->invalidPath($function);
                 }

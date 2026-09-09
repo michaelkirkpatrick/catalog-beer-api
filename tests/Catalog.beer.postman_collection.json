@@ -78090,7 +78090,7 @@
 									"",
 									"pm.test(\"Valid JSON payload\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('object', 'api_key', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
+									"    pm.expect(jsonData).to.have.all.keys('object', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
 									"    pm.expect(jsonData.object).to.equal('usage');",
 									"    pm.expect(jsonData.api_key).to.have.lengthOf(36);",
 									"    pm.expect(jsonData.year).to.be.a('number');",
@@ -78176,7 +78176,7 @@
 									"",
 									"pm.test(\"Valid JSON payload\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('object', 'api_key', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
+									"    pm.expect(jsonData).to.have.all.keys('object', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
 									"    pm.expect(jsonData.object).to.equal('usage');",
 									"    pm.expect(jsonData.api_key).to.equal(pm.environment.get('api_key_1'));",
 									"});"

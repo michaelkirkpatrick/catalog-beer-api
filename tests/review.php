@@ -14,7 +14,8 @@ What it proves: claim() hands out each brewer once and in the documented
 order, expired claims are free again, the admin gate holds, POST validation
 rejects the shapes it should, a posted review sets reviewedAt / clears the
 claim / refreshes the URL-health columns on url_verdict ok, the decisions
-list and PATCH round-trip, and a re-claim carries the decision back.
+list and PATCH round-trip, an undecided row's notes/question can be amended
+(and a decided row's cannot), and a re-claim carries the decision back.
 --*/
 if(php_sapi_name() !== 'cli'){
     exit(1);
@@ -111,6 +112,18 @@ $db = new Database(); $row = $db->query("SELECT reviewedAt, claimedBy, claimedAt
 check("brewer.reviewedAt set, claim cleared", !is_null($row['reviewedAt']) && is_null($row['claimedBy']) && is_null($row['claimedAt']));
 check("url ok refreshed health columns (gone -> ok)", $row['urlStatus'] === 'ok' && intval($row['urlFailCount']) === 0 && !is_null($row['urlLastOkAt']));
 
+// 5b. amend the open row: notes and question are replaceable while undecided
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['notes' => 'Site is live again. Four lagers added; the fifth is a collab.']);
+check("amend notes on open row -> 200, readback", $code === 200 && $j['notes'] === 'Site is live again. Four lagers added; the fifth is a collab.' && $j['question'] === 'Is the Beta Taproom in Dayton a location or a franchise?' && $j['decision'] === null);
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['question' => 'Is the Beta Taproom in Dayton a second location, or a franchise?']);
+check("amend question on open row -> 200, flag still set", $code === 200 && $j['question'] === 'Is the Beta Taproom in Dayton a second location, or a franchise?' && $j['needs_decision'] === true);
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['question' => str_repeat('y', 600)]);
+check("amend question to 600 chars -> 400 naming the cap", $code === 400 && str_contains($j['validation']['question'] ?? '', '500 characters or fewer') && str_contains($j['validation']['question'], '600 sent'));
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['question' => '']);
+check("clearing the question on a needs_decision row -> 400", $code === 400 && isset($j['validation']['question']));
+[$code, $j] = call('GET', '', $reviewID, $ADMIN);
+check("rejected amendments left the row untouched", $j['question'] === 'Is the Beta Taproom in Dayton a second location, or a franchise?');
+
 // 6. decisions list, then answer
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list has the row", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $reviewID && $j['needs_decision'] === true);
@@ -120,6 +133,13 @@ check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision
 check("needs_decision list now empty", count($j['data']) === 0);
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)[]);
 check("patch without decision -> 400", $code === 400);
+// 6b. once decided, notes and question are fixed
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['notes' => 'too late']);
+check("amend notes after decision -> 409 naming the field", $code === 409 && isset($j['validation']['notes']) && !isset($j['validation']['question']));
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['question' => 'too late']);
+check("amend question after decision -> 409", $code === 409 && isset($j['validation']['question']));
+[$code, $j] = call('GET', '', $reviewID, $ADMIN);
+check("decided row untouched by rejected amendments", $j['notes'] === 'Site is live again. Four lagers added; the fifth is a collab.' && $j['decision'] === 'Franchise. Not a location.');
 
 // 7. history and single get
 [$code, $j] = call('GET', 'brewer', $BETA, $ADMIN);
@@ -147,6 +167,14 @@ check("re-claim carries last_review with decision", $j['data'][0]['last_review']
 $db = new Database(); $db->query("UPDATE brewer_review SET reviewedAt = reviewedAt - 60 WHERE id=?", [$reviewID]); $db->close();
 [$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'unchanged', 'notes' => 'acted on the decision']);
 check("post after decision -> 201", $code === 201);
+$secondReviewID = $j['id'];
+// 8c. a row posted without needs_decision: question is refused, notes can be amended or cleared
+[$code, $j] = call('PATCH', '', $secondReviewID, $ADMIN, (object)['question' => 'Should this be a question?']);
+check("question on a needs_decision:false row -> 400", $code === 400 && isset($j['validation']['question']));
+[$code, $j] = call('PATCH', '', $secondReviewID, $ADMIN, (object)['notes' => null]);
+check("notes: null clears notes on an open row", $code === 200 && $j['notes'] === null && $j['question'] === null);
+[$code, $j] = call('PATCH', '', $secondReviewID, $ADMIN, (object)['notes' => "Acted on the decision.\nNothing else changed."]);
+check("multi-line notes amendment round-trips", $code === 200 && $j['notes'] === "Acted on the decision.\nNothing else changed.");
 $db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN (?, ?)", [$ALPHA, $BETA]); $db->close();
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 10]);
 $names = array_map(fn($r) => $r['name'], $j['data']);
