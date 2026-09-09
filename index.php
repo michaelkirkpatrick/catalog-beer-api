@@ -399,6 +399,13 @@ if(!$error){
             $responseCode = $metricsReport->responseCode;
             $responseHeader = $metricsReport->responseHeader;
             break;
+        case 'review':
+            $review = new Review();
+            $review->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+            $json = $review->json;
+            $responseCode = $review->responseCode;
+            $responseHeader = $review->responseHeader;
+            break;
         case 'style':
             $style = new Style();
             $style->api($method, $function, $id);
