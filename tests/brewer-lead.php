@@ -53,7 +53,7 @@ INSERT INTO api_keys (id,userID) VALUES
  ('bbbbbbbb-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-000000000001'),
  ('bbbbbbbb-0000-4000-8000-000000000002','aaaaaaaa-0000-4000-8000-000000000002'),
  ('bbbbbbbb-0000-4000-8000-000000000003','aaaaaaaa-0000-4000-8000-000000000003');
-INSERT INTO subdivisions (sub_code, sub_name) VALUES ('OR','Oregon'),('WA','Washington'),('CA','California');
+INSERT INTO subdivisions (sub_code, sub_name) VALUES ('US-OR','Oregon'),('US-WA','Washington'),('US-CA','California');
 INSERT INTO brewer (id,name,url,domainName,lastModified,createdAt,urlStatus) VALUES
  ('cccccccc-0000-4000-8000-000000000001','Alpha Brewing','https://alpha.example','alpha.example',100,100,'ok');
 SQL;
@@ -90,6 +90,8 @@ check("bare name -> 400 naming url, city, sub_code", $code === 400 && isset($j['
 check("city without sub_code -> 400", $code === 400 && isset($j['validation']['sub_code']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'ZZ']));
 check("unknown sub_code -> 400", $code === 400 && isset($j['validation']['sub_code']) && !isset($j['validation']['url']));
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'CA-BC']));
+check("non-US ISO code -> 400", $code === 400 && isset($j['validation']['sub_code']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['url' => 'not a url at all']));
 check("malformed url -> 400", $code === 400 && isset($j['validation']['url']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['url' => 'https://x.example', 'source_url' => 'nope']));
@@ -109,7 +111,7 @@ check("nothing was written", intval($n) === 0);
 $body = lead('The Bar Brewing Co.', ['url' => 'BarBrewing.example', 'city' => 'Bend', 'sub_code' => 'or', 'note' => "Took over Foo's space at 412 Main St.\nOpening March 2026."]);
 [$code, $j, $hdr] = call('POST', '', '', $ADMIN, $body);
 check("post lead -> 201 with Location", $code === 201 && strpos($hdr, 'Location: https://staging.catalog.beer/brewer-lead/') === 0);
-check("lead object round-trips, url verbatim, sub_code uppercased", $j['object'] === 'brewer_lead' && $j['name'] === 'The Bar Brewing Co.' && $j['url'] === 'BarBrewing.example' && $j['sub_code'] === 'OR' && $j['city'] === 'Bend' && $j['status'] === 'queued' && $j['resolution'] === null && $j['created_by'] === $REVIEWER && $j['brewer_id'] === null);
+check("lead object round-trips, url verbatim, bare 'or' -> US-OR + state_short", $j['object'] === 'brewer_lead' && $j['name'] === 'The Bar Brewing Co.' && $j['url'] === 'BarBrewing.example' && $j['sub_code'] === 'US-OR' && $j['state_short'] === 'OR' && $j['city'] === 'Bend' && $j['status'] === 'queued' && $j['resolution'] === null && $j['created_by'] === $REVIEWER && $j['brewer_id'] === null);
 check("sources starts as [source_url]", $j['sources'] === [$body->source_url]);
 check("multi-line note kept", str_contains($j['note'], "\n"));
 $bar = $j['id'];
@@ -125,8 +127,8 @@ check("second page appended to sources", $j['sources'] === [$body->source_url, '
 check("same page again is not appended twice", count($j['sources']) === 2);
 
 // 6. dedup by name + state: no url, "Bar Brewery" in OR hits; in WA does not
-[$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewery', ['city' => 'Bend', 'sub_code' => 'OR']));
-check("name+state -> 200 with the existing row", $code === 200 && $j['id'] === $bar);
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewery', ['city' => 'Bend', 'sub_code' => 'US-OR']));
+check("name+state (ISO form) -> 200 with the existing row", $code === 200 && $j['id'] === $bar);
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewery', ['city' => 'Spokane', 'sub_code' => 'WA']));
 check("same name, other state -> 201 new row (POLICY 4.11)", $code === 201 && $j['id'] !== $bar);
 $barWA = $j['id'];

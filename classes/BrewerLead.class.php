@@ -156,6 +156,7 @@ class BrewerLead {
             'url' => $row['url'],
             'city' => $row['city'],
             'sub_code' => $row['sub_code'],
+            'state_short' => is_null($row['sub_code']) ? null : substr($row['sub_code'], 3, 2),
             'source_url' => $row['sourceUrl'],
             'sources' => json_decode($row['sources']),
             'note' => $row['note'],
@@ -279,14 +280,20 @@ class BrewerLead {
         $city = $this->singleLine($data, 'city', 100, $messages);
         $note = $this->multiLine($data, 'note', 2000, $messages);
 
+        // ISO 3166-2, the form every address object carries (US-OR). A bare
+        // two-letter state is accepted and upgraded, since that is what a news
+        // article prints and what the agent is likeliest to send.
         $subCode = null;
         if(isset($data->sub_code) && !is_null($data->sub_code) && $data->sub_code !== ''){
             $candidate = strtoupper(TextInput::trim(strval($data->sub_code)));
+            if(preg_match('/^[A-Z]{2}$/', $candidate)){
+                $candidate = 'US-' . $candidate;
+            }
             $subdivisions = new Subdivisions();
-            if($subdivisions->validate($candidate, false)){
+            if(preg_match('/^US-[A-Z]{2}$/', $candidate) && $subdivisions->validate($candidate, false)){
                 $subCode = $candidate;
             }else{
-                $messages['sub_code'] = 'sub_code must be a US state or territory code.';
+                $messages['sub_code'] = 'sub_code must be a US state or territory code (US-OR, or OR).';
             }
         }
 
