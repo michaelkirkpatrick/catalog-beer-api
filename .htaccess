@@ -79,6 +79,12 @@ RewriteRule ^metrics/?$ index.php?endpoint=metrics [L]
 RewriteRule ^review/claim$ index.php?endpoint=review&function=claim [L]
 RewriteRule ^review(\/[-0-9a-f]{36})?$ index.php?endpoint=review&id=$1 [QSA,L]
 
+# The review loop's lead queue (BrewerLead.class.php). Admin-only. Kept out of
+# the ^brewer block above: none of those rules admit a hyphen, but a reader
+# scanning for /brewer routes should not find this one among them.
+RewriteRule ^brewer-lead/claim$ index.php?endpoint=brewer-lead&function=claim [L]
+RewriteRule ^brewer-lead(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer-lead&id=$1 [QSA,L]
+
 RewriteRule ^usage/my-usage/?$ index.php?endpoint=usage&function=my-usage [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]
 

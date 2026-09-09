@@ -113,6 +113,35 @@ class SearchQuery {
         return implode(' ', $distinctive);
     }
 
+    /* A brewery name reduced to its identity, for matching one name against
+       another outside FULLTEXT -- the brewer_lead dedup key. Built on the
+       same tokeniser and the same generic-word list as the name-evidence test
+       above, so a lead and a search cannot disagree about what a name's
+       identity is: "The Bar Brewing Co." and "Bar Brewery" both key to "bar".
+       Lowercased -- ASCII-only where mbstring is absent (production), which
+       is enough because the key is only ever compared in a case- and
+       accent-insensitive column -- with a leading "the" dropped, and
+       the generic fallback of brewerDistinctiveTerms() kept -- "Brewing Co"
+       keys to "brewing co", never to an empty string that every all-generic
+       name would then share. */
+    public static function brewerNameKey($name){
+        $lower = function_exists('mb_strtolower') ? 'mb_strtolower' : 'strtolower';
+        $terms = array_map($lower, self::tokens($name));
+        if(count($terms) > 1 && $terms[0] === 'the'){
+            array_shift($terms);
+        }
+        $distinctive = array();
+        foreach($terms as $t){
+            if(!in_array($t, self::$genericBrewerTerms, true)){
+                $distinctive[] = $t;
+            }
+        }
+        if(empty($distinctive)){
+            $distinctive = $terms;
+        }
+        return implode(' ', $distinctive);
+    }
+
     /* Labels why a search row matched, from the tier CASE and a name-only
        relevance the search queries already compute. Shared by
        Brewer::search() and Beer::search() so the vocabulary cannot drift; the

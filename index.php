@@ -406,6 +406,13 @@ if(!$error){
             $responseCode = $review->responseCode;
             $responseHeader = $review->responseHeader;
             break;
+        case 'brewer-lead':
+            $brewerLead = new BrewerLead();
+            $brewerLead->api($method, $function, $id, $apiKey, $count, $cursor, $data);
+            $json = $brewerLead->json;
+            $responseCode = $brewerLead->responseCode;
+            $responseHeader = $brewerLead->responseHeader;
+            break;
         case 'style':
             $style = new Style();
             $style->api($method, $function, $id);
