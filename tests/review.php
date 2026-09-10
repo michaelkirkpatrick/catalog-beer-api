@@ -95,18 +95,22 @@ check("needs_decision without question -> 400", $code === 400 && isset($j['valid
 check("over-long question -> 400 that says too long, not missing", $code === 400 && str_contains($j['validation']['question'] ?? '', '500 characters or fewer') && str_contains($j['validation']['question'], '717 sent'));
 [$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'beers_added' => -1]);
 check("negative counter -> 400", $code === 400 && isset($j['validation']['beers_added']));
+// The changes cap: a 490-beer first review is ~2,015 entries and must fit; 4,001 must not
+$entry = fn($i) => (object)['entity' => 'beer', 'id' => sprintf('dddddddd-0000-4000-8000-%012d', $i), 'field' => 'abv', 'before' => null, 'after' => 6.5];
+[$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'changes' => array_map($entry, range(1, 4001))]);
+check("4,001 changes -> 400 naming the cap", $code === 400 && str_contains($j['validation']['changes'] ?? '', '4,000'));
 [$code, $j] = call('POST', '', 'cccccccc-0000-4000-8000-0000000000ff', $ADMIN, (object)['outcome' => 'updated']);
 check("unknown brewer -> 404", $code === 404);
 
 // 5. post a real review with url ok + a question
 $body = (object)['outcome' => 'updated', 'url_verdict' => 'ok', 'brief_version' => 'abc1234', 'brewer_changed' => 'description,short_description',
     'beers_added' => 4, 'beers_updated' => 1, 'sources' => ['https://beta.example/', 'https://beta.example/beers'],
-    'changes' => [(object)['entity' => 'brewer', 'id' => $BETA, 'field' => 'description', 'before' => null, 'after' => 'Beta brews lagers in Ohio.']],
+    'changes' => array_merge([(object)['entity' => 'brewer', 'id' => $BETA, 'field' => 'description', 'before' => null, 'after' => 'Beta brews lagers in Ohio.']], array_map($entry, range(1, 2014))),
     'notes' => "Site is live again.\nFour lagers added.", 'needs_decision' => true, 'question' => 'Is the Beta Taproom in Dayton a location or a franchise?'];
 [$code, $j, $hdr] = call('POST', '', $BETA, $ADMIN, $body);
 check("post review -> 201 with Location", $code === 201 && strpos($hdr, 'Location: https://staging.catalog.beer/review/') === 0);
 check("review carries brewer_name", ($j['brewer_name'] ?? null) === 'Beta Brewing');
-check("review object round-trips", $j['object'] === 'review' && $j['beers_added'] === 4 && count($j['sources']) === 2 && $j['changes'][0]->field === 'description' && $j['needs_decision'] === true && $j['reviewer'] === 'aaaaaaaa-0000-4000-8000-000000000001');
+check("review object round-trips, 2,015 changes stored", $j['object'] === 'review' && $j['beers_added'] === 4 && count($j['sources']) === 2 && $j['changes'][0]->field === 'description' && count($j['changes']) === 2015 && $j['needs_decision'] === true && $j['reviewer'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 $reviewID = $j['id'];
 $db = new Database(); $row = $db->query("SELECT reviewedAt, claimedBy, claimedAt, urlStatus, urlFailCount, urlLastOkAt FROM brewer WHERE id=?", [$BETA])->fetch_assoc(); $db->close();
 check("brewer.reviewedAt set, claim cleared", !is_null($row['reviewedAt']) && is_null($row['claimedBy']) && is_null($row['claimedAt']));

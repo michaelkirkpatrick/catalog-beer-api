@@ -358,10 +358,18 @@ class Review {
         }
 
         // changes — array of {entity, id, field, before, after}
+        //
+        // The entry cap was 2,000 until a first review of a 490-beer brewery
+        // posted 2,015 entries (a created beer is ~4.3 entries: name, style,
+        // a tier field, abv, ibu when published) and was refused. Claimed
+        // Untappd profiles run to ~600 beers, so 4,000 covers a full first
+        // review with room; at the ~130 bytes an entry measures, that is
+        // ~525 KB, inside the 1 MB check below, which remains the bound on
+        // the row itself.
         $changes = null;
         if(isset($data->changes) && !is_null($data->changes)){
-            if(!is_array($data->changes) || count($data->changes) > 2000){
-                $messages['changes'] = 'changes must be an array of at most 2,000 entries.';
+            if(!is_array($data->changes) || count($data->changes) > 4000){
+                $messages['changes'] = 'changes must be an array of at most 4,000 entries.';
             }else{
                 foreach($data->changes as $change){
                     if(!is_object($change) || !isset($change->entity) || !isset($change->id) || !isset($change->field)){
