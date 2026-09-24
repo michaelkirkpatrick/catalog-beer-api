@@ -37,7 +37,7 @@ Users,U-35,Generic Request - No API Key,GET,/,None,401,Done
 Users,U-48,Long API Key (Truncated),GET,/,Ethereum-style,401,Done
 Users,U-36,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Non-Admin,403,Done
 Users,U-37,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Test User,200 (staging) / 204 (prod),Done
-Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_id_3}}/reset-password,Test User,400,Done
+Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_id_3}}/reset-password,Test User,429,Done
 Users,U-39,Reset Password - User #3 (Invalid Key),POST,/users/password-reset/{{guid}},Test User,400,Done
 Users,U-40,Get User #3 Info,GET,/users/{{user_id_3}},Test User,200,Done
 Users,U-41,Reset Password - User #3,POST,/users/password-reset/{{password_reset_key_3}},Test User,204,Staging only (skipped in prod; test manually)

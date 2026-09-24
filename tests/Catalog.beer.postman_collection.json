@@ -78794,7 +78794,6 @@
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData).to.have.all.keys('object', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
 									"    pm.expect(jsonData.object).to.equal('usage');",
-									"    pm.expect(jsonData.api_key).to.have.lengthOf(36);",
 									"    pm.expect(jsonData.year).to.be.a('number');",
 									"    pm.expect(jsonData.month).to.be.a('number');",
 									"    pm.expect(jsonData.month).to.be.within(1, 12);",
@@ -78880,7 +78879,6 @@
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData).to.have.all.keys('object', 'year', 'month', 'count', 'request_limit', 'request_buffer', 'resets_on', 'last_updated');",
 									"    pm.expect(jsonData.object).to.equal('usage');",
-									"    pm.expect(jsonData.api_key).to.equal(pm.environment.get('api_key_1'));",
 									"});"
 								],
 								"type": "text/javascript"
@@ -83263,8 +83261,15 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Bad Request (HTTP 400)\", function () {",
-									"    pm.response.to.have.status(400);",
+									"// A repeat request inside the 15-minute window is a rate limit, not a bad request:",
+									"// 429 with Retry-After since 2026-08-08 (1c12c00).",
+									"pm.test(\"Too Many Requests (HTTP 429)\", function () {",
+									"    pm.response.to.have.status(429);",
+									"});",
+									"",
+									"pm.test(\"Retry-After Header Present\", function () {",
+									"    pm.response.to.have.header(\"retry-after\");",
+									"    pm.expect(parseInt(pm.response.headers.get(\"retry-after\"), 10)).to.be.within(1, 900);",
 									"});",
 									"",
 									"pm.test(\"Valid JSON payload\", function () {",
