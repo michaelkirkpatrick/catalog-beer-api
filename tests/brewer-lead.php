@@ -55,7 +55,8 @@ INSERT INTO api_keys (id,userID) VALUES
  ('bbbbbbbb-0000-4000-8000-000000000003','aaaaaaaa-0000-4000-8000-000000000003');
 INSERT INTO subdivisions (sub_code, sub_name) VALUES ('US-OR','Oregon'),('US-WA','Washington'),('US-CA','California');
 INSERT INTO brewer (id,name,url,domainName,lastModified,createdAt,urlStatus) VALUES
- ('cccccccc-0000-4000-8000-000000000001','Alpha Brewing','https://alpha.example','alpha.example',100,100,'ok');
+ ('cccccccc-0000-4000-8000-000000000001','Alpha Brewing','https://alpha.example','alpha.example',100,100,'ok'),
+ ('cccccccc-0000-4000-8000-000000000002','Delta Brewing','https://owner.example/delta/','owner.example',100,100,'ok');
 SQL;
 $admin->multi_query($sql);
 do { if($r = $admin->store_result()){ $r->free(); } } while($admin->more_results() && $admin->next_result());
@@ -64,7 +65,7 @@ echo "scratch database " . DB_NAME . " loaded\n";
 // ----- Scenario -----
 $ADMIN = 'bbbbbbbb-0000-4000-8000-000000000001'; $PLAIN = 'bbbbbbbb-0000-4000-8000-000000000002'; $HUMAN = 'bbbbbbbb-0000-4000-8000-000000000003';
 $REVIEWER = 'aaaaaaaa-0000-4000-8000-000000000001'; $MICHAEL = 'aaaaaaaa-0000-4000-8000-000000000003';
-$ALPHA = 'cccccccc-0000-4000-8000-000000000001';
+$ALPHA = 'cccccccc-0000-4000-8000-000000000001'; $DELTA = 'cccccccc-0000-4000-8000-000000000002';
 function call($method, $function, $id, $key, $data = null, $get = []) {
     $_GET = $get; $l = new BrewerLead(); $l->api($method, $function, $id, $key, $get['count'] ?? 500, $get['cursor'] ?? base64_encode('0'), $data ?? new stdClass());
     return [$l->responseCode, $l->json, $l->responseHeader];
@@ -101,11 +102,27 @@ check("note over 2000 -> 400", $code === 400 && isset($j['validation']['note']))
 [$code, $j] = call('POST', '', '', $ADMIN, lead("Bar\tBrewing", ['url' => 'https://x.example']));
 check("tab in name -> 400 (TextInput)", $code === 400 && isset($j['validation']['name']));
 
-// 3. already a brewer
+// 3. already a brewer. Alpha holds the root of alpha.example, so every page on
+// it is Alpha's; Delta holds only a page of owner.example, whose root is free.
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Alpha Brewing Co', ['url' => 'http://www.alpha.example/about']));
-check("host that is a brewer's domainName -> 409 with brewer_id", $code === 409 && $j['brewer_id'] === $ALPHA && $j['brewer_name'] === 'Alpha Brewing');
+check("page on a host whose root a brewer holds -> 409 with brewer_id", $code === 409 && $j['brewer_id'] === $ALPHA && $j['brewer_name'] === 'Alpha Brewing');
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Alpha Brewing Co', ['url' => 'https://alpha.example/']));
+check("a brewer's homepage -> 409", $code === 409 && $j['brewer_id'] === $ALPHA);
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Delta Beer', ['url' => 'https://www.owner.example/Delta#hours']));
+check("a page a brewer holds, respelled -> 409 with that brewer", $code === 409 && $j['brewer_id'] === $DELTA && $j['brewer_name'] === 'Delta Brewing');
 $db = new Database(); $n = $db->query("SELECT COUNT(*) c FROM brewer_lead")->fetch_assoc()['c']; $db->close();
 check("nothing was written", intval($n) === 0);
+// the brewer rule (POST/PUT/PATCH /brewer) is narrower: root vs root, page vs same page
+$db = new Database();
+check("brewer rule: root on a host held only by a sub-page brewer is free", BrewerUrl::conflict($db, 'https://owner.example/') === null);
+check("brewer rule: another page on a root holder's host is free", BrewerUrl::conflict($db, 'https://alpha.example/taproom') === null);
+check("brewer rule: another page beside Delta is free", BrewerUrl::conflict($db, 'https://owner.example/echo/') === null);
+$hit = BrewerUrl::conflict($db, 'http://www.alpha.example');
+check("brewer rule: second root -> the root holder", $hit['id'] === $ALPHA && $hit['match'] === 'root');
+$hit = BrewerUrl::conflict($db, 'https://owner.example/delta');
+check("brewer rule: same page -> the page holder", $hit['id'] === $DELTA && $hit['match'] === 'page');
+check("brewer rule: a brewer keeping its own page is not its own conflict", BrewerUrl::conflict($db, 'https://owner.example/delta', $DELTA) === null);
+$db->close();
 
 // 4. a real lead
 $body = lead('The Bar Brewing Co.', ['url' => 'BarBrewing.example', 'city' => 'Bend', 'sub_code' => 'or', 'note' => "Took over Foo's space at 412 Main St.\nOpening March 2026."]);
@@ -270,6 +287,14 @@ check("get unknown lead -> 404", $code === 404);
 check("count=1 pages: one row, has_more, next_cursor", $j['has_more'] === true && count($j['data']) === 1 && !empty($j['next_cursor']));
 [$code, $j2] = call('GET', '', '', $ADMIN, null, ['count' => 1, 'cursor' => $j['next_cursor']]);
 check("second page is a different row", count($j2['data']) === 1 && $j2['data'][0]['id'] !== $j['data'][0]['id']);
+
+// 16. the owner of an acquired brand: a root URL on a host held only by a
+// sub-page brewer is a genuine lead; lead-vs-lead dedup stays host-level
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Owner Brewing', ['url' => 'https://owner.example/', 'source_url' => 'https://owner.example/delta/']));
+check("root on a host held only by a sub-page brewer -> 201", $code === 201 && $j['brewer_id'] === null);
+$owner = $j['id'];
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Echo Beer', ['url' => 'https://owner.example/echo', 'source_url' => 'https://news.example/echo']));
+check("another page on that host dedups to the same lead (host-level)", $code === 200 && $j['id'] === $owner && count($j['sources']) === 2);
 
 $db = new Database(); $n = $db->query("SELECT COUNT(*) c FROM error_log")->fetch_assoc()['c']; $db->close();
 echo "error_log rows written by the expected-failure cases: $n\n";

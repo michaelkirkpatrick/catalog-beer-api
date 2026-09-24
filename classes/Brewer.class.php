@@ -811,9 +811,10 @@ class Brewer {
             $setClauses[] = 'domainName=?';
             $setParams[] = $this->domainName;
         }else{
-            // Clearing. Both go to NULL, never '' — each column carries a UNIQUE
-            // index, where '' is an ordinary value, so the second brewer cleared
-            // this way would collide with the first.
+            // Clearing. Both go to NULL, never '' — url carries a UNIQUE index,
+            // where '' is an ordinary value, so the second brewer cleared this
+            // way would collide with the first; domainName follows for the
+            // staff check, which treats '' and NULL alike but reads cleaner.
             $setClauses[] = 'url=NULL';
             $setClauses[] = 'domainName=NULL';
         }
@@ -1004,76 +1005,69 @@ class Brewer {
             // host behind on a cleared URL would hand those rights to whoever
             // registers the domain next.
             $this->domainName = !empty($returnURL) ? $this->urlDomainName($returnURL) : '';
+
+            if(!empty($returnURL) && $this->domainName === ''){
+                // filter_var guaranteed a host above, so this is unreachable in
+                // practice; kept so a parser surprise is a logged 500, not a
+                // brewer silently stored without a domain.
+                $this->error = true;
+                $this->errorMsg = 'Sorry, we had a problem parsing the domain name you gave us for the brewer. We have logged the issue for our support team.';
+                $this->responseCode = 500;
+
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 155;
+                $errorLog->errorMsg = 'Brewer Domain Parsing Error';
+                $errorLog->badData = "URL: $returnURL";
+                $errorLog->filename = $this->filename;
+                $errorLog->write();
+            }elseif(!empty($returnURL)){
+                /*--
+                One brewer per homepage, not one per domain. A domain's root
+                belongs to at most one brewer and no two brewers hold the same
+                page, but any number may hold distinct sub-pages of one domain
+                — an acquired brand that carries on under its own name lives on
+                a page of its owner's site, beside the owner's own record at
+                the root. BrewerUrl::conflict() classifies every brewer on the
+                host; brewer.domainName is indexed, not unique. Sharing a
+                domain shares staff (email-domain match), by design.
+                --*/
+                $db = new Database();
+                $hit = BrewerUrl::conflict($db, $returnURL, $this->brewerID);
+                $db->close();
+                if(!is_null($hit)){
+                    $this->error = true;
+                    $this->validState['url'] = 'invalid';
+                    if($hit['match'] === 'root'){
+                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' is already in our database with the website ' . $this->domainName . '. A homepage can belong to only one brewery. If this brewery lives on a page of that site, use that page\'s URL; otherwise please [contact us](/contact)';
+                    }else{
+                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' already uses that page as its website. If this is the same brewery, please [contact us](/contact)';
+                    }
+                    $this->responseCode = 400;
+
+                    // Log Error
+                    $errorLog = new LogError();
+                    $errorLog->errorNumber = 182;
+                    $errorLog->errorMsg = 'Attempt to add duplicate URL';
+                    $errorLog->badData = "URL: $returnURL / Domain Name: " . $this->domainName . ' / ' . $hit['match'] . ' match: ' . $hit['id'];
+                    $errorLog->filename = $this->filename;
+                    $errorLog->write();
+                }
+            }
         }
 
         return $returnURL;
     }
 
+    /*--
+    The domainName rule (host, lowercased, www. stripped), delegated to
+    BrewerUrl so Brewer, BrewerLead and the tests agree on it. Pure: no
+    database, no error state. It is also called from the permissions block
+    on the raw, not yet validated URL, where a scheme-less "northchair.com"
+    used to reach parse_url() without a scheme and 500 — BrewerUrl::host()
+    prefixes one. The duplicate check lives in validateURL().
+    --*/
     private function urlDomainName($url){
-        // Get Domain name from URL
-        $urlDomainName = '';
-
-        // trim
-        $url = trim($url ?? '');
-
-        if(!empty($url)){
-            $host = parse_url($url, PHP_URL_HOST);
-            preg_match('([a-zA-Z0-9.-]+)', $host, $hostMatches);
-            if(!empty($hostMatches)){
-                // Save Match
-                $urlDomainName = $hostMatches[0];
-
-                // Remove www prefix
-                $stringPrefix = substr($urlDomainName, 0, 4);
-                if($stringPrefix == "www."){
-                    $urlDomainName = substr($urlDomainName, 4);
-                }
-
-                // Check for Duplicate Domain Names
-                $db = new Database();
-                $result = $db->query("SELECT id FROM brewer WHERE domainName=?", [$urlDomainName]);
-                if(!$db->error && $result->num_rows == 1){
-                    // Get brewerID
-                    $row = $result->fetch_assoc();
-                    $brewerID = $row['id'];
-
-                    if($brewerID == $this->brewerID){
-                        // They may be updating their brewery URL, no duplicate will be created
-                        // No need to throw an error
-                    }else{
-                        // Duplicate Domain Name - Not Acceptable
-                        $this->error = true;
-                        $this->validState['url'] = 'invalid';
-                        $this->validMsg['url'] = "Sorry, there is already a brewery in our database with the domain name: $urlDomainName. We require that breweries have unique URLs so can't add this entry to our database on your behalf. If you'd like help resolving this issue, please [contact us](/contact)";
-                        $this->responseCode = 400;
-
-                        // Log Error
-                        $errorLog = new LogError();
-                        $errorLog->errorNumber = 182;
-                        $errorLog->errorMsg = 'Attempt to add duplicate URL';
-                        $errorLog->badData = "URL: $url / Domain Name: $urlDomainName";
-                        $errorLog->filename = $this->filename;
-                        $errorLog->write();
-                    }
-                }
-                $db->close();
-            }else{
-                // Error with hostname
-                $this->error = true;
-                $this->errorMsg = 'Sorry, we had a problem parsing the domain name you gave us for the brewer. We have logged the issue for our support team.';
-                $this->responseCode = 500;
-
-                // Log Error
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 155;
-                $errorLog->errorMsg = 'Brewer Domain Parsing Error';
-                $errorLog->badData = "URL: $url / Host: $host";
-                $errorLog->filename = $this->filename;
-                $errorLog->write();
-            }
-        }
-
-        return $urlDomainName;
+        return BrewerUrl::host($url) ?? '';
     }
 
 

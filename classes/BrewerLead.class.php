@@ -22,10 +22,14 @@ claimedAt is within CLAIM_TTL, exactly as brewer.claimedAt works for the
 review claim. Nothing sweeps claims and nothing has to.
 
 Dedup on POST covers every status, so a closed lead is also the negative
-cache. A URL host that is already a brewer's domainName is refused outright
-(409) -- the brewery exists; review it, don't queue it. On a queue hit the
-row's lastSeenAt moves and the request's source_url joins its sources; no
-other field is ever merged.
+cache. A URL that is a brewer's homepage, a page a brewer holds, or any page
+on a host whose root a brewer holds is refused outright (409) -- the brewery
+exists; review it, don't queue it (BrewerUrl::conflict() with the lead rule).
+A root URL on a host held only by sub-page brewers is a genuine lead: the
+owner of an acquired brand. Lead-vs-lead dedup stays host-level -- two leads
+on one host merge into one row, and its sources carry both pages; leads are
+coarse. On a queue hit the row's lastSeenAt moves and the request's
+source_url joins its sources; no other field is ever merged.
 
 The url is never fetched. A lead must be able to carry a dead, slow, or
 not-yet-live URL; verifying it is step 1 of the review that researches the
@@ -246,22 +250,7 @@ class BrewerLead {
 
     /* brewer.domainName's rule: the host, lowercased, www. stripped. */
     public static function urlHost($url){
-        $url = trim($url ?? '');
-        if($url === ''){
-            return null;
-        }
-        if(!preg_match('/^https?:\/\//i', $url)){
-            $url = 'http://' . $url;
-        }
-        $host = parse_url($url, PHP_URL_HOST);
-        if(empty($host) || !preg_match('/[a-zA-Z0-9.-]+/', $host, $m)){
-            return null;
-        }
-        $host = strtolower($m[0]);
-        if(substr($host, 0, 4) === 'www.'){
-            $host = substr($host, 4);
-        }
-        return $host === '' ? null : $host;
+        return BrewerUrl::host($url);
     }
 
     // ----- POST /brewer-lead -----
@@ -316,16 +305,18 @@ class BrewerLead {
         $now = time();
         $db = new Database();
 
-        // 0. Already a brewer? Then it is a review, not a lead.
+        // 0. Already a brewer? Then it is a review, not a lead. The lead rule:
+        // a brewer at the root of the host owns every page on it, and a page a
+        // brewer holds is that brewer's; only a root URL on a host held solely
+        // by sub-page brewers (the owner of an acquired brand) gets through.
         if(!is_null($urlHost)){
-            $result = $db->query("SELECT id, name FROM brewer WHERE domainName=?", [$urlHost]);
+            $row = BrewerUrl::conflict($db, $url, null, true);
             if($db->error){
                 $this->dbError($db, 'POST /brewer-lead - brewer check');
                 $db->close();
                 return;
             }
-            if($result->num_rows > 0){
-                $row = $result->fetch_assoc();
+            if(!is_null($row)){
                 $db->close();
                 $this->error = true;
                 $this->errorMsg = 'That website already belongs to a brewer in the catalog. Review it rather than queueing it.';
@@ -336,7 +327,7 @@ class BrewerLead {
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 325;
                 $errorLog->errorMsg = 'Lead refused: host is already a brewer (POST /brewer-lead)';
-                $errorLog->badData = "$urlHost -> " . $row['id'];
+                $errorLog->badData = "$url -> " . $row['id'] . ' (' . $row['match'] . ')';
                 $errorLog->filename = 'BrewerLead.class.php';
                 $errorLog->write();
                 return;

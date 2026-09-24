@@ -64,7 +64,7 @@ Brewer,BR-11,Delete Brewery #2,DELETE,/brewer/{{brewer_id_2}},Admin,204,Done
 Brewer,BR-12,"Brewery #3 - name, description, short_description",POST,/brewer,Admin,201,Done
 Brewer,BR-13,Delete Brewery #3,DELETE,/brewer/{{brewer_id_3}},Admin,204,Done
 Brewer,BR-14,Brewery #4 - text + url,POST,/brewer,Admin,201,Done
-Brewer,BR-15,Brewery #37 - Duplicate URL Attempt,POST,/brewer,Admin,400,Done
+Brewer,BR-15,Brewery #37 - Same Page As Brewery #4 Attempt,POST,/brewer,Admin,400,Done
 Brewer,BR-16,"Brewery created by Admin, Claimed by Brewer",,,,,Done (Postman only)
 Brewer,BR-17,Delete Brewery #4,DELETE,/brewer/{{brewer_id_4}},Admin,204,Done
 Brewer,BR-18,Brewery #5 - text + 2 urls,POST,/brewer,Admin,201,Done
@@ -783,3 +783,11 @@ Billing,BILL-10,"Portal Session - Create",POST,/billing/portal-session,Billing U
 Billing,BILL-11,"Webhook - Method Not Allowed",GET,/stripe-webhook,None,405,Done
 Billing,BILL-12,"Webhook - No Signature",POST,/stripe-webhook,None,400,Done
 Billing,BILL-13,"Webhook - Bad Signature",POST,/stripe-webhook,None,400,Done
+Brewer,BR-238,Shared Domain - Create Brewery #54 (sub-page),POST,/brewer,Admin,201,Done
+Brewer,BR-239,Shared Domain - Create Brewery #55 (root of the same host),POST,/brewer,Admin,201,Done
+Brewer,BR-240,Shared Domain - Second Root On The Host Is Refused,POST,/brewer,Admin,400,Done
+Brewer,BR-241,Shared Domain - Same Page Respelled Is Refused,POST,/brewer,Admin,400,Done
+Brewer,BR-242,Shared Domain - Domain Email Is Staff On The Sub-Page Brewer,GET,/brewer/{id}/permissions,User,200,Done
+Brewer,BR-243,Shared Domain - Domain Email Is Staff On The Root Brewer,GET,/brewer/{id}/permissions,User,200,Done
+Brewer,BR-244,Shared Domain - Delete Brewery #54,DELETE,/brewer/{id},Admin,204,Done
+Brewer,BR-245,Shared Domain - Delete Brewery #55,DELETE,/brewer/{id},Admin,204,Done

@@ -4794,7 +4794,7 @@
 							"response": []
 						},
 						{
-							"name": "BR-15 Attempt Brewery with same URL",
+							"name": "BR-15 Attempt Brewery with the same page",
 							"event": [
 								{
 									"listen": "test",
@@ -4821,7 +4821,7 @@
 											"    // Validation Message",
 											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
-											"    pm.expect(jsonData.valid_msg.url).to.equal(\"Sorry, there is already a brewery in our database with the domain name: catalog.beer. We require that breweries have unique URLs so can't add this entry to our database on your behalf. If you'd like help resolving this issue, please [contact us](/contact)\");",
+											"    pm.expect(jsonData.valid_msg.url).to.equal('Sorry, ' + pm.environment.get('brewer_name_4') + ' already uses that page as its website. If this is the same brewery, please [contact us](/contact)');",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.short_description).to.equal(null);",
 											"});",
@@ -76330,6 +76330,708 @@
 									"response": []
 								}
 							]
+						},
+						{
+							"name": "Shared Domain",
+							"item": [
+								{
+									"name": "BR-238 Create Brewery #54 On A Sub-Page",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_54', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_54'));",
+													"    pm.expect(jsonData.url).to.equal('https://catalog.beer/catalog-beer-test-page.html?shared=1');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_54', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_54}}\",\n    \"url\": \"https://catalog.beer/catalog-beer-test-page.html?shared=1\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-239 Create Brewery #55 At The Root Of The Same Host",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_55', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_55'));",
+													"    pm.expect(jsonData.url).to.equal('https://catalog.beer/');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"    pm.expect(jsonData.brewer_verified).to.equal(false);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_55', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_55}}\",\n    \"url\": \"https://catalog.beer/\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-240 A Second Root On The Host Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_56', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function(){",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.equal(null);",
+													"    pm.expect(jsonData.valid_state.url).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
+													"    pm.expect(jsonData.valid_msg.url).to.include(\"A homepage can belong to only one brewery\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_56}}\",\n    \"url\": \"https://www.catalog.beer\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-241 The Same Page Respelled Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_57', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function(){",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.equal(null);",
+													"    pm.expect(jsonData.valid_state.url).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
+													"    pm.expect(jsonData.valid_msg.url).to.include(\"already uses that page as its website\");",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_57}}\",\n    \"url\": \"http://www.catalog.beer/catalog-beer-test-page.html?shared=1#top\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-242 Domain Email Is Staff On The Sub-Page Brewer",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_1'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Domain email is staff\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.object).to.equal('permissions');",
+													"    pm.expect(jsonData.brewer_id).to.equal(pm.environment.get('brewer_id_54'));",
+													"    pm.expect(jsonData.role).to.equal('staff');",
+													"    pm.expect(jsonData.edit).to.equal(true);",
+													"    pm.expect(jsonData.delete).to.equal(true);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_54}}/permissions",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_54}}",
+												"permissions"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-243 Domain Email Is Staff On The Root Brewer",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_1'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Domain email is staff\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.object).to.equal('permissions');",
+													"    pm.expect(jsonData.brewer_id).to.equal(pm.environment.get('brewer_id_55'));",
+													"    pm.expect(jsonData.role).to.equal('staff');",
+													"    pm.expect(jsonData.edit).to.equal(true);",
+													"    pm.expect(jsonData.delete).to.equal(true);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_55}}/permissions",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_55}}",
+												"permissions"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-244 Delete Brewery #54",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													"",
+													"pm.environment.unset('brewer_name_54');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_54}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_54}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-245 Delete Brewery #55",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													"",
+													"pm.environment.unset('brewer_name_55');",
+													"pm.environment.unset('brewer_name_56');",
+													"pm.environment.unset('brewer_name_57');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_55}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_55}}"
+											]
+										}
+									},
+									"response": []
+								}
+							],
+							"description": "One brewer per homepage, not one per domain (API v4.1.0). A domain's root belongs to at most one brewer and no two brewers may hold the same page, but any number may hold distinct sub-pages of one domain — an acquired brand on a page of its owner's site beside the owner's own record. Brewery #54 takes a page on catalog.beer, #55 the root; a second root and a respelling of #54's page are refused with the two error-182 messages; user #1's @catalog.beer email is brewery staff on both records, which is the shared-staff consequence by design."
 						}
 					]
 				},
