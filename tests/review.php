@@ -131,8 +131,8 @@ check("rejected amendments left the row untouched", $j['question'] === 'Is the B
 // 6. decisions list, then answer
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list has the row", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $reviewID && $j['needs_decision'] === true);
-[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['decision' => 'Franchise. Not a location.']);
-check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision'] === false && $j['decision'] === 'Franchise. Not a location.' && $j['decided_by'] === 'aaaaaaaa-0000-4000-8000-000000000001');
+[$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['decision' => "Franchise.\nNot a location."]);
+check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Franchise.\nNot a location." && $j['decided_by'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list now empty", count($j['data']) === 0);
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)[]);
@@ -143,7 +143,7 @@ check("amend notes after decision -> 409 naming the field", $code === 409 && iss
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['question' => 'too late']);
 check("amend question after decision -> 409", $code === 409 && isset($j['validation']['question']));
 [$code, $j] = call('GET', '', $reviewID, $ADMIN);
-check("decided row untouched by rejected amendments", $j['notes'] === 'Site is live again. Four lagers added; the fifth is a collab.' && $j['decision'] === 'Franchise. Not a location.');
+check("decided row untouched by rejected amendments", $j['notes'] === 'Site is live again. Four lagers added; the fifth is a collab.' && $j['decision'] === "Franchise.\nNot a location.");
 
 // 7. history and single get
 [$code, $j] = call('GET', 'brewer', $BETA, $ADMIN);
@@ -164,7 +164,7 @@ $db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 1]);
 $names = array_map(fn($r) => $r['name'], $j['data']);
 check("count=1 with one decision waiting returns two rows, decided first", $names === ['Beta Brewing', 'Alpha Brewing'] && $j['decided'] === 1);
-check("re-claim carries last_review with decision", $j['data'][0]['last_review']['decision'] === 'Franchise. Not a location.' && $j['data'][0]['reviewed_at'] > 0);
+check("re-claim carries last_review with decision", $j['data'][0]['last_review']['decision'] === "Franchise.\nNot a location." && $j['data'][0]['reviewed_at'] > 0);
 
 // 8b. once the decision is acted on (a newer review posted), the brewer drops back behind the never-reviewed row.
 // The whole test runs inside one second, so backdate the first review to make "latest" unambiguous.

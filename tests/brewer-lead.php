@@ -206,8 +206,8 @@ check("ask on a row with an open question -> 409", $code === 409 && isset($j['va
 check("a row with an open question is never claimed", count($j['data']) === 0);
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list has the row", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $barWA && $j['needs_decision'] === true);
-[$code, $j] = call('PATCH', '', $barWA, $HUMAN, (object)['decision' => 'Brand only. Resolve not_a_brewery.']);
-check("decide -> 200, flag cleared, decided_by is the human", $code === 200 && $j['needs_decision'] === false && $j['decision'] === 'Brand only. Resolve not_a_brewery.' && $j['decided_by'] === $MICHAEL);
+[$code, $j] = call('PATCH', '', $barWA, $HUMAN, (object)['decision' => "Brand only.\nResolve not_a_brewery."]);
+check("decide -> 200, flag cleared, decided_by is the human", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Brand only.\nResolve not_a_brewery." && $j['decided_by'] === $MICHAEL);
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list now empty", count($j['data']) === 0);
 // free the other two claims so count=1 has competition; decided row still comes first, plus one more
@@ -215,7 +215,7 @@ $db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL WHERE 
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 1]);
 $ids = array_map(fn($r) => $r['id'], $j['data']);
 check("count=1 with a decision waiting -> decided row first, plus one", $ids === [$barWA, $bar] && $j['decided'] === 1);
-check("the decided row carries its question and decision", $j['data'][0]['question'] !== null && $j['data'][0]['decision'] === 'Brand only. Resolve not_a_brewery.');
+check("the decided row carries its question and decision", $j['data'][0]['question'] !== null && $j['data'][0]['decision'] === "Brand only.\nResolve not_a_brewery.");
 
 // 11. resolve: acts on the decision; closed, permanent, needs reopen
 [$code, $j] = call('PATCH', '', $barWA, $ADMIN, (object)['resolution' => 'not_a_brewery']);

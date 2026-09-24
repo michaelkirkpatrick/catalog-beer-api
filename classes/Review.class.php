@@ -587,7 +587,7 @@ class Review {
     // and a question on a row nobody is asked to answer is just notes.
     public function update($reviewID, $data){
         $messages = array();
-        $decision = $this->singleLine($data, 'decision', 500, $messages);
+        $decision = $this->multiLine($data, 'decision', 500, $messages);
         $amendNotes = property_exists($data, 'notes');
         $amendQuestion = property_exists($data, 'question');
         $notes = $amendNotes ? $this->multiLine($data, 'notes', 20000, $messages) : null;

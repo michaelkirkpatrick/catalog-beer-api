@@ -692,7 +692,7 @@ class BrewerLead {
                 }
                 break;
             case 'decision':
-                $decision = $this->singleLine($data, 'decision', 500, $messages);
+                $decision = $this->multiLine($data, 'decision', 500, $messages);
                 if(is_null($decision) && !isset($messages['decision'])){
                     $messages['decision'] = 'decision is required.';
                 }
