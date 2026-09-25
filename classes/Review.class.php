@@ -115,8 +115,16 @@ class Review {
     // ----- Row -> JSON -----
     // Expects the row to have been selected with needsDecision+0, so the bit
     // arrives as an int rather than a byte.
+    //
+    // Two row shapes. A single review (GET /review/{id}) carries the full
+    // sources and changes arrays; a list row does not. LIST_COLUMNS selects
+    // their JSON_LENGTH instead, because a list of 100 reviews each holding
+    // thousands of change entries is tens of MB to ship, decode and re-encode
+    // — past memory_limit — and a list only ever shows the counts. Both
+    // shapes carry sources_count and changes_count, so a caller reads the
+    // size of a review without fetching it.
     private function reviewObject($row){
-        return array(
+        $object = array(
             'id' => $row['id'],
             'object' => 'review',
             'brewer_id' => $row['brewerID'],
@@ -133,20 +141,33 @@ class Review {
             'locations_added' => intval($row['locationsAdded']),
             'locations_updated' => intval($row['locationsUpdated']),
             'locations_deleted' => intval($row['locationsDeleted']),
-            'sources' => is_null($row['sources']) ? null : json_decode($row['sources']),
-            'changes' => is_null($row['changes']) ? null : json_decode($row['changes']),
-            'notes' => $row['notes'],
-            'needs_decision' => intval($row['needsDecision']) === 1,
-            'question' => $row['question'],
-            'decision' => $row['decision'],
-            'decided_at' => is_null($row['decidedAt']) ? null : intval($row['decidedAt']),
-            'decided_by' => $row['decidedBy']
+            'sources_count' => intval($row['sourcesCount']),
+            'changes_count' => intval($row['changesCount'])
         );
+        if(array_key_exists('sources', $row)){
+            $object['sources'] = is_null($row['sources']) ? null : json_decode($row['sources']);
+            $object['changes'] = is_null($row['changes']) ? null : json_decode($row['changes']);
+        }
+        $object['notes'] = $row['notes'];
+        $object['needs_decision'] = intval($row['needsDecision']) === 1;
+        $object['question'] = $row['question'];
+        $object['decision'] = $row['decision'];
+        $object['decided_at'] = is_null($row['decidedAt']) ? null : intval($row['decidedAt']);
+        $object['decided_by'] = $row['decidedBy'];
+        return $object;
     }
 
     // Selected FROM brewer_review r LEFT JOIN brewer b, so every review carries
     // the brewer's current name and the check-in page needs no second call.
-    const REVIEW_COLUMNS = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.sources, r.changes, r.notes, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
+    //
+    // LIST_COLUMNS is REVIEW_COLUMNS without sources and changes: a list is
+    // read for what happened, never for the audit trail, and shipping every
+    // change entry for every row is what would put GET /review over
+    // memory_limit. Fetch one review to read its trail.
+    const REVIEW_COUNTS = "JSON_LENGTH(r.sources) AS sourcesCount, JSON_LENGTH(r.changes) AS changesCount";
+    const REVIEW_SHARED = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.notes, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
+    const REVIEW_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS . ", r.sources, r.changes";
+    const LIST_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS;
     const REVIEW_FROM = "brewer_review r LEFT JOIN brewer b ON b.id = r.brewerID";
 
     // ----- POST /review/claim -----
@@ -342,10 +363,17 @@ class Review {
         }
 
         // sources — array of URL strings
+        //
+        // The cap was 200 until a review of Jackie O's, which publishes 373
+        // beer pages, filled it and fell back to citing the sitemap for 190
+        // of them. A source measures 61 bytes across the reviews posted so
+        // far, so 1,000 is ~61 KB — the count was never the expensive part.
+        // The byte guard below is what actually bounds the column, since a
+        // single entry may be 2,048 characters.
         $sources = null;
         if(isset($data->sources) && !is_null($data->sources)){
-            if(!is_array($data->sources) || count($data->sources) > 200){
-                $messages['sources'] = 'sources must be an array of at most 200 URLs.';
+            if(!is_array($data->sources) || count($data->sources) > 1000){
+                $messages['sources'] = 'sources must be an array of at most 1,000 URLs.';
             }else{
                 $clean = array();
                 foreach($data->sources as $source){
@@ -355,23 +383,30 @@ class Review {
                     }
                     $clean[] = TextInput::trim($source);
                 }
-                $sources = json_encode($clean);
+                if(!isset($messages['sources'])){
+                    $sources = json_encode($clean);
+                    if(strlen($sources) > 512000){
+                        $messages['sources'] = 'sources is too large to store (512 KB limit).';
+                        $sources = null;
+                    }
+                }
             }
         }
 
         // changes — array of {entity, id, field, before, after}
         //
-        // The entry cap was 2,000 until a first review of a 490-beer brewery
-        // posted 2,015 entries (a created beer is ~4.3 entries: name, style,
-        // a tier field, abv, ibu when published) and was refused. Claimed
-        // Untappd profiles run to ~600 beers, so 4,000 covers a full first
-        // review with room; at the ~130 bytes an entry measures, that is
-        // ~525 KB, inside the 1 MB check below, which remains the bound on
-        // the row itself.
+        // The entry cap has been raised twice, each time by a real review:
+        // 2,000 -> 4,000 when a 490-beer brewery posted 2,015 entries, and
+        // 4,000 -> 10,000 when the largest review on record reached 3,920 —
+        // 98% of the cap, 321 reviews into 6,585 brewers. An entry measures
+        // 129 bytes across every review posted, so 10,000 is ~1.29 MB, and
+        // the byte check below had to move with the count: at 1 MB it would
+        // have refused a body the count cap allowed. The two must always be
+        // raised together.
         $changes = null;
         if(isset($data->changes) && !is_null($data->changes)){
-            if(!is_array($data->changes) || count($data->changes) > 4000){
-                $messages['changes'] = 'changes must be an array of at most 4,000 entries.';
+            if(!is_array($data->changes) || count($data->changes) > 10000){
+                $messages['changes'] = 'changes must be an array of at most 10,000 entries.';
             }else{
                 foreach($data->changes as $change){
                     if(!is_object($change) || !isset($change->entity) || !isset($change->id) || !isset($change->field)){
@@ -381,8 +416,8 @@ class Review {
                 }
                 if(!isset($messages['changes'])){
                     $changes = json_encode($data->changes);
-                    if(strlen($changes) > 1000000){
-                        $messages['changes'] = 'changes is too large to store (1 MB limit).';
+                    if(strlen($changes) > 2000000){
+                        $messages['changes'] = 'changes is too large to store (2 MB limit).';
                         $changes = null;
                     }
                 }
@@ -535,7 +570,7 @@ class Review {
         if($needsDecisionOnly){
             $where[] = 'r.needsDecision=1';
         }
-        $sql = "SELECT " . self::REVIEW_COLUMNS . " FROM " . self::REVIEW_FROM;
+        $sql = "SELECT " . self::LIST_COLUMNS . " FROM " . self::REVIEW_FROM;
         if(!empty($where)){
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }

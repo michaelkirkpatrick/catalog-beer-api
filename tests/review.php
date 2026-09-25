@@ -61,6 +61,10 @@ echo "scratch database " . DB_NAME . " loaded\n";
 // ----- Scenario -----
 $ADMIN = 'bbbbbbbb-0000-4000-8000-000000000001'; $PLAIN = 'bbbbbbbb-0000-4000-8000-000000000002';
 $ALPHA = 'cccccccc-0000-4000-8000-000000000001'; $BETA = 'cccccccc-0000-4000-8000-000000000002';
+// Gamma holds no URL, so it never enters the claim queue. The cap probes
+// post against it: the ones that succeed would otherwise show up in Beta's
+// history and in the claim ordering, which later checks assert exactly.
+$GAMMA = 'cccccccc-0000-4000-8000-000000000003';
 function call($method, $function, $id, $key, $data = null, $get = []) {
     $_GET = $get; $r = new Review(); $r->api($method, $function, $id, $key, $get['count'] ?? 500, $get['cursor'] ?? base64_encode('0'), $data ?? new stdClass());
     return [$r->responseCode, $r->json, $r->responseHeader];
@@ -95,10 +99,26 @@ check("needs_decision without question -> 400", $code === 400 && isset($j['valid
 check("over-long question -> 400 that says too long, not missing", $code === 400 && str_contains($j['validation']['question'] ?? '', '500 characters or fewer') && str_contains($j['validation']['question'], '717 sent'));
 [$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'beers_added' => -1]);
 check("negative counter -> 400", $code === 400 && isset($j['validation']['beers_added']));
-// The changes cap: a 490-beer first review is ~2,015 entries and must fit; 4,001 must not
+// The changes cap: a 490-beer first review is ~2,015 entries and must fit; 10,001 must not
 $entry = fn($i) => (object)['entity' => 'beer', 'id' => sprintf('dddddddd-0000-4000-8000-%012d', $i), 'field' => 'abv', 'before' => null, 'after' => 6.5];
-[$code, $j] = call('POST', '', $BETA, $ADMIN, (object)['outcome' => 'updated', 'changes' => array_map($entry, range(1, 4001))]);
-check("4,001 changes -> 400 naming the cap", $code === 400 && str_contains($j['validation']['changes'] ?? '', '4,000'));
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'changes' => array_map($entry, range(1, 10001))]);
+check("10,001 changes -> 400 naming the cap", $code === 400 && str_contains($j['validation']['changes'] ?? '', '10,000'));
+// The count cap and the byte guard must admit the same bodies: 10,000 entries
+// at the 129 bytes one measures is ~1.29 MB, which the old 1 MB guard refused.
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'changes' => array_map($entry, range(1, 10000))]);
+check("10,000 changes -> 201, the byte guard admits what the count cap allows", $code === 201 && $j['changes_count'] === 10000);
+// A body under the count cap but over the byte guard is still refused.
+$fat = fn($i) => (object)['entity' => 'beer', 'id' => sprintf('dddddddd-0000-4000-8000-%012d', $i), 'field' => 'description', 'before' => null, 'after' => str_repeat('x', 1000)];
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'changes' => array_map($fat, range(1, 3000))]);
+check("3,000 fat changes -> 400 naming the 2 MB guard", $code === 400 && str_contains($j['validation']['changes'] ?? '', '2 MB'));
+// The sources cap: Jackie O's publishes 373 beer pages and must fit; 1,001 must not
+$src = fn($i) => "https://beta.example/beer/" . $i;
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'sources' => array_map($src, range(1, 1001))]);
+check("1,001 sources -> 400 naming the cap", $code === 400 && str_contains($j['validation']['sources'] ?? '', '1,000'));
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'sources' => array_map($src, range(1, 373))]);
+check("373 sources -> 201, a full beer list cites every page", $code === 201 && $j['sources_count'] === 373 && count($j['sources']) === 373);
+[$code, $j] = call('POST', '', $GAMMA, $ADMIN, (object)['outcome' => 'updated', 'sources' => array_map(fn($i) => 'https://beta.example/' . str_repeat('u', 2000) . $i, range(1, 300))]);
+check("300 max-length sources -> 400 naming the 512 KB guard", $code === 400 && str_contains($j['validation']['sources'] ?? '', '512 KB'));
 [$code, $j] = call('POST', '', 'cccccccc-0000-4000-8000-0000000000ff', $ADMIN, (object)['outcome' => 'updated']);
 check("unknown brewer -> 404", $code === 404);
 
@@ -111,6 +131,7 @@ $body = (object)['outcome' => 'updated', 'url_verdict' => 'ok', 'brief_version' 
 check("post review -> 201 with Location", $code === 201 && strpos($hdr, 'Location: https://staging.catalog.beer/review/') === 0);
 check("review carries brewer_name", ($j['brewer_name'] ?? null) === 'Beta Brewing');
 check("review object round-trips, 2,015 changes stored", $j['object'] === 'review' && $j['beers_added'] === 4 && count($j['sources']) === 2 && $j['changes'][0]->field === 'description' && count($j['changes']) === 2015 && $j['needs_decision'] === true && $j['reviewer'] === 'aaaaaaaa-0000-4000-8000-000000000001');
+check("a single review carries the counts beside the arrays", $j['changes_count'] === 2015 && $j['sources_count'] === 2);
 $reviewID = $j['id'];
 $db = new Database(); $row = $db->query("SELECT reviewedAt, claimedBy, claimedAt, urlStatus, urlFailCount, urlLastOkAt FROM brewer WHERE id=?", [$BETA])->fetch_assoc(); $db->close();
 check("brewer.reviewedAt set, claim cleared", !is_null($row['reviewedAt']) && is_null($row['claimedBy']) && is_null($row['claimedAt']));
@@ -131,6 +152,13 @@ check("rejected amendments left the row untouched", $j['question'] === 'Is the B
 // 6. decisions list, then answer
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list has the row", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $reviewID && $j['needs_decision'] === true);
+// A list never ships the audit trail — 100 rows each holding thousands of
+// change entries is what would put this endpoint over memory_limit.
+$listed = $j['data'][0];
+check("list row omits changes and sources, carries their counts", !array_key_exists('changes', $listed) && !array_key_exists('sources', $listed) && $listed['changes_count'] === 2015 && $listed['sources_count'] === 2);
+check("list row keeps everything a list is read for", $listed['outcome'] === 'updated' && $listed['brewer_name'] === 'Beta Brewing' && $listed['notes'] !== null && $listed['question'] !== null);
+[$code, $full] = call('GET', '', $reviewID, $ADMIN);
+check("fetching the one review still returns the full trail", count($full['changes']) === 2015 && count($full['sources']) === 2);
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['decision' => "Franchise.\nNot a location."]);
 check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Franchise.\nNot a location." && $j['decided_by'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
