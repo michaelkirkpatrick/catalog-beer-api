@@ -89,7 +89,7 @@ For every secret:
 - **Provider:** https://console.cloud.google.com → APIs & Services → Credentials
 - **Rotate:**
   1. Create a new API key, restrict it to the Address Validation API (and Geocoding + Places APIs while the legacy `Location.class.php` geocoding remains)
-  2. Restrict by server IP (staging + production IPs) if not already
+  2. Restrict by server IP if not already -- **every box that runs the API, IPv4 AND IPv6**, because outbound calls to Google leave over IPv6 when the box has it (found 2026-09-25: the key listed only the 24.04 servers, and `staging-2604` got `PERMISSION_DENIED` on its v6 address, which 500ed every address write and zeroed every `/location/nearby` geocode). A server migration is a key-restriction change; add the new box before its first deploy
   3. Update `passwords.php` on each server, POST a Location to verify
   4. Delete the old key
 - **Note:** The frontend repo uses a *separate* JavaScript Maps API key — do not reuse this server-side key there.
