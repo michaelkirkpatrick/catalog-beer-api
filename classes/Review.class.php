@@ -116,13 +116,19 @@ class Review {
     // Expects the row to have been selected with needsDecision+0, so the bit
     // arrives as an int rather than a byte.
     //
-    // Two row shapes. A single review (GET /review/{id}) carries the full
-    // sources and changes arrays; a list row does not. LIST_COLUMNS selects
-    // their JSON_LENGTH instead, because a list of 100 reviews each holding
-    // thousands of change entries is tens of MB to ship, decode and re-encode
-    // — past memory_limit — and a list only ever shows the counts. Both
+    // Two row shapes. A single review (GET /review/{id}) carries sources,
+    // changes and notes; a list row carries none of the three. A list of 100
+    // reviews each holding thousands of change entries is tens of MB to ship,
+    // decode and re-encode — past memory_limit — and notes is the same
+    // problem one size down: 20,000 characters JSON-escape to ~240 KB when
+    // they are emoji, so 500 of them is a worst case of the same shape.
+    // LIST_COLUMNS selects JSON_LENGTH for the two arrays instead, and both
     // shapes carry sources_count and changes_count, so a caller reads the
-    // size of a review without fetching it.
+    // size of a review without fetching it. A list shows what happened;
+    // fetch the review to read what was written and why.
+    //
+    // POST and PATCH answer through get(), so a write always echoes the full
+    // shape back — only the two list endpoints are narrowed.
     private function reviewObject($row){
         $object = array(
             'id' => $row['id'],
@@ -144,11 +150,11 @@ class Review {
             'sources_count' => intval($row['sourcesCount']),
             'changes_count' => intval($row['changesCount'])
         );
-        if(array_key_exists('sources', $row)){
+        if(array_key_exists('changes', $row)){
             $object['sources'] = is_null($row['sources']) ? null : json_decode($row['sources']);
             $object['changes'] = is_null($row['changes']) ? null : json_decode($row['changes']);
+            $object['notes'] = $row['notes'];
         }
-        $object['notes'] = $row['notes'];
         $object['needs_decision'] = intval($row['needsDecision']) === 1;
         $object['question'] = $row['question'];
         $object['decision'] = $row['decision'];
@@ -160,13 +166,13 @@ class Review {
     // Selected FROM brewer_review r LEFT JOIN brewer b, so every review carries
     // the brewer's current name and the check-in page needs no second call.
     //
-    // LIST_COLUMNS is REVIEW_COLUMNS without sources and changes: a list is
-    // read for what happened, never for the audit trail, and shipping every
-    // change entry for every row is what would put GET /review over
-    // memory_limit. Fetch one review to read its trail.
+    // LIST_COLUMNS is REVIEW_COLUMNS without sources, changes and notes —
+    // the three unbounded columns. A list is read for what happened, never
+    // for the record of it; question and decision stay, because the check-in
+    // list is unreadable without them and both are capped at 500 characters.
     const REVIEW_COUNTS = "JSON_LENGTH(r.sources) AS sourcesCount, JSON_LENGTH(r.changes) AS changesCount";
-    const REVIEW_SHARED = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.notes, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
-    const REVIEW_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS . ", r.sources, r.changes";
+    const REVIEW_SHARED = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
+    const REVIEW_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS . ", r.sources, r.changes, r.notes";
     const LIST_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS;
     const REVIEW_FROM = "brewer_review r LEFT JOIN brewer b ON b.id = r.brewerID";
 

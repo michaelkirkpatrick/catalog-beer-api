@@ -153,12 +153,15 @@ check("rejected amendments left the row untouched", $j['question'] === 'Is the B
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list has the row", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $reviewID && $j['needs_decision'] === true);
 // A list never ships the audit trail — 100 rows each holding thousands of
-// change entries is what would put this endpoint over memory_limit.
+// change entries is what would put this endpoint over memory_limit, and
+// notes is the same problem one size down (20,000 characters escape to
+// ~240 KB as emoji).
 $listed = $j['data'][0];
 check("list row omits changes and sources, carries their counts", !array_key_exists('changes', $listed) && !array_key_exists('sources', $listed) && $listed['changes_count'] === 2015 && $listed['sources_count'] === 2);
-check("list row keeps everything a list is read for", $listed['outcome'] === 'updated' && $listed['brewer_name'] === 'Beta Brewing' && $listed['notes'] !== null && $listed['question'] !== null);
+check("list row omits notes", !array_key_exists('notes', $listed));
+check("list row keeps what the check-in list is read for", $listed['outcome'] === 'updated' && $listed['brewer_name'] === 'Beta Brewing' && $listed['question'] !== null && array_key_exists('decision', $listed));
 [$code, $full] = call('GET', '', $reviewID, $ADMIN);
-check("fetching the one review still returns the full trail", count($full['changes']) === 2015 && count($full['sources']) === 2);
+check("fetching the one review returns the full trail and its notes", count($full['changes']) === 2015 && count($full['sources']) === 2 && $full['notes'] !== null);
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['decision' => "Franchise.\nNot a location."]);
 check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Franchise.\nNot a location." && $j['decided_by'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
