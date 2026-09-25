@@ -515,7 +515,7 @@ class Users {
         // Check Password
         if(!empty($this->password)){
             if(strlen($this->password) >= 8){
-                $commonPasswords = array_map('str_getcsv', file(ROOT . '/classes/resources/common-passwords.csv'));
+                $commonPasswords = array_map(fn($line) => str_getcsv($line, escape: ''), file(ROOT . '/classes/resources/common-passwords.csv'));
                 if(!in_array($this->password, $commonPasswords[0])){
                     // Valid Password
                     $this->validState['password'] = 'valid';

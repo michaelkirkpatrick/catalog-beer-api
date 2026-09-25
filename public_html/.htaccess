@@ -1,5 +1,12 @@
 RewriteEngine On
 
+# Every request authenticates with HTTP Basic auth, read from $_SERVER["PHP_AUTH_USER"].
+# Under PHP-FPM (the 26.04 servers) PHP is a FastCGI backend, and Apache strips the
+# Authorization header from the CGI environment by default -- so without this every
+# key is invisible to index.php and every call answers 401. mod_php never had the
+# problem, which is why it is easy to miss; the directive is a no-op there.
+CGIPassAuth On
+
 # Never web content: docs, database dumps, shell scripts, data exports.
 # deploy.sh excludes most of these, but rsync's --delete deliberately PROTECTS
 # excluded files on the receiver -- so anything published before an exclusion

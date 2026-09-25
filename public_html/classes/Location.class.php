@@ -1291,7 +1291,7 @@ class Location {
             // Get Latitude and Longitude
             $jsonResponse = json_decode($response);
             if($jsonResponse->status == 'OK'){
-                if(count($jsonResponse->$arrayName) == 0){
+                if(count($jsonResponse->{$arrayName}) == 0){
                     // No results
                     $this->error = true;
                     $this->errorMsg = "We were not able to find a location based on the address you provided.";
@@ -1307,13 +1307,13 @@ class Location {
                 }elseif(!$saveToDB){
                     // Return coordinates without saving
                     return array(
-                        'latitude' => $jsonResponse->$arrayName[0]->geometry->location->lat,
-                        'longitude' => $jsonResponse->$arrayName[0]->geometry->location->lng
+                        'latitude' => $jsonResponse->{$arrayName}[0]->geometry->location->lat,
+                        'longitude' => $jsonResponse->{$arrayName}[0]->geometry->location->lng
                     );
-                }elseif(count($jsonResponse->$arrayName) == 1){
+                }elseif(count($jsonResponse->{$arrayName}) == 1){
                     // Valid Request, store Latitude and Longitude
-                    $this->latitude = $jsonResponse->$arrayName[0]->geometry->location->lat;
-                    $this->longitude = $jsonResponse->$arrayName[0]->geometry->location->lng;
+                    $this->latitude = $jsonResponse->{$arrayName}[0]->geometry->location->lat;
+                    $this->longitude = $jsonResponse->{$arrayName}[0]->geometry->location->lng;
 
                     // Add to Database
                     if($this->validate($locationID, false)){
@@ -1335,11 +1335,11 @@ class Location {
                         $errorLog = new LogError();
                         $errorLog->errorNumber = 202;
                         $errorLog->errorMsg = 'Address Found by Google';
-                        $errorLog->badData = 'Address String: ' . $addressString . ' // Response: ' . $jsonResponse->$arrayName[0]->formatted_address;
+                        $errorLog->badData = 'Address String: ' . $addressString . ' // Response: ' . $jsonResponse->{$arrayName}[0]->formatted_address;
                         $errorLog->filename = 'API / USAddresses.class.php';
                         $errorLog->write();
 
-                        return $jsonResponse->$arrayName[0]->formatted_address;
+                        return $jsonResponse->{$arrayName}[0]->formatted_address;
                     }
                 }else{
                     // More than one result, ambiguous
