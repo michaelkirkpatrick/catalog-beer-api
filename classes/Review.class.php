@@ -122,9 +122,12 @@ class Review {
     // decode and re-encode — past memory_limit — and notes is the same
     // problem one size down: 20,000 characters JSON-escape to ~240 KB when
     // they are emoji, so 500 of them is a worst case of the same shape.
-    // LIST_COLUMNS selects JSON_LENGTH for the two arrays instead, and both
-    // shapes carry sources_count and changes_count, so a caller reads the
-    // size of a review without fetching it. A list shows what happened;
+    // LIST_COLUMNS selects the stored sourcesCount/changesCount columns
+    // instead, and both shapes carry them, so a caller reads the size of a
+    // review without fetching it. They are columns rather than JSON_LENGTH()
+    // at read time because a JSON-derived expression in the select list of a
+    // filesorting query is declared wide enough to blow sort_buffer_size —
+    // see migrations/2026-09-25-review-stored-counts.sql. A list shows what happened;
     // fetch the review to read what was written and why.
     //
     // POST and PATCH answer through get(), so a write always echoes the full
@@ -170,7 +173,7 @@ class Review {
     // the three unbounded columns. A list is read for what happened, never
     // for the record of it; question and decision stay, because the check-in
     // list is unreadable without them and both are capped at 500 characters.
-    const REVIEW_COUNTS = "JSON_LENGTH(r.sources) AS sourcesCount, JSON_LENGTH(r.changes) AS changesCount";
+    const REVIEW_COUNTS = "r.sourcesCount, r.changesCount";
     const REVIEW_SHARED = "r.id, r.brewerID, b.name AS brewerName, r.reviewedAt, r.reviewer, r.briefVersion, r.outcome, r.urlVerdict, r.brewerChanged, r.beersAdded, r.beersUpdated, r.dupesDeleted, r.locationsAdded, r.locationsUpdated, r.locationsDeleted, r.needsDecision+0 AS needsDecision, r.question, r.decision, r.decidedAt, r.decidedBy";
     const REVIEW_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS . ", r.sources, r.changes, r.notes";
     const LIST_COLUMNS = self::REVIEW_SHARED . ", " . self::REVIEW_COUNTS;
@@ -377,6 +380,7 @@ class Review {
         // The byte guard below is what actually bounds the column, since a
         // single entry may be 2,048 characters.
         $sources = null;
+        $sourcesCount = 0;
         if(isset($data->sources) && !is_null($data->sources)){
             if(!is_array($data->sources) || count($data->sources) > 1000){
                 $messages['sources'] = 'sources must be an array of at most 1,000 URLs.';
@@ -394,6 +398,8 @@ class Review {
                     if(strlen($sources) > 512000){
                         $messages['sources'] = 'sources is too large to store (512 KB limit).';
                         $sources = null;
+                    }else{
+                        $sourcesCount = count($clean);
                     }
                 }
             }
@@ -410,6 +416,7 @@ class Review {
         // have refused a body the count cap allowed. The two must always be
         // raised together.
         $changes = null;
+        $changesCount = 0;
         if(isset($data->changes) && !is_null($data->changes)){
             if(!is_array($data->changes) || count($data->changes) > 10000){
                 $messages['changes'] = 'changes must be an array of at most 10,000 entries.';
@@ -425,6 +432,8 @@ class Review {
                     if(strlen($changes) > 2000000){
                         $messages['changes'] = 'changes is too large to store (2 MB limit).';
                         $changes = null;
+                    }else{
+                        $changesCount = count($data->changes);
                     }
                 }
             }
@@ -455,8 +464,8 @@ class Review {
         $reviewID = $uuid->generate('brewer_review');
         $now = time();
         $db = new Database();
-        $db->query("INSERT INTO brewer_review (id, brewerID, reviewedAt, reviewer, briefVersion, outcome, urlVerdict, brewerChanged, beersAdded, beersUpdated, dupesDeleted, locationsAdded, locationsUpdated, locationsDeleted, sources, changes, notes, needsDecision, question) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [$reviewID, $brewerID, $now, $this->userID, $briefVersion, $outcome, $urlVerdict, $brewerChanged, $counters['beersAdded'], $counters['beersUpdated'], $counters['dupesDeleted'], $counters['locationsAdded'], $counters['locationsUpdated'], $counters['locationsDeleted'], $sources, $changes, $notes, $needsDecision, $question]);
+        $db->query("INSERT INTO brewer_review (id, brewerID, reviewedAt, reviewer, briefVersion, outcome, urlVerdict, brewerChanged, beersAdded, beersUpdated, dupesDeleted, locationsAdded, locationsUpdated, locationsDeleted, sources, sourcesCount, changes, changesCount, notes, needsDecision, question) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [$reviewID, $brewerID, $now, $this->userID, $briefVersion, $outcome, $urlVerdict, $brewerChanged, $counters['beersAdded'], $counters['beersUpdated'], $counters['dupesDeleted'], $counters['locationsAdded'], $counters['locationsUpdated'], $counters['locationsDeleted'], $sources, $sourcesCount, $changes, $changesCount, $notes, $needsDecision, $question]);
         if($db->error){
             $this->dbError($db, 'POST /review/{brewer_id} - insert');
             $db->close();

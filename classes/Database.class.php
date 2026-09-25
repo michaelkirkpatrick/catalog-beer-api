@@ -78,6 +78,14 @@ class Database {
 
         try {
             $stmt->execute();
+            $this->affectedRows = $stmt->affected_rows;
+            // get_result() belongs inside the try: with a prepared statement
+            // an error raised while the server produces rows surfaces here,
+            // not at execute() — a sort-buffer overflow on an ORDER BY is one.
+            // Outside the try it was an uncaught fatal instead of a logged
+            // 500: no JSON body, no error_log row, and a stack trace in the
+            // response body wherever display_errors is on.
+            $result = $stmt->get_result();
         } catch (mysqli_sql_exception $e) {
             $this->error = true;
             $this->errorMsg = 'Sorry, there was an internal error querying our database. I\'ve logged the error for our support team so they can diagnose and fix the issue.';
@@ -94,8 +102,6 @@ class Database {
             return null;
         }
 
-        $this->affectedRows = $stmt->affected_rows;
-        $result = $stmt->get_result();
         $stmt->close();
         return $result !== false ? $result : null;
     }

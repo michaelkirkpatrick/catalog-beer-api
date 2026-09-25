@@ -162,6 +162,23 @@ check("list row omits notes", !array_key_exists('notes', $listed));
 check("list row keeps what the check-in list is read for", $listed['outcome'] === 'updated' && $listed['brewer_name'] === 'Beta Brewing' && $listed['question'] !== null && array_key_exists('decision', $listed));
 [$code, $full] = call('GET', '', $reviewID, $ADMIN);
 check("fetching the one review returns the full trail and its notes", count($full['changes']) === 2015 && count($full['sources']) === 2 && $full['notes'] !== null);
+
+// The list query must not derive anything from a JSON column. With addon
+// fields MySQL sizes each sort-buffer row from the DECLARED width of every
+// selected expression, and one derived from JSON is declared enormous — so
+// ORDER BY ... LIMIT fails with "Out of sort memory" no matter how few rows
+// there are or how small the JSON is. It went unnoticed at first because the
+// query also selected sources/changes/notes, and a real blob in the select
+// list pushes MySQL onto the rowid-sort path instead. Dropping the blobs to
+// make the endpoint cheap is exactly what exposed it, so this is checked two
+// ways: the shape of the column list, and the query under a 32 KB buffer.
+check("no JSON expression in the list column list", stripos(Review::LIST_COLUMNS, 'JSON_') === false);
+$db = new Database();
+$db->getConnection()->query('SET SESSION sort_buffer_size = 32768');
+$listSQL = "SELECT " . Review::LIST_COLUMNS . " FROM " . Review::REVIEW_FROM . " ORDER BY r.reviewedAt DESC LIMIT 11 OFFSET 0";
+$res = $db->query($listSQL);
+check("list query runs under a 32 KB sort buffer", !$db->error && !is_null($res) && $res->num_rows > 0);
+$db->close();
 [$code, $j] = call('PATCH', '', $reviewID, $ADMIN, (object)['decision' => "Franchise.\nNot a location."]);
 check("patch decision -> 200, flag cleared", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Franchise.\nNot a location." && $j['decided_by'] === 'aaaaaaaa-0000-4000-8000-000000000001');
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
