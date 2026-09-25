@@ -11,7 +11,7 @@ tests/address-parse.php. Add a case here for any new character class before
 changing TextInput.class.php.
 --*/
 
-require_once __DIR__ . '/../classes/TextInput.class.php';
+require_once __DIR__ . '/../public_html/classes/TextInput.class.php';
 
 $pass = 0;
 $fail = 0;

@@ -12,6 +12,27 @@ Related repos:
 
 API documentation page (for external consumers) lives in the frontend repo: `../catalog-beer/api-docs.php`
 
+## Repository Layout
+
+The repo root mirrors the vhost root on the 26.04 servers (`/var/www/html/<vhost>/`), not the web root. Adopted 2026-09-25 for the Ubuntu 24.04 → 26.04 move (Linode repo: `Project-Conventions.md` § Secrets handling, `2604 Upgrade Plan.md` § Gap 4 and § Gap 5); `mekstudios.com` converted the same way a week earlier and is the reference.
+
+```
+catalog-beer-api/
+├── public_html/      ← Apache DocumentRoot: index.php, errors.php, .htaccess, robots.txt, classes/
+├── common/           ← secrets only: passwords.php (gitignored) + Secrets.md
+├── cron/             ← CLI scripts; deployed beside public_html/, never served
+├── algolia/          ← CLI index tooling; deployed beside public_html/, never served
+├── tests/            ← Newman collection + offline PHP tests; never deployed
+├── scratch/          ← local working files; gitignored AND rsync-excluded
+├── deploy.sh, deploy.conf(.example), CLAUDE.md, README.md
+```
+
+`ROOT` is always `public_html` (from `$_SERVER['DOCUMENT_ROOT']` on the web, `dirname(__DIR__) . '/public_html'` in the cron, algolia and DB-backed test scripts), so `dirname(ROOT)` is the vhost root everywhere and the secrets load from `dirname(ROOT) . '/common/passwords.php'`. **Nothing under `public_html/` may ever be named `common/`** -- the legacy layout kept the secrets there, and `.gitignore` and `deploy.sh` both carry tripwires against it coming back.
+
+`deploy.sh staging` ships the working tree; `deploy.sh production` ships `git archive HEAD` (only committed files can reach production; `--dirty` is the emergency escape). Both mirror `public_html/`, `cron/` and `algolia/` to the same names under the vhost root and refuse to run until `common/passwords.php` exists there. The secrets file is never deployed -- `common/Secrets.md` § Server layout has the one-time move for a 24.04 box and the install command for editing it on a server.
+
+**PHP-FPM (26.04):** the API reads its key from `$_SERVER['PHP_AUTH_USER']`, and Apache strips the `Authorization` header from FastCGI backends unless `CGIPassAuth On` is set -- `public_html/.htaccess` carries it. Under mod_php it is a no-op, so a 24.04 box cannot reveal its absence; a 26.04 box answers 401 to every key.
+
 ## Development Environment
 
 This is a plain PHP project served by Apache. There are no build steps, linters, or test runners. Development requires:
@@ -19,22 +40,22 @@ This is a plain PHP project served by Apache. There are no build steps, linters,
 - PHP with mysqli extension
 - MySQL database named `catalogbeer`
 
-Environment is detected by subdomain in `classes/initialize.php`:
+Environment is detected by subdomain in `public_html/classes/initialize.php`:
 - `api-staging.*` → staging
 - `api.*` → production
 
 ## Architecture
 
 ### Request Flow
-1. `.htaccess` rewrites all URLs to `index.php` with query parameters (`endpoint`, `id`, `function`)
-2. `classes/initialize.php` bootstraps: constants, timezone (`America/Los_Angeles`), SPL autoloader
+1. `public_html/.htaccess` rewrites all URLs to `index.php` with query parameters (`endpoint`, `id`, `function`)
+2. `public_html/classes/initialize.php` bootstraps: constants, timezone (`America/Los_Angeles`), SPL autoloader
 3. `index.php` parses JSON body, validates headers (Content-Type, Accept), authenticates via HTTP Basic Auth (API key as username)
 4. `switch($endpoint)` routes to the appropriate class, calling its `api()` method
 5. Class sets `$responseCode`, `$responseHeader`, `$json`; `index.php` outputs the JSON response
 6. Request is logged via `apiLogging` (except for master API keys)
 
 ### Class Autoloading
-SPL autoloader in `initialize.php` loads `classes/{ClassName}.class.php`. All class files follow this naming convention.
+SPL autoloader in `initialize.php` loads `ROOT . '/classes/{ClassName}.class.php'` (i.e. `public_html/classes/`). All class files follow this naming convention.
 
 ### Entity Class Pattern
 Entity classes (`Beer`, `Brewer`, `Location`, `Users`) share a consistent structure:
@@ -84,7 +105,7 @@ Uses base64-encoded cursor pagination. Default count is 500 per page. Cursor is 
 **Offline regression test: `php tests/text-input.php`** — no DB, no network; includes the real production values that motivated each rule. Run it for any change to the character policy, and add a case before adding a rule.
 
 ### Error Logging
-All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber`. **Re-grep for the current maximum rather than trusting any written figure** — `grep -rhoE "errorNumber *= *[0-9]+" classes/ cron/ *.php algolia/ | grep -oE "[0-9]+" | sort -n | uniq | tail -5`. Note `errors.php` deliberately uses 405/500/503 as HTTP-status-shaped error numbers, which are not part of the sequential range. When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
+All errors are logged to the `error_log` database table via `LogError` class. Each error site has a unique `errorNumber`. **Re-grep for the current maximum rather than trusting any written figure** — `grep -rhoE "errorNumber *= *[0-9]+" public_html/ cron/ algolia/ | grep -oE "[0-9]+" | sort -n | uniq | tail -5`. Note `errors.php` deliberately uses 405/500/503 as HTTP-status-shaped error numbers, which are not part of the sequential range. When adding new error logging, use the next available error number. `LogError::write()` has a static recursion guard (`self::$writing`) to prevent infinite loops when the database is down. CLI-safe: uses null coalescing for `$_SERVER['REQUEST_URI']` and `$_SERVER['REMOTE_ADDR']`.
 
 ### Database Access
 `Database.class.php` wraps mysqli with prepared statements. Key methods:
@@ -115,7 +136,7 @@ Touchpoints here that imply a schema change: a new entry in an entity's `$column
 
 ## API Endpoints
 
-Defined in `.htaccess`. All IDs are 36-character UUIDs:
+Defined in `public_html/.htaccess`. All IDs are 36-character UUIDs:
 - `/activity` — Admin-only activity report (`Activity.class.php`); queries `api_logging` for write summary, top contributors, recent activity, GET traffic
 - `/brewer`, `/brewer/{id}`, `/brewer/{id}/beer`, `/brewer/{id}/locations`, `/brewer/count`, `/brewer/search`
 - `/beer`, `/beer/{id}`, `/beer/count`, `/beer/search`
@@ -139,7 +160,7 @@ Defined in `.htaccess`. All IDs are 36-character UUIDs:
 - **Stripe** — Usage billing (`Stripe.class.php` raw-cURL client, `Billing.class.php` logic; no SDK). Keys with a card on file (`api_keys.billingEnabled`) may exceed the free tier at $1 per 1,000 requests (blocks rounded up, clamped to `api_keys.monthlySpendCapCents`, default $50). Metering stays local in `api_usage`; Stripe only stores cards (Checkout setup mode), creates monthly invoices (`cron/bill-usage.php`, $5 invoice floor with roll-forward in `billing_charges`), and reports payment outcomes (`POST /stripe-webhook`). Constants: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (environment-conditional: staging uses test-mode keys)
 - **Postmark** — Transactional email (`SendEmail.class.php`, `PostmarkSendEmail.class.php`); server token via `POSTMARK_SERVER_TOKEN` constant (environment-conditional: staging uses sandbox server)
 
-All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `classes/initialize.php` after the `ENVIRONMENT` constant is set.
+All secrets are centralized in `common/passwords.php` (gitignored, never committed). This file is loaded by `public_html/classes/initialize.php` (via `dirname(ROOT)`, see § Repository Layout) after the `ENVIRONMENT` constant is set.
 
 ## Cron Jobs
 
@@ -153,13 +174,13 @@ The `cron/` directory contains scripts intended to run as scheduled tasks on the
 - `cron/check-urls.php` — Brewer link-health monitor (`classes/UrlCheck.class.php` classifies; see `Linode/Cron-Jobs.md`). Report-only apart from promoting `http://` to the site's own `https://`. Two rules the API mirrors: **replacing** a brewer's `url` resets the five monitoring columns to baseline, while **clearing** it keeps them and stores the removed address in `brewer.urlLastKnown` — so a record can distinguish "no website" from "domain lapsed, don't go looking". Every `brewer.url` change appends a row to `brewer_url_history` via `Brewer::logURLChange()`; admins can attach a reason with the write-only `url_note` field on POST/PUT/PATCH `/brewer`. **The review half of this feature is not in this repo** — turning `check-urls.log` into actual corrections lives in `../catalog-beer-cleanup/url-cleanup/` (moved out of `scratch/` on 2026-08-09), and its `RUNBOOK.md` is the procedure. Changes to `UrlCheck`'s verdicts should be reflected there, since the runbook's buckets are named after them. **Offline regression test: `php tests/url-check-name.php`** — no DB, no network; covers `nameInText()` and `stripOwnDomain()`, the "does this page name the brewery" test that decides whether an `ok` row is ever read by a human. A page's mentions of its own domain are stripped before matching (the domain comes from the URL under test, so it is circular evidence — a content farm titled `nextdoorbrewing.com` scored `ok` on the brand tokens `next` and `door` inside it), but the bare label is deliberately kept, since for a one-word brand the label is the name.
 - `cron/backfill-metrics.php` — One-time replay of historical daily size/growth snapshots from the `createdAt` columns. Only that family is reconstructable; verification, completeness and freshness are current-state only and necessarily begin at the first live snapshot. Uses `INSERT IGNORE` so it can never overwrite a real snapshot.
 
-The `cron/` directory is deployed by `deploy.sh` to `public_html/cron/` on the server. Each script has a CLI-only guard that exits immediately if accessed via a web request.
+The `cron/` directory is deployed by `deploy.sh` to the vhost-root `cron/` beside `public_html/` on the server, outside the DocumentRoot (crontab paths are `/var/www/html/api.catalog.beer/cron/...`). Each script has a CLI-only guard that exits immediately if accessed via a web request.
 
 `deploy.sh` excludes `*.md` from deploys, so documentation never reaches a server. The two exceptions are `cron/error-context.md` and `cron/php-error-context.md`, which the digest crons read at runtime as Claude system prompts — they have explicit `--include` entries that must stay **above** the `*.md` exclude in the `EXCLUDES` array, since rsync takes the first matching rule.
 
 ## Algolia Batch Upload
 
-`algolia/batch-upload.php` — Uploads all brewers, locations, and beers to the Algolia `catalog` index. Uses `Algolia::saveObject()` (PUT/upsert), safe to re-run. Run via: `php batch-upload.php [staging|production] [limit]` (defaults to production). CLI-only; must be run on the server.
+`algolia/batch-upload.php` (deployed to the vhost-root `algolia/`, beside `public_html/`) — Uploads all brewers, locations, and beers to the Algolia `catalog` index. Uses `Algolia::saveObject()` (PUT/upsert), safe to re-run. Run via: `php batch-upload.php [staging|production] [limit]` (defaults to production). CLI-only; must be run on the server.
 
 - Requires the `algolia` table in MySQL (columns: `algolia_id`, `beer_id`, `brewer_id`, `location_id`)
 - `ensureAlgoliaRecord()` creates local `algolia` table entries for new records before uploading

@@ -26,7 +26,7 @@ What the cases encode (2026-08-10):
 Add a case here before changing the matcher.
 --*/
 
-require_once __DIR__ . '/../classes/UrlCheck.class.php';
+require_once __DIR__ . '/../public_html/classes/UrlCheck.class.php';
 
 $pass = 0;
 $fail = 0;

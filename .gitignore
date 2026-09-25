@@ -5,7 +5,12 @@
 catalogbeer-*.sql
 .editorconfig
 .nova/
+# Secrets -- the repo-root common/ mirrors the vhost-root secrets dir on the
+# 26.04 servers (outside public_html/). Ignore the file, not the directory:
+# common/Secrets.md (rotation checklist) stays tracked.
 common/passwords.php
+# Defensive: the secrets file must never reappear inside the web root either.
+public_html/common/passwords.php
 
 # Tests: track collection and example env, ignore real env files
 !tests/Catalog.beer.postman_collection.json

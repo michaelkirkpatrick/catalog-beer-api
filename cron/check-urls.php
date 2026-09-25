@@ -5,7 +5,7 @@ if(php_sapi_name() !== 'cli'){
 }
 
 // Define Root
-define('ROOT', dirname(__DIR__));
+define('ROOT', dirname(__DIR__) . '/public_html');
 
 // Usage: php check-urls.php [staging|production] [limit] [--llm]
 //   limit  brewers to check this run (default 160 ≈ full catalog / 30 days)
@@ -28,7 +28,7 @@ if($limit < 1){
 }
 
 // Load Passwords
-require_once ROOT . '/common/passwords.php';
+require_once dirname(__DIR__) . '/common/passwords.php';
 
 // Set Timezone
 date_default_timezone_set('America/Los_Angeles');

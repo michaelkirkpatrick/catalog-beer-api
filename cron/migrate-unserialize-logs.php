@@ -9,7 +9,7 @@ if(php_sapi_name() !== 'cli'){
     exit(1);
 }
 
-define('ROOT', dirname(__DIR__));
+define('ROOT', dirname(__DIR__) . '/public_html');
 
 $env = $argv[1] ?? 'production';
 if(!in_array($env, ['staging', 'production'])){
@@ -20,7 +20,7 @@ define('ENVIRONMENT', $env);
 
 $dryRun = in_array('--dry-run', $argv, true);
 
-require_once ROOT . '/common/passwords.php';
+require_once dirname(__DIR__) . '/common/passwords.php';
 date_default_timezone_set('America/Los_Angeles');
 
 spl_autoload_register(function ($class_name) {

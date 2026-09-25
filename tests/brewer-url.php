@@ -11,7 +11,7 @@ and the "Shared Domain" folder of the Postman suite. Add a case here before
 changing the normalisation.
 --*/
 
-require_once __DIR__ . '/../classes/BrewerUrl.class.php';
+require_once __DIR__ . '/../public_html/classes/BrewerUrl.class.php';
 
 $pass = 0;
 $fail = 0;

@@ -7,7 +7,7 @@ All records live in a single `catalog` index, mixing brewers, beers, locations, 
 Pushes the index settings (`searchableAttributes`, `attributesForFaceting`, typo tolerance) to Algolia. **This file is the source of truth** — settings used to live only in the dashboard, where they were untracked and free to drift between staging and production.
 
 ```bash
-php /var/www/html/api.catalog.beer/public_html/algolia/settings.php [staging|production]
+php /var/www/html/api.catalog.beer/algolia/settings.php [staging|production]
 ```
 
 A settings PUT is a full replace, not a merge, so edit the array in the script rather than the dashboard. Safe to re-run.
@@ -19,7 +19,7 @@ Deliberately **no `customRanking`**: this is one index holding several record ty
 Generates the index's synonym set from `style_alias` and `parent_alias` and replaces the whole set on Algolia (`replaceExistingSynonyms`). Like settings.php, **this script is the source of truth** — never hand-edit synonyms in the dashboard.
 
 ```bash
-php /var/www/html/api.catalog.beer/public_html/algolia/synonyms.php [staging|production]
+php /var/www/html/api.catalog.beer/algolia/synonyms.php [staging|production]
 ```
 
 Why it exists: Algolia ANDs query tokens and "ipa" is not a token anywhere in "American-Style India Pale Ale" — typo tolerance can't bridge an abbreviation, so without synonyms the most common beer search on the internet returns nothing. The alias tables are already a curated vocabulary of how people actually spell styles; this re-uses that curation. Re-run whenever the alias tables change (a style-library update — the same event that warrants re-uploading style records). Class aliases ("ale", "lager") are deliberately not pushed; they'd add noise to queries that already match half the index.
@@ -29,12 +29,12 @@ Why it exists: Algolia ANDs query tokens and "ipa" is not a token anywhere in "A
 Performs a full upload of all brewers, locations, beers, and styles to the Algolia `catalog` index. Uses PUT (upsert) via `Algolia::saveObject()`, so it's safe to re-run without creating duplicates. Run this on the server via SSH:
 
 ```bash
-php /var/www/html/api.catalog.beer/public_html/algolia/batch-upload.php [staging|production] [limit]
+php /var/www/html/api.catalog.beer/algolia/batch-upload.php [staging|production] [limit]
 ```
 
 - Defaults to `production` if no environment is specified
 - Optional `limit` restricts the number of brewers processed (useful for testing)
-- Loads credentials from `common/passwords.php` and requires the class autoloader, so it must be run from the deployed server (not locally)
+- Loads credentials from the vhost-root `common/passwords.php` and the classes from the sibling `public_html/`, so it must be run from the deployed server (not locally)
 
 The script processes brewers before it has collected locations, which is safe: `generateBrewerSearchObject()` queries the `location` table directly rather than relying on the script's loop order.
 

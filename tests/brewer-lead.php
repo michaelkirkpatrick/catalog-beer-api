@@ -23,7 +23,7 @@ if(php_sapi_name() !== 'cli'){
     exit(1);
 }
 
-define('ROOT', dirname(__DIR__));
+define('ROOT', dirname(__DIR__) . '/public_html');
 define('ENVIRONMENT', 'staging');
 define('DB_HOST', getenv('CB_TEST_DB_HOST') ?: '127.0.0.1');
 define('DB_USER', getenv('CB_TEST_DB_USER') ?: 'root');
@@ -32,7 +32,7 @@ define('DB_NAME', 'cb_lead_test');
 date_default_timezone_set('America/Los_Angeles');
 spl_autoload_register(function ($c) { require_once ROOT . '/classes/' . $c . '.class.php'; });
 
-$schemaPath = $argv[1] ?? ROOT . '/../catalog-beer-mysql/catalog-beer-schema.sql';
+$schemaPath = $argv[1] ?? dirname(__DIR__, 2) . '/catalog-beer-mysql/catalog-beer-schema.sql';
 if(!is_readable($schemaPath)){
     echo "Schema not found: $schemaPath\n";
     exit(1);

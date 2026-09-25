@@ -5,7 +5,7 @@ if(php_sapi_name() !== 'cli'){
 }
 
 // Define Root
-define('ROOT', dirname(__DIR__));
+define('ROOT', dirname(__DIR__) . '/public_html');
 
 // Usage: php snapshot-metrics.php [staging|production]
 $env = $argv[1] ?? 'production';
@@ -16,7 +16,7 @@ if(!in_array($env, ['staging', 'production'])){
 define('ENVIRONMENT', $env);
 
 // Load Passwords
-require_once ROOT . '/common/passwords.php';
+require_once dirname(__DIR__) . '/common/passwords.php';
 
 // Set Timezone
 date_default_timezone_set('America/Los_Angeles');

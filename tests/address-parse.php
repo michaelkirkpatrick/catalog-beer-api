@@ -24,7 +24,7 @@ Expectations encode the 2026-08-05 decisions:
 */
 
 if(php_sapi_name() !== 'cli'){ exit('CLI only'); }
-require_once(__DIR__ . '/../classes/USAddresses.class.php');
+require_once(__DIR__ . '/../public_html/classes/USAddresses.class.php');
 
 $verbose = in_array('-v', $argv);
 

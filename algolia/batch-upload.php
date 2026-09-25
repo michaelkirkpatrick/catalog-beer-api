@@ -5,7 +5,7 @@ if(php_sapi_name() !== 'cli'){
 }
 
 // Define Root
-define('ROOT', dirname(__DIR__));
+define('ROOT', dirname(__DIR__) . '/public_html');
 
 // Determine environment from CLI argument
 $env = $argv[1] ?? 'production';
@@ -20,7 +20,7 @@ define('ENVIRONMENT', $env);
 $limit = isset($argv[2]) ? intval($argv[2]) : 0;
 
 // Load Passwords
-require_once ROOT . '/common/passwords.php';
+require_once dirname(__DIR__) . '/common/passwords.php';
 
 // Set Timezone
 date_default_timezone_set('America/Los_Angeles');
