@@ -2,7 +2,8 @@
 /*--
 The brewer review loop's queue and record. Admin-only.
 
-  POST  /review/claim            every brewer with an unactioned decision, plus the next N; all held
+  POST  /review/claim            every brewer with an unactioned decision, plus any brewers named
+                                 in brewer_ids, plus the next N from the queue; all held
   POST  /review/{brewer_id}      record a completed review; sets brewer.reviewedAt, clears the claim
   GET   /review                  recent reviews; ?needs_decision=1 is the human check-in list
   GET   /review/{id}             one review
@@ -188,17 +189,47 @@ class Review {
     //      on it. These are claimed regardless of count: an answer must never
     //      wait on the size of tonight's run. (The acting review becomes the
     //      latest row and has no decision, which drops the brewer out.)
-    //   2. Then `count` more, ordered never-reviewed first, then a non-ok cron
+    //   2. Every brewer named in `brewer_ids`, in the order given. A human
+    //      pointing an agent at a brewer is the reason to look, so these skip
+    //      the queue order and the URL requirement -- a brewer whose URL was
+    //      cleared is exactly the kind a human names. A row held inside the
+    //      TTL, or an id no brewer has, is reported in `skipped` rather than
+    //      failing the call, so a partial claim is still a usable claim.
+    //   3. Then `count` more, ordered never-reviewed first, then a non-ok cron
     //      verdict (step 1 has work to do), then oldest review.
     //
     // SKIP LOCKED lets concurrent claimers pass each other instead of queueing
-    // on the same rows.
-    public function claim($count){
+    // on the same rows. The named rows lock with a plain FOR UPDATE: a claim
+    // that holds them commits within milliseconds, and waiting for it is what
+    // makes the `claimed` verdict in `skipped` truthful rather than a race.
+    public function claim($count, $brewerIDs = null){
         $count = intval($count);
         // 0 is a real answer: only the decided rows, nothing else held. An
-        // omitted count defaults to 10 in api(), never here.
+        // omitted count defaults to 10 in api() -- or to 0 when brewer_ids is
+        // given, since naming brewers is asking for those -- never here.
         if($count < 0){$count = 0;}
         if($count > self::CLAIM_MAX){$count = self::CLAIM_MAX;}
+
+        // brewer_ids -- optional; 1..CLAIM_MAX UUIDs, deduplicated, order kept
+        if(!is_null($brewerIDs)){
+            if(!is_array($brewerIDs) || empty($brewerIDs) || count($brewerIDs) > self::CLAIM_MAX){
+                $this->validationError(array('brewer_ids' => 'brewer_ids must be an array of 1 to ' . self::CLAIM_MAX . ' brewer IDs.'), 'POST /review/claim');
+                return;
+            }
+            $uuid = new uuid();
+            $clean = array();
+            foreach($brewerIDs as $brewerID){
+                $brewerID = is_string($brewerID) ? strtolower(trim($brewerID)) : '';
+                if($brewerID === '' || !$uuid->validate($brewerID)){
+                    $this->validationError(array('brewer_ids' => 'brewer_ids must contain only valid brewer IDs.'), 'POST /review/claim');
+                    return;
+                }
+                $clean[$brewerID] = true;
+            }
+            $brewerIDs = array_keys($clean);
+        }else{
+            $brewerIDs = array();
+        }
 
         $now = time();
         $free = $now - self::CLAIM_TTL;
@@ -224,7 +255,38 @@ class Review {
         }
         $decided = count($ids);
 
-        // 2. Then count more, excluding what step 1 took
+        // 2. The named brewers, in the order given. No URL requirement here.
+        $skipped = array();
+        if(!empty($brewerIDs)){
+            $placeholders = implode(', ', array_fill(0, count($brewerIDs), '?'));
+            $result = $db->query("SELECT id, claimedAt FROM brewer WHERE id IN ($placeholders) FOR UPDATE", $brewerIDs);
+            if($db->error){
+                $conn->rollback();
+                $this->dbError($db, 'POST /review/claim - named');
+                $db->close();
+                return;
+            }
+            $found = array();
+            while($row = $result->fetch_assoc()){
+                $found[strtolower($row['id'])] = $row['claimedAt'];
+            }
+            foreach($brewerIDs as $brewerID){
+                if(in_array($brewerID, $ids, true)){
+                    continue;   // step 1 already holds it: it carries a decision
+                }
+                if(!array_key_exists($brewerID, $found)){
+                    $skipped[] = array('brewer_id' => $brewerID, 'reason' => 'unknown');
+                    continue;
+                }
+                if(!is_null($found[$brewerID]) && intval($found[$brewerID]) >= $free){
+                    $skipped[] = array('brewer_id' => $brewerID, 'reason' => 'claimed', 'claim_expires_at' => intval($found[$brewerID]) + self::CLAIM_TTL);
+                    continue;
+                }
+                $ids[] = $brewerID;
+            }
+        }
+
+        // 3. Then count more, excluding what steps 1 and 2 took
         $exclude = '';
         $params = [$free];
         if(!empty($ids)){
@@ -307,6 +369,7 @@ class Review {
         $this->json['claimed_by'] = $this->userID;
         $this->json['claim_expires_at'] = $now + self::CLAIM_TTL;
         $this->json['decided'] = $decided;   // how many of these carry a decision to act on first
+        $this->json['skipped'] = $skipped;   // named brewers not held: unknown id, or claimed inside the TTL
         $this->json['data'] = $data;
     }
 
@@ -743,7 +806,8 @@ class Review {
                 break;
             case 'POST':
                 if($function === 'claim'){
-                    $this->claim(isset($data->count) ? $data->count : 10);
+                    $brewerIDs = isset($data->brewer_ids) ? $data->brewer_ids : null;
+                    $this->claim(isset($data->count) ? $data->count : (is_null($brewerIDs) ? 10 : 0), $brewerIDs);
                 }elseif(empty($function) && !empty($id)){
                     $this->add($id, $data);
                 }else{

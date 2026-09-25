@@ -15,7 +15,9 @@ order, expired claims are free again, the admin gate holds, POST validation
 rejects the shapes it should, a posted review sets reviewedAt / clears the
 claim / refreshes the URL-health columns on url_verdict ok, the decisions
 list and PATCH round-trip, an undecided row's notes/question can be amended
-(and a decided row's cannot), and a re-claim carries the decision back.
+(and a decided row's cannot), a re-claim carries the decision back, and a
+named claim (brewer_ids) holds exactly the brewers it names, URL or not,
+reporting held and unknown ids in `skipped` rather than failing.
 --*/
 if(php_sapi_name() !== 'cli'){
     exit(1);
@@ -237,6 +239,48 @@ $db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 10]);
 $names = array_map(fn($r) => $r['name'], $j['data']);
 check("after acting, never-reviewed row leads again", $names === ['Alpha Brewing', 'Beta Brewing']);
+
+// 8d. named claims: brewer_ids skips the queue order and the URL requirement
+$BAD = 'cccccccc-0000-4000-8000-0000000000ff';
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => 'not-an-array']);
+check("brewer_ids as a string -> 400", $code === 400 && isset($j['validation']['brewer_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => []]);
+check("brewer_ids empty -> 400", $code === 400 && isset($j['validation']['brewer_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => array_fill(0, 51, $ALPHA)]);
+check("brewer_ids over the claim cap -> 400", $code === 400 && isset($j['validation']['brewer_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$ALPHA, 'not-a-uuid']]);
+check("brewer_ids with a malformed id -> 400", $code === 400 && isset($j['validation']['brewer_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$ALPHA, 42]]);
+check("brewer_ids with a non-string -> 400", $code === 400 && isset($j['validation']['brewer_ids']));
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+// Gamma has no URL and can never come out of the queue; naming it is the only way in
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$GAMMA]]);
+$names = array_map(fn($r) => $r['name'], $j['data']);
+$db = new Database(); $r = $db->query("SELECT SUM(claimedAt IS NOT NULL) held, MAX(id = ? AND claimedAt IS NOT NULL) gamma FROM brewer", [$GAMMA])->fetch_assoc(); $db->close();
+check("naming a URL-less brewer claims it; count defaults to 0 so nothing else is held", $code === 200 && $names === ['Gamma Brewing'] && $j['decided'] === 0 && $j['skipped'] === [] && intval($r['held']) === 1 && intval($r['gamma']) === 1);
+check("named row carries the full claim shape (Gamma's cap-probe reviews are its last_review)", $j['data'][0]['url'] === null && is_array($j['data'][0]['last_review']) && array_key_exists('url_last_known', $j['data'][0]));
+// a held row is reported, not taken; an unknown id is reported; the rest of the call still succeeds
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$BAD, $ALPHA, $GAMMA], 'count' => 1]);
+$names = array_map(fn($r) => $r['name'], $j['data']);
+check("named + count: named rows first, then the queue", $code === 200 && $names === ['Alpha Brewing', 'Beta Brewing']);
+check("skipped lists the unknown id and the held row, in the order given", count($j['skipped']) === 2
+    && $j['skipped'][0] === ['brewer_id' => $BAD, 'reason' => 'unknown']
+    && $j['skipped'][1]['brewer_id'] === $GAMMA && $j['skipped'][1]['reason'] === 'claimed' && $j['skipped'][1]['claim_expires_at'] > time() + 14000);
+// same id twice, in any case, is one row
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [strtoupper($ALPHA), $ALPHA]]);
+check("brewer_ids deduplicates case-insensitively", $code === 200 && count($j['data']) === 1 && $j['data'][0]['brewer_id'] === $ALPHA);
+// an expired hold on a named row is free again
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = claimedAt - 20000 WHERE id=?", [$ALPHA]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$ALPHA]]);
+check("an expired hold on a named brewer is free", $code === 200 && count($j['data']) === 1 && $j['skipped'] === []);
+// a named brewer that carries a decision is taken by the decided step and not listed twice
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->query("UPDATE brewer_review SET decision='Keep it.', decidedAt=?, decidedBy=? WHERE id=?", [time(), 'aaaaaaaa-0000-4000-8000-000000000001', $secondReviewID]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$BETA]]);
+$names = array_map(fn($r) => $r['name'], $j['data']);
+check("a named brewer with a decision waiting appears once, counted as decided", $code === 200 && $names === ['Beta Brewing'] && $j['decided'] === 1 && $j['skipped'] === []);
+check("plain claim response also carries an empty skipped list", ($j['skipped'] ?? null) === []);
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->query("UPDATE brewer_review SET decision=NULL, decidedAt=NULL, decidedBy=NULL WHERE id=?", [$secondReviewID]); $db->close();
 
 // 9. method + path guards
 [$code, $j, $hdr] = call('DELETE', '', $reviewID, $ADMIN);
