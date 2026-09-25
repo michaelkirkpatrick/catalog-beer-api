@@ -165,7 +165,9 @@ class Review {
     // on the same rows.
     public function claim($count){
         $count = intval($count);
-        if($count < 1){$count = 10;}
+        // 0 is a real answer: only the decided rows, nothing else held. An
+        // omitted count defaults to 10 in api(), never here.
+        if($count < 0){$count = 0;}
         if($count > self::CLAIM_MAX){$count = self::CLAIM_MAX;}
 
         $now = time();

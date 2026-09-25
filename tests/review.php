@@ -159,6 +159,12 @@ $db = new Database(); $db->query("UPDATE brewer SET claimedAt = claimedAt - 2000
 $names = array_map(fn($r) => $r['name'], $j['data']);
 check("re-claim: expired claim is free; the decided brewer sorts first", $names === ['Beta Brewing', 'Alpha Brewing']);
 check("claim reports how many carry a decision", ($j['decided'] ?? null) === 1);
+// count=0 claims only the decided brewers and holds nothing else
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN (?, ?)", [$ALPHA, $BETA]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 0]);
+$names = array_map(fn($r) => $r['name'], $j['data']);
+$db = new Database(); $alphaClaim = $db->query("SELECT claimedAt FROM brewer WHERE id=?", [$ALPHA])->fetch_assoc()['claimedAt']; $db->close();
+check("count=0 returns only the decided brewer, Alpha left unclaimed", $code === 200 && $names === ['Beta Brewing'] && $j['decided'] === 1 && $alphaClaim === null);
 // a decision is claimed regardless of count: count=1 still returns the decided brewer PLUS one more
 $db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL WHERE id IN (?, ?)", [$ALPHA, $BETA]); $db->close();
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 1]);

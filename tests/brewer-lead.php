@@ -227,8 +227,14 @@ check("needs_decision list has the row", $code === 200 && count($j['data']) === 
 check("decide -> 200, flag cleared, decided_by is the human", $code === 200 && $j['needs_decision'] === false && $j['decision'] === "Brand only.\nResolve not_a_brewery." && $j['decided_by'] === $MICHAEL);
 [$code, $j] = call('GET', '', '', $ADMIN, null, ['needs_decision' => '1']);
 check("needs_decision list now empty", count($j['data']) === 0);
-// free the other two claims so count=1 has competition; decided row still comes first, plus one more
+// free the other two claims; count=0 claims only the decided row and holds nothing else
 $db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL WHERE id IN (?, ?)", [$bar, $barOther]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 0]);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+$db = new Database(); $held = $db->query("SELECT COUNT(*) AS n FROM brewer_lead WHERE claimedAt IS NOT NULL AND id IN (?, ?)", [$bar, $barOther])->fetch_assoc()['n']; $db->close();
+check("count=0 -> only the decided row, nothing else held", $code === 200 && $ids === [$barWA] && $j['decided'] === 1 && intval($held) === 0);
+// so count=1 has competition; decided row still comes first, plus one more
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL WHERE id=?", [$barWA]); $db->close();
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 1]);
 $ids = array_map(fn($r) => $r['id'], $j['data']);
 check("count=1 with a decision waiting -> decided row first, plus one", $ids === [$barWA, $bar] && $j['decided'] === 1);
