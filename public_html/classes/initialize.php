@@ -1,15 +1,34 @@
 <?php
 // Define Root
 define("ROOT", $_SERVER["DOCUMENT_ROOT"]);
-define("SERVER_NAME", $_SERVER['SERVER_NAME']);
 
-// Establish Environment
-$serverName = explode('.', $_SERVER['SERVER_NAME']);
-if($serverName[0] == 'api-staging'){
-    define('ENVIRONMENT', 'staging');
-}else{
-    define('ENVIRONMENT', 'production');
+// Establish Environment from the hostname.
+//
+// Exact matches only, and a miss is fatal. Apache's catch-all vhost already
+// denies hostnames it doesn't serve, so a request reaching this point with an
+// unlisted name means a vhost gained a name without a row here, or a CLI
+// caller forgot to set SERVER_NAME. Either way, refuse rather than fall
+// through to production credentials. This vhost has no www alias, so
+// there is no alias row.
+$hostTable = [
+    'api.catalog.beer' => 'production',
+    'api-staging.catalog.beer' => 'staging',
+];
+$hostName = strtolower($_SERVER['SERVER_NAME'] ?? '');
+if (!isset($hostTable[$hostName])) {
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, "initialize.php: unknown SERVER_NAME '{$hostName}'; expected one of "
+            . implode(', ', array_keys($hostTable)) . "\n");
+        exit(1);
+    }
+    // 421 Misdirected Request: this server does not answer for that authority.
+    http_response_code(421);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit("Unknown host.\n");
 }
+define('ENVIRONMENT', $hostTable[$hostName]);
+define("SERVER_NAME", $hostName);
+unset($hostTable, $hostName);
 
 // Load Passwords
 //

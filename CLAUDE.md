@@ -40,9 +40,10 @@ This is a plain PHP project served by Apache. There are no build steps, linters,
 - PHP with mysqli extension
 - MySQL database named `catalogbeer`
 
-Environment is detected by subdomain in `public_html/classes/initialize.php`:
-- `api-staging.*` → staging
-- `api.*` → production
+Environment comes from an exact hostname table in `public_html/classes/initialize.php`:
+- `api-staging.catalog.beer` → staging
+- `api.catalog.beer` → production
+- anything else → 421 before secrets load (exit 1 under the CLI); it never falls through to production. Apache's catch-all vhost denies unknown hosts first, so tripping this means a vhost gained a name without a row.
 
 ## Architecture
 
