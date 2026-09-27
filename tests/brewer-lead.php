@@ -17,7 +17,9 @@ the new page to sources without merging anything else; claim hands out each
 lead once, oldest first, never a row with an open question, decided rows
 first regardless of count, and an expired claim is free again; resolve, defer,
 ask and decide enforce their field and state rules; a closed row needs
-reopen; and the list filters translate the wire vocabulary.
+reopen; the list filters translate the wire vocabulary; and a named claim
+(lead_ids) holds exactly the leads it names, deferred or not, reporting
+unknown, held, closed and questioned ids in `skipped` rather than failing.
 --*/
 if(php_sapi_name() !== 'cli'){
     exit(1);
@@ -279,6 +281,57 @@ check("expired claim reads as queued with null claimed_by", $j['status'] === 'qu
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 5]);
 $ids = array_map(fn($r) => $r['id'], $j['data']);
 check("expired claim is handed out again", $ids === [$barOther]);
+
+// 13b. named claims: lead_ids skips the queue order and a future recheck_after
+$BAD = 'dddddddd-0000-4000-8000-0000000000ff';
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => 'not-an-array']);
+check("lead_ids as a string -> 400", $code === 400 && isset($j['validation']['lead_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => []]);
+check("lead_ids empty -> 400", $code === 400 && isset($j['validation']['lead_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => array_fill(0, 51, $barWA)]);
+check("lead_ids over the claim cap -> 400", $code === 400 && isset($j['validation']['lead_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$barWA, 'not-a-uuid']]);
+check("lead_ids with a malformed id -> 400", $code === 400 && isset($j['validation']['lead_ids']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$barWA, 42]]);
+check("lead_ids with a non-string -> 400", $code === 400 && isset($j['validation']['lead_ids']));
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+// barWA is deferred a day out (step 11) and can't come out of the queue; naming it is the way in
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$barWA]]);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+$db = new Database(); $held = $db->query("SELECT COUNT(*) AS n FROM brewer_lead WHERE claimedAt IS NOT NULL")->fetch_assoc()['n']; $db->close();
+check("naming a deferred lead claims it; count defaults to 0 so nothing else is held", $code === 200 && $ids === [$barWA] && $j['decided'] === 0 && $j['skipped'] === [] && intval($held) === 1);
+check("named row carries the full lead shape, recheck_after kept", $j['data'][0]['status'] === 'claimed' && $j['data'][0]['claimed_by'] === $REVIEWER && $j['data'][0]['recheck_after'] > time());
+// one lead with an open question, one plain queued lead for count to reach
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Question Brewing', ['url' => 'https://question.example']));
+$asked = $j['id'];
+call('PATCH', '', $asked, $ADMIN, (object)['needs_decision' => true, 'question' => 'Brand or brewery?']);
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Queue Brewing', ['url' => 'https://queue.example']));
+$queued = $j['id'];
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$BAD, $bar, $barWA, $asked, $barOther], 'count' => 1]);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+check("named + count: named rows first, then the queue", $code === 200 && $ids === [$barOther, $queued]);
+check("skipped lists unknown, closed, held and questioned ids, in the order given", count($j['skipped']) === 4
+    && $j['skipped'][0] === ['lead_id' => $BAD, 'reason' => 'unknown']
+    && $j['skipped'][1] === ['lead_id' => $bar, 'reason' => 'closed', 'resolution' => 'created']
+    && $j['skipped'][2]['lead_id'] === $barWA && $j['skipped'][2]['reason'] === 'claimed' && $j['skipped'][2]['claim_expires_at'] > time() + 14000
+    && $j['skipped'][3] === ['lead_id' => $asked, 'reason' => 'needs_decision']);
+// same id twice, in any case, is one row
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [strtoupper($barOther), $barOther]]);
+check("lead_ids deduplicates case-insensitively", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $barOther);
+// an expired hold on a named row is free again
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = claimedAt - 20000 WHERE id=?", [$barOther]); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$barOther]]);
+check("an expired hold on a named lead is free", $code === 200 && count($j['data']) === 1 && $j['skipped'] === []);
+// a named lead that carries a decision is taken by the decided step and not listed twice
+call('PATCH', '', $asked, $HUMAN, (object)['decision' => 'Brewery. Research it.']);
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$asked]]);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+check("a named lead with a decision waiting appears once, counted as decided", $code === 200 && $ids === [$asked] && $j['decided'] === 1 && $j['skipped'] === []);
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 0]);
+check("plain claim response also carries an empty skipped list", $code === 200 && ($j['skipped'] ?? null) === []);
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL, claimedBy = NULL"); $db->close();
 
 // 14. method + path guards
 [$code, $j, $hdr] = call('DELETE', '', $bar, $ADMIN);

@@ -5,7 +5,8 @@ hold, recorded so they can be researched properly later instead of created
 thin now. Admin-only. Spec: scratch/brewer-leads-spec.md (v3).
 
   POST  /brewer-lead             queue one; deduped server-side, never merged
-  POST  /brewer-lead/claim       every decided lead, plus the next N; all held
+  POST  /brewer-lead/claim       every decided lead, plus any leads named in
+                                 lead_ids, plus the next N; all held
   GET   /brewer-lead             ?status=queued|claimed|closed, ?resolution=,
                                  ?needs_decision=1 (the human check-in list)
   GET   /brewer-lead/{id}        one lead
@@ -406,15 +407,47 @@ class BrewerLead {
     //   1. every open lead carrying a decision -- a human answered, nobody has
     //      acted (acting resolves or defers, and a defer clears the decision).
     //      All of them, regardless of count, first in data.
-    //   2. then `count` more: open, no open question, not deferred into the
+    //   2. every lead named in `lead_ids`, in the order given. A human
+    //      pointing an agent at a lead is the reason to look, so these skip
+    //      the queue order and a future recheck_after. They do not skip an
+    //      open question (the answer is a decision, which step 1 then hands
+    //      out) or a closed row (reopen is a PATCH). A row that cannot be held
+    //      is reported in `skipped` -- unknown, claimed, closed, or
+    //      needs_decision -- rather than failing the call, so a partial claim
+    //      is still a usable claim. Same shape as Review::claim()'s brewer_ids.
+    //   3. then `count` more: open, no open question, not deferred into the
     //      future, claim free, oldest first.
-    // A row with needsDecision=1 is never handed out.
-    public function claim($count){
+    // A row with needsDecision=1 is never handed out. The named rows lock with
+    // a plain FOR UPDATE, so the `claimed` verdict in `skipped` is truthful
+    // rather than a race with a concurrent claim.
+    public function claim($count, $leadIDs = null){
         $count = intval($count);
         // 0 is a real answer: only the decided rows, nothing else held. An
-        // omitted count defaults to 10 in api(), never here.
+        // omitted count defaults to 10 in api() -- or to 0 when lead_ids is
+        // given, since naming leads is asking for those -- never here.
         if($count < 0){$count = 0;}
         if($count > self::CLAIM_MAX){$count = self::CLAIM_MAX;}
+
+        // lead_ids -- optional; 1..CLAIM_MAX UUIDs, deduplicated, order kept
+        if(!is_null($leadIDs)){
+            if(!is_array($leadIDs) || empty($leadIDs) || count($leadIDs) > self::CLAIM_MAX){
+                $this->validationError(array('lead_ids' => 'lead_ids must be an array of 1 to ' . self::CLAIM_MAX . ' lead IDs.'), 'POST /brewer-lead/claim');
+                return;
+            }
+            $uuid = new uuid();
+            $clean = array();
+            foreach($leadIDs as $leadID){
+                $leadID = is_string($leadID) ? strtolower(trim($leadID)) : '';
+                if($leadID === '' || !$uuid->validate($leadID)){
+                    $this->validationError(array('lead_ids' => 'lead_ids must contain only valid lead IDs.'), 'POST /brewer-lead/claim');
+                    return;
+                }
+                $clean[$leadID] = true;
+            }
+            $leadIDs = array_keys($clean);
+        }else{
+            $leadIDs = array();
+        }
 
         $now = time();
         $free = $now - self::CLAIM_TTL;
@@ -438,6 +471,47 @@ class BrewerLead {
         }
         $decided = count($ids);
 
+        // 2. The named leads, in the order given
+        $skipped = array();
+        if(!empty($leadIDs)){
+            $placeholders = implode(', ', array_fill(0, count($leadIDs), '?'));
+            $result = $db->query("SELECT id, status, resolution, needsDecision+0 AS needsDecision, claimedAt FROM brewer_lead WHERE id IN ($placeholders) FOR UPDATE", $leadIDs);
+            if($db->error){
+                $conn->rollback();
+                $this->dbError($db, 'POST /brewer-lead/claim - named');
+                $db->close();
+                return;
+            }
+            $found = array();
+            while($row = $result->fetch_assoc()){
+                $found[strtolower($row['id'])] = $row;
+            }
+            foreach($leadIDs as $leadID){
+                if(in_array($leadID, $ids, true)){
+                    continue;   // step 1 already holds it: it carries a decision
+                }
+                if(!array_key_exists($leadID, $found)){
+                    $skipped[] = array('lead_id' => $leadID, 'reason' => 'unknown');
+                    continue;
+                }
+                $row = $found[$leadID];
+                if($row['status'] === 'closed'){
+                    $skipped[] = array('lead_id' => $leadID, 'reason' => 'closed', 'resolution' => $row['resolution']);
+                    continue;
+                }
+                if(intval($row['needsDecision']) === 1){
+                    $skipped[] = array('lead_id' => $leadID, 'reason' => 'needs_decision');
+                    continue;
+                }
+                if(!is_null($row['claimedAt']) && intval($row['claimedAt']) >= $free){
+                    $skipped[] = array('lead_id' => $leadID, 'reason' => 'claimed', 'claim_expires_at' => intval($row['claimedAt']) + self::CLAIM_TTL);
+                    continue;
+                }
+                $ids[] = $leadID;
+            }
+        }
+
+        // 3. Then count more, excluding what steps 1 and 2 took
         $exclude = '';
         $params = [$free, $now];
         if(!empty($ids)){
@@ -489,6 +563,7 @@ class BrewerLead {
         $this->json['claimed_by'] = $this->userID;
         $this->json['claim_expires_at'] = $now + self::CLAIM_TTL;
         $this->json['decided'] = $decided;
+        $this->json['skipped'] = $skipped;   // named leads not held: unknown, claimed, closed, or needs_decision
         $this->json['data'] = $data;
     }
 
@@ -799,7 +874,8 @@ class BrewerLead {
                 break;
             case 'POST':
                 if($function === 'claim'){
-                    $this->claim(isset($data->count) ? $data->count : 10);
+                    $leadIDs = isset($data->lead_ids) ? $data->lead_ids : null;
+                    $this->claim(isset($data->count) ? $data->count : (is_null($leadIDs) ? 10 : 0), $leadIDs);
                 }elseif(empty($function) && empty($id)){
                     $this->add($data);
                 }else{
