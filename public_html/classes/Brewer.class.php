@@ -2038,8 +2038,15 @@ class Brewer {
                                 break;
                             case 'beer':
                                 // GET https://api.catalog.beer/brewer/{brewer_id}/beer
+                                // Optional ?parent=&exclude=&count= are read here
+                                // rather than from the $count index.php passes, which
+                                // defaults to 500 and so cannot tell "absent" from
+                                // "500"; absent must mean the whole catalog.
                                 $beer = new Beer();
-                                $this->json = $beer->brewerBeers($id);
+                                $this->json = $beer->brewerBeers($id,
+                                    isset($_GET['parent']) ? $_GET['parent'] : null,
+                                    isset($_GET['exclude']) ? $_GET['exclude'] : null,
+                                    isset($_GET['count']) ? $_GET['count'] : null);
                                 if($beer->error){
                                     $this->json['error'] = true;
                                     $this->json['error_msg'] = $beer->errorMsg;

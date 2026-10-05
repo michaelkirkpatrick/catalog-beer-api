@@ -791,3 +791,16 @@ Brewer,BR-242,Shared Domain - Domain Email Is Staff On The Sub-Page Brewer,GET,/
 Brewer,BR-243,Shared Domain - Domain Email Is Staff On The Root Brewer,GET,/brewer/{id}/permissions,User,200,Done
 Brewer,BR-244,Shared Domain - Delete Brewery #54,DELETE,/brewer/{id},Admin,204,Done
 Brewer,BR-245,Shared Domain - Delete Brewery #55,DELETE,/brewer/{id},Admin,204,Done
+Brewer,BR-246,Brewer Beer Filters - Create Brewery #56,POST,/brewer,Admin,201,Done
+Beer,BEER-178,Brewer Beer Filters - Create Beer #31 - IPA One,POST,/beer,Admin,201,Done
+Beer,BEER-179,Brewer Beer Filters - Create Beer #32 - IPA Two,POST,/beer,Admin,201,Done
+Beer,BEER-180,Brewer Beer Filters - Create Beer #33 - Blonde,POST,/beer,Admin,201,Done
+Brewer,BR-247,Brewer Beer Filters - No Parameters Is The Whole Catalog,GET,/brewer/{id}/beer,Admin,200,Done
+Brewer,BR-248,Brewer Beer Filters - Filter By Family,GET,/brewer/{id}/beer?parent=,Admin,200,Done
+Brewer,BR-249,Brewer Beer Filters - Count Cuts The List And Says So,GET,/brewer/{id}/beer?parent=&count=1,Admin,200,Done
+Brewer,BR-250,Brewer Beer Filters - Exclude The Beer Itself,GET,/brewer/{id}/beer?parent=&exclude=&count=6,Admin,200,Done
+Brewer,BR-251,Brewer Beer Filters - Unknown Family Is Empty Not An Error,GET,/brewer/{id}/beer?parent=no-such-family,Admin,200,Done
+Brewer,BR-252,Brewer Beer Filters - Zero Count Is Refused,GET,/brewer/{id}/beer?count=0,Admin,400,Done
+Brewer,BR-253,Brewer Beer Filters - Non-UUID Exclude Is Refused,GET,/brewer/{id}/beer?exclude=nope,Admin,400,Done
+Brewer,BR-254,Brewer Beer Filters - Malformed Parent Is Refused,GET,/brewer/{id}/beer?parent=IPA%20Family!,Admin,400,Done
+Brewer,BR-255,Brewer Beer Filters - Delete Brewery #56,DELETE,/brewer/{id},Admin,204,Done

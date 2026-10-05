@@ -1407,9 +1407,72 @@ class Beer {
     }
 
     // Beers by Brewer
-    public function brewerBeers($brewerID){
+    //
+    // GET /brewer/{brewer_id}/beer. Without parameters it is the brewery's
+    // whole catalog, A-Z, which the brewer page renders in full (48 brewers
+    // hold more than 500 beers, one holds 5,479, so there is no default cap).
+    // The three optional parameters exist for the other consumer, the beer
+    // page's "more from this brewer" strip, which only ever wanted a handful
+    // of same-family siblings and was pulling the full list to find them:
+    //   parent   family slug; only beers filed in that family
+    //   exclude  a beer_id to leave out (the beer whose page is being drawn)
+    //   count    1..500; LIMIT count+1, and has_more says whether a row was cut
+    // Every parameter is validated (400) rather than silently ignored, so a
+    // typo never comes back as "the whole catalog". Each is null when absent.
+    public function brewerBeers($brewerID, $parent = null, $exclude = null, $count = null){
         // Return Array
         $beerInfo = array();
+
+        // ----- Optional filters -----
+        if($parent !== null && !preg_match('/^[a-z0-9-]{1,64}$/', $parent)){
+            $this->error = true;
+            $this->errorMsg = 'Invalid parent. Expected a style family id such as "ipa" or "porter".';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 326;
+            $errorLog->errorMsg = 'Invalid parent filter on brewer beer list';
+            $errorLog->badData = $parent;
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            return $beerInfo;
+        }
+        if($exclude !== null && !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $exclude)){
+            $this->error = true;
+            $this->errorMsg = 'Invalid exclude. Expected a beer_id.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 327;
+            $errorLog->errorMsg = 'Invalid exclude filter on brewer beer list';
+            $errorLog->badData = $exclude;
+            $errorLog->filename = 'API / Beer.class.php';
+            $errorLog->write();
+            return $beerInfo;
+        }
+        if($count !== null){
+            // A string of digits only: "7" yes, "7.5", "-1", "" and "abc" no.
+            if(!is_int($count) && !ctype_digit((string)$count)){
+                $count = 0;
+            }
+            $count = intval($count);
+            if($count < 1 || $count > 500){
+                $this->error = true;
+                $this->errorMsg = 'Invalid count. Expected an integer from 1 to 500.';
+                $this->responseCode = 400;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 328;
+                $errorLog->errorMsg = 'Invalid count on brewer beer list';
+                $errorLog->badData = var_export($count, true);
+                $errorLog->filename = 'API / Beer.class.php';
+                $errorLog->write();
+                return $beerInfo;
+            }
+        }
 
         if(!empty($brewerID)){
             // Validate Brewer ID
@@ -1426,13 +1489,34 @@ class Beer {
                 $beerInfo['data'] = array();
 
                 // Prep for Query
+                $sql = "SELECT id, name, style, style_id, parent, class, beverage_type, abv, cbVerified, brewerVerified FROM beer WHERE brewerID=?";
+                $params = [$brewerID];
+                if($parent !== null){
+                    $sql .= " AND parent=?";
+                    $params[] = $parent;
+                }
+                if($exclude !== null){
+                    $sql .= " AND id<>?";
+                    $params[] = strtolower($exclude);
+                }
+                $sql .= " ORDER BY name";
+                if($count !== null){
+                    // One extra row answers has_more without a second query
+                    $sql .= " LIMIT ?";
+                    $params[] = $count + 1;
+                }
                 $db = new Database();
-                $result = $db->query("SELECT id, name, style, style_id, parent, class, beverage_type, abv, cbVerified, brewerVerified FROM beer WHERE brewerID=? ORDER BY name", [$brewerID]);
+                $result = $db->query($sql, $params);
                 if(!$db->error){
                     if($result->num_rows >= 1){
                         // Has Beers associated with it
                         $i=0;
                         while($array = $result->fetch_assoc()){
+                            if($count !== null && $i >= $count){
+                                // The extra row: there is more than the caller asked for
+                                $beerInfo['has_more'] = true;
+                                break;
+                            }
                             $beerInfo['data'][$i]['id'] = $array['id'];
                             $beerInfo['data'][$i]['name'] = $array['name'];
                             $beerInfo['data'][$i]['style'] = $array['style'];
