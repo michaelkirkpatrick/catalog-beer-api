@@ -105,7 +105,12 @@ class Activity {
             }
 
             // 3. Recent Activity — last 50 write operations (all response codes)
-            $result = $db->query("SELECT al.timestamp, u.name AS user_name, al.method, al.uri, al.responseCode, al.response FROM api_logging al LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id WHERE al.method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND al.timestamp >= ? ORDER BY al.timestamp DESC LIMIT 50", [$cutoffTimestamp]);
+            // Deferred join: pick the 50 ids from idx_method_ts alone, then read
+            // only those rows. Selecting `response` directly makes MySQL scan and
+            // sort every row in the window, text columns and all -- on a box
+            // whose buffer pool is smaller than the table, that is a disk read
+            // of the whole table per page view.
+            $result = $db->query("SELECT al.timestamp, u.name AS user_name, al.method, al.uri, al.responseCode, al.response FROM (SELECT id FROM api_logging WHERE method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND timestamp >= ? ORDER BY timestamp DESC LIMIT 50) recent JOIN api_logging al ON al.id = recent.id LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id ORDER BY al.timestamp DESC", [$cutoffTimestamp]);
             if($db->error){
                 $this->error = true;
                 $this->errorMsg = $db->errorMsg;
