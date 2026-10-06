@@ -189,6 +189,7 @@ The `cron/` directory is deployed by `deploy.sh` to the vhost-root `cron/` besid
 - Requires the `algolia` table in MySQL (columns: `algolia_id`, `beer_id`, `brewer_id`, `location_id`)
 - `ensureAlgoliaRecord()` creates local `algolia` table entries for new records before uploading
 - Optional `limit` argument restricts number of brewers processed (for testing)
+- **Prose in a search object is capped at `Algolia::PROSE_MAX_BYTES` (3,000) by `Algolia::truncateProse()`** (brewer and beer `description`; UTF-8-safe, word-boundary, no mbstring). Algolia refuses a record over 10 KB and `saveObject()` only logs the refusal (error 228), so before this a brewer with a long description was stored and silently never indexed. **Offline test: `php tests/algolia-truncate.php`.** Pushing settings never re-indexes records; a new attribute needs every record re-saved (a brewer-only loop is ~4 min; `batch-upload.php` rewrites everything).
 
 **Schema dependency:** `update-usage.php` requires a `UNIQUE INDEX` on `api_usage (apiKey, year, month)` for `INSERT ... ON DUPLICATE KEY UPDATE`. The index must be applied before the cron runs:
 ```sql

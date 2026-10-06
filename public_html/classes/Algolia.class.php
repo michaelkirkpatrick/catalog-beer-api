@@ -11,6 +11,45 @@ class Algolia {
     public $error = false;
     public $errorMsg = null;
 
+    /*--
+    The most bytes of prose a search object carries. Algolia refuses a record
+    over 10 KB, and saveObject() logs that refusal (error 228) without failing
+    the write that triggered it -- so a brewer or beer with a very long
+    description was stored in the catalog and silently never indexed. The
+    catalog allows a 65,535-byte description; a search object needs enough to
+    match on and to snippet (30 words), not the whole essay. 3,000 bytes leaves
+    room for a brewer's denormalised geography (_geoloc, cities, states) in
+    the same record.
+    --*/
+    const PROSE_MAX_BYTES = 3000;
+
+    /*--
+    Cut $text to at most $maxBytes without splitting a UTF-8 sequence, then
+    back to the last whitespace so the cut never lands mid-word (unless the
+    text has no whitespace in the window, when a mid-word cut is the only
+    one). Returns $text unchanged when it fits; null and '' pass through.
+    No mbstring -- production does not have it; PCRE's /u is the validity
+    check, as elsewhere in the cron scripts.
+    --*/
+    public static function truncateProse($text, $maxBytes = self::PROSE_MAX_BYTES){
+        if(!is_string($text) || strlen($text) <= $maxBytes){
+            return $text;
+        }
+        $cut = substr($text, 0, $maxBytes);
+        // Drop a trailing partial multibyte sequence (at most 3 bytes)
+        for($i = 0; $i < 3 && $cut !== '' && !preg_match('//u', $cut); $i++){
+            $cut = substr($cut, 0, -1);
+        }
+        // Prefer a whitespace boundary within the last quarter of the window
+        $space = strrpos($cut, ' ');
+        $nl = strrpos($cut, "\n");
+        $boundary = max($space === false ? -1 : $space, $nl === false ? -1 : $nl);
+        if($boundary >= intdiv($maxBytes * 3, 4)){
+            $cut = substr($cut, 0, $boundary);
+        }
+        return rtrim($cut);
+    }
+
     /**
      * Add a new Algolia record
      *

@@ -1683,7 +1683,8 @@ class Beer {
             $array['style_class_slug'] = $this->class;
             if(!empty($family['class_name'])){$array['style_class'] = $family['class_name'];}
         }
-        if(!empty($this->description)){$array['description'] = $this->description;}
+        // Capped for the 10 KB record limit, as the brewer object does
+        if(!empty($this->description)){$array['description'] = Algolia::truncateProse($this->description);}
         // abv is NOT NULL in the schema, so it is always known — index it
         // unconditionally, zero included. The old !empty() test dropped a
         // genuine 0% beer from the index entirely, which kept it out of the

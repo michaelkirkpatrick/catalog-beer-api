@@ -1729,8 +1729,10 @@ class Brewer {
         $array['brewerID'] = $this->brewerID;
         $array['name'] = $this->name;
 
-        // Optional Values that may be stored as null
-        if(!empty($this->description)){$array['description'] = $this->description;}
+        // Optional Values that may be stored as null. The description is
+        // capped (Algolia::truncateProse) so a long one cannot push the record
+        // past Algolia's 10 KB limit and silently drop the brewer from search.
+        if(!empty($this->description)){$array['description'] = Algolia::truncateProse($this->description);}
         if(!empty($this->shortDescription)){$array['short_description'] = $this->shortDescription;}
         if(!empty($this->url)){$array['url'] = $this->url;}
 
