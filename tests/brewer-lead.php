@@ -19,7 +19,9 @@ first regardless of count, and an expired claim is free again; resolve, defer,
 ask and decide enforce their field and state rules; a closed row needs
 reopen; the list filters translate the wire vocabulary; and a named claim
 (lead_ids) holds exactly the leads it names, deferred or not, reporting
-unknown, held, closed and questioned ids in `skipped` rather than failing.
+unknown, held, closed and questioned ids in `skipped` rather than failing;
+and a non-US lead is filed with its country_code, dedups by name within the
+country, is never handed out by the queue, and is listed by ?country_code=.
 --*/
 if(php_sapi_name() !== 'cli'){
     exit(1);
@@ -94,7 +96,11 @@ check("city without sub_code -> 400", $code === 400 && isset($j['validation']['s
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'ZZ']));
 check("unknown sub_code -> 400", $code === 400 && isset($j['validation']['sub_code']) && !isset($j['validation']['url']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'CA-BC']));
-check("non-US ISO code -> 400", $code === 400 && isset($j['validation']['sub_code']));
+check("sub_code in another country than country_code -> 400", $code === 400 && str_contains($j['validation']['sub_code'] ?? '', 'not in country_code US'));
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'OR', 'country_code' => 'ZZ']));
+check("unassigned country_code -> 400", $code === 400 && isset($j['validation']['country_code']));
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['city' => 'Bend', 'sub_code' => 'Oregon']));
+check("sub_code that is not a code -> 400", $code === 400 && isset($j['validation']['sub_code']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['url' => 'not a url at all']));
 check("malformed url -> 400", $code === 400 && isset($j['validation']['url']));
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Bar Brewing', ['url' => 'https://x.example', 'source_url' => 'nope']));
@@ -354,6 +360,32 @@ check("root on a host held only by a sub-page brewer -> 201", $code === 201 && $
 $owner = $j['id'];
 [$code, $j] = call('POST', '', '', $ADMIN, lead('Echo Beer', ['url' => 'https://owner.example/echo', 'source_url' => 'https://news.example/echo']));
 check("another page on that host dedups to the same lead (host-level)", $code === 200 && $j['id'] === $owner && count($j['sources']) === 2);
+
+// 17. non-US leads: filed with a country, placed by city + country, never queued
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Maple Brewing', ['city' => 'Vancouver', 'sub_code' => 'bc', 'country_code' => 'ca', 'source_url' => 'https://news.example/maple']));
+check("CA lead -> 201, bare 'bc' prefixed with its country, state_short BC", $code === 201 && $j['country_code'] === 'CA' && $j['sub_code'] === 'CA-BC' && $j['state_short'] === 'BC' && $j['status'] === 'queued');
+$maple = $j['id'];
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Hafen Brauerei', ['city' => 'Hamburg', 'country_code' => 'DE', 'source_url' => 'https://news.example/hafen']));
+check("DE lead with city and no sub_code is placed -> 201", $code === 201 && $j['country_code'] === 'DE' && $j['sub_code'] === null && $j['state_short'] === null);
+$hafen = $j['id'];
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Hafen Brauerei', ['city' => 'Hamburg', 'country_code' => 'DE', 'source_url' => 'https://other.example/hafen']));
+check("same name in the same country dedups to that lead, source appended", $code === 200 && $j['id'] === $hafen && count($j['sources']) === 2);
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Hafen Brauerei', ['city' => 'Wien', 'country_code' => 'AT', 'source_url' => 'https://news.example/hafen-at']));
+check("same name in another country is a new lead", $code === 201 && $j['id'] !== $hafen && $j['country_code'] === 'AT');
+$hafenAT = $j['id'];
+[$code, $j] = call('POST', '', '', $ADMIN, lead('Hafen Brauerei', ['city' => 'Hamburg', 'sub_code' => 'HH']));
+check("a US-default lead with a non-US region code -> 400", $code === 400 && isset($j['validation']['sub_code']));
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 50]);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+check("the queue never hands out a non-US lead", $code === 200 && count(array_intersect($ids, [$maple, $hafen, $hafenAT])) === 0);
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['lead_ids' => [$maple]]);
+check("naming a non-US lead still holds it", $code === 200 && count($j['data']) === 1 && $j['data'][0]['id'] === $maple && $j['skipped'] === []);
+[$code, $j] = call('GET', '', '', $ADMIN, null, ['country_code' => 'de']);
+$ids = array_map(fn($r) => $r['id'], $j['data']);
+check("list ?country_code=de is the German backlog, echoed uppercased", $code === 200 && $ids === [$hafen] && $j['country_code'] === 'DE');
+[$code, $j] = call('GET', '', '', $ADMIN, null, ['country_code' => 'ZZ']);
+check("list with an unassigned country_code -> 400", $code === 400 && isset($j['validation']['country_code']));
+$db = new Database(); $db->query("UPDATE brewer_lead SET claimedAt = NULL, claimedBy = NULL"); $db->close();
 
 $db = new Database(); $n = $db->query("SELECT COUNT(*) c FROM error_log")->fetch_assoc()['c']; $db->close();
 echo "error_log rows written by the expected-failure cases: $n\n";

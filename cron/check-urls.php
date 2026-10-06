@@ -47,8 +47,10 @@ if($db->error){
     exit(1);
 }
 
-// Oldest-checked first; never-checked brewers before all of them
-$result = $db->query("SELECT id, name, url, urlFailCount, urlDomainRegistered, createdAt FROM brewer WHERE url IS NOT NULL AND url != '' ORDER BY (urlCheckedAt IS NULL) DESC, urlCheckedAt ASC LIMIT ?", [$limit]);
+// Oldest-checked first; never-checked brewers before all of them. Closed
+// brewers are skipped: a dead site on a closed brewery is expected, not a
+// finding, and the record keeps its last verdict as it stood at closure.
+$result = $db->query("SELECT id, name, url, urlFailCount, urlDomainRegistered, createdAt FROM brewer WHERE url IS NOT NULL AND url != '' AND status = 'active' ORDER BY (urlCheckedAt IS NULL) DESC, urlCheckedAt ASC LIMIT ?", [$limit]);
 if($db->error || $result === null){
     // Database::query() already logged the details. The most likely cause is
     // the url-status migration not being applied yet.

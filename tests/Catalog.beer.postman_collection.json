@@ -3983,14 +3983,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(null);",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the brewery you\\'d like to add.');",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -4082,7 +4082,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_1'));",
@@ -4278,7 +4278,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_2'));",
@@ -4475,7 +4475,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_3'));",
@@ -4681,7 +4681,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_4'));",
@@ -4812,14 +4812,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(null);",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.url).to.equal('invalid');",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal('Sorry, ' + pm.environment.get('brewer_name_4') + ' already uses that page as its website. If this is the same brewery, please [contact us](/contact)');",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -4922,7 +4922,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_4'));",
@@ -5105,7 +5105,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_5'));",
@@ -5230,7 +5230,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_5'));",
@@ -5413,7 +5413,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_6'));",
@@ -5609,7 +5609,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_7'));",
@@ -5746,7 +5746,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_7'));",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_7'));",
@@ -6079,14 +6079,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal('Invalid UUID. All UUIDs must be compliant with RFC 4122 and the version 4 UUID.');",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -6191,14 +6191,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal('Invalid UUID. All UUIDs must be compliant with RFC 4122 and the version 4 UUID.');",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -6303,14 +6303,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(null);",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the brewery you\\'d like to add.');",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -6404,7 +6404,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_8'));",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_8'));",
@@ -16303,7 +16303,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_9'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_9'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_9'));",
@@ -16500,7 +16500,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_10'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_10'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_10'));",
@@ -16697,7 +16697,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_11'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_11'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_11'));",
@@ -16894,7 +16894,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_12'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_12'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_12'));",
@@ -17091,7 +17091,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_13'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_13'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_13'));",
@@ -18309,7 +18309,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -18436,7 +18436,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -18556,14 +18556,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(\"Whoops, we seem to be missing the brewer_id for the brewer. Please check your request and try again.\");",
 											"",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -18677,14 +18677,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(\"Sorry, we couldn't find a brewer with the brewer_id you provided.\");",
 											"",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -18792,7 +18792,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -18904,7 +18904,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -19017,7 +19017,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -19130,7 +19130,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -19243,7 +19243,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -19356,7 +19356,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_14'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_14'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_14'));",
@@ -23751,14 +23751,14 @@
 											"    pm.expect(jsonData.error_msg).to.equal(null);",
 											"    ",
 											"    // Validation State",
-											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
 											"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 											"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 											"    ",
 											"    // Validation Message",
-											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the brewery you\\'d like to add.');",
 											"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 											"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -23850,7 +23850,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_15'));",
@@ -24200,7 +24200,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_16'));",
@@ -24397,7 +24397,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_17'));",
@@ -24603,7 +24603,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_18'));",
@@ -24800,7 +24800,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_19'));",
@@ -24996,7 +24996,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_20'));",
@@ -25195,7 +25195,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_21'));",
@@ -25328,14 +25328,14 @@
 													"    pm.expect(jsonData.error_msg).to.equal('Invalid UUID. All UUIDs must be compliant with RFC 4122 and the version 4 UUID.');",
 													"    ",
 													"    // Validation State",
-													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 													"    ",
 													"    // Validation Message",
-													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -25440,14 +25440,14 @@
 													"    pm.expect(jsonData.error_msg).to.equal('Invalid UUID. All UUIDs must be compliant with RFC 4122 and the version 4 UUID.');",
 													"    ",
 													"    // Validation State",
-													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 													"    ",
 													"    // Validation Message",
-													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -25552,14 +25552,14 @@
 													"    pm.expect(jsonData.error_msg).to.equal(null);",
 													"    ",
 													"    // Validation State",
-													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_state.name).to.equal('invalid');",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 													"    ",
 													"    // Validation Message",
-													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_msg.name).to.equal('Please give us the name of the brewery you\\'d like to add.');",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -25653,7 +25653,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_22'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_22'));",
@@ -26038,7 +26038,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_21'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_21'));",
@@ -35825,7 +35825,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_23'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_23'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_23'));",
@@ -36022,7 +36022,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_24'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_24'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_24'));",
@@ -36219,7 +36219,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_25'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_25'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_25'));",
@@ -36416,7 +36416,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_26'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_26'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_26'));",
@@ -36613,7 +36613,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_27'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_27'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_27'));",
@@ -36813,7 +36813,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -36940,7 +36940,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37060,14 +37060,14 @@
 													"    pm.expect(jsonData.error_msg).to.equal(\"Whoops, we seem to be missing the brewer_id for the brewer. Please check your request and try again.\");",
 													"",
 													"    // Validation State",
-													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 													"",
 													"    // Validation Message",
-													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -37172,14 +37172,14 @@
 													"    pm.expect(jsonData.error_msg).to.equal(\"Sorry, we couldn't find a brewer with the brewer_id you provided.\");",
 													"",
 													"    // Validation State",
-													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.description).to.equal(null);",
 													"    pm.expect(jsonData.valid_state.short_description).to.equal(null);",
 													"",
 													"    // Validation Message",
-													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.url).to.equal(null);",
 													"    pm.expect(jsonData.valid_msg.description).to.equal(null);",
@@ -37278,7 +37278,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37380,7 +37380,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37493,7 +37493,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37606,7 +37606,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37719,7 +37719,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -37832,7 +37832,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_28'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_28'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_28'));",
@@ -41798,7 +41798,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_29'));",
@@ -41995,7 +41995,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_30'));",
@@ -42263,7 +42263,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.object).to.equal('brewer');",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_31'));",
@@ -42462,7 +42462,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_32'));",
@@ -47077,7 +47077,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_33'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_33'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_33'));",
@@ -47275,7 +47275,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_34'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_34'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_34'));",
@@ -47472,7 +47472,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_35'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_35'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_35'));",
@@ -47598,7 +47598,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_35'))",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_35'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_35'));",
@@ -47783,7 +47783,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -47910,7 +47910,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -48024,7 +48024,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -48137,7 +48137,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -48250,7 +48250,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -48363,7 +48363,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 													"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -52352,7 +52352,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -52465,7 +52465,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_36'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_36'));",
 											"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_36'));",
@@ -52727,7 +52727,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function(){",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 															"    pm.expect(jsonData.object).to.equal('brewer');",
 															"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_37'));",
@@ -52868,7 +52868,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function () {",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_37'));",
 															"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_37'));",
 															"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_37'));",
@@ -52994,7 +52994,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function () {",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_37'));",
 															"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_37'));",
 															"    pm.expect(jsonData.description).to.equal(pm.environment.get('brewer_description_37'));",
@@ -55613,7 +55613,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function () {",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_37'));",
 															"    pm.expect(jsonData.object).to.equal('brewer');",
 															"    pm.expect(jsonData.cb_verified).to.equal(true);",
@@ -56274,7 +56274,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function () {",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_37'));",
 															"    pm.expect(jsonData.object).to.equal('brewer');",
 															"    pm.expect(jsonData.cb_verified).to.equal(true);",
@@ -56381,7 +56381,7 @@
 															"",
 															"pm.test(\"Valid JSON payload\", function () {",
 															"    var jsonData = pm.response.json();",
-															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+															"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 															"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_37'));",
 															"    pm.expect(jsonData.object).to.equal('brewer');",
 															"    pm.expect(jsonData.cb_verified).to.equal(false);",
@@ -56686,7 +56686,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_38'));",
@@ -56805,7 +56805,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_38'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(true);",
@@ -56913,7 +56913,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_38'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(false);",
@@ -58169,7 +58169,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_39'));",
@@ -58566,7 +58566,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_39'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(true);",
@@ -59793,7 +59793,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_40'));",
@@ -59912,7 +59912,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_40'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(true);",
@@ -60704,7 +60704,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_41'));",
@@ -60824,7 +60824,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_41'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(false);",
@@ -61489,7 +61489,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_42'));",
@@ -61608,7 +61608,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.equal(pm.environment.get('brewer_id_42'));",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.cb_verified).to.equal(false);",
@@ -68068,7 +68068,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function(){",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_43'));",
@@ -70995,7 +70995,7 @@
 													"});",
 													"",
 													"pm.test(\"valid_state keys are unchanged\", function () {",
-													"    pm.expect(pm.response.json().valid_state).to.have.all.keys('name', 'url', 'description', 'short_description');",
+													"    pm.expect(pm.response.json().valid_state).to.have.all.keys('name', 'url', 'description', 'short_description', 'status', 'founded_year', 'closed_year', 'country_code');",
 													"});"
 												],
 												"type": "text/javascript"
@@ -76359,7 +76359,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_54'));",
 													"    pm.expect(jsonData.url).to.equal('https://catalog.beer/catalog-beer-test-page.html?shared=1');",
@@ -76457,7 +76457,7 @@
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
 													"    pm.expect(jsonData.object).to.equal('brewer');",
 													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_55'));",
 													"    pm.expect(jsonData.url).to.equal('https://catalog.beer/');",
@@ -78186,6 +78186,1111 @@
 								}
 							],
 							"description": "GET /brewer/{id}/beer takes optional ?parent=, ?exclude= and ?count= (API v5.2.0, Oct 2026). Without them the response is still the whole catalog -- the brewer page renders it in full and 48 brewers hold more than 500 beers -- so there is no default cap; the filters are what the beer page uses for its \"more from this brewer\" strip instead of pulling the full list. Invalid values are 400s, never silently ignored. Brewery #56 with two IPAs and one blonde; deleting the brewer cascades to the beers."
+						},
+						{
+							"name": "Brewer Status",
+							"item": [
+								{
+									"name": "BR-256 Create Brewery #57 With A Founding Year",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_57', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_57'));",
+													"    pm.expect(jsonData.status).to.equal('active');",
+													"    pm.expect(jsonData.founded_year).to.equal(1988);",
+													"    pm.expect(jsonData.closed_year).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"    pm.expect(jsonData.cb_verified).to.equal(true);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_57', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_57}}\",\n    \"founded_year\": 1988\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-257 Unknown Status Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.status).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.status).to.be.a('string');",
+													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"status\": \"defunct\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-258 A Closing Year Needs A Closed Status",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.closed_year).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.closed_year).to.be.a('string');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"closed_year\": 1997\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-259 A Closing Year Before The Founding Year Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.closed_year).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.closed_year).to.be.a('string');",
+													"    pm.expect(jsonData.valid_state.status).to.equal('valid');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"status\": \"closed\",\n    \"closed_year\": 1980\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-260 Close Brewery #57",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.status).to.equal('closed');",
+													"    pm.expect(jsonData.founded_year).to.equal(1988);",
+													"    pm.expect(jsonData.closed_year).to.equal(1997);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"status\": \"closed\",\n    \"closed_year\": 1997\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-180 A Closed Brewer Takes No New Location",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.brewer_id).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.brewer_id).to.be.a('string');",
+													"    pm.expect(jsonData.valid_msg.brewer_id).to.include('closed');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_57}}\",\n    \"name\": \"Taproom\",\n    \"country_code\": \"US\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-261 Reopening Clears The Closing Year",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.status).to.equal('active');",
+													"    pm.expect(jsonData.founded_year).to.equal(1988);",
+													"    pm.expect(jsonData.closed_year).to.equal(null);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"status\": \"active\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-262 A General User Cannot Set A Non-US Country",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_non_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Forbidden (HTTP 403)\", function () {",
+													"    pm.response.to.have.status(403);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.country_code).to.be.a('string');",
+													"    pm.expect(jsonData.valid_state.name).to.equal(null);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"[Postman API Test] {{$randomCompanyName}}\",\n    \"country_code\": \"CA\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-263 An Unassigned Country Code Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_msg.country_code).to.be.a('string');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"country_code\": \"ZZ\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-264 An Admin Sets The Country, Uppercased",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.country_code).to.equal('CA');",
+													"    pm.expect(jsonData.status).to.equal('active');",
+													"    pm.expect(jsonData.founded_year).to.equal(1988);",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"country_code\": \"ca\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-265 PUT Without The Fields Resets Them",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Valid JSON payload\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.status).to.equal('active');",
+													"    pm.expect(jsonData.founded_year).to.equal(null);",
+													"    pm.expect(jsonData.closed_year).to.equal(null);",
+													"    pm.expect(jsonData.country_code).to.equal('US');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_57}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-266 Delete Brewery #57",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													"",
+													"pm.environment.unset('brewer_name_57');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
 						}
 					]
 				},

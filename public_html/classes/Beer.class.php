@@ -1939,7 +1939,7 @@ class Beer {
         // natural-language matching is exact-token, so "mash" alone would
         // never return a beer named "Triple-Mashed" without it.
         $db = new Database();
-        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.lastModified AS brewer_lastModified, CASE WHEN LOWER(b.name) = LOWER(?) THEN 0 WHEN MATCH(b.name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(b.name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(b.name) AGAINST(? IN BOOLEAN MODE) OR LOWER(b.name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, b.name, b.id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
+        $result = $db->query("SELECT b.id, b.brewerID, b.name, b.style, b.style_id, b.parent, b.class, b.beverage_type, b.description, b.abv, b.ibu, b.cbVerified, b.brewerVerified, b.lastModified, br.id AS brewer_id, br.name AS brewer_name, br.description AS brewer_description, br.shortDescription AS brewer_shortDescription, br.url AS brewer_url, br.cbVerified AS brewer_cbVerified, br.brewerVerified AS brewer_brewerVerified, br.status AS brewer_status, br.foundedYear AS brewer_foundedYear, br.closedYear AS brewer_closedYear, br.countryCode AS brewer_countryCode, br.lastModified AS brewer_lastModified, CASE WHEN LOWER(b.name) = LOWER(?) THEN 0 WHEN MATCH(b.name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(b.name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM beer b JOIN brewer br ON b.brewerID = br.id WHERE MATCH(b.name, b.style, b.description) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(b.name) AGAINST(? IN BOOLEAN MODE) OR LOWER(b.name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, b.name, b.id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();
@@ -1979,6 +1979,10 @@ class Beer {
                 $brewerObj['description'] = $row['brewer_description'] ?? null;
                 $brewerObj['short_description'] = $row['brewer_shortDescription'] ?? null;
                 $brewerObj['url'] = $row['brewer_url'] ?? null;
+                $brewerObj['status'] = $row['brewer_status'];
+                $brewerObj['founded_year'] = is_null($row['brewer_foundedYear']) ? null : intval($row['brewer_foundedYear']);
+                $brewerObj['closed_year'] = is_null($row['brewer_closedYear']) ? null : intval($row['brewer_closedYear']);
+                $brewerObj['country_code'] = $row['brewer_countryCode'];
                 $brewerObj['cb_verified'] = $row['brewer_cbVerified'] ? true : false;
                 $brewerObj['brewer_verified'] = $row['brewer_brewerVerified'] ? true : false;
                 $brewerObj['last_modified'] = intval($row['brewer_lastModified']);

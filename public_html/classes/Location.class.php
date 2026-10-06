@@ -128,6 +128,32 @@ class Location {
             $this->validState['brewer_id'] = 'valid';
             $this->brewerObj = $brewer;
 
+            /*--
+            A closed brewery has no open venues. The map and /location/nearby
+            read the location table directly, so a location on a closed
+            brewer is a wrong pin for everyone; the review loop deletes a
+            closed brewery's locations on a human decision, and this is what
+            keeps a stale page from putting one back. Gated on arrival only --
+            a new location, or an existing one being moved onto the closed
+            brewer -- so the rows already held can still be edited while the
+            delete question is open.
+            --*/
+            $arriving = $newLocation || (isset($originalLocationBrewerID) && $originalLocationBrewerID != $brewerID);
+            if($brewer->status === 'closed' && $arriving){
+                $this->error = true;
+                $this->validState['brewer_id'] = 'invalid';
+                $this->validMsg['brewer_id'] = 'This brewery is closed, so it has no open locations to add. If it has reopened, update the brewer\'s status first.';
+                $this->responseCode = 400;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 336;
+                $errorLog->errorMsg = 'Location refused: brewer is closed';
+                $errorLog->badData = "Brewer: $brewerID / Method: $method";
+                $errorLog->filename = 'API / Location.class.php';
+                $errorLog->write();
+            }
+
             // Which brewer is this location currently associated with?
             if(($method == 'PUT' || $method == 'PATCH') && isset($originalLocationBrewerID)){
                 // Use saved brewerID from validate()
@@ -903,7 +929,7 @@ class Location {
                 // Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
                 // Request count+1 to determine if there are more results (eliminates second Haversine query)
                 $fetchCount = $count + 1;
-                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN US_addresses a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
+                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN US_addresses a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
                 if(!$db->error){
                     $rowCount = 0;
                     while($array = $result->fetch_assoc()){
@@ -925,7 +951,7 @@ class Location {
                         }
 
                         // Build Response Array
-                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>!empty($array['zip5']) ? strval($array['zip5']) : null, 'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
+                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>!empty($array['zip5']) ? strval($array['zip5']) : null, 'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'status'=>$array['b_status'], 'founded_year'=>is_null($array['b_foundedYear']) ? null : intval($array['b_foundedYear']), 'closed_year'=>is_null($array['b_closedYear']) ? null : intval($array['b_closedYear']), 'country_code'=>$array['b_countryCode'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
                         // Add to Array
                         $locationArray[] = $locationInfo;

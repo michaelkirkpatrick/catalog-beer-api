@@ -286,7 +286,10 @@ class Review {
             }
         }
 
-        // 3. Then count more, excluding what steps 1 and 2 took
+        // 3. Then count more, excluding what steps 1 and 2 took. Closed
+        //    brewers are not queued: there is nothing left to verify on a
+        //    record whose closure is the finding. A named claim (step 2)
+        //    still holds one, which is how a mistaken closure gets undone.
         $exclude = '';
         $params = [$free];
         if(!empty($ids)){
@@ -294,7 +297,7 @@ class Review {
             $params = array_merge($params, $ids);
         }
         $params[] = $count;
-        $result = $db->query("SELECT b.id FROM brewer b $latest WHERE $eligible$exclude ORDER BY (b.reviewedAt IS NULL) DESC, (b.urlStatus <> 'ok') DESC, b.reviewedAt ASC, b.lastModified ASC LIMIT ? FOR UPDATE SKIP LOCKED", $params);
+        $result = $db->query("SELECT b.id FROM brewer b $latest WHERE $eligible AND b.status = 'active'$exclude ORDER BY (b.reviewedAt IS NULL) DESC, (b.urlStatus <> 'ok') DESC, b.reviewedAt ASC, b.lastModified ASC LIMIT ? FOR UPDATE SKIP LOCKED", $params);
         if($db->error){
             $conn->rollback();
             $this->dbError($db, 'POST /review/claim - select');
@@ -322,7 +325,7 @@ class Review {
             // Full rows, in the order they were selected, each with the most
             // recent review's outcome and any decision a human left for it.
             $placeholders = implode(', ', array_fill(0, count($ids), '?'));
-            $result = $db->query("SELECT b.id, b.name, b.url, b.domainName, b.cbVerified+0 AS cbVerified, b.brewerVerified+0 AS brewerVerified, b.lastModified, b.createdAt, b.urlStatus, b.urlCheckedAt, b.urlLastOkAt, b.urlFailCount, b.urlFinal, b.urlLastKnown, b.urlDomainRegistered, b.reviewedAt, r.id AS reviewID, r.outcome, r.notes, r.question, r.decision, r.decidedAt FROM brewer b LEFT JOIN brewer_review r ON r.id = (SELECT id FROM brewer_review WHERE brewerID = b.id ORDER BY reviewedAt DESC LIMIT 1) WHERE b.id IN ($placeholders) ORDER BY FIELD(b.id, $placeholders)", array_merge($ids, $ids));
+            $result = $db->query("SELECT b.id, b.name, b.url, b.domainName, b.status, b.foundedYear, b.closedYear, b.countryCode, b.cbVerified+0 AS cbVerified, b.brewerVerified+0 AS brewerVerified, b.lastModified, b.createdAt, b.urlStatus, b.urlCheckedAt, b.urlLastOkAt, b.urlFailCount, b.urlFinal, b.urlLastKnown, b.urlDomainRegistered, b.reviewedAt, r.id AS reviewID, r.outcome, r.notes, r.question, r.decision, r.decidedAt FROM brewer b LEFT JOIN brewer_review r ON r.id = (SELECT id FROM brewer_review WHERE brewerID = b.id ORDER BY reviewedAt DESC LIMIT 1) WHERE b.id IN ($placeholders) ORDER BY FIELD(b.id, $placeholders)", array_merge($ids, $ids));
             if($db->error){
                 $this->dbError($db, 'POST /review/claim - rows');
                 $db->close();
@@ -345,6 +348,10 @@ class Review {
                     'name' => $row['name'],
                     'url' => $row['url'],
                     'domain_name' => $row['domainName'],
+                    'status' => $row['status'],
+                    'founded_year' => is_null($row['foundedYear']) ? null : intval($row['foundedYear']),
+                    'closed_year' => is_null($row['closedYear']) ? null : intval($row['closedYear']),
+                    'country_code' => $row['countryCode'],
                     'cb_verified' => intval($row['cbVerified']) === 1,
                     'brewer_verified' => intval($row['brewerVerified']) === 1,
                     'last_modified' => intval($row['lastModified']),

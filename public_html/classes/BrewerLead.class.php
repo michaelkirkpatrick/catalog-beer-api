@@ -161,7 +161,8 @@ class BrewerLead {
             'url' => $row['url'],
             'city' => $row['city'],
             'sub_code' => $row['sub_code'],
-            'state_short' => is_null($row['sub_code']) ? null : substr($row['sub_code'], 3, 2),
+            'state_short' => is_null($row['sub_code']) ? null : substr($row['sub_code'], 3),
+            'country_code' => $row['countryCode'],
             'source_url' => $row['sourceUrl'],
             'sources' => json_decode($row['sources']),
             'note' => $row['note'],
@@ -186,7 +187,7 @@ class BrewerLead {
         );
     }
 
-    const LEAD_COLUMNS = "l.id, l.name, l.url, l.city, l.sub_code, l.sourceUrl, l.sources, l.note, l.status, l.resolution, l.brewerID, b.name AS brewerName, l.recheckAfter, l.createdBy, l.createdAt, l.lastSeenAt, l.claimedBy, l.claimedAt, l.resolvedBy, l.resolvedAt, l.needsDecision+0 AS needsDecision, l.question, l.decision, l.decidedAt, l.decidedBy";
+    const LEAD_COLUMNS = "l.id, l.name, l.url, l.city, l.sub_code, l.countryCode, l.sourceUrl, l.sources, l.note, l.status, l.resolution, l.brewerID, b.name AS brewerName, l.recheckAfter, l.createdBy, l.createdAt, l.lastSeenAt, l.claimedBy, l.claimedAt, l.resolvedBy, l.resolvedAt, l.needsDecision+0 AS needsDecision, l.question, l.decision, l.decidedAt, l.decidedBy";
     const LEAD_FROM = "brewer_lead l LEFT JOIN brewer b ON b.id = l.brewerID";
 
     // ----- Field helpers -----
@@ -270,25 +271,50 @@ class BrewerLead {
         $city = $this->singleLine($data, 'city', 100, $messages);
         $note = $this->multiLine($data, 'note', 2000, $messages);
 
-        // ISO 3166-2, the form every address object carries (US-OR). A bare
-        // two-letter state is accepted and upgraded, since that is what a news
-        // article prints and what the agent is likeliest to send.
-        $subCode = null;
-        if(isset($data->sub_code) && !is_null($data->sub_code) && $data->sub_code !== ''){
-            $candidate = strtoupper(TextInput::trim(strval($data->sub_code)));
-            if(preg_match('/^[A-Z]{2}$/', $candidate)){
-                $candidate = 'US-' . $candidate;
-            }
-            $subdivisions = new Subdivisions();
-            if(preg_match('/^US-[A-Z]{2}$/', $candidate) && $subdivisions->validate($candidate, false)){
-                $subCode = $candidate;
-            }else{
-                $messages['sub_code'] = 'sub_code must be a US state or territory code (US-OR, or OR).';
+        // ISO 3166-1 alpha-2; US when absent. A non-US lead is stored (that
+        // is the point: filed, not thrown away) but never handed out by the
+        // claim queue, so recording one costs the loop nothing.
+        $countryCode = 'US';
+        if(isset($data->country_code) && !is_null($data->country_code) && $data->country_code !== ''){
+            $countryCode = CountryCode::normalize($data->country_code);
+            if(is_null($countryCode)){
+                $messages['country_code'] = 'country_code must be an ISO 3166-1 alpha-2 code (e.g. "US", "CA").';
+                $countryCode = 'US';
             }
         }
 
-        // A bare name is not researchable: a URL, or a city and a state
-        $placed = !is_null($city) && !is_null($subCode);
+        // ISO 3166-2, the form every address object carries (US-OR). A bare
+        // region code is accepted and prefixed with the country, since that
+        // is what a news article prints and what the agent is likeliest to
+        // send. A US code must be a known state or territory; for any other
+        // country the shape is all the catalog can check, and its country
+        // part must agree with country_code.
+        $subCode = null;
+        if(isset($data->sub_code) && !is_null($data->sub_code) && $data->sub_code !== ''){
+            $candidate = strtoupper(TextInput::trim(strval($data->sub_code)));
+            if(preg_match('/^[A-Z0-9]{1,3}$/', $candidate)){
+                $candidate = $countryCode . '-' . $candidate;
+            }
+            if(!preg_match('/^[A-Z]{2}-[A-Z0-9]{1,3}$/', $candidate)){
+                $messages['sub_code'] = 'sub_code must be an ISO 3166-2 code (US-OR, or OR).';
+            }elseif(substr($candidate, 0, 2) !== $countryCode){
+                $messages['sub_code'] = 'sub_code ' . $candidate . ' is not in country_code ' . $countryCode . '.';
+            }elseif($countryCode === 'US'){
+                $subdivisions = new Subdivisions();
+                if($subdivisions->validate($candidate, false)){
+                    $subCode = $candidate;
+                }else{
+                    $messages['sub_code'] = 'sub_code must be a US state or territory code (US-OR, or OR).';
+                }
+            }else{
+                $subCode = $candidate;
+            }
+        }
+
+        // A bare name is not researchable: a URL, or a city and a state. For
+        // a country the catalog holds no subdivisions for, a city and the
+        // country place it well enough to file.
+        $placed = !is_null($city) && (!is_null($subCode) || $countryCode !== 'US');
         if(is_null($url) && !$placed && !isset($messages['url']) && !isset($messages['sub_code'])){
             $msg = 'A lead needs a url, or a city and a sub_code.';
             $messages['url'] = $msg;
@@ -355,6 +381,17 @@ class BrewerLead {
                 return;
             }
             $existing = $result->fetch_assoc();
+        }elseif(is_null($existing) && $countryCode !== 'US'){
+            // No region to key on: a non-US lead dedups by name within its
+            // country, the coarsest key that still keeps two countries' X
+            // Brewing apart.
+            $result = $db->query("SELECT id, sources FROM brewer_lead WHERE nameKey=? AND countryCode=? ORDER BY lastSeenAt DESC LIMIT 1", [$nameKey, $countryCode]);
+            if($db->error){
+                $this->dbError($db, 'POST /brewer-lead - dedup country');
+                $db->close();
+                return;
+            }
+            $existing = $result->fetch_assoc();
         }
 
         if(!is_null($existing)){
@@ -382,8 +419,8 @@ class BrewerLead {
 
         $uuid = new uuid();
         $leadID = $uuid->generate('brewer_lead');
-        $db->query("INSERT INTO brewer_lead (id, name, nameKey, url, urlHost, city, sub_code, sourceUrl, sources, note, status, createdBy, createdAt, lastSeenAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)",
-            [$leadID, $name, $nameKey, $url, $urlHost, $city, $subCode, $sourceUrl, json_encode(array($sourceUrl)), $note, $this->userID, $now, $now]);
+        $db->query("INSERT INTO brewer_lead (id, name, nameKey, url, urlHost, city, sub_code, countryCode, sourceUrl, sources, note, status, createdBy, createdAt, lastSeenAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)",
+            [$leadID, $name, $nameKey, $url, $urlHost, $city, $subCode, $countryCode, $sourceUrl, json_encode(array($sourceUrl)), $note, $this->userID, $now, $now]);
         if($db->error){
             $this->dbError($db, 'POST /brewer-lead - insert');
             $db->close();
@@ -519,7 +556,10 @@ class BrewerLead {
             $params = array_merge($params, $ids);
         }
         $params[] = $count;
-        $result = $db->query("SELECT id FROM brewer_lead WHERE $eligible AND decision IS NULL AND (recheckAfter IS NULL OR recheckAfter <= ?)$exclude ORDER BY createdAt ASC LIMIT ? FOR UPDATE SKIP LOCKED", $params);
+        // US rows only: the loop cannot research a brewery the catalog cannot
+        // hold (POLICY 0.3), so a non-US lead waits, open, for expansion. A
+        // named claim or a decision still hands one out.
+        $result = $db->query("SELECT id FROM brewer_lead WHERE $eligible AND countryCode = 'US' AND decision IS NULL AND (recheckAfter IS NULL OR recheckAfter <= ?)$exclude ORDER BY createdAt ASC LIMIT ? FOR UPDATE SKIP LOCKED", $params);
         if($db->error){
             $conn->rollback();
             $this->dbError($db, 'POST /brewer-lead/claim - select');
@@ -590,7 +630,7 @@ class BrewerLead {
     // status translates the wire vocabulary to the stored state plus the
     // claim window. Open rows list oldest first (the claim's order, so the
     // list is the queue); closed rows most recently resolved first.
-    public function listLeads($status, $resolution, $needsDecisionOnly, $count, $cursor){
+    public function listLeads($status, $resolution, $needsDecisionOnly, $count, $cursor, $countryCode = null){
         $count = intval($count);
         if($count < 1){$count = self::LIST_DEFAULT;}
         if($count > self::LIST_MAX){$count = self::LIST_MAX;}
@@ -603,6 +643,12 @@ class BrewerLead {
         }
         if(!is_null($resolution) && !in_array($resolution, self::RESOLUTIONS, true)){
             $messages['resolution'] = 'resolution must be one of: ' . implode(', ', self::RESOLUTIONS) . '.';
+        }
+        if(!is_null($countryCode)){
+            $countryCode = CountryCode::normalize($countryCode);
+            if(is_null($countryCode)){
+                $messages['country_code'] = 'country_code must be an ISO 3166-1 alpha-2 code.';
+            }
         }
         if(!empty($messages)){
             $this->validationError($messages, 'GET /brewer-lead');
@@ -630,6 +676,11 @@ class BrewerLead {
         if($needsDecisionOnly){
             $where[] = 'l.needsDecision=1';
             $order = 'l.createdAt ASC';
+        }
+        if(!is_null($countryCode)){
+            // The expansion backlog is one call: ?country_code=CA
+            $where[] = 'l.countryCode=?';
+            $params[] = $countryCode;
         }
         $sql = "SELECT " . self::LEAD_COLUMNS . " FROM " . self::LEAD_FROM;
         if(!empty($where)){
@@ -666,6 +717,9 @@ class BrewerLead {
         }
         if($needsDecisionOnly){
             $this->json['needs_decision'] = true;
+        }
+        if(!is_null($countryCode)){
+            $this->json['country_code'] = $countryCode;
         }
         $this->json['has_more'] = $hasMore;
         if($hasMore){
@@ -849,7 +903,7 @@ class BrewerLead {
         /*---
         POST  https://api.catalog.beer/brewer-lead
         POST  https://api.catalog.beer/brewer-lead/claim
-        GET   https://api.catalog.beer/brewer-lead?status=&resolution=&needs_decision=1&count=&cursor=
+        GET   https://api.catalog.beer/brewer-lead?status=&resolution=&needs_decision=1&country_code=&count=&cursor=
         GET   https://api.catalog.beer/brewer-lead/{lead_id}
         PATCH https://api.catalog.beer/brewer-lead/{lead_id}
         ---*/
@@ -867,7 +921,8 @@ class BrewerLead {
                     $status = isset($_GET['status']) && $_GET['status'] !== '' ? strval($_GET['status']) : null;
                     $resolution = isset($_GET['resolution']) && $_GET['resolution'] !== '' ? strval($_GET['resolution']) : null;
                     $needsDecisionOnly = isset($_GET['needs_decision']) && in_array($_GET['needs_decision'], array('1', 'true'), true);
-                    $this->listLeads($status, $resolution, $needsDecisionOnly, $count, $cursor);
+                    $countryFilter = isset($_GET['country_code']) && $_GET['country_code'] !== '' ? strval($_GET['country_code']) : null;
+                    $this->listLeads($status, $resolution, $needsDecisionOnly, $count, $cursor, $countryFilter);
                 }else{
                     $this->invalidPath($function);
                 }

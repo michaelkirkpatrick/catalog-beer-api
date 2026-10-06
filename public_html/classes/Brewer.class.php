@@ -10,15 +10,30 @@ class Brewer {
     public $domainName = '';            // Optional
     public $cbVerified = false;
     public $brewerVerified = false;
+    /*--
+    Operating status, year-only dates and country. status is the one flag the
+    frontend, search, the URL cron and Location's gate read; a closure whose
+    year is unknown is status=closed with closedYear null, so the flag is never
+    derived from the year. Years are integers (or null) once validated; the
+    schema's CHECK constraints back the rules validateYears() enforces.
+    countryCode is ISO 3166-1 alpha-2, the standard location.countryCode uses.
+    --*/
+    public $status = 'active';
+    public $foundedYear = null;         // Optional
+    public $closedYear = null;          // Optional; needs status 'closed'
+    public $countryCode = 'US';
     public $urlStatus = '';             // Internal — never in the brewer object
     private $urlNote = '';              // Write-only curation note — never in the brewer object
     public $lastModified = 0;
 
+    const STATUSES = array('active', 'closed');
+    const YEAR_MIN = 1000;              // Weihenstephan is 1040; nothing older brews
+
     // Error Handling
     public $error = false;
     public $errorMsg = null;
-    public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null);
-    public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null);
+    public $validState = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'status'=>null, 'founded_year'=>null, 'closed_year'=>null, 'country_code'=>null);
+    public $validMsg = array('name'=>null, 'url'=>null, 'description'=>null, 'short_description'=>null, 'status'=>null, 'founded_year'=>null, 'closed_year'=>null, 'country_code'=>null);
     private $filename = 'API / Brewer.class.php';
     private $totalCount = 0;
 
@@ -27,8 +42,17 @@ class Brewer {
     public $responseCode = 200;
     public $json = array();
 
-    // Add Brewer
-    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields, $urlNote = ''){
+    /*--
+    Add Brewer
+
+    $fields carries the status/year/country values as sent, keyed by their
+    wire names: status, founded_year, closed_year, country_code. A key that is
+    absent means "not sent" -- on POST and PUT that is the default (active,
+    null, null, US), on PATCH it is "leave alone" and the key is also absent
+    from $patchFields. Kept out of the positional list because nine positional
+    arguments was already the limit of readable.
+    --*/
+    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields, $urlNote = '', $fields = array()){
 
         // Required Classes
         $db = new Database();
@@ -42,6 +66,7 @@ class Brewer {
         $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
         $originalURL = null;    // Set on PUT/PATCH of an existing brewer — a changed URL resets the url-monitoring columns
         $originalURLStatus = null;  // The monitoring verdict the URL change is reacting to; recorded in brewer_url_history
+        $originalStatus = null;     // Set on PUT/PATCH of an existing brewer; a reopen clears closedYear
         switch($method){
             case 'POST':
                 // Generate a new brewer_id
@@ -72,6 +97,7 @@ class Brewer {
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
                     $originalURLStatus = $this->urlStatus;
+                    $originalStatus = $this->status;
                 }else{
                     // Brewer doesn't exist, they'd like to add it
                     // Reset Errors from $this->validate()
@@ -110,6 +136,7 @@ class Brewer {
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
                     $originalURLStatus = $this->urlStatus;
+                    $originalStatus = $this->status;
                 }
                 break;
             default:
@@ -141,7 +168,11 @@ class Brewer {
             $changesURL = in_array('url', $patchFields) && $url != $originalURL;
             $changesOther = (in_array('name', $patchFields) && $name != $this->name)
                 || (in_array('description', $patchFields) && $description != $this->description)
-                || (in_array('short_description', $patchFields) && $shortDescription != $this->shortDescription);
+                || (in_array('short_description', $patchFields) && $shortDescription != $this->shortDescription)
+                || (in_array('status', $patchFields) && strtolower(trim(strval($fields['status'] ?? ''))) != $this->status)
+                || (in_array('founded_year', $patchFields) && intval($fields['founded_year'] ?? 0) != intval($this->foundedYear))
+                || (in_array('closed_year', $patchFields) && intval($fields['closed_year'] ?? 0) != intval($this->closedYear))
+                || (in_array('country_code', $patchFields) && strtoupper(trim(strval($fields['country_code'] ?? ''))) != $this->countryCode);
             $urlOnlyEdit = $changesURL && !$changesOther;
         }
 
@@ -336,6 +367,23 @@ class Brewer {
                 $this->shortDescription = $shortDescription;
                 $this->validateShortDescription();
 
+                /*--
+                Status, years and country: a full write, so an absent field is
+                its default -- active, no years, US -- the same way an omitted
+                description is cleared. That makes a PUT from a client that
+                predates these fields reopen a closed brewer, which is the REST
+                contract and is documented; the frontend form PATCHes.
+                --*/
+                $this->status = $this->sentOrDefault($fields, 'status', 'active');
+                $this->validateStatus();
+                $this->foundedYear = $this->sentOrDefault($fields, 'founded_year', null);
+                $this->validateYear('founded_year');
+                $this->closedYear = $this->sentOrDefault($fields, 'closed_year', null);
+                $this->validateYear('closed_year');
+                $this->validateYears();
+                $this->countryCode = $this->sentOrDefault($fields, 'country_code', 'US');
+                $this->validateCountryCode($users->admin);
+
                 if(!$this->error){
                     $this->lastModified = time();
 
@@ -344,8 +392,8 @@ class Brewer {
                         // Add Brewer (POST/PUT)
                         // createdAt is written here only — the PUT and PATCH
                         // update paths below never touch it
-                        $columns = ['id', 'name', 'cbVerified', 'brewerVerified', 'createdAt', 'lastModified'];
-                        $params = [$this->brewerID, $this->name, $dbCBV, $dbBV, $this->lastModified, $this->lastModified];
+                        $columns = ['id', 'name', 'cbVerified', 'brewerVerified', 'status', 'foundedYear', 'closedYear', 'countryCode', 'createdAt', 'lastModified'];
+                        $params = [$this->brewerID, $this->name, $dbCBV, $dbBV, $this->status, $this->foundedYear, $this->closedYear, $this->countryCode, $this->lastModified, $this->lastModified];
                         if(!empty($this->description)){
                             $columns[] = 'description';
                             $params[] = $this->description;
@@ -366,8 +414,8 @@ class Brewer {
                     }else{
                         // Update Brewer (PUT)
                         // PUT is a full replacement — omitted fields are cleared
-                        $setClauses = ['name=?', 'cbVerified=?', 'brewerVerified=?', 'lastModified=?'];
-                        $setParams = [$this->name, $dbCBV, $dbBV, $this->lastModified];
+                        $setClauses = ['name=?', 'cbVerified=?', 'brewerVerified=?', 'status=?', 'foundedYear=?', 'closedYear=?', 'countryCode=?', 'lastModified=?'];
+                        $setParams = [$this->name, $dbCBV, $dbBV, $this->status, $this->foundedYear, $this->closedYear, $this->countryCode, $this->lastModified];
                         if(!empty($this->description)){
                             $setClauses[] = 'description=?';
                             $setParams[] = $this->description;
@@ -454,6 +502,62 @@ class Brewer {
                     if(!$this->error && $this->shortDescription !== $currentShortDescription){
                         $setClauses[] = "shortDescription=?";
                         $setParams[] = $this->shortDescription;
+                    }
+                }
+
+                /*--
+                Status, years and country. Each is validated on its own, then
+                validateYears() checks the three together against the
+                effective values -- the patched ones where sent, the stored
+                ones (from validate() above) where not -- so a closed_year can
+                never land on an active brewer by patching one field at a
+                time. A reopen (status back to active) clears a stored
+                closedYear when the request did not address it: the year
+                belongs to the closure, and the schema's CHECK would refuse the
+                row otherwise.
+                --*/
+                $reopened = false;
+                if(in_array('status', $patchFields)){
+                    $currentStatus = $this->status;
+                    $this->status = $fields['status'] ?? null;
+                    $this->validateStatus();
+                    if(!$this->error && $this->status !== $currentStatus){
+                        $setClauses[] = "status=?";
+                        $setParams[] = $this->status;
+                        $reopened = ($this->status === 'active');
+                    }
+                }
+                if(in_array('founded_year', $patchFields)){
+                    $currentFoundedYear = $this->foundedYear;
+                    $this->foundedYear = $fields['founded_year'] ?? null;
+                    $this->validateYear('founded_year');
+                    if(!$this->error && $this->foundedYear !== $currentFoundedYear){
+                        $setClauses[] = "foundedYear=?";
+                        $setParams[] = $this->foundedYear;
+                    }
+                }
+                if(in_array('closed_year', $patchFields)){
+                    $currentClosedYear = $this->closedYear;
+                    $this->closedYear = $fields['closed_year'] ?? null;
+                    $this->validateYear('closed_year');
+                    if(!$this->error && $this->closedYear !== $currentClosedYear){
+                        $setClauses[] = "closedYear=?";
+                        $setParams[] = $this->closedYear;
+                    }
+                }elseif($reopened && !is_null($this->closedYear)){
+                    $this->closedYear = null;
+                    $setClauses[] = "closedYear=NULL";
+                }
+                if(!$this->error){
+                    $this->validateYears();
+                }
+                if(in_array('country_code', $patchFields)){
+                    $currentCountryCode = $this->countryCode;
+                    $this->countryCode = $fields['country_code'] ?? null;
+                    $this->validateCountryCode($users->admin);
+                    if(!$this->error && $this->countryCode !== $currentCountryCode){
+                        $setClauses[] = "countryCode=?";
+                        $setParams[] = $this->countryCode;
                     }
                 }
 
@@ -714,6 +818,158 @@ class Brewer {
                 $errorLog->write();
             }
         }
+    }
+
+    /*--
+    A value as sent, or the field's full-write default when the key is absent,
+    null or ''. Used by the POST/PUT path only: PATCH distinguishes absent
+    (leave alone) from null (clear) at the api() layer via $patchFields.
+    --*/
+    private function sentOrDefault($fields, $key, $default){
+        if(!array_key_exists($key, $fields) || is_null($fields[$key]) || $fields[$key] === ''){
+            return $default;
+        }
+        return $fields[$key];
+    }
+
+    // Must set $this->status. Normalises to the stored spelling.
+    private function validateStatus(){
+        $value = is_string($this->status) ? strtolower(trim($this->status)) : null;
+        if(in_array($value, self::STATUSES, true)){
+            $this->status = $value;
+            $this->validState['status'] = 'valid';
+            return;
+        }
+        $this->error = true;
+        $this->validState['status'] = 'invalid';
+        $this->validMsg['status'] = 'status must be "active" or "closed".';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 329;
+        $errorLog->errorMsg = 'Invalid brewer status';
+        $errorLog->badData = is_scalar($this->status) ? strval($this->status) : gettype($this->status);
+        $errorLog->filename = $this->filename;
+        $errorLog->write();
+    }
+
+    /*--
+    $field is 'founded_year' or 'closed_year'; validates and normalises the
+    matching property. Year only: that is what every source states ("est.
+    2014", "closed in 2023"), and nothing anyone queries needs finer. Accepts
+    an integer or a four-digit string; a float, a date, or "2014ish" is
+    refused rather than guessed at. Null is "unknown" and always valid here.
+    --*/
+    private function validateYear($field){
+        $property = ($field === 'founded_year') ? 'foundedYear' : 'closedYear';
+        $value = $this->$property;
+        if(is_null($value) || $value === ''){
+            $this->$property = null;
+            $this->validState[$field] = 'valid';
+            return;
+        }
+        $thisYear = intval(date('Y'));
+        $isInt = is_int($value) || (is_string($value) && preg_match('/^\s*\d{4}\s*$/', $value));
+        if($isInt && intval($value) >= self::YEAR_MIN && intval($value) <= $thisYear){
+            $this->$property = intval($value);
+            $this->validState[$field] = 'valid';
+            return;
+        }
+        $this->error = true;
+        $this->validState[$field] = 'invalid';
+        $this->validMsg[$field] = "$field must be a four-digit year between " . self::YEAR_MIN . " and $thisYear.";
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = ($field === 'founded_year') ? 330 : 331;
+        $errorLog->errorMsg = "Invalid brewer $field";
+        $errorLog->badData = is_scalar($value) ? strval($value) : gettype($value);
+        $errorLog->filename = $this->filename;
+        $errorLog->write();
+    }
+
+    /*--
+    The two rules that span fields, checked on the effective values after the
+    single-field validators have normalised them. Mirrored by the schema's
+    chk_brewer_closed_year and chk_brewer_years, so a request that slipped
+    past here would 500 on the write rather than store a contradiction.
+    --*/
+    private function validateYears(){
+        if(!is_null($this->closedYear) && $this->status !== 'closed'){
+            $this->error = true;
+            $this->validState['closed_year'] = 'invalid';
+            $this->validMsg['closed_year'] = 'closed_year needs status "closed". A brewery with a closing year has closed; send status with it, or leave the year out.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 332;
+            $errorLog->errorMsg = 'closed_year on a brewer whose status is not closed';
+            $errorLog->badData = "closedYear: {$this->closedYear} / status: {$this->status}";
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
+        if(!is_null($this->closedYear) && !is_null($this->foundedYear) && $this->closedYear < $this->foundedYear){
+            $this->error = true;
+            $this->validState['closed_year'] = 'invalid';
+            $this->validMsg['closed_year'] = 'closed_year cannot be before founded_year.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 333;
+            $errorLog->errorMsg = 'closed_year before founded_year';
+            $errorLog->badData = "foundedYear: {$this->foundedYear} / closedYear: {$this->closedYear}";
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+        }
+    }
+
+    /*--
+    Must set $this->countryCode. ISO 3166-1 alpha-2 by membership, not shape.
+    A country other than the US is admin-only: the catalog's public scope is
+    US breweries (the location validator says the same), and the field exists
+    so the review loop can record what it meets rather than so anyone can
+    start a second catalog. Reported as 403 with the field marked, since the
+    value is well-formed and the refusal is about who sent it.
+    --*/
+    private function validateCountryCode($isAdmin){
+        $code = CountryCode::normalize($this->countryCode);
+        if(is_null($code)){
+            $this->error = true;
+            $this->validState['country_code'] = 'invalid';
+            $this->validMsg['country_code'] = 'country_code must be an ISO 3166-1 alpha-2 code (e.g. "US").';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 334;
+            $errorLog->errorMsg = 'Invalid brewer country_code';
+            $errorLog->badData = is_scalar($this->countryCode) ? strval($this->countryCode) : gettype($this->countryCode);
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
+        $this->countryCode = $code;
+        if($code !== 'US' && !$isAdmin){
+            $this->error = true;
+            $this->validState['country_code'] = 'invalid';
+            $this->validMsg['country_code'] = 'Sorry, at this time we are only collecting breweries in the United States of America.';
+            $this->responseCode = 403;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 335;
+            $errorLog->errorMsg = 'Forbidden: non-admin set a non-US brewer country_code';
+            $errorLog->badData = $code;
+            $errorLog->filename = $this->filename;
+            $errorLog->write();
+            return;
+        }
+        $this->validState['country_code'] = 'valid';
     }
 
     /*--
@@ -1082,7 +1338,7 @@ class Brewer {
         if(!empty($brewerID)){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, urlStatus, lastModified FROM brewer WHERE id=?", [$brewerID]);
+            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, status, foundedYear, closedYear, countryCode, urlStatus, lastModified FROM brewer WHERE id=?", [$brewerID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid
@@ -1107,6 +1363,10 @@ class Brewer {
                         }
                         $this->url = $array['url'];
                         $this->domainName = $array['domainName'];
+                        $this->status = $array['status'];
+                        $this->foundedYear = is_null($array['foundedYear']) ? null : intval($array['foundedYear']);
+                        $this->closedYear = is_null($array['closedYear']) ? null : intval($array['closedYear']);
+                        $this->countryCode = $array['countryCode'];
                         $this->urlStatus = $array['urlStatus'];
                         $this->lastModified = intval($array['lastModified']);
 
@@ -1452,6 +1712,10 @@ class Brewer {
         $array['description'] = $this->description;
         $array['short_description'] = $this->shortDescription;
         $array['url'] = $this->url;
+        $array['status'] = $this->status;
+        $array['founded_year'] = is_null($this->foundedYear) ? null : intval($this->foundedYear);
+        $array['closed_year'] = is_null($this->closedYear) ? null : intval($this->closedYear);
+        $array['country_code'] = $this->countryCode;
         $array['cb_verified'] = $this->cbVerified;
         $array['brewer_verified'] = $this->brewerVerified;
         $array['last_modified'] = $this->lastModified;
@@ -1483,6 +1747,14 @@ class Brewer {
         if(!empty($this->description)){$array['description'] = $this->description;}
         if(!empty($this->shortDescription)){$array['short_description'] = $this->shortDescription;}
         if(!empty($this->url)){$array['url'] = $this->url;}
+
+        // Status and country are facets (algolia/settings.php); the years
+        // are display-only. A closed brewer stays searchable -- its beers are
+        // real beers -- and the result row says so.
+        $array['status'] = $this->status;
+        $array['country_code'] = $this->countryCode;
+        if(!is_null($this->foundedYear)){$array['founded_year'] = intval($this->foundedYear);}
+        if(!is_null($this->closedYear)){$array['closed_year'] = intval($this->closedYear);}
 
         // Location Denormalization — a brewer row carries no geography of its
         // own, so everything geographic here is borrowed from its locations.
@@ -1920,7 +2192,11 @@ class Brewer {
         // all-terms-in-name (prefix match), then the natural-language match,
         // with name relevance ranked above blended relevance within a tier.
         $db = new Database();
-        $result = $db->query("SELECT id, name, description, shortDescription, url, cbVerified, brewerVerified, lastModified, CASE WHEN LOWER(name) = LOWER(?) THEN 0 WHEN MATCH(name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel_distinctive, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(name) AGAINST(? IN BOOLEAN MODE) OR LOWER(name) = LOWER(?) ORDER BY tier, name_rel DESC, relevance DESC, name, id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $distinctiveTerms, $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
+        // Within a tier, a closed brewer ranks below an active one: a search
+        // for a name that an active brewery and a defunct one share should
+        // lead with the one still pouring. Tier still wins -- an exact match on
+        // a closed brewery outranks a partial match on an open one.
+        $result = $db->query("SELECT id, name, description, shortDescription, url, status, foundedYear, closedYear, countryCode, cbVerified, brewerVerified, lastModified, CASE WHEN LOWER(name) = LOWER(?) THEN 0 WHEN MATCH(name) AGAINST(? IN BOOLEAN MODE) > 0 THEN 1 ELSE 2 END AS tier, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel, MATCH(name) AGAINST(? IN NATURAL LANGUAGE MODE) AS name_rel_distinctive, MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance FROM brewer WHERE MATCH(name, description, shortDescription) AGAINST(? IN NATURAL LANGUAGE MODE) OR MATCH(name) AGAINST(? IN BOOLEAN MODE) OR LOWER(name) = LOWER(?) ORDER BY tier, (status = 'closed'), name_rel DESC, relevance DESC, name, id LIMIT ?, ?", [$query, $searchTerms['bool'], $searchTerms['nl'], $distinctiveTerms, $searchTerms['nl'], $searchTerms['nl'], $searchTerms['bool'], $query, $offset, $fetchCount]);
         if(!$db->error){
             $rowCount = 0;
             $data = array();
@@ -1939,6 +2215,10 @@ class Brewer {
                 $brewerObj['description'] = $row['description'] ?? null;
                 $brewerObj['short_description'] = $row['shortDescription'] ?? null;
                 $brewerObj['url'] = $row['url'] ?? null;
+                $brewerObj['status'] = $row['status'];
+                $brewerObj['founded_year'] = is_null($row['foundedYear']) ? null : intval($row['foundedYear']);
+                $brewerObj['closed_year'] = is_null($row['closedYear']) ? null : intval($row['closedYear']);
+                $brewerObj['country_code'] = $row['countryCode'];
                 $brewerObj['cb_verified'] = $row['cbVerified'] ? true : false;
                 $brewerObj['brewer_verified'] = $row['brewerVerified'] ? true : false;
                 $brewerObj['last_modified'] = intval($row['lastModified']);
@@ -1975,6 +2255,22 @@ class Brewer {
             $errorLog->write();
         }
         $db->close();
+    }
+
+    /*--
+    The status/year/country keys a request body carries, as sent, keyed by
+    wire name. Only keys present on the body are returned (property_exists,
+    so an explicit null is "present": a clear on PATCH), which is what lets
+    add() tell "not sent" from "sent as null".
+    --*/
+    private function statusFields($data){
+        $fields = array();
+        foreach(array('status', 'founded_year', 'closed_year', 'country_code') as $field){
+            if(is_object($data) && property_exists($data, $field)){
+                $fields[$field] = $data->$field;
+            }
+        }
+        return $fields;
     }
 
     public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
@@ -2160,7 +2456,7 @@ class Brewer {
                 if(empty($data->url_note)){$data->url_note = '';}
 
                 // Add Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array(), $data->url_note);
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array(), $data->url_note, $this->statusFields($data));
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -2184,7 +2480,7 @@ class Brewer {
                 if(empty($data->url_note)){$data->url_note = '';}
 
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array(), $data->url_note);
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array(), $data->url_note, $this->statusFields($data));
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -2227,6 +2523,11 @@ class Brewer {
                 if(property_exists($data, 'url')){$patchFields[] = 'url';}
                 else{$data->url = '';}
 
+                // status, founded_year, closed_year, country_code: present
+                // (even as null) means patch it; the values travel in $fields.
+                $fields = $this->statusFields($data);
+                foreach(array_keys($fields) as $field){$patchFields[] = $field;}
+
                 /*--
                 url_note is write-only and admin-only: a short reason recorded
                 against the URL change in brewer_url_history ("domain lapsed,
@@ -2236,7 +2537,7 @@ class Brewer {
                 if(empty($data->url_note)){$data->url_note = '';}
 
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields, $data->url_note);
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields, $data->url_note, $fields);
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);

@@ -51,10 +51,11 @@ INSERT INTO users (id,email,passwordHash,name,emailVerified,admin) VALUES
 INSERT INTO api_keys (id,userID) VALUES
  ('bbbbbbbb-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-000000000001'),
  ('bbbbbbbb-0000-4000-8000-000000000002','aaaaaaaa-0000-4000-8000-000000000002');
-INSERT INTO brewer (id,name,url,domainName,lastModified,createdAt,urlStatus) VALUES
- ('cccccccc-0000-4000-8000-000000000001','Alpha Brewing','https://alpha.example','alpha.example',100,100,'ok'),
- ('cccccccc-0000-4000-8000-000000000002','Beta Brewing','https://beta.example','beta.example',200,200,'gone'),
- ('cccccccc-0000-4000-8000-000000000003','Gamma Brewing',NULL,NULL,300,300,'unverified');
+INSERT INTO brewer (id,name,url,domainName,lastModified,createdAt,urlStatus,status,foundedYear,closedYear) VALUES
+ ('cccccccc-0000-4000-8000-000000000001','Alpha Brewing','https://alpha.example','alpha.example',100,100,'ok','active',2012,NULL),
+ ('cccccccc-0000-4000-8000-000000000002','Beta Brewing','https://beta.example','beta.example',200,200,'gone','active',NULL,NULL),
+ ('cccccccc-0000-4000-8000-000000000003','Gamma Brewing',NULL,NULL,300,300,'unverified','active',NULL,NULL),
+ ('cccccccc-0000-4000-8000-000000000004','Delta Brewing','https://delta.example','delta.example',50,50,'gone','closed',1988,1997);
 SQL;
 $admin->multi_query($sql);
 do { if($r = $admin->store_result()){ $r->free(); } } while($admin->more_results() && $admin->next_result());
@@ -67,6 +68,9 @@ $ALPHA = 'cccccccc-0000-4000-8000-000000000001'; $BETA = 'cccccccc-0000-4000-800
 // post against it: the ones that succeed would otherwise show up in Beta's
 // history and in the claim ordering, which later checks assert exactly.
 $GAMMA = 'cccccccc-0000-4000-8000-000000000003';
+// Delta is closed: it holds a URL and the oldest timestamps, so it would lead
+// the queue if the queue took closed brewers. It never does; naming it works.
+$DELTA = 'cccccccc-0000-4000-8000-000000000004';
 function call($method, $function, $id, $key, $data = null, $get = []) {
     $_GET = $get; $r = new Review(); $r->api($method, $function, $id, $key, $get['count'] ?? 500, $get['cursor'] ?? base64_encode('0'), $data ?? new stdClass());
     return [$r->responseCode, $r->json, $r->responseHeader];
@@ -77,8 +81,9 @@ $fails = 0;
 // 1. claim: two brewers with URLs, Beta (gone) first
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['count' => 10]);
 check("claim returns 200", $code === 200);
-check("claim returns 2 rows (Gamma has no url)", count($j['data']) === 2);
+check("claim returns 2 rows (Gamma has no url, Delta is closed)", count($j['data']) === 2);
 check("non-ok cron verdict is first", $j['data'][0]['name'] === 'Beta Brewing' && $j['data'][0]['url_status'] === 'gone');
+check("claim rows carry status, years and country", $j['data'][0]['status'] === 'active' && $j['data'][0]['country_code'] === 'US' && $j['data'][1]['founded_year'] === 2012 && $j['data'][1]['closed_year'] === null);
 check("row carries url health + null last_review", $j['data'][0]['url_fail_count'] === 0 && $j['data'][0]['last_review'] === null);
 check("claim_expires_at ~ 4h", $j['claim_expires_at'] - time() > 14000);
 
@@ -266,6 +271,10 @@ check("named + count: named rows first, then the queue", $code === 200 && $names
 check("skipped lists the unknown id and the held row, in the order given", count($j['skipped']) === 2
     && $j['skipped'][0] === ['brewer_id' => $BAD, 'reason' => 'unknown']
     && $j['skipped'][1]['brewer_id'] === $GAMMA && $j['skipped'][1]['reason'] === 'claimed' && $j['skipped'][1]['claim_expires_at'] > time() + 14000);
+// a closed brewer is only ever claimed by name, and the row says it is closed
+$db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->close();
+[$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [$DELTA]]);
+check("naming a closed brewer claims it, with its status and years", $code === 200 && count($j['data']) === 1 && $j['data'][0]['brewer_id'] === $DELTA && $j['data'][0]['status'] === 'closed' && $j['data'][0]['founded_year'] === 1988 && $j['data'][0]['closed_year'] === 1997 && $j['skipped'] === []);
 // same id twice, in any case, is one row
 $db = new Database(); $db->query("UPDATE brewer SET claimedAt = NULL, claimedBy = NULL"); $db->close();
 [$code, $j] = call('POST', 'claim', '', $ADMIN, (object)['brewer_ids' => [strtoupper($ALPHA), $ALPHA]]);

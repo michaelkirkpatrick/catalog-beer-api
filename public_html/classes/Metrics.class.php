@@ -160,6 +160,18 @@ class Metrics {
             "SELECT COUNT(DISTINCT brewerID) FROM beer"));
         $m[] = array('brewer_with_location', '', $this->scalar($db,
             "SELECT COUNT(DISTINCT brewerID) FROM location"));
+        $m[] = array('brewer_with_founded_year', '', $this->scalar($db,
+            "SELECT COUNT(*) FROM brewer WHERE foundedYear IS NOT NULL"));
+
+        // ----- Brewer status and country -----
+        // Closures used to live only in prose; this is the first count of
+        // them. Country is grouped so a non-US tail shows up the day it starts.
+        foreach($this->grouped($db, "SELECT status AS d, COUNT(*) FROM brewer GROUP BY d") as $dim => $count){
+            $m[] = array('brewer_status', $dim, $count);
+        }
+        foreach($this->grouped($db, "SELECT countryCode AS d, COUNT(*) FROM brewer GROUP BY d") as $dim => $count){
+            $m[] = array('brewer_country', $dim, $count);
+        }
 
         $m[] = array('beer_with_description', '', $this->scalar($db,
             "SELECT COUNT(*) FROM beer WHERE description IS NOT NULL AND description != ''"));

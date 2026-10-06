@@ -90,6 +90,9 @@ $settings = array(
     'attributesForFaceting' => array(
         'type',
         'beverage_type',
+        // brewer records: hide or label closed breweries, filter by country
+        'status',
+        'country_code',
         'searchable(brewer.name)',
         'style',
         'style_family',
@@ -158,6 +161,8 @@ $settings = array(
         'beer_count', 'location_count',
         // trust
         'cb_verified', 'brewer_verified',
+        // operating status (brewer records)
+        'status', 'founded_year', 'closed_year', 'country_code',
         // geography + contact
         'states', 'cities', 'countries', 'address', 'country_short_name',
         'url', '_geoloc',
