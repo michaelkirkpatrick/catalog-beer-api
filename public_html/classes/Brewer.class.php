@@ -382,7 +382,7 @@ class Brewer {
                 $this->validateYear('closed_year');
                 $this->validateYears();
                 $this->countryCode = $this->sentOrDefault($fields, 'country_code', 'US');
-                $this->validateCountryCode($users->admin);
+                $this->validateCountryCode();
 
                 if(!$this->error){
                     $this->lastModified = time();
@@ -554,7 +554,7 @@ class Brewer {
                 if(in_array('country_code', $patchFields)){
                     $currentCountryCode = $this->countryCode;
                     $this->countryCode = $fields['country_code'] ?? null;
-                    $this->validateCountryCode($users->admin);
+                    $this->validateCountryCode();
                     if(!$this->error && $this->countryCode !== $currentCountryCode){
                         $setClauses[] = "countryCode=?";
                         $setParams[] = $this->countryCode;
@@ -930,13 +930,14 @@ class Brewer {
 
     /*--
     Must set $this->countryCode. ISO 3166-1 alpha-2 by membership, not shape.
-    A country other than the US is admin-only: the catalog's public scope is
-    US breweries (the location validator says the same), and the field exists
-    so the review loop can record what it meets rather than so anyone can
-    start a second catalog. Reported as 403 with the field marked, since the
-    value is well-formed and the refusal is about who sent it.
+    Any key may set any assigned code: country is a fact about the brewer,
+    not about a venue, and a brewer with no locations has always been allowed.
+    Locations stay US-only (Location::validateCountryCode), and the review
+    loop still skips non-US brewers for research (POLICY 0.3) -- but a record
+    added by a user may say where the brewery is, instead of being stamped US
+    because the form had no other option.
     --*/
-    private function validateCountryCode($isAdmin){
+    private function validateCountryCode(){
         $code = CountryCode::normalize($this->countryCode);
         if(is_null($code)){
             $this->error = true;
@@ -954,21 +955,6 @@ class Brewer {
             return;
         }
         $this->countryCode = $code;
-        if($code !== 'US' && !$isAdmin){
-            $this->error = true;
-            $this->validState['country_code'] = 'invalid';
-            $this->validMsg['country_code'] = 'Sorry, at this time we are only collecting breweries in the United States of America.';
-            $this->responseCode = 403;
-
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 335;
-            $errorLog->errorMsg = 'Forbidden: non-admin set a non-US brewer country_code';
-            $errorLog->badData = $code;
-            $errorLog->filename = $this->filename;
-            $errorLog->write();
-            return;
-        }
         $this->validState['country_code'] = 'valid';
     }
 

@@ -811,8 +811,9 @@ Brewer,BR-259,Brewer Status - A Closing Year Before The Founding Year Is Refused
 Brewer,BR-260,Brewer Status - Close Brewery #57,PATCH,/brewer/{id},Admin,200,Done
 Location,L-180,Brewer Status - A Closed Brewer Takes No New Location,POST,/location,Admin,400,Done
 Brewer,BR-261,Brewer Status - Reopening Clears The Closing Year,PATCH,/brewer/{id},Admin,200,Done
-Brewer,BR-262,Brewer Status - A General User Cannot Set A Non-US Country,POST,/brewer,Non-Admin,403,Done
+Brewer,BR-262,Brewer Status - A General User Sets A Non-US Country,POST,/brewer,Non-Admin,201,Done
 Brewer,BR-263,Brewer Status - An Unassigned Country Code Is Refused,PATCH,/brewer/{id},Admin,400,Done
 Brewer,BR-264,Brewer Status - An Admin Sets The Country Uppercased,PATCH,/brewer/{id},Admin,200,Done
 Brewer,BR-265,Brewer Status - PUT Without The Fields Resets Them,PUT,/brewer/{id},Admin,200,Done
 Brewer,BR-266,Brewer Status - Delete Brewery #57,DELETE,/brewer/{id},Admin,204,Done
+Brewer,BR-267,Brewer Status - Delete Brewery #57b,DELETE,/brewer/{id},Admin,204,Done

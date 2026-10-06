@@ -78847,14 +78847,16 @@
 									"response": []
 								},
 								{
-									"name": "BR-262 A General User Cannot Set A Non-US Country",
+									"name": "BR-262 A General User Sets A Non-US Country",
 									"event": [
 										{
 											"listen": "prerequest",
 											"script": {
 												"exec": [
 													"// Role",
-													"pm.environment.set('api_key', pm.environment.get('api_key_non_admin'));"
+													"pm.environment.set('api_key', pm.environment.get('api_key_non_admin'));",
+													"",
+													"pm.environment.set('brewer_name_57b', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
 												],
 												"type": "text/javascript"
 											}
@@ -78863,18 +78865,22 @@
 											"listen": "test",
 											"script": {
 												"exec": [
-													"pm.test(\"Forbidden (HTTP 403)\", function () {",
-													"    pm.response.to.have.status(403);",
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
 													"});",
 													"",
 													"pm.test(\"Valid JSON payload\", function () {",
 													"    var jsonData = pm.response.json();",
-													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg', 'valid_state', 'valid_msg');",
-													"    pm.expect(jsonData.error).to.equal(true);",
-													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
-													"    pm.expect(jsonData.valid_msg.country_code).to.be.a('string');",
-													"    pm.expect(jsonData.valid_state.name).to.equal('valid');",
-													"});"
+													"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'description', 'short_description', 'url', 'status', 'founded_year', 'closed_year', 'country_code', 'cb_verified', 'brewer_verified', 'last_modified');",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.name).to.equal(pm.environment.get('brewer_name_57b'));",
+													"    pm.expect(jsonData.country_code).to.equal('BE');",
+													"    pm.expect(jsonData.status).to.equal('active');",
+													"    pm.expect(jsonData.cb_verified).to.equal(false);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('brewer_id_57b', pm.response.json().id);"
 												],
 												"type": "text/javascript"
 											}
@@ -78928,7 +78934,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"name\": \"[Postman API Test] {{$randomCompanyName}}\",\n    \"country_code\": \"CA\"\n}",
+											"raw": "{\n    \"name\": \"{{brewer_name_57b}}\",\n    \"country_code\": \"be\"\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -79285,6 +79291,79 @@
 											"path": [
 												"brewer",
 												"{{brewer_id_57}}"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-267 Delete Brewery #57b",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													"",
+													"pm.environment.unset('brewer_name_57b');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_57b}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_57b}}"
 											]
 										}
 									},
