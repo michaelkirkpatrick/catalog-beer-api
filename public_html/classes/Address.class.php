@@ -22,19 +22,20 @@ parsers share the acceptance gate:
           abbreviation, no smart-casing. Replayed by tests/address-parse.php
           against fixtures/google-address-validation-intl.json.
 
-Two vocabularies on the way in, both on the way out. New: line1, line2,
-locality, dependent_locality, sub_code, postal_code, telephone. Legacy (the
-USPS ordering: address2 is the STREET, address1 the unit): address1,
-address2, city, sub_code, zip5, zip4, telephone. A body may use either; a new
-key wins over its legacy twin when both are sent. Every address object
-carries both sets, the legacy US-only keys (zip5, zip4, state_short,
-state_long) null outside the US, so a consumer written against the old shape
-keeps working on a US row and sees nulls, not garbage, on a Belgian one.
+One vocabulary, Google's postalAddress one: line1, line2, locality,
+dependent_locality, sub_code, postal_code, telephone on the way in; those
+plus formatted, language_code, validation and admin_area on the way out.
+The US-only shape it replaced (address2 as the STREET and address1 the unit
+in USPS order, city, zip5 + zip4, state_short/state_long, telephone as an
+int of ten digits) went with v6.0.0: api_logging showed no external writer
+had ever used it, and the frontend ships in the same window. Inside this
+class the US parsing block still speaks address1/address2/city, because
+tests/address-parse.php and the 2026-08-05 audit do; syncLegacy() keeps
+the two property sets equal and nothing outside the class sees them.
 
 telephone is an E.164 string ("+15035550100"). It was an int of ten NANP
 digits; a Belgian number does not fit that, and without the "+" the digits
-are ambiguous (3257400376 is both +32 57 40 03 76 and a Texas number). The
-one wire change in this release that an old consumer can trip on.
+are ambiguous (3257400376 is both +32 57 40 03 76 and a Texas number).
 --*/
 class Address {
 
@@ -94,17 +95,8 @@ class Address {
         'AR' => '^([A-Z]\d{4}[A-Z]{3}|\d{4})$', 'CL' => '^\d{3}-?\d{4}$', 'CO' => '^\d{6}$',
     );
 
-    /* Request keys in the new vocabulary, with the legacy key each one
-       shadows. The body is read through this table in api(). */
-    const FIELD_ALIASES = array(
-        'line1' => 'address2',
-        'line2' => 'address1',
-        'locality' => 'city',
-        'dependent_locality' => null,
-        'sub_code' => null,
-        'postal_code' => null,      // zip5 (+ zip4) is folded into it in api()
-        'telephone' => null,
-    );
+    /* The request keys; the body is read through this list in api(). */
+    const FIELDS = array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'telephone');
 
     // Properties -- the stored shape (address.* columns)
     public $locationID = '';        // Required
@@ -131,20 +123,19 @@ class Address {
     public $zip5 = '';              // Strings: ZIP codes have significant leading zeros (01085)
     public $zip4 = '';
 
-    /* Legacy property names kept because the US parsing block below and
-       tests/address-parse.php refer to the street as address2 and the unit
-       as address1. They are the SAME values as line1/line2 and are synced in
-       both directions by syncLegacy(). */
+    /* Internal only: the US parsing block below and tests/address-parse.php
+       refer to the street as address2 and the unit as address1 (USPS order).
+       They are the SAME values as line1/line2 and are synced in both
+       directions by syncLegacy(); nothing on the wire carries these names. */
     public $address1 = '';
     public $address2 = '';
     public $city = '';
 
-    // Error Handling. Both vocabularies, so a client reading either set of
-    // keys sees the blame; a failing field marks itself AND its twin.
+    // Error Handling
     public $error = false;
     public $errorMsg = null;
-    public $validState = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null, 'line1'=>null, 'line2'=>null, 'locality'=>null, 'dependent_locality'=>null, 'postal_code'=>null);
-    public $validMsg = array('address1'=>null, 'address2'=>null, 'city'=>null, 'sub_code'=>null, 'zip5'=>null, 'zip4'=>null, 'telephone'=>null, 'line1'=>null, 'line2'=>null, 'locality'=>null, 'dependent_locality'=>null, 'postal_code'=>null);
+    public $validState = array('line1'=>null, 'line2'=>null, 'locality'=>null, 'dependent_locality'=>null, 'sub_code'=>null, 'postal_code'=>null, 'telephone'=>null);
+    public $validMsg = array('line1'=>null, 'line2'=>null, 'locality'=>null, 'dependent_locality'=>null, 'sub_code'=>null, 'postal_code'=>null, 'telephone'=>null);
     public $responseCode = 200;
     public $responseHeader = '';
     public $json = array();
@@ -153,21 +144,9 @@ class Address {
     private $longitude = null;
     private $filename = 'API / Address.class.php';
 
-    /* The legacy twin of each field, for marking valid_state on both. */
-    private const TWINS = array(
-        'line1' => 'address2', 'address2' => 'line1',
-        'line2' => 'address1', 'address1' => 'line2',
-        'locality' => 'city', 'city' => 'locality',
-        'postal_code' => 'zip5', 'zip5' => 'postal_code',
-    );
-
     private function flag($field, $state, $message = null){
         $this->validState[$field] = $state;
         if($message !== null){ $this->validMsg[$field] = $message; }
-        if(isset(self::TWINS[$field])){
-            $this->validState[self::TWINS[$field]] = $state;
-            if($message !== null){ $this->validMsg[self::TWINS[$field]] = $message; }
-        }
     }
 
     private function logError($number, $msg, $badData){
@@ -601,7 +580,7 @@ class Address {
             if(!preg_match('/^[0-9]{5}$/', $this->zip5)){
                 // Invalid ZIP Code
                 $this->error = true;
-                $this->flag('zip5', 'invalid', 'Sorry, this appears to be an invalid ZIP Code (zip5). Ensure you have submitted a five digit ZIP code.');
+                $this->flag('postal_code', 'invalid', 'Sorry, this appears to be an invalid US ZIP Code. Send postal_code as five digits (97201), or five digits, a hyphen and four (97201-1234).');
                 $this->responseCode = 400;
                 $this->logError(59, 'Invalid Zip5', "Zip5: " . $this->zip5);
             }
@@ -610,10 +589,7 @@ class Address {
             if($this->zip4 !== '' && !preg_match('/^[0-9]{4}$/', $this->zip4)){
                 // Invalid ZIP Code + 4
                 $this->error = true;
-                $this->validState['zip4'] = 'invalid';
-                $this->validMsg['zip4'] = 'Sorry, this appears to be an invalid ZIP Code + 4 (zip4). Ensure you have submitted a four digit ZIP Code + 4.';
-                $this->validState['postal_code'] = 'invalid';
-                $this->validMsg['postal_code'] = $this->validMsg['zip4'];
+                $this->flag('postal_code', 'invalid', 'Sorry, this appears to be an invalid ZIP Code + 4. Send postal_code as five digits, a hyphen and four (97201-1234), or the five digits alone.');
                 $this->responseCode = 400;
                 $this->logError(60, 'Invalid Zip4', "Zip4: " . $this->zip4);
             }
@@ -629,7 +605,7 @@ class Address {
             if($this->locality === ''){
                 // Missing City
                 $this->error = true;
-                $this->flag('locality', 'invalid', 'What city is this location in? If you don\'t know the city, you can alternatively provide the ZIP Code.');
+                $this->flag('locality', 'invalid', 'What city is this location in? If you don\'t know the city, you can alternatively provide the postal code.');
                 $this->responseCode = 400;
                 $this->logError(61, 'Missing City', '');
             }
@@ -987,7 +963,7 @@ class Address {
             $this->errorMsg = 'We found this location but could not fully standardize its mailing address. If the community is not a USPS mailing city (common for unincorporated places), try the city its post office uses, or provide the ZIP code.';
             $this->responseCode = 400;
             // Blame the field the client can most usefully change.
-            $blame = !preg_match('/^[0-9]{5}$/', $this->zip5) ? 'zip5' : (empty($this->sub_code) ? 'sub_code' : (empty($this->city) ? 'city' : 'address2'));
+            $blame = !preg_match('/^[0-9]{5}$/', $this->zip5) ? 'postal_code' : (empty($this->sub_code) ? 'sub_code' : (empty($this->city) ? 'locality' : 'line1'));
             $this->flag($blame, 'invalid', $this->errorMsg);
             // Log Error — badData carries the raw response, same as 267, so
             // these edge-case addresses are diagnosable without a repro.
@@ -2076,8 +2052,7 @@ class Address {
     /*--
     The address object on the wire, built from an address row — the one
     shape builder for GET /location/{id}, /brewer/{id}/locations,
-    /location/nearby and the search object. Both vocabularies; the legacy
-    US-only keys are null outside the US.
+    /location/nearby and the search object.
     --*/
     public static function wireObject($row){
         $a = new Address();
@@ -2086,31 +2061,21 @@ class Address {
     }
 
     public function toArray(){
-        $isUS = self::isUS($this->countryCode);
         $nullable = function($v){ return ($v === '' || $v === null) ? null : $v; };
         // A stored row always has a street and a locality; every key null
         // is the "no address" block the nearby list renders for a location
         // without one.
         $hasRow = $this->line1 !== '';
         return array(
-            // Legacy keys (USPS ordering: address2 is the street)
-            'address1' => $nullable($this->line2),
-            'address2' => $nullable($this->line1),
-            'city' => $nullable($this->locality),
-            'sub_code' => $nullable($this->sub_code),
-            'state_short' => $isUS ? $nullable($this->stateShort) : null,
-            'state_long' => $isUS ? $nullable($this->stateLong) : null,
-            'zip5' => $isUS ? $nullable($this->zip5) : null,
-            'zip4' => $isUS ? $nullable($this->zip4) : null,
-            'telephone' => $nullable($this->telephone),
-            // New keys
             'line1' => $nullable($this->line1),
             'line2' => $nullable($this->line2),
             'locality' => $nullable($this->locality),
             'dependent_locality' => $nullable($this->dependentLocality),
+            'sub_code' => $nullable($this->sub_code),
             'postal_code' => $nullable($this->postalCode),
             'formatted' => is_array($this->formatted) ? array_values($this->formatted) : null,
             'language_code' => $nullable($this->languageCode),
+            'telephone' => $nullable($this->telephone),
             'validation' => $hasRow ? $this->validation : null,
             'admin_area' => $this->sub_code === '' ? null : array(
                 'sub_code' => $this->sub_code,
@@ -2200,30 +2165,20 @@ class Address {
             $this->subdivisions($_GET['country'] ?? '');
         }elseif(in_array($method, array('POST', 'PUT', 'PATCH'), true)){
             /*--
-            Reduce the body to the new vocabulary. property_exists(), not
-            isset(): isset() is false for an explicit null, so "clear this
-            field" arrived identical to "leave this field alone". A new key
-            wins over its legacy twin when both are present. zip5 (+ zip4)
-            fold into postal_code; a PATCH that sends either counts as
-            patching postal_code.
+            property_exists(), not isset(): isset() is false for an explicit
+            null, so "clear this field" arrived identical to "leave this field
+            alone". Unknown keys (including the pre-6.0 address2/zip5 set) are
+            ignored, so a client still sending them gets the "missing the
+            street address" 400 rather than a silent partial write.
             --*/
             $fields = array();
             $patchFields = array();
-            foreach(self::FIELD_ALIASES as $key => $legacy){
+            foreach(self::FIELDS as $key){
                 $fields[$key] = '';
                 if(property_exists($data, $key)){
                     $fields[$key] = $data->{$key};
                     $patchFields[] = $key;
-                }elseif($legacy !== null && property_exists($data, $legacy)){
-                    $fields[$key] = $data->{$legacy};
-                    $patchFields[] = $key;
                 }
-            }
-            if(!property_exists($data, 'postal_code') && (property_exists($data, 'zip5') || property_exists($data, 'zip4'))){
-                $zip5 = trim(strval($data->zip5 ?? ''));
-                $zip4 = trim(strval($data->zip4 ?? ''));
-                $fields['postal_code'] = $zip4 !== '' ? ($zip5 . '-' . $zip4) : $zip5;
-                $patchFields[] = 'postal_code';
             }
             foreach($fields as $key => $value){
                 $fields[$key] = is_null($value) ? '' : (is_scalar($value) ? strval($value) : '');

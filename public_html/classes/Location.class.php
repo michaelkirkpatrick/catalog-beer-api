@@ -991,7 +991,7 @@ class Location {
                         $addressBlock = $array['line1'] !== null ? Address::wireObject($array) : Address::wireObject(array('countryCode' => $array['countryCode']));
 
                         // Build Response Array
-                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>CountryCode::shortName($array['countryCode']), 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$addressBlock['telephone'], 'address'=>$addressBlock), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'status'=>$array['b_status'], 'founded_year'=>is_null($array['b_foundedYear']) ? null : intval($array['b_foundedYear']), 'closed_year'=>is_null($array['b_closedYear']) ? null : intval($array['b_closedYear']), 'country_code'=>$array['b_countryCode'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
+                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>CountryCode::shortName($array['countryCode']), 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'address'=>$addressBlock), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'status'=>$array['b_status'], 'founded_year'=>is_null($array['b_foundedYear']) ? null : intval($array['b_foundedYear']), 'closed_year'=>is_null($array['b_closedYear']) ? null : intval($array['b_closedYear']), 'country_code'=>$array['b_countryCode'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
                         // Add to Array
                         $locationArray[] = $locationInfo;
@@ -1507,7 +1507,7 @@ class Location {
     }
 
     public function nearbyZip($postalCode, $country, $searchRadius, $metric, $cursor, $count){
-        // Validate country (US when absent; zip_code is the US alias of postal_code)
+        // Validate country (US when absent)
         $country = $this->nearbyCountry($country);
         if($this->error){
             return array('locationArray' => array(), 'nextCursor' => '');
@@ -1517,7 +1517,7 @@ class Location {
         $postalCode = trim($postalCode ?? '');
         if(empty($postalCode)){
             $this->error = true;
-            $this->errorMsg = 'Missing postal_code parameter. Please provide a postal code (for the US, zip_code with a 5-digit ZIP is also accepted).';
+            $this->errorMsg = 'Missing postal_code parameter. Please provide a postal code (a 5-digit ZIP code in the US).';
             $this->responseCode = 400;
 
             $errorLog = new LogError();
@@ -1581,12 +1581,11 @@ class Location {
         }
 
         // Validate region: required in the US (a city name alone is
-        // ambiguous across 50 states), optional elsewhere. `state` is the
-        // legacy alias.
+        // ambiguous across 50 states), optional elsewhere.
         $region = trim($region ?? '');
         if(empty($region) && $country === 'US'){
             $this->error = true;
-            $this->errorMsg = 'Missing state parameter. Please provide a state name or abbreviation (or region= for a country other than the US).';
+            $this->errorMsg = 'Missing region parameter. For a city in the US, provide the state name or abbreviation as region.';
             $this->responseCode = 400;
 
             $errorLog = new LogError();
@@ -1704,21 +1703,12 @@ class Location {
         $hasAddress = $address->validate($this->locationID, true);
         $isUS = Address::isUS($this->countryCode);
         if($hasAddress){
-            // Both vocabularies for the searchable street and postal code;
-            // the US-only keys only on US rows (see algolia/settings.php).
-            $array['address']['address2'] = $address->line1;
+            // The searchable street and postal code (see algolia/settings.php);
+            // the unit is deliberately not indexed.
             $array['address']['line1'] = $address->line1;
-            if($address->line2 !== ''){
-                $array['address']['address1'] = $address->line2;
-                $array['address']['line2'] = $address->line2;
-            }
-            $array['address']['city'] = $address->locality;
+            if($address->line2 !== ''){$array['address']['line2'] = $address->line2;}
             $array['address']['locality'] = $address->locality;
-            if($isUS){
-                $array['address']['state_short'] = $address->stateShort;
-                $array['address']['state_long'] = $address->stateLong;
-                $array['address']['zip5'] = $address->zip5;
-            }
+            if($address->sub_code !== ''){$array['address']['sub_code'] = $address->sub_code;}
             if($address->postalCode !== ''){$array['address']['postal_code'] = $address->postalCode;}
             if(!empty($address->telephone)){$array['address']['telephone'] = $address->telephone;}
         }
@@ -1784,10 +1774,10 @@ class Location {
         $longitude = $_GET['longitude'] ?? 0;
         $searchRadius = $_GET['search_radius'] ?? null;
         $metric = $_GET['metric'] ?? '';
-        $postalCode = $_GET['postal_code'] ?? ($_GET['zip_code'] ?? null);   // zip_code: legacy US alias
+        $postalCode = $_GET['postal_code'] ?? null;
         $city = $_GET['city'] ?? null;
-        $region = $_GET['region'] ?? ($_GET['state'] ?? null);              // state: legacy US alias
-        $country = $_GET['country'] ?? null;                                 // US when absent
+        $region = $_GET['region'] ?? null;
+        $country = $_GET['country'] ?? null;     // US when absent
 
         switch($method){
             case 'GET':

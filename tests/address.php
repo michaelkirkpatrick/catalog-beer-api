@@ -138,19 +138,18 @@ check("copy: '' unit and 0 telephone became NULL", $r['line2'] === null && $r['t
 $a = new Address();
 check("validate() finds the San Jose row", $a->validate($L_SANJOSE, true));
 $o = $a->toArray();
-check("US row: legacy keys", $o['address2'] === '1270 Lincoln Ave' && $o['address1'] === null && $o['city'] === 'San Jose' && $o['sub_code'] === 'US-CA' && $o['state_short'] === 'CA' && $o['state_long'] === 'California' && $o['zip5'] === '95125' && $o['zip4'] === null);
-check("US row: new keys", $o['line1'] === '1270 Lincoln Ave' && $o['line2'] === null && $o['locality'] === 'San Jose' && $o['postal_code'] === '95125' && $o['language_code'] === 'en' && $o['validation'] === 'validated');
+check("US row: the eleven keys, nothing else", array_keys($o) === array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'formatted', 'language_code', 'telephone', 'validation', 'admin_area'));
+check("US row: values", $o['line1'] === '1270 Lincoln Ave' && $o['line2'] === null && $o['locality'] === 'San Jose' && $o['sub_code'] === 'US-CA' && $o['postal_code'] === '95125' && $o['language_code'] === 'en' && $o['validation'] === 'validated');
 check("US row: telephone is an E.164 string", $o['telephone'] === '+14085550100' && is_string($o['telephone']));
 check("US row: admin_area from the subdivision", $o['admin_area'] === array('sub_code' => 'US-CA', 'name' => 'California', 'type' => 'state'));
 check("US row: formatted is a list of strings", $o['formatted'] === array('1270 Lincoln Ave', 'San Jose, CA 95125'));
 $a = new Address(); $a->validate($L_WESTFIELD, true); $o = $a->toArray();
-check("US row: ZIP+4 splits back into zip5/zip4", $o['zip5'] === '01085' && $o['zip4'] === '1234' && $o['postal_code'] === '01085-1234' && $o['address1'] === 'Ste 800' && $o['line2'] === 'Ste 800');
+check("US row: ZIP+4 and unit", $o['postal_code'] === '01085-1234' && $o['line2'] === 'Ste 800' && $o['admin_area']['sub_code'] === 'US-MA');
 $a = new Address(); $a->validate($L_ABDIJ, true); $o = $a->toArray();
-check("BE row: legacy US-only keys are null", $o['state_short'] === null && $o['state_long'] === null && $o['zip5'] === null && $o['zip4'] === null && $o['sub_code'] === null && $o['admin_area'] === null);
-check("BE row: universal legacy aliases still filled", $o['address2'] === 'Donkerstraat 12' && $o['city'] === 'Westvleteren');
-check("BE row: new keys", $o['locality'] === 'Westvleteren' && $o['postal_code'] === '8640' && $o['language_code'] === 'nl' && $o['telephone'] === '+3257400376' && $o['formatted'] === array('Donkerstraat 12', '8640 Westvleteren'));
+check("BE row: no region, no admin_area", $o['sub_code'] === null && $o['admin_area'] === null && $o['line1'] === 'Donkerstraat 12');
+check("BE row: values", $o['locality'] === 'Westvleteren' && $o['postal_code'] === '8640' && $o['language_code'] === 'nl' && $o['telephone'] === '+3257400376' && $o['formatted'] === array('Donkerstraat 12', '8640 Westvleteren'));
 $a = new Address(); $a->validate($L_CANTILLON, true); $o = $a->toArray();
-check("BE row with a region: admin_area carries the seeded name and type", $o['admin_area'] === array('sub_code' => 'BE-BRU', 'name' => 'Région de Bruxelles-Capitale', 'type' => 'region') && $o['state_short'] === null);
+check("BE row with a region: admin_area carries the seeded name and type", $o['admin_area'] === array('sub_code' => 'BE-BRU', 'name' => 'Région de Bruxelles-Capitale', 'type' => 'region'));
 check("validate() false for a location without an address", !(new Address())->validate($L_EMPTY, false));
 
 // 3. Subdivisions::lookup — Google's administrative areas against the seed
@@ -190,26 +189,28 @@ check("PUT with another country on a location with an address -> 400", $code ===
 
 // 6. Address input rules that answer before Google
 [$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)[]);
-check("POST empty body -> 400 on line1 AND its twin address2", $code === 400 && $j['valid_state']['line1'] === 'invalid' && $j['valid_state']['address2'] === 'invalid' && $j['valid_msg']['line1'] === $j['valid_msg']['address2']);
-check("valid_state carries both vocabularies", count($j['valid_state']) === 12 && array_key_exists('postal_code', $j['valid_state']) && array_key_exists('zip5', $j['valid_state']));
+check("POST empty body -> 400 on line1", $code === 400 && $j['valid_state']['line1'] === 'invalid' && str_contains($j['valid_msg']['line1'], 'street address'));
+check("valid_state carries the seven keys", array_keys($j['valid_state']) === array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'telephone'));
 [$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['line1' => 'Donkerstraat 12', 'postal_code' => 'ABC']);
-check("BE postal code shape -> 400 naming Belgium, on postal_code and zip5", $code === 400 && str_contains($j['valid_msg']['postal_code'] ?? '', 'Belgium') && $j['valid_state']['zip5'] === 'invalid');
+check("BE postal code shape -> 400 naming Belgium on postal_code", $code === 400 && str_contains($j['valid_msg']['postal_code'] ?? '', 'Belgium') && $j['valid_state']['postal_code'] === 'invalid');
 [$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['line1' => 'Donkerstraat 12', 'locality' => 'Vleteren', 'sub_code' => 'US-OR']);
 check("sub_code from another country -> 400 (338)", $code === 400 && str_contains($j['valid_msg']['sub_code'] ?? '', 'United States of America') && str_contains($j['valid_msg']['sub_code'], 'Belgium'));
 [$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['line1' => 'Donkerstraat 12', 'locality' => 'Vleteren', 'sub_code' => 'XX-YY']);
 check("unknown sub_code -> 400 (62)", $code === 400 && $j['valid_state']['sub_code'] === 'invalid');
-[$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['address2' => 'Donkerstraat 12']);
-check("legacy key read; no locality or postal code -> 400 on locality and city", $code === 400 && $j['valid_state']['locality'] === 'invalid' && $j['valid_state']['city'] === 'invalid' && $j['valid_state']['line1'] === null);
-[$code, $j] = addr('PATCH', '', $L_SANJOSE, $ADMIN, (object)['zip5' => '1234']);
-check("US PATCH zip5 shape -> 400 (59) on zip5 and postal_code", $code === 400 && $j['valid_state']['zip5'] === 'invalid' && $j['valid_state']['postal_code'] === 'invalid');
+[$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['address2' => 'Donkerstraat 12', 'city' => 'Vleteren']);
+check("pre-6.0 keys are ignored, not read: 400 on line1 and locality", $code === 400 && $j['valid_state']['line1'] === 'invalid' && $j['valid_state']['locality'] === 'invalid' && !array_key_exists('address2', $j['valid_state']));
+[$code, $j] = addr('POST', '', $L_EMPTY, $ADMIN, (object)['line1' => 'Donkerstraat 12']);
+check("line1 alone -> 400 on locality naming the postal code alternative", $code === 400 && $j['valid_state']['locality'] === 'invalid' && str_contains($j['valid_msg']['locality'], 'postal code'));
+[$code, $j] = addr('PATCH', '', $L_SANJOSE, $ADMIN, (object)['postal_code' => '1234']);
+check("US PATCH four-digit postal_code -> 400 (59) on postal_code", $code === 400 && $j['valid_state']['postal_code'] === 'invalid' && str_contains($j['valid_msg']['postal_code'], 'ZIP'));
 [$code, $j] = addr('PATCH', '', $L_SANJOSE, $ADMIN, (object)['postal_code' => '95125-12']);
-check("US PATCH postal_code with a bad +4 -> 400 (60)", $code === 400 && $j['valid_state']['zip4'] === 'invalid');
+check("US PATCH postal_code with a bad +4 -> 400 (60)", $code === 400 && $j['valid_state']['postal_code'] === 'invalid' && str_contains($j['valid_msg']['postal_code'], '+ 4'));
 [$code, $j] = addr('POST', '', $L_ABDIJ, $ADMIN, (object)['line1' => 'x']);
 check("POST on a location that has an address -> 405 (189)", $code === 405);
 [$code, $j] = addr('PATCH', '', $L_EMPTY, $ADMIN, (object)['telephone' => '1']);
 check("PATCH on a location without an address -> 405 (190)", $code === 405);
 [$code, $j] = addr('DELETE', '', $L_ABDIJ, $ADMIN);
-check("DELETE -> 405 with the twelve-key valid_state", $code === 405 && count($j['valid_state']) === 12);
+check("DELETE -> 405 with the seven-key valid_state", $code === 405 && count($j['valid_state']) === 7);
 [$code, $j] = addr('POST', '', 'dddddddd-0000-4000-8000-0000000000ff', $ADMIN, (object)['line1' => 'x']);
 check("unknown location -> 400 (57)", $code === 400);
 
@@ -218,7 +219,7 @@ $before = intval(scalar("SELECT lastModified FROM location WHERE id='$L_CANTILLO
 [$code, $j] = addr('PATCH', '', $L_CANTILLON, $ADMIN, (object)['telephone' => '02 521 49 28']);
 check("PATCH national Belgian number -> 200 with the E.164 string", $code === 200 && ($j['address']['telephone'] ?? null) === '+3225214928');
 check("...stored as E.164 and lastModified bumped", scalar("SELECT telephone FROM address WHERE locationID='$L_CANTILLON'") === '+3225214928' && intval(scalar("SELECT lastModified FROM location WHERE id='$L_CANTILLON'")) > $before);
-check("...the response is the full location object with both vocabularies", ($j['object'] ?? null) === 'location' && $j['address']['line1'] === 'Rue Gheude 56' && $j['address']['address2'] === 'Rue Gheude 56' && $j['address']['state_short'] === null && $j['country_short_name'] === 'Belgium');
+check("...the response is the full location object", ($j['object'] ?? null) === 'location' && $j['address']['line1'] === 'Rue Gheude 56' && !array_key_exists('address2', $j['address']) && $j['country_short_name'] === 'Belgium');
 [$code, $j] = addr('PATCH', '', $L_CANTILLON, $ADMIN, (object)['telephone' => '+1 503 555 0100']);
 check("PATCH an international number on a BE location -> kept as sent", $code === 200 && $j['address']['telephone'] === '+15035550100');
 [$code, $j] = addr('PATCH', '', $L_CANTILLON, $ADMIN, (object)['telephone' => '12']);
@@ -226,7 +227,7 @@ check("PATCH unreadable number -> 400 (65) naming the country", $code === 400 &&
 [$code, $j] = addr('PATCH', '', $L_CANTILLON, $ADMIN, (object)['telephone' => null]);
 check("PATCH telephone null -> cleared", $code === 200 && $j['address']['telephone'] === null && scalar("SELECT telephone FROM address WHERE locationID='$L_CANTILLON'") === null);
 [$code, $j] = addr('PATCH', '', $L_SANJOSE, $ADMIN, (object)['telephone' => '(408) 555-0199']);
-check("PATCH US number -> +1 E.164", $code === 200 && $j['address']['telephone'] === '+14085550199' && $j['address']['zip5'] === '95125');
+check("PATCH US number -> +1 E.164", $code === 200 && $j['address']['telephone'] === '+14085550199' && $j['address']['postal_code'] === '95125');
 [$code, $j] = addr('PATCH', '', $L_SANJOSE, $PLAIN, (object)['telephone' => '(408) 555-0100']);
 check("plain key may PATCH an unverified location", $code === 200);
 $admin->query("UPDATE location SET cbVerified=1 WHERE id='$L_SANJOSE'");
@@ -247,24 +248,24 @@ check("GET /address/subdivisions for an unseeded country -> empty list", $code =
 
 // 9. The other output shapes share the builder
 [$code, $j] = loc('GET', '', $L_ABDIJ, $ADMIN);
-check("GET /location/{id}: address block and country name", $code === 200 && $j['address']['formatted'] === array('Donkerstraat 12', '8640 Westvleteren') && $j['address']['zip5'] === null && $j['country_short_name'] === 'Belgium');
+check("GET /location/{id}: address block and country name", $code === 200 && $j['address']['formatted'] === array('Donkerstraat 12', '8640 Westvleteren') && count($j['address']) === 11 && $j['country_short_name'] === 'Belgium');
 $l = new Location(); $rows = $l->brewerLocations($BE_BREWER);
 $byId = array(); foreach($rows as $row){ $byId[$row['id']] = $row; }
 check("brewerLocations: rows with and without an address", isset($byId[$L_ABDIJ]['address']) && !isset($byId[$L_EMPTY]['address']) && $byId[$L_ABDIJ]['address']['telephone'] === '+3257400376' && $byId[$L_CANTILLON]['address']['admin_area']['name'] === 'Région de Bruxelles-Capitale');
 $l = new Location(); $rows = $l->brewerLocations($US_BREWER);
 $byId = array(); foreach($rows as $row){ $byId[$row['id']] = $row; }
-check("brewerLocations: US row keeps zip5/state_short and a string telephone", $byId[$L_WESTFIELD]['address']['zip5'] === '01085' && $byId[$L_WESTFIELD]['address']['zip4'] === '1234' && $byId[$L_WESTFIELD]['address']['state_short'] === 'MA' && $byId[$L_SANJOSE]['address']['telephone'] === '+14085550100');
+check("brewerLocations: US row with ZIP+4, region and a string telephone", $byId[$L_WESTFIELD]['address']['postal_code'] === '01085-1234' && $byId[$L_WESTFIELD]['address']['admin_area']['sub_code'] === 'US-MA' && $byId[$L_SANJOSE]['address']['telephone'] === '+14085550100');
 $l = new Location(); $near = $l->nearbyLatLng(50.8957, 2.72, 25, 'true', '', 10);
 $hit = null; foreach($near['locationArray'] as $row){ if($row['location']['id'] === $L_ABDIJ){ $hit = $row; } }
-check("nearbyLatLng: the Belgian row carries the full address block", $hit !== null && $hit['location']['address']['line1'] === 'Donkerstraat 12' && $hit['location']['address']['state_short'] === null && $hit['location']['country_short_name'] === 'Belgium' && $hit['location']['telephone'] === '+3257400376');
+check("nearbyLatLng: the Belgian row carries the address block, no top-level telephone", $hit !== null && $hit['location']['address']['line1'] === 'Donkerstraat 12' && $hit['location']['address']['telephone'] === '+3257400376' && !array_key_exists('telephone', $hit['location']) && $hit['location']['country_short_name'] === 'Belgium');
 $admin->query("UPDATE location SET latitude=50.9, longitude=2.73 WHERE id='$L_EMPTY'");
 $l = new Location(); $near = $l->nearbyLatLng(50.8957, 2.72, 25, 'true', '', 10);
 $empty = null; foreach($near['locationArray'] as $row){ if($row['location']['id'] === $L_EMPTY){ $empty = $row; } }
 check("nearbyLatLng: a location without an address has the all-null block", $empty !== null && $empty['location']['address']['line1'] === null && $empty['location']['address']['validation'] === null && count(array_filter($empty['location']['address'], fn($v) => $v !== null)) === 0);
 $l = new Location(); $l->validate($L_CANTILLON, true); $so = $l->generateLocationSearchObject();
-check("search object: both vocabularies, regions facet, no US-only keys", $so['address']['line1'] === 'Rue Gheude 56' && $so['address']['address2'] === 'Rue Gheude 56' && $so['address']['postal_code'] === '1070' && !isset($so['address']['zip5']) && $so['regions'] === array('BE-BRU') && !isset($so['states']) && $so['countries'] === array('BE') && $so['cities'] === array('Anderlecht'));
+check("search object: address keys, regions facet, no states for a Belgian row", $so['address'] === array('line1' => 'Rue Gheude 56', 'locality' => 'Anderlecht', 'sub_code' => 'BE-BRU', 'postal_code' => '1070') && $so['regions'] === array('BE-BRU') && !isset($so['states']) && $so['countries'] === array('BE') && $so['cities'] === array('Anderlecht'));
 $l = new Location(); $l->validate($L_WESTFIELD, true); $so = $l->generateLocationSearchObject();
-check("search object: US row carries states AND regions", $so['states'] === array('MA') && $so['regions'] === array('US-MA') && $so['address']['zip5'] === '01085' && $so['address']['postal_code'] === '01085-1234');
+check("search object: US row carries states AND regions", $so['states'] === array('MA') && $so['regions'] === array('US-MA') && $so['address']['line2'] === 'Ste 800' && $so['address']['postal_code'] === '01085-1234');
 $b = new Brewer(); $b->validate($BE_BREWER, true); $bso = $b->generateBrewerSearchObject();
 check("brewer search object: regions and a 'City, Country' subtitle", in_array('BE-BRU', $bso['regions'] ?? array(), true) && !isset($bso['states']) && ($bso['subtitle'] ?? '') === 'Westvleteren, Belgium');
 $b = new Brewer(); $b->validate($US_BREWER, true); $bso = $b->generateBrewerSearchObject();
