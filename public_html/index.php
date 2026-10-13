@@ -214,7 +214,16 @@ if(isset($_SERVER['HTTPS'])){
 
             if(!empty($apiKey)){
                 $apiKeys = new apiKeys();
-                if(!$apiKeys->validate($apiKey, true)){
+                if($apiKeys->validate($apiKey, true)){
+                    // Marks the request as made with a valid key. The vhost
+                    // logs this header as the last field of each access.log
+                    // line, and the apache-404 and apache-ratelimit fail2ban
+                    // filters skip lines that carry it, so key holders are
+                    // limited by their quota rather than banned by IP. Only
+                    // the server can set a response header, so a client cannot
+                    // forge the exemption. Never put the key itself here.
+                    header('X-CB-Auth: 1');
+                }else{
                     if($apiKeys->error){
                         // validate() failed internally (database error, duplicate
                         // keys) — NOT an unknown key. Reporting 401 here once
