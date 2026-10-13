@@ -68,12 +68,16 @@ $settings = array(
         // above the prose for the same reason descriptions rank last.
         //
         // address2 is the STREET, not address1 — USPS ordering, which the
-        // rest of USAddresses follows (address2 is the required field; the
+        // rest of Address follows (address2 is the required field; the
         // "missing the street address" validation fires on it). address1 is
         // the secondary unit ("Ste 401") and stays unsearchable: nobody
         // finds a brewery by its suite number.
+        // Both vocabularies since October 2026: address2/zip5 on US rows,
+        // line1/postal_code on every row (see Location::generateLocationSearchObject()).
         'unordered(address.address2)',
+        'unordered(address.line1)',
         'unordered(address.zip5)',
+        'unordered(address.postal_code)',
         'short_description',
         'description'
     ),
@@ -98,6 +102,9 @@ $settings = array(
         'style_family',
         'style_class',
         'states',
+        // ISO 3166-2 for every country (US-OR, BE-VWV); `states` stays the
+        // bare US code the existing facet UI reads
+        'regions',
         'searchable(cities)',
         'countries',
         'cb_verified',
@@ -192,7 +199,8 @@ $settings = array(
     a near-miss postal code; either it's the code or it isn't.
     */
     'disableTypoToleranceOnAttributes' => array(
-        'address.zip5'
+        'address.zip5',
+        'address.postal_code'
     )
 );
 

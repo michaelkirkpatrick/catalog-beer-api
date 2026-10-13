@@ -20,7 +20,7 @@ INSERT.
 
 Sharing a domain shares staff, by design: brewery-staff rights come from an
 email-domain match against domainName (Privileges::isBreweryStaff and the
-gates in Brewer/Beer/Location/USAddresses), so an @owner.com address is
+gates in Brewer/Beer/Location/Address), so an @owner.com address is
 staff on every record that stores owner.com — the acquirer managing its
 acquisition. Nothing here touches permissions.
 

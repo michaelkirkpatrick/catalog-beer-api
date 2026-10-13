@@ -817,3 +817,26 @@ Brewer,BR-264,Brewer Status - An Admin Sets The Country Uppercased,PATCH,/brewer
 Brewer,BR-265,Brewer Status - PUT Without The Fields Resets Them,PUT,/brewer/{id},Admin,200,Done
 Brewer,BR-266,Brewer Status - Delete Brewery #57,DELETE,/brewer/{id},Admin,204,Done
 Brewer,BR-267,Brewer Status - Delete Brewery #57b,DELETE,/brewer/{id},Admin,204,Done
+Brewer,BR-268,Create Brewery #58 In Belgium,POST,/brewer,Admin,201,Done
+Location,L-181,A Location In Belgium,POST,/location,Admin,201,Done
+Location,L-182,A Country Outside The Validation List Is Refused,POST,/location,Admin,400,Done
+Location,L-183,Not A Country Code,POST,/location,Admin,400,Done
+Address,A-125,Belgian Address Validated By Google,POST,/address/{location_id},Admin,200,Done
+Address,A-126,A Client Province Is Kept When Google Reports None,PUT,/address/{location_id},Admin,200,Done
+Address,A-127,A Province From Another Country Is Refused,PATCH,/address/{location_id},Admin,400,Done
+Address,A-128,A Postal Code Of The Wrong Shape Is Refused,PATCH,/address/{location_id},Admin,400,Done
+Address,A-129,Telephone PATCH Normalises A National Number,PATCH,/address/{location_id},Admin,200,Done
+Address,A-130,Telephone PATCH Null Clears It,PATCH,/address/{location_id},Admin,200,Done
+Location,L-184,Country Change Refused Once An Address Exists,PATCH,/location/{location_id},Admin,400,Done
+Location,L-185,A Location In The Netherlands,POST,/location,Admin,201,Done
+Address,A-131,"Legacy Keys On A Dutch Location, Postcode With Letters",POST,/address/{location_id},Admin,200,Done
+Location,L-186,A Location In Germany,POST,/location,Admin,201,Done
+Address,A-132,German Address From Street And Postal Code Alone,POST,/address/{location_id},Admin,200,Done
+Location,L-187,Nearby By Postal Code In Belgium,GET,/location/zip?postal_code=8640&country=BE,Admin,200,Done
+Location,L-188,Nearby By City Without A Region,GET,/location/city?city=Vleteren&country=BE,Admin,200,Done
+Location,L-189,The zip_code Alias Still Means A US ZIP,GET,/location/zip?zip_code=8640,Admin,400,Done
+Address,A-133,Countries A Location May Be In,GET,/address/countries,Admin,200,Done
+Address,A-134,Subdivisions Of Belgium,GET,/address/subdivisions?country=be,Admin,200,Done
+Address,A-135,Subdivisions With A Bad Country,GET,/address/subdivisions?country=XX,Admin,400,Done
+Brewer,BR-269,Brewer Locations Carry Both Vocabularies,GET,/brewer/{brewer_id}/locations,Admin,200,Done
+Brewer,BR-270,Delete Brewery #58,DELETE,/brewer/{brewer_id},Admin,204,Done

@@ -197,7 +197,17 @@ class Metrics {
             "SELECT COUNT(*) FROM location WHERE url IS NOT NULL AND url != ''"));
         $m[] = array('location_with_latlng', '', $this->scalar($db,
             "SELECT COUNT(*) FROM location WHERE latitude IS NOT NULL AND longitude IS NOT NULL"));
-        $m[] = array('location_with_address', '', $this->scalar($db, "SELECT COUNT(*) FROM US_addresses"));
+        $m[] = array('location_with_address', '', $this->scalar($db, "SELECT COUNT(*) FROM address"));
+        // Locations by country and addresses by how sure the record is
+        // (validated / geocoded / unverified) — both grouped, both new in
+        // October 2026 with the international address table, so their
+        // history starts there; additive, no regime mix.
+        foreach($this->grouped($db, "SELECT countryCode AS d, COUNT(*) FROM location GROUP BY d") as $dim => $count){
+            $m[] = array('location_country', $dim, $count);
+        }
+        foreach($this->grouped($db, "SELECT validation AS d, COUNT(*) FROM address GROUP BY d") as $dim => $count){
+            $m[] = array('address_validation', $dim, $count);
+        }
 
         // ----- Style classification -----
         $m[] = array('beer_style_id_resolved', '', $this->scalar($db, "SELECT COUNT(*) FROM beer WHERE style_id IS NOT NULL"));

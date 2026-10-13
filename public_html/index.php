@@ -352,10 +352,10 @@ if(!$error){
             $responseHeader = $activity->responseHeader;
             break;
         case 'address':
-            $usAddresses = new USAddresses();
-            $usAddresses->api($method, $id, $apiKey, $data);
-            $json = $usAddresses->json;
-            $responseCode = $usAddresses->responseCode;
+            $address = new Address();
+            $address->api($method, $function, $id, $apiKey, $data);
+            $json = $address->json;
+            $responseCode = $address->responseCode;
             $responseHeader = '';
             break;
         case 'beer':

@@ -8,7 +8,6 @@ class Location {
     public $name = '';
     public $url = '';           // Optional
     public $countryCode = '';
-    public $countryShortName = 'United States of America';
     public $latitude = 0;       // Optional
     public $longitude = 0;      // Optional
     public $cbVerified = false;
@@ -301,6 +300,9 @@ class Location {
                 // Validate Country Code
                 $this->countryCode = $countryCode;
                 $this->validateCC();
+                if(!$this->error && !$newLocation){
+                    $this->guardCountryChange($this->locationID, $this->countryCode);
+                }
 
                 if(!$this->error){
                     // Last Modified
@@ -406,8 +408,12 @@ class Location {
                 if(in_array('countryCode', $patchFields)){
                     if($this->countryCode != $countryCode){
                         // Validate Country Code
+                        $storedCountry = $this->countryCode;
                         $this->countryCode = $countryCode;
                         $this->validateCC();
+                        if(!$this->error && $this->countryCode !== $storedCountry){
+                            $this->guardCountryChange($this->locationID, $this->countryCode);
+                        }
                         if(!$this->error){
                             $setClauses[] = 'countryCode=?';
                             $setParams[] = $this->countryCode;
@@ -536,32 +542,49 @@ class Location {
     }
 
     private function validateCC(){
-        // ISO 3166-1 Alpha-2 Code
-        // https://www.iso.org/iso-3166-country-codes.html
+        /*--
+        ISO 3166-1 alpha-2, limited to the countries whose addresses can be
+        validated (Address::COUNTRIES, the 40 regions Google Address
+        Validation covers). A location outside that list would hold an
+        address nobody has checked, so the gate is here, at the location,
+        and the address never has to degrade. Two messages on one error
+        number, the way 182 does: a code that is not a country, and a
+        country that is not yet supported.
+        --*/
+        $raw = trim($this->countryCode ?? '');
 
-        // Trim
-        $this->countryCode = trim($this->countryCode ?? '');
-
-        // Validate
-        if(!empty($this->countryCode)){
-            if($this->countryCode == 'US'){
-                // Valid
-                $valid = true;
-                $this->validState['country_code'] = 'valid';
-            }else{
-                // Invalid
+        if($raw !== ''){
+            $code = CountryCode::normalize($raw);
+            if($code === null){
                 $this->error = true;
                 $this->validState['country_code'] = 'invalid';
-                $this->validMsg['country_code'] = 'Sorry, at this time we are only collecting brewery locations for the United States of America.';
+                $this->validMsg['country_code'] = 'country_code must be an ISO 3166-1 alpha-2 code (e.g. "US", "BE").';
                 $this->responseCode = 400;
 
                 // Log Error
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 51;
                 $errorLog->errorMsg = 'Invalid country code';
-                $errorLog->badData = $this->countryCode;
+                $errorLog->badData = $raw;
                 $errorLog->filename = 'API / Location.class.php';
                 $errorLog->write();
+            }elseif(!in_array($code, Address::COUNTRIES, true)){
+                $this->error = true;
+                $this->validState['country_code'] = 'invalid';
+                $this->validMsg['country_code'] = 'Sorry, we can\'t validate addresses in ' . CountryCode::shortName($code) . ' yet. Locations can currently be added in: ' . implode(', ', Address::COUNTRIES) . '.';
+                $this->responseCode = 400;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 51;
+                $errorLog->errorMsg = 'Country not in Address::COUNTRIES';
+                $errorLog->badData = $code;
+                $errorLog->filename = 'API / Location.class.php';
+                $errorLog->write();
+            }else{
+                // Valid
+                $this->countryCode = $code;
+                $this->validState['country_code'] = 'valid';
             }
         }else{
             // Missing Country Code
@@ -576,6 +599,38 @@ class Location {
             $errorLog->errorNumber = 153;
             $errorLog->errorMsg = 'Missing country code';
             $errorLog->badData = '';
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+        }
+    }
+
+    /*--
+    A location that holds an address cannot change country: the address was
+    validated for the country it is in, and the API has no way to re-run
+    that validation from here (the address resource reads the location's
+    country, so the two cannot be changed in one request). The fix for a
+    location created under the wrong country is to delete it and create it
+    again; before an address exists the country is freely editable.
+    --*/
+    private function guardCountryChange($locationID, $newCountryCode){
+        $db = new Database();
+        $result = $db->query("SELECT countryCode FROM address WHERE locationID=?", [$locationID]);
+        $stored = null;
+        if(!$db->error && $result->num_rows === 1){
+            $stored = $result->fetch_assoc()['countryCode'];
+        }
+        $db->close();
+        if($stored !== null && $stored !== $newCountryCode){
+            $this->error = true;
+            $this->validState['country_code'] = 'invalid';
+            $this->validMsg['country_code'] = 'This location already holds an address validated in ' . CountryCode::shortName($stored) . ', so its country can\'t change. If it was created under the wrong country, delete the location and create it again.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 341;
+            $errorLog->errorMsg = 'Country change on a location holding an address';
+            $errorLog->badData = "locationID: $locationID / stored: $stored / requested: $newCountryCode";
             $errorLog->filename = 'API / Location.class.php';
             $errorLog->write();
         }
@@ -682,7 +737,7 @@ class Location {
             // need against /location/{id}. Same item shape as that endpoint,
             // minus the nested brewer (the list wrapper already carries it).
             $db = new Database();
-            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN US_addresses a ON a.locationID = l.id LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
+            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, a.line1, a.line2, a.locality, a.dependentLocality, a.sub_code, a.postalCode, a.formatted, a.languageCode, a.telephone, a.validation, a.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN address a ON a.locationID = l.id LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
             if(!$db->error){
                 while($array = $result->fetch_assoc()){
                     $locationInfo = array(
@@ -691,27 +746,16 @@ class Location {
                         'name'=>$array['name'],
                         'url'=>!empty($array['url']) ? $array['url'] : null,
                         'country_code'=>$array['countryCode'],
-                        'country_short_name'=>$this->countryShortName,
+                        'country_short_name'=>CountryCode::shortName($array['countryCode']),
                         'latitude'=>!empty($array['latitude']) ? floatval($array['latitude']) : null,
                         'longitude'=>!empty($array['longitude']) ? floatval($array['longitude']) : null,
                         'cb_verified'=>$array['cbVerified'] ? true : false,
                         'brewer_verified'=>$array['brewerVerified'] ? true : false,
                         'last_modified'=>intval($array['lastModified'])
                     );
-                    if($array['address2'] !== null){
-                        $locationInfo['address'] = array(
-                            'address1'=>!empty($array['address1']) ? $array['address1'] : null,
-                            'address2'=>$array['address2'],
-                            'city'=>$array['city'],
-                            'sub_code'=>$array['sub_code'],
-                            'state_short'=>!empty($array['sub_code']) ? substr($array['sub_code'], 3, 2) : null,
-                            'state_long'=>!empty($array['sub_name']) ? $array['sub_name'] : null,
-                            // Strings: ZIP codes have significant leading zeros,
-                            // and intval() here emitted 1085 for Westfield MA 01085.
-                            'zip5'=>strval($array['zip5']),
-                            'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null,
-                            'telephone'=>!empty($array['telephone']) ? intval($array['telephone']) : null
-                        );
+                    if($array['line1'] !== null){
+                        // One shape builder for every address on the wire
+                        $locationInfo['address'] = Address::wireObject($array);
                     }
                     $locationArray[] = $locationInfo;
                 }
@@ -929,7 +973,7 @@ class Location {
                 // Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
                 // Request count+1 to determine if there are more results (eliminates second Haversine query)
                 $fetchCount = $count + 1;
-                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.address1, a.address2, a.city, a.sub_code, a.zip5, a.zip4, a.telephone, s.sub_name FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN US_addresses a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
+                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.line1, a.line2, a.locality, a.dependentLocality, a.sub_code, a.postalCode, a.formatted, a.languageCode, a.telephone, a.validation, a.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN address a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
                 if(!$db->error){
                     $rowCount = 0;
                     while($array = $result->fetch_assoc()){
@@ -942,16 +986,12 @@ class Location {
                         // Distance
                         $distance = round(floatval($array['distance']), 1);
 
-                        // State info from sub_code
-                        $stateShort = '';
-                        $stateLong = '';
-                        if(!empty($array['sub_code'])){
-                            $stateShort = substr($array['sub_code'], 3, 2);
-                            $stateLong = $array['sub_name'] ?? '';
-                        }
+                        // Address block: the shared wire shape, or the
+                        // legacy all-null block for a location without one.
+                        $addressBlock = $array['line1'] !== null ? Address::wireObject($array) : Address::wireObject(array('countryCode' => $array['countryCode']));
 
                         // Build Response Array
-                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>$this->countryShortName, 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$array['telephone'], 'address'=>array('address1'=>$array['address1'], 'address2'=>$array['address2'], 'city'=>$array['city'], 'sub_code'=>$array['sub_code'], 'state_short'=>$stateShort, 'state_long'=>$stateLong, 'zip5'=>!empty($array['zip5']) ? strval($array['zip5']) : null, 'zip4'=>!empty($array['zip4']) ? strval($array['zip4']) : null)), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'status'=>$array['b_status'], 'founded_year'=>is_null($array['b_foundedYear']) ? null : intval($array['b_foundedYear']), 'closed_year'=>is_null($array['b_closedYear']) ? null : intval($array['b_closedYear']), 'country_code'=>$array['b_countryCode'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
+                        $locationInfo = array('location'=>array('id'=>$array['id'], 'object'=>'location', 'name'=>$array['name'], 'brewer_id'=>$array['brewerID'], 'url'=>$array['url'], 'country_code'=>$array['countryCode'], 'country_short_name'=>CountryCode::shortName($array['countryCode']), 'latitude'=>floatval($array['latitude']), 'longitude'=>floatval($array['longitude']), 'telephone'=>$addressBlock['telephone'], 'address'=>$addressBlock), 'distance'=>array('distance'=>$distance, 'units'=>$units), 'brewer'=>array('id'=>$array['brewerID'], 'object'=>'brewer', 'name'=>$array['b_name'] ?? '', 'description'=>$array['b_description'] ?? null, 'short_description'=>$array['b_shortDescription'] ?? null, 'url'=>$array['b_url'], 'status'=>$array['b_status'], 'founded_year'=>is_null($array['b_foundedYear']) ? null : intval($array['b_foundedYear']), 'closed_year'=>is_null($array['b_closedYear']) ? null : intval($array['b_closedYear']), 'country_code'=>$array['b_countryCode'], 'cb_verified'=>$array['b_cbVerified'] ? true : false, 'brewer_verified'=>$array['b_brewerVerified'] ? true : false));
 
                         // Add to Array
                         $locationArray[] = $locationInfo;
@@ -1266,9 +1306,14 @@ class Location {
         }
     }
 
-    public function googleMapsAPI($locationID, $addressString, $googleAPI, $saveToDB = true){
+    public function googleMapsAPI($locationID, $addressString, $googleAPI, $saveToDB = true, $geoOptions = array()){
         // Request Parameters
         $address = urlencode($addressString ?? '');
+        // Geocoding only: restrict the match to a country and bias the
+        // region, so "Paris" with country:FR is never Paris, Texas.
+        $geoFilter = '';
+        if(!empty($geoOptions['components'])){ $geoFilter .= '&components=' . urlencode($geoOptions['components']); }
+        if(!empty($geoOptions['region'])){ $geoFilter .= '&region=' . urlencode($geoOptions['region']); }
 
         // Headers & Options
         $headerArray = array(
@@ -1278,7 +1323,7 @@ class Location {
         // URL
         switch($googleAPI){
             case 'geocode':
-                $url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . '&key=' . GOOGLE_ADDRESS_VALIDATION_KEY;
+                $url = 'https://maps.googleapis.com/maps/api/geocode/json?address=' . $address . $geoFilter . '&key=' . GOOGLE_ADDRESS_VALIDATION_KEY;
                 $arrayName = 'results';
                 break;
             case 'findplacefromtext':
@@ -1362,7 +1407,7 @@ class Location {
                         $errorLog->errorNumber = 202;
                         $errorLog->errorMsg = 'Address Found by Google';
                         $errorLog->badData = 'Address String: ' . $addressString . ' // Response: ' . $jsonResponse->{$arrayName}[0]->formatted_address;
-                        $errorLog->filename = 'API / USAddresses.class.php';
+                        $errorLog->filename = 'API / Location.class.php';
                         $errorLog->write();
 
                         return $jsonResponse->{$arrayName}[0]->formatted_address;
@@ -1429,17 +1474,55 @@ class Location {
         }
     }
 
-    public function nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count){
-        // Validate zip_code
-        $zipCode = trim($zipCode ?? '');
-        if(empty($zipCode)){
+    /* The country a nearby lookup is in: US when absent, else an ISO
+       3166-1 alpha-2 code (error 343 when it is not one). */
+    private function nearbyCountry($country){
+        $raw = trim($country ?? '');
+        if($raw === ''){
+            return 'US';
+        }
+        $code = CountryCode::normalize($raw);
+        if($code === null){
             $this->error = true;
-            $this->errorMsg = 'Missing zip_code parameter. Please provide a 5-digit US ZIP code.';
+            $this->errorMsg = 'Invalid country parameter. Please provide an ISO 3166-1 alpha-2 code (e.g. "BE").';
+            $this->responseCode = 400;
+
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 343;
+            $errorLog->errorMsg = 'Invalid country (nearby)';
+            $errorLog->badData = $raw;
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+        }
+        return $code;
+    }
+
+    /* metric defaults to the country's convention when the caller did not
+       say: miles in the US, Liberia and Myanmar, kilometres everywhere else. */
+    private function defaultMetric($metric, $country){
+        if($metric === '' || $metric === null){
+            return in_array($country, array('US', 'LR', 'MM'), true) ? 'false' : 'true';
+        }
+        return $metric;
+    }
+
+    public function nearbyZip($postalCode, $country, $searchRadius, $metric, $cursor, $count){
+        // Validate country (US when absent; zip_code is the US alias of postal_code)
+        $country = $this->nearbyCountry($country);
+        if($this->error){
+            return array('locationArray' => array(), 'nextCursor' => '');
+        }
+
+        // Validate postal_code
+        $postalCode = trim($postalCode ?? '');
+        if(empty($postalCode)){
+            $this->error = true;
+            $this->errorMsg = 'Missing postal_code parameter. Please provide a postal code (for the US, zip_code with a 5-digit ZIP is also accepted).';
             $this->responseCode = 400;
 
             $errorLog = new LogError();
             $errorLog->errorNumber = 245;
-            $errorLog->errorMsg = 'Missing zip_code';
+            $errorLog->errorMsg = 'Missing postal_code';
             $errorLog->badData = '';
             $errorLog->filename = 'API / Location.class.php';
             $errorLog->write();
@@ -1447,32 +1530,39 @@ class Location {
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
-        if(!preg_match('/^\d{5}$/', $zipCode)){
+        $shape = $country === 'US' ? '^\d{5}$' : (Address::POSTAL_SHAPES[$country] ?? null);
+        if($shape !== null && !preg_match('/' . $shape . '/i', $postalCode)){
             $this->error = true;
-            $this->errorMsg = 'Invalid zip_code format. Please provide a 5-digit US ZIP code.';
+            $this->errorMsg = 'Invalid postal_code format for ' . CountryCode::shortName($country) . '.' . ($country === 'US' ? ' Please provide a 5-digit US ZIP code.' : '');
             $this->responseCode = 400;
 
             $errorLog = new LogError();
             $errorLog->errorNumber = 246;
-            $errorLog->errorMsg = 'Invalid zip_code format';
-            $errorLog->badData = $zipCode;
+            $errorLog->errorMsg = 'Invalid postal_code format';
+            $errorLog->badData = $country . ' ' . $postalCode;
             $errorLog->filename = 'API / Location.class.php';
             $errorLog->write();
 
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
-        // Geocode the ZIP code
-        $coords = $this->googleMapsAPI(null, $zipCode, 'geocode', false);
+        // Geocode the postal code within the country
+        $coords = $this->googleMapsAPI(null, $postalCode, 'geocode', false, array('components' => 'country:' . $country . '|postal_code:' . $postalCode, 'region' => strtolower($country)));
         if($coords === null){
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
         // Delegate to nearbyLatLng
-        return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $metric, $cursor, $count);
+        return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $this->defaultMetric($metric, $country), $cursor, $count);
     }
 
-    public function nearbyCity($city, $state, $searchRadius, $metric, $cursor, $count){
+    public function nearbyCity($city, $region, $country, $searchRadius, $metric, $cursor, $count){
+        // Validate country (US when absent)
+        $country = $this->nearbyCountry($country);
+        if($this->error){
+            return array('locationArray' => array(), 'nextCursor' => '');
+        }
+
         // Validate city
         $city = trim($city ?? '');
         if(empty($city)){
@@ -1490,11 +1580,13 @@ class Location {
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
-        // Validate state
-        $state = trim($state ?? '');
-        if(empty($state)){
+        // Validate region: required in the US (a city name alone is
+        // ambiguous across 50 states), optional elsewhere. `state` is the
+        // legacy alias.
+        $region = trim($region ?? '');
+        if(empty($region) && $country === 'US'){
             $this->error = true;
-            $this->errorMsg = 'Missing state parameter. Please provide a state name or abbreviation.';
+            $this->errorMsg = 'Missing state parameter. Please provide a state name or abbreviation (or region= for a country other than the US).';
             $this->responseCode = 400;
 
             $errorLog = new LogError();
@@ -1507,15 +1599,15 @@ class Location {
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
-        // Geocode the city/state
-        $addressString = $city . ', ' . $state;
-        $coords = $this->googleMapsAPI(null, $addressString, 'geocode', false);
+        // Geocode the city within the country
+        $addressString = $region !== '' ? ($city . ', ' . $region) : $city;
+        $coords = $this->googleMapsAPI(null, $addressString, 'geocode', false, array('components' => 'country:' . $country, 'region' => strtolower($country)));
         if($coords === null){
             return array('locationArray' => array(), 'nextCursor' => '');
         }
 
         // Delegate to nearbyLatLng
-        return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $metric, $cursor, $count);
+        return $this->nearbyLatLng($coords['latitude'], $coords['longitude'], $searchRadius, $this->defaultMetric($metric, $country), $cursor, $count);
     }
 
     public function generateLocationObject($brewerObj = null){
@@ -1537,7 +1629,7 @@ class Location {
         $brewer->generateBrewerObject(true);
 
         // Address Data
-        $usAddresses = new USAddresses();
+        $address = new Address();
 
         // Generate JSON
         $this->json['id'] = $this->locationID;
@@ -1545,26 +1637,14 @@ class Location {
         $this->json['name'] = $this->name;
         $this->json['url'] = $this->url;
         $this->json['country_code'] = $this->countryCode;
-        $this->json['country_short_name'] = $this->countryShortName;
+        $this->json['country_short_name'] = CountryCode::shortName($this->countryCode);
         $this->json['latitude'] = $this->latitude;
         $this->json['longitude'] = $this->longitude;
         $this->json['cb_verified'] = $this->cbVerified;
         $this->json['brewer_verified'] = $this->brewerVerified;
         $this->json['last_modified'] = $this->lastModified;
-        if($usAddresses->validate($this->locationID, true)){
-            if(empty($usAddresses->address1)){$usAddresses->address1 = null;}
-            if(empty($usAddresses->zip4)){$usAddresses->zip4 = null;}
-            if(empty($usAddresses->telephone)){$usAddresses->telephone = null;}
-
-            $this->json['address']['address1'] = $usAddresses->address1;
-            $this->json['address']['address2'] = $usAddresses->address2;
-            $this->json['address']['city'] = $usAddresses->city;
-            $this->json['address']['sub_code'] = $usAddresses->sub_code;
-            $this->json['address']['state_short'] = $usAddresses->stateShort;
-            $this->json['address']['state_long'] = $usAddresses->stateLong;
-            $this->json['address']['zip5'] = $usAddresses->zip5;
-            $this->json['address']['zip4'] = $usAddresses->zip4;
-            $this->json['address']['telephone'] = $usAddresses->telephone;
+        if($address->validate($this->locationID, true)){
+            $this->json['address'] = $address->toArray();
         }
         $this->json['brewer'] = $brewer->json;
     }
@@ -1609,7 +1689,7 @@ class Location {
         }
 
         // Address Data
-        $usAddresses = new USAddresses();
+        $address = new Address();
 
         // Get Algolia ID
         $algolia = new Algolia();
@@ -1618,28 +1698,41 @@ class Location {
         // Generate JSON
         $array['locationID'] = $this->locationID;
         if(!empty($this->url)){$array['url'] = $this->url;}
-        $array['country_short_name'] = $this->countryShortName;
+        $array['country_short_name'] = CountryCode::shortName($this->countryCode);
         if(!empty($this->latitude)){$array['_geoloc']['lat'] = $this->latitude;}
         if(!empty($this->longitude)){$array['_geoloc']['lng'] = $this->longitude;}
-        $hasAddress = $usAddresses->validate($this->locationID, true);
+        $hasAddress = $address->validate($this->locationID, true);
+        $isUS = Address::isUS($this->countryCode);
         if($hasAddress){
-            if(!empty($usAddresses->address1)){$array['address']['address1'] = $usAddresses->address1;}
-            $array['address']['address2'] = $usAddresses->address2;
-            $array['address']['city'] = $usAddresses->city;
-            $array['address']['state_short'] = $usAddresses->stateShort;
-            $array['address']['state_long'] = $usAddresses->stateLong;
-            $array['address']['zip5'] = $usAddresses->zip5;
-            if(!empty($usAddresses->telephone)){$array['address']['telephone'] = $usAddresses->telephone;}
+            // Both vocabularies for the searchable street and postal code;
+            // the US-only keys only on US rows (see algolia/settings.php).
+            $array['address']['address2'] = $address->line1;
+            $array['address']['line1'] = $address->line1;
+            if($address->line2 !== ''){
+                $array['address']['address1'] = $address->line2;
+                $array['address']['line2'] = $address->line2;
+            }
+            $array['address']['city'] = $address->locality;
+            $array['address']['locality'] = $address->locality;
+            if($isUS){
+                $array['address']['state_short'] = $address->stateShort;
+                $array['address']['state_long'] = $address->stateLong;
+                $array['address']['zip5'] = $address->zip5;
+            }
+            if($address->postalCode !== ''){$array['address']['postal_code'] = $address->postalCode;}
+            if(!empty($address->telephone)){$array['address']['telephone'] = $address->telephone;}
         }
         // Geography under the same facet names brewers and beers use, so one
-        // states/cities/countries refinement works across all record types.
-        // Values must match Brewer::locationFacets() exactly or the facet
-        // splits: countryCode ("US", not the long name) and short state codes.
-        // address.* stays as-is for display.
+        // states/regions/cities/countries refinement works across all record
+        // types. Values must match Brewer::locationFacets() exactly or the
+        // facet splits: countryCode ("US", not the long name), short state
+        // codes in `states` (US only), ISO 3166-2 in `regions` (every
+        // country). address.* stays as-is for display.
         if(!empty($this->countryCode)){$array['countries'] = array($this->countryCode);}
         if($hasAddress){
-            if(!empty($usAddresses->stateShort)){$array['states'] = array($usAddresses->stateShort);}
-            if(!empty($usAddresses->city)){$array['cities'] = array($usAddresses->city);}
+            if($isUS && !empty($address->stateShort)){$array['states'] = array($address->stateShort);}
+            if($address->sub_code !== ''){$array['regions'] = array($address->sub_code);}
+            if($address->locality !== ''){$array['cities'] = array($address->locality);}
         }
 
         $array['brewer']['brewerID'] = $brewer->brewerID;
@@ -1648,7 +1741,7 @@ class Location {
         // Name is optional on a location, but a search hit needs a literal
         // title, so compose one when it's absent. The address has to be loaded
         // before this point — hence the ordering above.
-        $array['name'] = $this->displayName($brewer->name, $hasAddress ? $usAddresses->city : '');
+        $array['name'] = $this->displayName($brewer->name, $hasAddress ? $address->locality : '');
 
         // SiteSearch Fields
         $array['type'] = 'location';
@@ -1691,9 +1784,10 @@ class Location {
         $longitude = $_GET['longitude'] ?? 0;
         $searchRadius = $_GET['search_radius'] ?? null;
         $metric = $_GET['metric'] ?? '';
-        $zipCode = $_GET['zip_code'] ?? null;
+        $postalCode = $_GET['postal_code'] ?? ($_GET['zip_code'] ?? null);   // zip_code: legacy US alias
         $city = $_GET['city'] ?? null;
-        $state = $_GET['state'] ?? null;
+        $region = $_GET['region'] ?? ($_GET['state'] ?? null);              // state: legacy US alias
+        $country = $_GET['country'] ?? null;                                 // US when absent
 
         switch($method){
             case 'GET':
@@ -1733,7 +1827,7 @@ class Location {
 
                 }elseif($function == 'zip'){
                     // GET https://api.catalog.beer/location/zip
-                    $nearbyReturn = $this->nearbyZip($zipCode, $searchRadius, $metric, $cursor, $count);
+                    $nearbyReturn = $this->nearbyZip($postalCode, $country, $searchRadius, $metric, $cursor, $count);
                     if(!$this->error){
                         // Start JSON
                         $this->json['object'] = 'list';
@@ -1756,7 +1850,7 @@ class Location {
 
                 }elseif($function == 'city'){
                     // GET https://api.catalog.beer/location/city
-                    $nearbyReturn = $this->nearbyCity($city, $state, $searchRadius, $metric, $cursor, $count);
+                    $nearbyReturn = $this->nearbyCity($city, $region, $country, $searchRadius, $metric, $cursor, $count);
                     if(!$this->error){
                         // Start JSON
                         $this->json['object'] = 'list';

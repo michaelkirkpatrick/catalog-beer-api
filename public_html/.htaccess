@@ -35,6 +35,8 @@ ErrorDocument 503 /errors.php?code=503
 # API Endpoints
 RewriteRule ^activity/?$ index.php?endpoint=activity [L]
 
+RewriteRule ^address/countries$ index.php?endpoint=address&function=countries [L]
+RewriteRule ^address/subdivisions$ index.php?endpoint=address&function=subdivisions [QSA,L]
 RewriteRule ^address(\/[-0-9a-f]{36})?$ index.php?endpoint=address&id=$1 [L]
 
 RewriteRule ^brewer/search$ index.php?endpoint=brewer&function=search [QSA,L]

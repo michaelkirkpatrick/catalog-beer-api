@@ -1718,6 +1718,7 @@ class Beer {
         // and address writes keep these fresh via cascadeGeographyToBeers().
         $geo = $brewer->searchGeography();
         if(!empty($geo['states'])){$array['states'] = $geo['states'];}
+        if(!empty($geo['regions'])){$array['regions'] = $geo['regions'];}
         if(!empty($geo['cities'])){$array['cities'] = $geo['cities'];}
         if(!empty($geo['countries'])){$array['countries'] = $geo['countries'];}
 
