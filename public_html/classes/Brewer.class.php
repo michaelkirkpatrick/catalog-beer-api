@@ -1730,10 +1730,6 @@ class Brewer {
         if(!is_null($this->foundedYear)){$array['founded_year'] = intval($this->foundedYear);}
         if(!is_null($this->closedYear)){$array['closed_year'] = intval($this->closedYear);}
 
-        // Provenance marks on the search hit, same flags as beer records
-        $array['cb_verified'] = (bool) $this->cbVerified;
-        $array['brewer_verified'] = (bool) $this->brewerVerified;
-
         // Location Denormalization — a brewer row carries no geography of its
         // own, so everything geographic here is borrowed from its locations.
         $locations = $this->locationFacets();

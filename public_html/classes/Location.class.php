@@ -1611,9 +1611,6 @@ class Location {
         $array['locationID'] = $this->locationID;
         if(!empty($this->url)){$array['url'] = $this->url;}
         $array['country_short_name'] = $this->countryShortName;
-        // Provenance marks on the search hit, same flags as beer records
-        $array['cb_verified'] = (bool) $this->cbVerified;
-        $array['brewer_verified'] = (bool) $this->brewerVerified;
         if(!empty($this->latitude)){$array['_geoloc']['lat'] = $this->latitude;}
         if(!empty($this->longitude)){$array['_geoloc']['lng'] = $this->longitude;}
         $hasAddress = $usAddresses->validate($this->locationID, true);
