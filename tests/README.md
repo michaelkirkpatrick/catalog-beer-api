@@ -348,7 +348,7 @@ Tests permission enforcement across Admin, Non-Admin, and Brewery Staff roles fo
 
 | Subfolder | Requests | What it tests |
 |-----------|----------|---------------|
-| `Brewery #37` | 37 | cb_verified 403s, staff claims brewery, brewer_verified transitions |
+| `Brewery #37` | 37 | non-admin edits of cb_verified succeed and clear the badge, delete 403s, staff claims brewery, brewer_verified transitions |
 | `Brewery #38` | 14 | cb_verified → staff claims → brewer_verified (PUT), admin deletes |
 | `Brewery #39` | 16 | brewer_verified 403s for non-admin, admin upgrades to cb_verified |
 | `Brewery #40` | 9 | brewer_verified → admin upgrades, staff deletes cb_verified |

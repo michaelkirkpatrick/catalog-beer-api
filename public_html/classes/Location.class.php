@@ -190,48 +190,33 @@ class Location {
                 if($method == 'PUT' || $method == 'PATCH'){
                     if(!$newLocation){
                         // Attempting to PUT or PATCH existing Location
-                        // Use saved cb_verified and brewer_verified flags from validate()
-                        $cbVerified = $originalCBV;
+                        /*--
+                        cb_verified is an indicator, not a gate: any account may
+                        edit a reviewed record, and the badge recompute below
+                        clears cb_verified on any non-admin write, so the badge
+                        always describes content an admin has seen. Only
+                        brewer_verified still restricts editing, to the brewery's
+                        own staff and admins.
+                        --*/
                         $brewerVerified = $originalBV;
 
-                        if($cbVerified){
+                        if($brewerVerified){
                             if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
                                 // Allow PUT/PATCH. User is brewery staff.
                             }else{
                                 if(!$users->admin){
                                     // Deny
                                     $this->error = true;
-                                    $this->errorMsg = 'Sorry, because this location is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+                                    $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
                                     $this->responseCode = 403;
 
                                     // Log Error
                                     $errorLog = new LogError();
-                                    $errorLog->errorNumber = 185;
-                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, cb_verified';
+                                    $errorLog->errorNumber = 187;
+                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
                                     $errorLog->badData = "User: $userID / Location: $this->locationID";
                                     $errorLog->filename = 'API / Location.class.php';
                                     $errorLog->write();
-                                }
-                            }
-                        }else{
-                            if($brewerVerified){
-                                if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
-                                    // Allow PUT/PATCH. User is brewery staff.
-                                }else{
-                                    if(!$users->admin){
-                                        // Deny
-                                        $this->error = true;
-                                        $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
-                                        $this->responseCode = 403;
-
-                                        // Log Error
-                                        $errorLog = new LogError();
-                                        $errorLog->errorNumber = 187;
-                                        $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
-                                        $errorLog->badData = "User: $userID / Location: $this->locationID";
-                                        $errorLog->filename = 'API / Location.class.php';
-                                        $errorLog->write();
-                                    }
                                 }
                             }
                         }
@@ -1250,13 +1235,20 @@ class Location {
         }
     }
 
-    public function updateLastModified($locationID){
+    public function updateLastModified($locationID, $clearCBVerified = false){
         // Validate Location
         if($this->validate($locationID, true)){
             // Update Last Modified Timestamp
             $db = new Database();
             $this->lastModified = time();
-            $db->query("UPDATE location SET lastModified=? WHERE id=?", [$this->lastModified, $locationID]);
+            if($clearCBVerified){
+                // A non-admin edit to the location's address: the badge only
+                // describes content an admin has reviewed (see add()).
+                $this->cbVerified = false;
+                $db->query("UPDATE location SET lastModified=?, cbVerified=0 WHERE id=?", [$this->lastModified, $locationID]);
+            }else{
+                $db->query("UPDATE location SET lastModified=? WHERE id=?", [$this->lastModified, $locationID]);
+            }
             if($db->error){
                 // Database Error
                 $this->error = true;

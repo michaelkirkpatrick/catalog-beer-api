@@ -186,48 +186,33 @@ class Beer {
                 if($method == 'PUT' || $method == 'PATCH'){
                     if(!$newBeer){
                         // Attempting to PUT or PATCH existing Beer
-                        // Use saved cb_verified and brewer_verified flags from validate()
-                        $cbVerified = $originalCBV;
+                        /*--
+                        cb_verified is an indicator, not a gate: any account may
+                        edit a reviewed record, and the badge recompute below
+                        clears cb_verified on any non-admin write, so the badge
+                        always describes content an admin has seen. Only
+                        brewer_verified still restricts editing, to the brewery's
+                        own staff and admins.
+                        --*/
                         $brewerVerified = $originalBV;
 
-                        if($cbVerified){
+                        if($brewerVerified){
                             if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
                                 // Allow PUT/PATCH. User is brewery staff.
                             }else{
                                 if(!$users->admin){
                                     // Deny
                                     $this->error = true;
-                                    $this->errorMsg = 'Sorry, because this beer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+                                    $this->errorMsg = 'Sorry, because this beer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
                                     $this->responseCode = 403;
 
                                     // Log Error
                                     $errorLog = new LogError();
-                                    $errorLog->errorNumber = 166;
-                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /beer, cb_verified';
-                                    $errorLog->badData = "User: $userID / Beer: $this->beerID";
+                                    $errorLog->errorNumber = 186;
+                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
+                                    $errorLog->badData = "User: $userID / Brewer: $this->brewerID";
                                     $errorLog->filename = 'API / Beer.class.php';
                                     $errorLog->write();
-                                }
-                            }
-                        }else{
-                            if($brewerVerified){
-                                if($userEmailDomain == $brewer->domainName || in_array($permissionsBrewerID, $userBrewerPrivileges)){
-                                    // Allow PUT/PATCH. User is brewery staff.
-                                }else{
-                                    if(!$users->admin){
-                                        // Deny
-                                        $this->error = true;
-                                        $this->errorMsg = 'Sorry, because this beer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
-                                        $this->responseCode = 403;
-
-                                        // Log Error
-                                        $errorLog = new LogError();
-                                        $errorLog->errorNumber = 186;
-                                        $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
-                                        $errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-                                        $errorLog->filename = 'API / Beer.class.php';
-                                        $errorLog->write();
-                                    }
                                 }
                             }
                         }

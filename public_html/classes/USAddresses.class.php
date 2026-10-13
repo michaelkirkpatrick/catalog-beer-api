@@ -61,44 +61,23 @@ class USAddresses {
                 // Get Brewer Domain Name
                 $brewer->validate($location->brewerID, true);
 
-                if($location->cbVerified){
+                if($location->brewerVerified){
                     if($userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
                         // Allow PUT/PATCH. User is brewery staff.
                     }else{
                         if(!$users->admin){
                             // Deny
                             $this->error = true;
-                            $this->errorMsg = 'Sorry, because this location is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+                            $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
                             $this->responseCode = 403;
 
                             // Log Error
                             $errorLog = new LogError();
-                            $errorLog->errorNumber = 191;
-                            $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /address, cb_verified';
+                            $errorLog->errorNumber = 192;
+                            $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
                             $errorLog->badData = "User: $userID / Location: $locationID";
                             $errorLog->filename = 'API / USAddresses.class.php';
                             $errorLog->write();
-                        }
-                    }
-                }else{
-                    if($location->brewerVerified){
-                        if($userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
-                            // Allow PUT/PATCH. User is brewery staff.
-                        }else{
-                            if(!$users->admin){
-                                // Deny
-                                $this->error = true;
-                                $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
-                                $this->responseCode = 403;
-
-                                // Log Error
-                                $errorLog = new LogError();
-                                $errorLog->errorNumber = 192;
-                                $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /location, brewer_verified';
-                                $errorLog->badData = "User: $userID / Location: $locationID";
-                                $errorLog->filename = 'API / USAddresses.class.php';
-                                $errorLog->write();
-                            }
                         }
                     }
                 }
@@ -240,7 +219,7 @@ class USAddresses {
                             }
 
                             // Update Last Modified
-                            $location->updateLastModified($this->locationID);
+                            $location->updateLastModified($this->locationID, !$users->admin);
                             if($location->error){
                                 $this->error = true;
                                 $this->errorMsg = $location->errorMsg;
@@ -352,7 +331,7 @@ class USAddresses {
                             }
 
                             // Update Last Modified
-                            $location->updateLastModified($this->locationID);
+                            $location->updateLastModified($this->locationID, !$users->admin);
                             if($location->error){
                                 $this->error = true;
                                 $this->errorMsg = $location->errorMsg;

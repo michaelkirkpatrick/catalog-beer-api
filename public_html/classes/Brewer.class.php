@@ -190,48 +190,33 @@ class Brewer {
                 if($method == 'PUT' || $method == 'PATCH'){
                     if(!$newBrewer){
                         // Attempting to PUT or PATCH existing Brewery
-                        // Use saved cb_verified and brewer_verified flags from validate()
-                        $cbVerified = $originalCBV;
+                        /*--
+                        cb_verified is an indicator, not a gate: any account may
+                        edit a reviewed record, and the badge recompute below
+                        clears cb_verified on any non-admin write, so the badge
+                        always describes content an admin has seen. Only
+                        brewer_verified still restricts editing, to the brewery's
+                        own staff and admins.
+                        --*/
                         $brewerVerified = $originalBV;
 
-                        if($cbVerified){
+                        if($brewerVerified){
                             if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
                                 // Allow PUT/PATCH. User is brewery staff.
                             }else{
                                 if(!$users->admin){
                                     // Deny
                                     $this->error = true;
-                                    $this->errorMsg = 'Sorry, because this brewer is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+                                    $this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
                                     $this->responseCode = 403;
 
                                     // Log Error
                                     $errorLog = new LogError();
-                                    $errorLog->errorNumber = 161;
-                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, cb_verified';
+                                    $errorLog->errorNumber = 168;
+                                    $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
                                     $errorLog->badData = "User: $userID / Brewer: $this->brewerID";
                                     $errorLog->filename = $this->filename;
                                     $errorLog->write();
-                                }
-                            }
-                        }else{
-                            if($brewerVerified){
-                                if($userEmailDomain == $this->domainName || in_array($this->brewerID, $userBrewerPrivileges)){
-                                    // Allow PUT/PATCH. User is brewery staff.
-                                }else{
-                                    if(!$users->admin){
-                                        // Deny
-                                        $this->error = true;
-                                        $this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
-                                        $this->responseCode = 403;
-
-                                        // Log Error
-                                        $errorLog = new LogError();
-                                        $errorLog->errorNumber = 168;
-                                        $errorLog->errorMsg = 'Forbidden: General User, PUT/PATCH, /brewer, brewer_verified';
-                                        $errorLog->badData = "User: $userID / Brewer: $this->brewerID";
-                                        $errorLog->filename = $this->filename;
-                                        $errorLog->write();
-                                    }
                                 }
                             }
                         }
@@ -252,8 +237,8 @@ class Brewer {
                         /*--
                         An admin fixing a broken or hijacked link is cleaning up
                         bad data, not vouching for the entry. Carry both badges
-                        through untouched: setting cbVerified here would lock the
-                        brewer to admin-only editing, and the shared UPDATE below
+                        through untouched: setting cbVerified here would claim a
+                        review that never happened, and the shared UPDATE below
                         writes brewerVerified from $dbBV, which stays 0 on the
                         admin path — so a brewery's own verification would be
                         cleared as a side effect of a URL correction.
@@ -1581,7 +1566,8 @@ class Brewer {
 
         edit/delete are the verdicts for the brewer itself. For the subtree:
         admin/staff may edit and delete everything under the brewer; general
-        users may edit only unverified entities and may never delete.
+        users may edit anything not brewer_verified (cb_verified is an
+        indicator, not a gate) and may never delete.
         ---*/
         if($this->validate($brewerID, true)){
             $users = new Users();
@@ -1602,7 +1588,7 @@ class Brewer {
                 $this->json['object'] = 'permissions';
                 $this->json['brewer_id'] = $this->brewerID;
                 $this->json['role'] = $role;
-                $this->json['edit'] = ($canManage || (!$this->cbVerified && !$this->brewerVerified));
+                $this->json['edit'] = ($canManage || !$this->brewerVerified);
                 $this->json['delete'] = $canManage;
             }else{
                 // User Validation Error
