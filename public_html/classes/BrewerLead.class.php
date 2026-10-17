@@ -307,7 +307,7 @@ class BrewerLead {
                 }else{
                     $messages['sub_code'] = $countryCode === 'US'
                         ? 'sub_code must be a US state or territory code (US-OR, or OR).'
-                        : 'sub_code must be an ISO 3166-2 code of ' . CountryCode::shortName($countryCode) . ' (see GET /address/subdivisions?country=' . $countryCode . ').';
+                        : 'sub_code must be an ISO 3166-2 code of ' . CountryCode::shortName($countryCode) . ' (see GET /location/subdivisions?country=' . $countryCode . ').';
                 }
             }else{
                 $subCode = $candidate;

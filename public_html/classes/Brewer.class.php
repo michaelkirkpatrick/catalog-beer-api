@@ -2025,7 +2025,7 @@ class Brewer {
         }
 
         $db = new Database();
-        $result = $db->query("SELECT l.latitude, l.longitude, l.countryCode, a.locality, a.sub_code FROM location l LEFT JOIN address a ON a.locationID = l.id WHERE l.brewerID=? ORDER BY l.name", [$this->brewerID]);
+        $result = $db->query("SELECT l.latitude, l.longitude, l.countryCode, l.locality, l.sub_code FROM location l WHERE l.brewerID=? ORDER BY l.name", [$this->brewerID]);
 
         if($db->error){
             // Query Error — degrade to no geo rather than failing the sync

@@ -17,14 +17,21 @@ class Location {
     // Cached objects to avoid redundant queries
     private $brewerObj = null;
 
+    // The address, as loaded by validate() (an Address holding the row's
+    // address columns) or set by add(); null when the location has none.
+    public $address = null;
+    private $addressRow = null;
+
     // Total location count, cached by validateCursorCount() for nextCursor()
     private $totalCount = 0;
 
     // Error Handling
     public $error = false;
     public $errorMsg = null;
-    public $validState = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null);
-    public $validMsg = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null);
+    // The nested `address` state mirrors the request's nested object.
+    const ADDRESS_STATE = array('line1'=>null, 'line2'=>null, 'locality'=>null, 'dependent_locality'=>null, 'sub_code'=>null, 'postal_code'=>null, 'telephone'=>null);
+    public $validState = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null, 'address'=>self::ADDRESS_STATE);
+    public $validMsg = array('brewer_id'=>null, 'name'=>null, 'url'=>null, 'country_code'=>null, 'address'=>self::ADDRESS_STATE);
 
     // API Response
     public $responseHeader = '';
@@ -32,7 +39,17 @@ class Location {
     public $json = array();
 
     // Add Functions
-    public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields){
+    /*--
+    Create, replace or patch a location, address included.
+
+    $address is the nested `address` object reduced by api(): null when the
+    request did not carry one, false for an explicit null (clear), or the
+    seven request keys ('' when absent). $addressPatchFields names the keys
+    the request actually sent inside it (PATCH only). The address validates
+    BEFORE the row is written, so a refused address writes nothing -- a
+    created location never exists without the address that was sent with it.
+    --*/
+    public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields, $address = null, $addressPatchFields = array()){
 
         // Required Classes
         $brewer = new Brewer();
@@ -63,6 +80,7 @@ class Location {
                     $originalLocationBrewerID = $this->brewerID;
                     $originalCBV = $this->cbVerified;
                     $originalBV = $this->brewerVerified;
+                    $originalCountry = $this->countryCode;
                 }else{
                     // Location doesn't exist, they'd like to add it
                     // Reset Errors from $this->validate()
@@ -91,6 +109,7 @@ class Location {
                     $originalLocationBrewerID = $this->brewerID;
                     $originalCBV = $this->cbVerified;
                     $originalBV = $this->brewerVerified;
+                    $originalCountry = $this->countryCode;
                     if(!in_array('brewerID', $patchFields)){
                         // Not updating brewer. Retain current brewerID
                         $brewerID = $this->brewerID;
@@ -285,8 +304,13 @@ class Location {
                 // Validate Country Code
                 $this->countryCode = $countryCode;
                 $this->validateCC();
-                if(!$this->error && !$newLocation){
-                    $this->guardCountryChange($this->locationID, $this->countryCode);
+
+                // Address: validated against the (new) country before anything
+                // is written. A PUT that omits it clears it, as with any
+                // optional field on a PUT.
+                $addressResult = null;
+                if(!$this->error){
+                    $addressResult = $this->resolveAddress($method, $newLocation, $address, $addressPatchFields, $originalCountry ?? null);
                 }
 
                 if(!$this->error){
@@ -304,6 +328,16 @@ class Location {
                             $columns[] = 'url';
                             $params[] = $this->url;
                         }
+                        if($addressResult['action'] === 'set'){
+                            foreach(Address::COLUMN_NAMES as $i => $col){
+                                $columns[] = $col;
+                                $params[] = $addressResult['columns'][$i];
+                            }
+                            if($addressResult['coords'] !== null){
+                                $columns[] = 'latitude';   $params[] = $addressResult['coords'][0];
+                                $columns[] = 'longitude';  $params[] = $addressResult['coords'][1];
+                            }
+                        }
                         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
                         $sql = "INSERT INTO location (" . implode(', ', $columns) . ") VALUES ($placeholders)";
                     }else{
@@ -317,6 +351,7 @@ class Location {
                         }else{
                             $setClauses[] = 'url=NULL';
                         }
+                        $this->addressClauses($addressResult, $setClauses, $params);
                         $sql = "UPDATE location SET " . implode(', ', $setClauses) . " WHERE id=?";
                         $params[] = $this->locationID;
                     }
@@ -393,16 +428,21 @@ class Location {
                 if(in_array('countryCode', $patchFields)){
                     if($this->countryCode != $countryCode){
                         // Validate Country Code
-                        $storedCountry = $this->countryCode;
                         $this->countryCode = $countryCode;
                         $this->validateCC();
-                        if(!$this->error && $this->countryCode !== $storedCountry){
-                            $this->guardCountryChange($this->locationID, $this->countryCode);
-                        }
-                        if(!$this->error){
+                        if(!$this->error && $this->countryCode !== $originalCountry){
                             $setClauses[] = 'countryCode=?';
                             $setParams[] = $this->countryCode;
                         }
+                    }
+                }
+
+                // Address: merged with the stored one and re-validated, or
+                // cleared by an explicit null; untouched when not sent.
+                if(!$this->error){
+                    $addressResult = $this->resolveAddress('PATCH', false, $address, $addressPatchFields, $originalCountry ?? null);
+                    if(!$this->error){
+                        $this->addressClauses($addressResult, $setClauses, $setParams);
                     }
                 }
 
@@ -426,6 +466,18 @@ class Location {
                 // Update Database
                 $db->query($sql, $params);
                 if(!$db->error){
+                    // The object answers with what was just written
+                    if(isset($addressResult) && $addressResult !== null){
+                        if($addressResult['action'] === 'clear'){
+                            $this->address = null;
+                            $this->addressRow = null;
+                            $this->latitude = null;
+                            $this->longitude = null;
+                        }elseif($addressResult['action'] === 'set' && $addressResult['coords'] !== null){
+                            $this->latitude = $addressResult['coords'][0];
+                            $this->longitude = $addressResult['coords'][1];
+                        }
+                    }
                     if($newLocation){
                         // Successfully Added
                         $this->responseCode = 201;
@@ -590,34 +642,88 @@ class Location {
     }
 
     /*--
-    A location that holds an address cannot change country: the address was
-    validated for the country it is in, and the API has no way to re-run
-    that validation from here (the address resource reads the location's
-    country, so the two cannot be changed in one request). The fix for a
-    location created under the wrong country is to delete it and create it
-    again; before an address exists the country is freely editable.
+    Work out what the request does to the address. Returns
+    array(action => 'none'|'keep'|'set'|'clear', columns => the eleven column
+    values when 'set', coords => [lat, lng] when the validator geocoded).
+    Sets the error state (nested under valid_state.address) when the address
+    is refused.
+
+      $address  null   not sent: 'keep' on PATCH, 'clear' on a PUT of an
+                       existing row (omitted optional fields clear), 'none'
+                       on a create
+                false  explicit null: 'clear'
+                array  the seven request keys: validate, 'set'
+
+    The country rule: once a location holds an address, changing its country
+    without sending the address again is refused (341) -- the stored address
+    was validated for the country it is in, and the two cannot disagree on
+    one row. Sending the address with the new country re-validates it there;
+    sending null clears it.
     --*/
-    private function guardCountryChange($locationID, $newCountryCode){
-        $db = new Database();
-        $result = $db->query("SELECT countryCode FROM address WHERE locationID=?", [$locationID]);
-        $stored = null;
-        if(!$db->error && $result->num_rows === 1){
-            $stored = $result->fetch_assoc()['countryCode'];
+    private function resolveAddress($method, $newLocation, $address, array $addressPatchFields, $originalCountry){
+        $result = array('action' => 'keep', 'columns' => null, 'coords' => null);
+        $hadAddress = is_array($this->addressRow) && !empty($this->addressRow['line1']);
+
+        if($address === false){
+            $result['action'] = 'clear';
+        }elseif(is_array($address)){
+            $validator = new Address();
+            $stored = ($method === 'PATCH' && !$newLocation) ? $this->addressRow : null;
+            if($validator->validateFor($this->countryCode, $address, $method, $addressPatchFields, $stored)){
+                $result['action'] = 'set';
+                $result['columns'] = $validator->columns();
+                $result['coords'] = $validator->coordinates();
+                $this->address = $validator;
+            }else{
+                $this->error = true;
+                if($validator->errorMsg !== null){ $this->errorMsg = $validator->errorMsg; }
+                $this->responseCode = $validator->responseCode;
+                $this->validState['address'] = $validator->validState;
+                $this->validMsg['address'] = $validator->validMsg;
+            }
+        }elseif($newLocation){
+            $result['action'] = 'none';
+        }elseif($method === 'PUT'){
+            $result['action'] = 'clear';
         }
-        $db->close();
-        if($stored !== null && $stored !== $newCountryCode){
+
+        if(!$this->error && !$newLocation && $hadAddress && $originalCountry !== null
+            && $this->countryCode !== $originalCountry && $result['action'] === 'keep'){
             $this->error = true;
             $this->validState['country_code'] = 'invalid';
-            $this->validMsg['country_code'] = 'This location already holds an address validated in ' . CountryCode::shortName($stored) . ', so its country can\'t change. If it was created under the wrong country, delete the location and create it again.';
+            $this->validMsg['country_code'] = 'This location holds an address validated in ' . CountryCode::shortName($originalCountry) . '. To move it to ' . CountryCode::shortName($this->countryCode) . ', send the address again in the same request so it can be validated there, or send "address": null to clear it.';
             $this->responseCode = 400;
 
             // Log Error
             $errorLog = new LogError();
             $errorLog->errorNumber = 341;
-            $errorLog->errorMsg = 'Country change on a location holding an address';
-            $errorLog->badData = "locationID: $locationID / stored: $stored / requested: $newCountryCode";
+            $errorLog->errorMsg = 'Country change on a location holding an address, address not re-sent';
+            $errorLog->badData = "locationID: $this->locationID / stored: $originalCountry / requested: $this->countryCode";
             $errorLog->filename = 'API / Location.class.php';
             $errorLog->write();
+        }
+        return $result;
+    }
+
+    /* The SET clauses for an address result on an UPDATE: every column when
+       set or cleared, nothing when kept. Coordinates follow the address. */
+    private function addressClauses($addressResult, array &$setClauses, array &$params){
+        if($addressResult === null){ return; }
+        if($addressResult['action'] === 'set'){
+            foreach(Address::COLUMN_NAMES as $i => $col){
+                $setClauses[] = "$col=?";
+                $params[] = $addressResult['columns'][$i];
+            }
+            if($addressResult['coords'] !== null){
+                $setClauses[] = 'latitude=?';   $params[] = $addressResult['coords'][0];
+                $setClauses[] = 'longitude=?';  $params[] = $addressResult['coords'][1];
+            }
+        }elseif($addressResult['action'] === 'clear'){
+            foreach(Address::COLUMN_NAMES as $col){
+                $setClauses[] = "$col=NULL";
+            }
+            $setClauses[] = 'latitude=NULL';
+            $setClauses[] = 'longitude=NULL';
         }
     }
 
@@ -631,7 +737,7 @@ class Location {
         if(!empty($locationID)){
             // Query
             $db = new Database();
-            $result = $db->query("SELECT brewerID, name, url, countryCode, latitude, longitude, cbVerified, brewerVerified, lastModified FROM location WHERE id=?", [$locationID]);
+            $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.id=?", [$locationID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid Location
@@ -653,6 +759,14 @@ class Location {
                             $this->brewerVerified = true;
                         }
                         $this->lastModified = intval($array['lastModified']);
+                        // The address columns, kept as the row (for a PATCH
+                        // merge) and as an Address (for the response)
+                        $this->addressRow = $array;
+                        $this->address = null;
+                        if($array['line1'] !== null){
+                            $this->address = new Address();
+                            $this->address->loadRow($locationID, $array);
+                        }
                     }
                 }elseif($result->num_rows > 1){
                     // Too Many Rows
@@ -722,7 +836,7 @@ class Location {
             // need against /location/{id}. Same item shape as that endpoint,
             // minus the nested brewer (the list wrapper already carries it).
             $db = new Database();
-            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, a.line1, a.line2, a.locality, a.dependentLocality, a.sub_code, a.postalCode, a.formatted, a.languageCode, a.telephone, a.validation, a.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN address a ON a.locationID = l.id LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
+            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
             if(!$db->error){
                 while($array = $result->fetch_assoc()){
                     $locationInfo = array(
@@ -958,7 +1072,7 @@ class Location {
                 // Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
                 // Request count+1 to determine if there are more results (eliminates second Haversine query)
                 $fetchCount = $count + 1;
-                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, a.line1, a.line2, a.locality, a.dependentLocality, a.sub_code, a.postalCode, a.formatted, a.languageCode, a.telephone, a.validation, a.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN address a ON l.id = a.locationID LEFT JOIN subdivisions s ON a.sub_code = s.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
+                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN subdivisions s ON s.sub_code = l.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
                 if(!$db->error){
                     $rowCount = 0;
                     while($array = $result->fetch_assoc()){
@@ -1619,9 +1733,6 @@ class Location {
         }
         $brewer->generateBrewerObject(true);
 
-        // Address Data
-        $address = new Address();
-
         // Generate JSON
         $this->json['id'] = $this->locationID;
         $this->json['object'] = 'location';
@@ -1634,8 +1745,8 @@ class Location {
         $this->json['cb_verified'] = $this->cbVerified;
         $this->json['brewer_verified'] = $this->brewerVerified;
         $this->json['last_modified'] = $this->lastModified;
-        if($address->validate($this->locationID, true)){
-            $this->json['address'] = $address->toArray();
+        if($this->address !== null){
+            $this->json['address'] = $this->address->toArray();
         }
         $this->json['brewer'] = $brewer->json;
     }
@@ -1679,9 +1790,6 @@ class Location {
             $brewer->validate($this->brewerID, true);
         }
 
-        // Address Data
-        $address = new Address();
-
         // Get Algolia ID
         $algolia = new Algolia();
         $array['objectID'] = $algolia->getAlgoliaIdByRecord('location', $this->locationID);
@@ -1692,7 +1800,8 @@ class Location {
         $array['country_short_name'] = CountryCode::shortName($this->countryCode);
         if(!empty($this->latitude)){$array['_geoloc']['lat'] = $this->latitude;}
         if(!empty($this->longitude)){$array['_geoloc']['lng'] = $this->longitude;}
-        $hasAddress = $address->validate($this->locationID, true);
+        $hasAddress = ($this->address !== null);
+        $address = $this->address;
         $isUS = Address::isUS($this->countryCode);
         if($hasAddress){
             // The searchable street and postal code (see algolia/settings.php);
@@ -1740,6 +1849,49 @@ class Location {
         return $array;
     }
 
+    /*--
+    Reduce the request's nested `address` to what add() takes: [null, []]
+    when absent, [false, []] for an explicit null (clear), or [fields, sent]
+    where fields holds the seven keys ('' when absent) and sent the ones the
+    request carried (an explicit null inside the object counts as sent and
+    clears that field on PATCH). Anything else -- a string, a number, an
+    array -- is a 400 on `address`.
+    --*/
+    private function readAddressInput($data){
+        if(!is_object($data) || !property_exists($data, 'address')){
+            return array(null, array());
+        }
+        if(is_null($data->address)){
+            return array(false, array());
+        }
+        if(!is_object($data->address)){
+            $this->error = true;
+            $this->responseCode = 400;
+            $this->validState['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'invalid');
+            $this->validMsg['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'address must be an object with line1, line2, locality, dependent_locality, sub_code, postal_code and telephone, or null to clear it.');
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 344;
+            $errorLog->errorMsg = 'address is not an object';
+            $errorLog->badData = substr(json_encode($data->address), 0, 200);
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+            return array(null, array());
+        }
+        $fields = array();
+        $sent = array();
+        foreach(Address::FIELDS as $key){
+            $fields[$key] = '';
+            if(property_exists($data->address, $key)){
+                $value = $data->address->{$key};
+                $fields[$key] = is_null($value) ? '' : (is_scalar($value) ? strval($value) : '');
+                $sent[] = $key;
+            }
+        }
+        return array($fields, $sent);
+    }
+
     public function api($method, $function, $id, $apiKey, $count, $cursor, $data){
         /*---
         {METHOD} https://api.catalog.beer/location/{function}
@@ -1781,6 +1933,26 @@ class Location {
                         $this->generateLocationObject();
                     }else{
                         // Invalid Location
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                    }
+                }elseif($function == 'countries' || $function == 'subdivisions'){
+                    // GET https://api.catalog.beer/location/countries
+                    // GET https://api.catalog.beer/location/subdivisions?country=BE
+                    // The reference lists behind the address: the countries a
+                    // location may be in, and a country's ISO 3166-2 regions.
+                    $lists = new Address();
+                    if($function === 'countries'){
+                        $lists->countries();
+                    }else{
+                        $lists->subdivisions($_GET['country'] ?? '');
+                    }
+                    if(!$lists->error){
+                        $this->json = $lists->json;
+                    }else{
+                        $this->error = true;
+                        $this->errorMsg = $lists->errorMsg;
+                        $this->responseCode = $lists->responseCode;
                         $this->json['error'] = true;
                         $this->json['error_msg'] = $this->errorMsg;
                     }
@@ -1939,7 +2111,9 @@ class Location {
                 $apiKeys = new apiKeys();
                 $apiKeys->validate($apiKey, true);
 
-                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'POST', '', array());
+                list($address, $addressPatchFields) = $this->readAddressInput($data);
+                if($this->error){ $this->json['error'] = true; $this->json['error_msg'] = $this->errorMsg; $this->json['valid_state'] = $this->validState; $this->json['valid_msg'] = $this->validMsg; break; }
+                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'POST', '', array(), $address, $addressPatchFields);
                 if(!$this->error){
                     // JSON Response
                     $this->generateLocationObject($this->brewerObj);
@@ -1973,7 +2147,9 @@ class Location {
                 $apiKeys = new apiKeys();
                 $apiKeys->validate($apiKey, true);
 
-                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PUT', $id, array());
+                list($address, $addressPatchFields) = $this->readAddressInput($data);
+                if($this->error){ $this->json['error'] = true; $this->json['error_msg'] = $this->errorMsg; $this->json['valid_state'] = $this->validState; $this->json['valid_msg'] = $this->validMsg; break; }
+                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PUT', $id, array(), $address, $addressPatchFields);
                 if(!$this->error){
                     // JSON Response
                     $this->generateLocationObject($this->brewerObj);
@@ -2028,7 +2204,9 @@ class Location {
                 $apiKeys = new apiKeys();
                 $apiKeys->validate($apiKey, true);
 
-                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PATCH', $id, $patchFields);
+                list($address, $addressPatchFields) = $this->readAddressInput($data);
+                if($this->error){ $this->json['error'] = true; $this->json['error_msg'] = $this->errorMsg; $this->json['valid_state'] = $this->validState; $this->json['valid_msg'] = $this->validMsg; break; }
+                $this->add($data->brewer_id, $data->name, $data->url, $data->country_code, $apiKeys->userID, 'PATCH', $id, $patchFields, $address, $addressPatchFields);
                 if(!$this->error){
                     // JSON Response
                     $this->generateLocationObject($this->brewerObj);

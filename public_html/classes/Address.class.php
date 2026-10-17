@@ -1,10 +1,17 @@
 <?php
 /*--
-One address per location, for every country (since v5.4.0, 2026-10-13;
-previously USAddresses, US only).
+The address of a location: its validator, its parsers and its wire shape
+(since v6.0.0, 2026-10-17; the US-only USAddresses class and a separate
+address table before that).
 
-The address is a separate resource -- POST|PUT|PATCH /address/{location_id}
--- and its country is the LOCATION's country_code, never a field of its own.
+There is no address resource. The address lives on the location row -- eleven
+nullable columns, NULL as a block when the location has none -- and is written
+through POST/PUT/PATCH /location as a nested `address` object. Location::add()
+hands this class the submitted fields, the location's country and (on PATCH)
+the stored columns; validateFor() runs the shape checks and Google Address
+Validation and leaves the column values in columns(). Nothing here touches the
+database except Subdivisions lookups.
+
 Validation is Google Address Validation for all of COUNTRIES (the 40 regions
 Google covers); the USPS CASS layer rides along only for US and PR. Two
 parsers share the acceptance gate:
@@ -25,13 +32,9 @@ parsers share the acceptance gate:
 One vocabulary, Google's postalAddress one: line1, line2, locality,
 dependent_locality, sub_code, postal_code, telephone on the way in; those
 plus formatted, language_code, validation and admin_area on the way out.
-The US-only shape it replaced (address2 as the STREET and address1 the unit
-in USPS order, city, zip5 + zip4, state_short/state_long, telephone as an
-int of ten digits) went with v6.0.0: api_logging showed no external writer
-had ever used it, and the frontend ships in the same window. Inside this
-class the US parsing block still speaks address1/address2/city, because
-tests/address-parse.php and the 2026-08-05 audit do; syncLegacy() keeps
-the two property sets equal and nothing outside the class sees them.
+Inside this class the US parsing block still speaks address1/address2/city,
+because tests/address-parse.php and the 2026-08-05 audit do; syncLegacy()
+keeps the two property sets equal and nothing outside the class sees them.
 
 telephone is an E.164 string ("+15035550100"). It was an int of ten NANP
 digits; a Belgian number does not fit that, and without the "+" the digits
@@ -177,272 +180,84 @@ class Address {
     }
 
     /*--
-    Add / replace / patch the address of a location. $fields is the body
-    already reduced to the new vocabulary by api(): line1, line2, locality,
-    dependent_locality, sub_code, postal_code, telephone. $patchFields names
-    the ones the request actually sent (PATCH only).
+    Validate a submitted address for a location in $countryCode and leave the
+    column values in columns(). Called by Location::add() before the location
+    row is written, so a refused address writes nothing.
+
+      $fields       the seven request keys, '' when absent (api() reduces the
+                    nested object to this shape)
+      $method       POST / PUT / PATCH
+      $patchFields  PATCH only: the keys the request actually sent
+      $storedRow    PATCH only: the location's current address columns (the
+                    row from Location::validate()), or null when it has none
+
+    On PATCH the sent fields are merged over the stored ones and the merged
+    whole re-validates as one; a telephone-only patch skips Google. POST and
+    PUT validate what was sent, nothing more. Returns true when valid; on
+    failure $error, $validState, $validMsg and $responseCode say why.
     --*/
-    public function add($locationID, $fields, $userID, $method, $patchFields){
-        // Required Classes
-        $brewer = new Brewer();
-        $db = new Database();
-        $location = new Location();
-        $privileges = new Privileges();
-        $users = new Users();
-
-        // Validate Location
-        if($location->validate($locationID, true)){
-            // location_id is valid, proceed
-            // Does an address already exist for this location?
-            // saveToClass on PATCH: a partial patch has to merge with the
-            // stored address before re-validating, so load it. Previously this
-            // passed false and the un-patched fields went to Google as empty
-            // strings — a two-field patch validated a mostly-empty address.
-            if($this->validate($locationID, $method == 'PATCH')){
-                $addressOnFile = true;
-                $newAddress = false;
-            }else{
-                $addressOnFile = false;
-                $newAddress = true;
-            }
-
-            // The address's country is the location's, full stop.
-            $this->countryCode = $location->countryCode;
-
-            // ----- Permissions Check -----
-            if($users->validate($userID, true)){
-                // Get User's Email Domain Name
-                $userEmailDomain = $users->emailDomainName($users->email);
-
-                // Get User Privileges
-                $userBrewerPrivileges = $privileges->brewerList($userID);
-
-                // Get Brewer Domain Name
-                $brewer->validate($location->brewerID, true);
-
-                if($location->brewerVerified){
-                    if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
-                        // Allow PUT/PATCH. User is brewery staff.
-                    }else{
-                        if(!$users->admin){
-                            // Deny
-                            $this->error = true;
-                            $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
-                            $this->responseCode = 403;
-                            $this->logError(192, 'Forbidden: General User, PUT/PATCH, /location, brewer_verified', "User: $userID / Location: $locationID");
-                        }
-                    }
-                }
-            }else{
-                // User Validation Error
-                $this->error = true;
-                $this->errorMsg = $users->errorMsg;
-                $this->responseCode = $users->responseCode;
-            }
-
-            // ----- Check Method -----
-            switch($method){
-                case 'POST':
-                    if($addressOnFile){
-                        // Address already exists, can't POST
-                        $this->error = true;
-                        $this->errorMsg = "This location already has an address associated with it, so we can't add one. Try a PUT or PATCH request instead.";
-                        $this->responseCode = 405;
-                        $this->logError(189, 'Unable to POST. Address already exists.', "LocationID: $locationID");
-                    }
-                    break;
-                case 'PATCH':
-                    if(!$addressOnFile){
-                        // Address doesn't exists, can't PATCH
-                        $this->error = true;
-                        $this->errorMsg = "This location does not have has an address associated with it, so we can't update it. Try a PUT or POST request instead.";
-                        $this->responseCode = 405;
-                        $this->logError(190, 'Unable to PATCH. Address doesn\'t exist.', "LocationID: $locationID");
-                    }
-                    break;
-            }
-
-            if(!$this->error){
-                /*--
-                Save to Class. On PATCH, validate() above loaded the stored
-                address, so only the fields the request actually sent may
-                overwrite it — the rest keep their stored values and the merged
-                whole goes to Google as one complete address. POST and PUT
-                replace everything, as before.
-                --*/
-                $patching = ($method == 'PATCH');
-                $this->locationID = $locationID;
-                if(!$patching || in_array('line1', $patchFields)){$this->line1 = $fields['line1'];}
-                if(!$patching || in_array('line2', $patchFields)){$this->line2 = $fields['line2'];}
-                if(!$patching || in_array('locality', $patchFields)){$this->locality = $fields['locality'];}
-                if(!$patching || in_array('dependent_locality', $patchFields)){$this->dependentLocality = $fields['dependent_locality'];}
-                if(!$patching || in_array('sub_code', $patchFields)){$this->sub_code = $fields['sub_code'];}
-                if(!$patching || in_array('postal_code', $patchFields)){$this->postalCode = $fields['postal_code'];}
-                if(!$patching || in_array('telephone', $patchFields)){$this->telephone = $fields['telephone'];}
-                $this->syncLegacy('new');
-
-                /*--
-                locality+sub_code and postal_code are two spellings of the same
-                fact — the locality. When a patch supplies one group and not
-                the other, the stored other group describes the PREVIOUS
-                locality, and merging it in hands Google a contradiction it
-                resolves unpredictably: a stale city next to a fresh ZIP
-                degraded CASS enough to store an unnormalized "# 800" unit,
-                and a stale CA sub_code beat a patched Massachusetts ZIP
-                outright. Drop the un-patched group instead — Google
-                re-derives it from the one the client vouched for. A patch
-                touching neither group (line1, line2, telephone) keeps the
-                stored pair, which was validated together and cannot disagree
-                with itself.
-                --*/
-                if($patching){
-                    $postalPatched = in_array('postal_code', $patchFields);
-                    $localityPatched = in_array('locality', $patchFields) || in_array('sub_code', $patchFields);
-                    if($postalPatched && !$localityPatched){
-                        $this->locality = '';
-                        $this->dependentLocality = '';
-                        $this->sub_code = '';
-                        $this->stateShort = '';
-                        $this->stateLong = '';
-                        $this->subName = '';
-                        $this->syncLegacy('new');
-                    }elseif($localityPatched && !$postalPatched){
-                        $this->postalCode = '';
-                        $this->zip5 = '';
-                        $this->zip4 = '';
-                    }
-                }
-
-                if($method == 'POST' || $method == 'PUT'){
-                    // Validate & standardize the address (Google Address Validation)
-                    $this->validateAddress();
-
-                    // Validate Telephone
-                    $this->validateTelephone();
-
-                    if(!$this->error){
-                        if($newAddress){
-                            // Add New Address (POST/PUT)
-                            $columns = ['locationID', 'countryCode', 'line1', 'line2', 'locality', 'dependentLocality', 'sub_code', 'postalCode', 'formatted', 'languageCode', 'telephone', 'validation', 'validatedAt'];
-                            $params = $this->storageParams();
-                            array_unshift($params, $this->locationID, $this->countryCode);
-                            $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-                            $sql = "INSERT INTO address (" . implode(', ', $columns) . ") VALUES ($placeholders)";
-                            $db->query($sql, $params);
-                        }else{
-                            // Update Address (PUT)
-                            $params = $this->storageParams();
-                            array_unshift($params, $this->countryCode);
-                            $params[] = $this->locationID;
-                            $sql = "UPDATE address SET countryCode=?, line1=?, line2=?, locality=?, dependentLocality=?, sub_code=?, postalCode=?, formatted=?, languageCode=?, telephone=?, validation=?, validatedAt=? WHERE locationID=?";
-                            $db->query($sql, $params);
-                        }
-
-                        if(!$db->error){
-                            $this->afterWrite($location, true, !$users->admin);
-                        }else{
-                            // Query Error
-                            $this->error = true;
-                            $this->errorMsg = $db->errorMsg;
-                            $this->responseCode = $db->responseCode;
-                        }
-                    }
-                }
-                elseif($method == 'PATCH'){
-                    // What's getting updated?
-                    $patchAddress = false;
-                    $patchTelephone = false;
-
-                    if(in_array('telephone', $patchFields)){
-                        // Validate Telephone
-                        $this->validateTelephone();
-                        $patchTelephone = true;
-                    }
-                    /*--
-                    Any address field re-validates the (merged) address. The old
-                    gate was count($patchFields) > 1, which read "more than just
-                    the telephone" but actually meant a single address field
-                    patched alone — {"city": "..."} — validated nothing, built
-                    no clauses, wrote nothing, and still bumped lastModified.
-                    --*/
-                    if(count(array_diff($patchFields, array('telephone'))) > 0){
-                        $this->validateAddress();
-                        $patchAddress = true;
-                    }
-                    if(!$this->error){
-                        // Build parameterized query
-                        $setClauses = array();
-                        $setParams = array();
-
-                        if($patchTelephone){
-                            // NULL when cleared — the old !empty() guard could
-                            // write a number but never remove one.
-                            $setClauses[] = "telephone=?";
-                            $setParams[] = $this->telephone;
-                        }
-
-                        if($patchAddress){
-                            $stored = $this->storageParams();
-                            // storageParams() order: line1, line2, locality,
-                            // dependentLocality, sub_code, postalCode,
-                            // formatted, languageCode, telephone, validation,
-                            // validatedAt -- everything but the telephone.
-                            foreach(array('line1', 'line2', 'locality', 'dependentLocality', 'sub_code', 'postalCode', 'formatted', 'languageCode') as $i => $col){
-                                $setClauses[] = "$col=?";
-                                $setParams[] = $stored[$i];
-                            }
-                            $setClauses[] = "validation=?";
-                            $setParams[] = $this->validation;
-                            $setClauses[] = "validatedAt=?";
-                            $setParams[] = $this->validatedAt;
-                        }
-
-                        if(!empty($setClauses)){
-                            $sql = "UPDATE address SET " . implode(", ", $setClauses) . " WHERE locationID=?";
-                            $setParams[] = $this->locationID;
-                            $db->query($sql, $setParams);
-                        }
-
-                        if($db->error){
-                            // Query Error
-                            $this->error = true;
-                            $this->errorMsg = $db->errorMsg;
-                            $this->responseCode = $db->responseCode;
-                        }
-                        // Post-write work only when something was written. An
-                        // empty PATCH body used to fall through to
-                        // updateLastModified() and bump the timestamp with
-                        // nothing stored — the same phantom-write shape as the
-                        // rest of this cluster. It returns the unchanged
-                        // location object, not an error.
-                        if(!$this->error && !empty($setClauses)){
-                            $this->afterWrite($location, $patchAddress, !$users->admin);
-                        }
-                    }
-                }
-            }
-        }else{
-            // Invalid Location
-            $this->error = true;
-            $this->errorMsg = $location->errorMsg;
-            // Correct 404 (Not Found) to 400 (Bad Request) for Location Not Found
-            if($location->responseCode === 404){
-                $this->responseCode = 400;
-            }else{
-                $this->responseCode = $location->responseCode;
-            }
-            $this->logError(57, 'Invalid location_id', "locationID: $locationID");
+    public function validateFor($countryCode, array $fields, $method, array $patchFields, $storedRow){
+        $this->countryCode = strval($countryCode);
+        $patching = ($method === 'PATCH' && is_array($storedRow) && !empty($storedRow['line1']));
+        if($patching){
+            $this->loadRow($storedRow['id'] ?? '', $storedRow);
         }
 
-        // Close Database Connection
-        $db->close();
+        foreach(array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'telephone') as $key){
+            if(!$patching || in_array($key, $patchFields, true)){
+                $prop = $key === 'dependent_locality' ? 'dependentLocality' : ($key === 'postal_code' ? 'postalCode' : $key);
+                $this->{$prop} = $fields[$key];
+            }
+        }
+        $this->syncLegacy('new');
+
+        /*--
+        locality+sub_code and postal_code are two spellings of the same fact --
+        the locality. When a patch supplies one group and not the other, the
+        stored other group describes the PREVIOUS locality, and merging it in
+        hands Google a contradiction it resolves unpredictably: a stale city
+        next to a fresh ZIP degraded CASS enough to store an unnormalized
+        "# 800" unit, and a stale CA sub_code beat a patched Massachusetts ZIP
+        outright. Drop the un-patched group instead -- Google re-derives it
+        from the one the client vouched for. A patch touching neither group
+        (line1, line2, telephone) keeps the stored pair, which was validated
+        together and cannot disagree with itself.
+        --*/
+        if($patching){
+            $postalPatched = in_array('postal_code', $patchFields, true);
+            $localityPatched = in_array('locality', $patchFields, true) || in_array('sub_code', $patchFields, true);
+            if($postalPatched && !$localityPatched){
+                $this->locality = '';
+                $this->dependentLocality = '';
+                $this->sub_code = '';
+                $this->stateShort = '';
+                $this->stateLong = '';
+                $this->subName = '';
+                $this->subType = '';
+                $this->syncLegacy('new');
+            }elseif($localityPatched && !$postalPatched){
+                $this->postalCode = '';
+                $this->zip5 = '';
+                $this->zip4 = '';
+            }
+        }
+
+        $addressFieldsSent = !$patching || count(array_diff($patchFields, array('telephone'))) > 0;
+        if($addressFieldsSent){
+            // Validate & standardize the address (Google Address Validation)
+            $this->validateAddress();
+        }
+        if(!$patching || in_array('telephone', $patchFields, true)){
+            $this->validateTelephone();
+        }
+        return !$this->error;
     }
 
-    /* The column values for an INSERT/UPDATE, in column order after
-       locationID/countryCode: line1, line2, locality, dependentLocality,
-       sub_code, postalCode, formatted, languageCode, telephone, validation,
-       validatedAt. Empty optionals go to NULL. */
-    private function storageParams(){
+    /* The eleven column values after a successful validateFor(), in table
+       order: line1, line2, locality, dependentLocality, sub_code, postalCode,
+       formatted, languageCode, telephone, validation, validatedAt. Empty
+       optionals go to NULL. */
+    public function columns(){
         return array(
             $this->line1,
             $this->line2 !== '' ? $this->line2 : null,
@@ -458,40 +273,12 @@ class Address {
         );
     }
 
-    /* Coordinates, lastModified and the search index, after a successful
-       write. $addressChanged is false for a telephone-only PATCH; $clearBadge
-       (a non-admin wrote) drops cb_verified on the parent location, since the
-       badge describes content an admin has seen (2026-10-13). */
-    private function afterWrite($location, $addressChanged, $clearBadge){
-        // Store Latitude and Longitude (captured during validation — Address
-        // Validation geocodes every accepted address, so no fallback lookup)
-        if($addressChanged && $this->latLongFound){
-            $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
-        }
+    const COLUMN_NAMES = array('line1', 'line2', 'locality', 'dependentLocality', 'sub_code', 'postalCode', 'formatted', 'languageCode', 'telephone', 'validation', 'validatedAt');
 
-        // Update Last Modified (and clear cb_verified on a non-admin write)
-        $location->updateLastModified($this->locationID, $clearBadge);
-        if($location->error){
-            $this->error = true;
-            $this->errorMsg = $location->errorMsg;
-            $this->responseCode = $location->responseCode;
-            return;
-        }
-
-        // Sync to Algolia. An address write was previously invisible to the
-        // index even though the location record carries the address block —
-        // and the parent brewer denormalizes city/region/coordinates from it,
-        // so both records need refreshing.
-        //
-        // Re-validate rather than reusing $location: the coordinates were
-        // rewritten moments ago by saveCoordinates(), so the copy loaded at
-        // the top of add() is already stale.
-        $syncLocation = new Location();
-        if($syncLocation->validate($this->locationID, true)){
-            $algolia = new Algolia();
-            $algolia->saveObject('catalog', $syncLocation->generateLocationSearchObject());
-            Brewer::refreshSearchObject($syncLocation->brewerID, true);
-        }
+    /* [latitude, longitude] from the validation that just ran, or null when
+       this validateFor() did not call Google (a telephone-only patch). */
+    public function coordinates(){
+        return $this->latLongFound ? array($this->latitude, $this->longitude) : null;
     }
 
     // ----- Validation -----
@@ -1961,46 +1748,8 @@ class Address {
 
     // ----- Read -----
 
-    // Validate: does this location hold an address? Loads it when asked.
-    public function validate($locationID, $saveToClass){
-        $valid = false;
-
-        if(!empty($locationID)){
-            // Prep for Database
-            $db = new Database();
-            $result = $db->query("SELECT a.countryCode, a.line1, a.line2, a.locality, a.dependentLocality, a.sub_code, a.postalCode, a.formatted, a.languageCode, a.telephone, a.validation, a.validatedAt, s.sub_name, s.sub_type FROM address a LEFT JOIN subdivisions s ON a.sub_code = s.sub_code WHERE a.locationID=?", [$locationID]);
-            if(!$db->error){
-                if($result->num_rows == 1){
-                    // Valid
-                    $valid = true;
-
-                    // Save to Class?
-                    if($saveToClass){
-                        $this->loadRow($locationID, $result->fetch_assoc());
-                    }
-                }
-            }else{
-                // Query Error
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
-            }
-            $db->close();
-        }else{
-            // Missing LocationID
-            $this->error = true;
-            $this->errorMsg = 'We seem to be missing the location_id. We\'ll need that to look up the location\'s address.';
-            $this->responseCode = 400;
-            $this->logError(66, 'Missing locationID', '');
-        }
-
-        // Return
-        return $valid;
-    }
-
-    /* Populate from an address row (column names as in the table, plus the
-       joined sub_name/sub_type). Shared by validate() and by the callers
-       that already hold a JOINed row. */
+    /* Populate from a location row's address columns (column names as in
+       the table, plus the joined sub_name/sub_type). */
     public function loadRow($locationID, $row){
         $this->locationID = $locationID;
         $this->countryCode = strval($row['countryCode'] ?? '');
@@ -2038,9 +1787,9 @@ class Address {
     }
 
     /*--
-    The address object on the wire, built from an address row — the one
-    shape builder for GET /location/{id}, /brewer/{id}/locations,
-    /location/nearby and the search object.
+    The address object on the wire, built from a location row's address
+    columns — the one shape builder for GET /location/{id},
+    /brewer/{id}/locations, /location/nearby and the search object.
     --*/
     public static function wireObject($row){
         $a = new Address();
@@ -2075,7 +1824,7 @@ class Address {
 
     // ----- Reference lists -----
 
-    /* GET /address/countries: the countries a location may be in, with
+    /* GET /location/countries: the countries a location may be in, with
        whether the catalog holds subdivisions for each (so a form knows
        whether to show a region dropdown). */
     public function countries(){
@@ -2101,10 +1850,10 @@ class Address {
                 'calling_code' => '+' . self::CALLING_CODES[$cc],
             );
         }
-        $this->json = array('object' => 'list', 'url' => '/address/countries', 'has_more' => false, 'data' => $data);
+        $this->json = array('object' => 'list', 'url' => '/location/countries', 'has_more' => false, 'data' => $data);
     }
 
-    /* GET /address/subdivisions?country=BE: the seeded ISO 3166-2 rows for
+    /* GET /location/subdivisions?country=BE: the seeded ISO 3166-2 rows for
        one country, in code order. */
     public function subdivisions($countryCode){
         $cc = CountryCode::normalize($countryCode);
@@ -2112,7 +1861,7 @@ class Address {
             $this->error = true;
             $this->errorMsg = 'country must be an ISO 3166-1 alpha-2 code (e.g. "BE").';
             $this->responseCode = 400;
-            $this->logError(342, 'Invalid country for GET /address/subdivisions', strval($countryCode));
+            $this->logError(342, 'Invalid country for GET /location/subdivisions', strval($countryCode));
             return;
         }
         $subdivisions = new Subdivisions();
@@ -2123,79 +1872,7 @@ class Address {
             $this->responseCode = $subdivisions->responseCode;
             return;
         }
-        $this->json = array('object' => 'list', 'url' => '/address/subdivisions', 'country_code' => $cc, 'has_more' => false, 'data' => $rows);
-    }
-
-    // ----- Router -----
-
-    public function api($method, $function, $id, $apiKey, $data){
-        /*---
-        {METHOD} https://api.catalog.beer/address/{function}
-        {METHOD} https://api.catalog.beer/address/{id}/{function}
-
-        GET https://api.catalog.beer/address/countries
-        GET https://api.catalog.beer/address/subdivisions?country=BE
-
-        POST https://api.catalog.beer/address/{location_id}
-        PUT https://api.catalog.beer/address/{location_id}
-        PATCH https://api.catalog.beer/address/{location_id}
-        ---*/
-
-        // Required Classes
-        $apiKeys = new apiKeys();
-
-        // Validate API Key for userID
-        $apiKeys->validate($apiKey, true);
-
-        if($method === 'GET' && $function === 'countries'){
-            $this->countries();
-        }elseif($method === 'GET' && $function === 'subdivisions'){
-            $this->subdivisions($_GET['country'] ?? '');
-        }elseif(in_array($method, array('POST', 'PUT', 'PATCH'), true)){
-            /*--
-            property_exists(), not isset(): isset() is false for an explicit
-            null, so "clear this field" arrived identical to "leave this field
-            alone". Unknown keys (including the pre-6.0 address2/zip5 set) are
-            ignored, so a client still sending them gets the "missing the
-            street address" 400 rather than a silent partial write.
-            --*/
-            $fields = array();
-            $patchFields = array();
-            foreach(self::FIELDS as $key){
-                $fields[$key] = '';
-                if(property_exists($data, $key)){
-                    $fields[$key] = $data->{$key};
-                    $patchFields[] = $key;
-                }
-            }
-            foreach($fields as $key => $value){
-                $fields[$key] = is_null($value) ? '' : (is_scalar($value) ? strval($value) : '');
-            }
-
-            $this->add($id, $fields, $apiKeys->userID, $method, $method === 'PATCH' ? $patchFields : array());
-        }else{
-            // Unsupported Method - Method Not Allowed
-            $this->error = true;
-            $this->errorMsg = "Invalid HTTP method for this endpoint.";
-            $this->responseCode = 405;
-            $this->responseHeader = 'Allow: POST, PUT, PATCH';
-            $this->logError(183, 'Invalid Method (/address)', $method);
-        }
-
-        if($this->error){
-            // Error
-            $this->json = array();
-            $this->json['error'] = true;
-            $this->json['error_msg'] = $this->errorMsg;
-            $this->json['valid_state'] = $this->validState;
-            $this->json['valid_msg'] = $this->validMsg;
-        }elseif($method !== 'GET'){
-            // Return Location Object
-            $location = new Location();
-            $location->validate($this->locationID, true);
-            $location->generateLocationObject();
-            $this->json = $location->json;
-        }
+        $this->json = array('object' => 'list', 'url' => '/location/subdivisions', 'country_code' => $cc, 'has_more' => false, 'data' => $rows);
     }
 }
 ?>

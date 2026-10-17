@@ -352,10 +352,11 @@ if(!$error){
             $responseHeader = $activity->responseHeader;
             break;
         case 'address':
-            $address = new Address();
-            $address->api($method, $function, $id, $apiKey, $data);
-            $json = $address->json;
-            $responseCode = $address->responseCode;
+            // Gone in 6.0: the address is written through POST/PUT/PATCH
+            // /location as a nested `address` object, and the reference lists
+            // live at /location/countries and /location/subdivisions.
+            $responseCode = 404;
+            $json = array('error' => true, 'error_msg' => 'The /address endpoint was retired in API 6.0. Send the address as a nested "address" object on POST, PUT or PATCH /location/{location_id}; see https://catalog.beer/api-docs#location-address.');
             $responseHeader = '';
             break;
         case 'beer':

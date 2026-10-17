@@ -70,10 +70,11 @@ change to address parsing** — Newman cannot cover this ground, because Google
 is live and its answer for the same address varies with the request shape.
 
 `address.php` needs a local MySQL (scratch database `cb_address_test`, built
-from the canonical schema) and covers what the parser test cannot: the
-migration's copy of US rows, `Address::validate()`/`toArray()` against the new
-table, `Subdivisions::lookup()`, the location country gate and the
-country-change guard. No network, no secrets file.
+from the canonical schema) and covers what the parser test cannot: the two
+migrations' data statements replayed verbatim (the US copy and the ISO seed,
+then the fold onto `location`), the nested `address` on POST/PUT/PATCH
+`/location` (merge, replace, clear, atomic create), `Subdivisions::lookup()`
+and the location country gate. No network, no secrets file.
 
 ```bash
 php tests/address.php
