@@ -734,7 +734,7 @@ class Location {
         if(!empty($locationID)){
             // Query
             $db = new Database();
-            $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.id=?", [$locationID]);
+            $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.id=?", [$locationID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid Location
@@ -833,7 +833,7 @@ class Location {
             // need against /location/{id}. Same item shape as that endpoint,
             // minus the nested brewer (the list wrapper already carries it).
             $db = new Database();
-            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
+            $result = $db->query("SELECT l.id, l.name, l.url, l.countryCode, l.latitude, l.longitude, l.cbVerified, l.brewerVerified, l.lastModified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN subdivisions s ON s.sub_code = l.sub_code WHERE l.brewerID=? ORDER BY l.name", [$brewerID]);
             if(!$db->error){
                 while($array = $result->fetch_assoc()){
                     $locationInfo = array(
@@ -1069,7 +1069,7 @@ class Location {
                 // Haversine Formula -- https://en.wikipedia.org/wiki/Haversine_formula
                 // Request count+1 to determine if there are more results (eliminates second Haversine query)
                 $fetchCount = $count + 1;
-                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validation, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN subdivisions s ON s.sub_code = l.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
+                $result = $db->query("SELECT l.id, l.brewerID, l.name, l.url, l.countryCode, l.latitude, l.longitude, (2 * ? * ASIN(SQRT(SIN((RADIANS(l.latitude-?))/2) * SIN((RADIANS(l.latitude-?))/2) + COS(RADIANS(?)) * COS(RADIANS(l.latitude)) * SIN((RADIANS(l.longitude-?))/2) * SIN((RADIANS(l.longitude-?))/2)))) AS distance, b.name AS b_name, b.description AS b_description, b.shortDescription AS b_shortDescription, b.url AS b_url, b.status AS b_status, b.foundedYear AS b_foundedYear, b.closedYear AS b_closedYear, b.countryCode AS b_countryCode, b.cbVerified AS b_cbVerified, b.brewerVerified AS b_brewerVerified, l.line1, l.line2, l.locality, l.dependentLocality, l.sub_code, l.postalCode, l.formatted, l.languageCode, l.telephone, l.validatedAt, s.sub_name, s.sub_type FROM location l LEFT JOIN brewer b ON l.brewerID = b.id LEFT JOIN subdivisions s ON s.sub_code = l.sub_code HAVING distance < ? ORDER BY distance LIMIT ?, ?", [$radius, $latitude, $latitude, $latitude, $longitude, $longitude, $searchRadius, $offset, $fetchCount]);
                 if(!$db->error){
                     $rowCount = 0;
                     while($array = $result->fetch_assoc()){

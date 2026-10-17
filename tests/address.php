@@ -100,8 +100,8 @@ do { if($r = $admin->store_result()){ $r->free(); } } while($admin->more_results
 // Migration 1's table and data statements, then migration 2's fold, verbatim;
 // then the Belgian rows straight onto location (one references a seeded region)
 $admin->multi_query($createAddress . "\n" . $seedSql . "\n" . $copySql . "\n" . $foldSql . "\n" . <<<'SQL'
-UPDATE location SET line1='Donkerstraat 12', locality='Westvleteren', postalCode='8640', formatted='["Donkerstraat 12","8640 Westvleteren"]', languageCode='nl', telephone='+3257400376', validation='validated', validatedAt=1760000000 WHERE id='dddddddd-0000-4000-8000-000000000004';
-UPDATE location SET line1='Rue Gheude 56', locality='Anderlecht', sub_code='BE-BRU', postalCode='1070', formatted='["Rue Gheude 56","1070 Anderlecht"]', languageCode='fr', validation='validated', validatedAt=1760000000 WHERE id='dddddddd-0000-4000-8000-000000000005';
+UPDATE location SET line1='Donkerstraat 12', locality='Westvleteren', postalCode='8640', formatted='["Donkerstraat 12","8640 Westvleteren"]', languageCode='nl', telephone='+3257400376', validatedAt=1760000000 WHERE id='dddddddd-0000-4000-8000-000000000004';
+UPDATE location SET line1='Rue Gheude 56', locality='Anderlecht', sub_code='BE-BRU', postalCode='1070', formatted='["Rue Gheude 56","1070 Anderlecht"]', languageCode='fr', validatedAt=1760000000 WHERE id='dddddddd-0000-4000-8000-000000000005';
 SQL);
 do { if($r = $admin->store_result()){ $r->free(); } } while($admin->more_results() && $admin->next_result());
 echo "scratch database " . DB_NAME . " loaded\n";
@@ -118,7 +118,7 @@ function loc($method, $function, $id, $key, $data = null, $get = []) {
 function scalar($sql) { global $admin; $r = $admin->query($sql); $row = $r->fetch_row(); return $row[0]; }
 function check($label, $ok) { echo ($ok ? "PASS" : "FAIL") . "  $label\n"; if(!$ok){ $GLOBALS['fails']++; } }
 $fails = 0;
-$ADDR_KEYS = array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'formatted', 'language_code', 'telephone', 'validation', 'admin_area');
+$ADDR_KEYS = array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'formatted', 'language_code', 'telephone', 'admin_area');
 $STATE_KEYS = array('line1', 'line2', 'locality', 'dependent_locality', 'sub_code', 'postal_code', 'telephone');
 
 // 1. The seed, the copy and the fold, as the migrations wrote them
@@ -132,17 +132,17 @@ $r = $admin->query("SELECT * FROM location WHERE id='$L_WESTFIELD'")->fetch_asso
 check("fold: ZIP+4 folded, leading zero kept, unit on line2", $r['postalCode'] === '01085-1234' && $r['line2'] === 'Ste 800' && $r['line1'] === '123 Main St');
 check("fold: formatted lines built in US order", json_decode($r['formatted'], true) === array('123 Main St', 'Ste 800', 'Westfield, MA 01085-1234'));
 $r = $admin->query("SELECT * FROM location WHERE id='$L_SANJOSE'")->fetch_assoc();
-check("fold: NANP digits became +1 E.164, validation=validated", $r['telephone'] === '+14085550100' && $r['validation'] === 'validated' && $r['languageCode'] === 'en');
+check("fold: NANP digits became +1 E.164, language en", $r['telephone'] === '+14085550100' && $r['languageCode'] === 'en');
 $r = $admin->query("SELECT * FROM location WHERE id='$L_PORTLAND'")->fetch_assoc();
 check("fold: '' unit and 0 telephone became NULL", $r['line2'] === null && $r['telephone'] === null);
-check("a location without an address has every address column NULL", scalar("SELECT validation FROM location WHERE id='$L_EMPTY'") === null && scalar("SELECT line1 FROM location WHERE id='$L_EMPTY'") === null);
+check("a location without an address has every address column NULL", scalar("SELECT locality FROM location WHERE id='$L_EMPTY'") === null && scalar("SELECT line1 FROM location WHERE id='$L_EMPTY'") === null);
 
 // 2. Reading rows back
 $l = new Location();
 check("validate() loads the San Jose address", $l->validate($L_SANJOSE, true) && $l->address !== null);
 $o = $l->address->toArray();
 check("US row: the eleven keys, nothing else", array_keys($o) === $ADDR_KEYS);
-check("US row: values", $o['line1'] === '1270 Lincoln Ave' && $o['line2'] === null && $o['locality'] === 'San Jose' && $o['sub_code'] === 'US-CA' && $o['postal_code'] === '95125' && $o['language_code'] === 'en' && $o['validation'] === 'validated');
+check("US row: values", $o['line1'] === '1270 Lincoln Ave' && $o['line2'] === null && $o['locality'] === 'San Jose' && $o['sub_code'] === 'US-CA' && $o['postal_code'] === '95125' && $o['language_code'] === 'en');
 check("US row: telephone is an E.164 string", $o['telephone'] === '+14085550100' && is_string($o['telephone']));
 check("US row: admin_area from the subdivision", $o['admin_area'] === array('sub_code' => 'US-CA', 'name' => 'California', 'type' => 'state'));
 check("US row: formatted is a list of strings", $o['formatted'] === array('1270 Lincoln Ave', 'San Jose, CA 95125'));
@@ -191,7 +191,7 @@ check("PATCH country on a location without an address -> 200", $code === 200 && 
 loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['country_code' => 'BE']);
 [$code, $j] = loc('PUT', '', $L_ABDIJ, $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Abdij', 'country_code' => 'DE']);
 check("PUT with another country and no address -> 200, address cleared with it (PUT omits -> clears)", $code === 200 && !isset($j['address']) && $j['country_code'] === 'DE' && scalar("SELECT line1 FROM location WHERE id='$L_ABDIJ'") === null && scalar("SELECT latitude FROM location WHERE id='$L_ABDIJ'") === null);
-$admin->query("UPDATE location SET countryCode='BE', line1='Donkerstraat 12', locality='Westvleteren', postalCode='8640', formatted='[\"Donkerstraat 12\",\"8640 Westvleteren\"]', languageCode='nl', telephone='+3257400376', validation='validated', validatedAt=1760000000, latitude=50.8957083, longitude=2.7200225 WHERE id='$L_ABDIJ'");
+$admin->query("UPDATE location SET countryCode='BE', line1='Donkerstraat 12', locality='Westvleteren', postalCode='8640', formatted='[\"Donkerstraat 12\",\"8640 Westvleteren\"]', languageCode='nl', telephone='+3257400376', validatedAt=1760000000, latitude=50.8957083, longitude=2.7200225 WHERE id='$L_ABDIJ'");
 
 // 6. Address input rules that answer before Google (nested on the location)
 [$code, $j] = loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['address' => (object)[]]);
@@ -246,7 +246,7 @@ $admin->query("UPDATE location SET brewerVerified=1 WHERE id='$L_SANJOSE'");
 check("plain key refused on a brewer_verified location (187)", $code === 403);
 $admin->query("UPDATE location SET brewerVerified=0 WHERE id='$L_SANJOSE'");
 [$code, $j] = loc('PATCH', '', $L_PORTLAND, $ADMIN, (object)['address' => null]);
-check("PATCH address null -> cleared, coordinates with it", $code === 200 && !isset($j['address']) && $j['latitude'] === null && scalar("SELECT line1 FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT validation FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT longitude FROM location WHERE id='$L_PORTLAND'") === null);
+check("PATCH address null -> cleared, coordinates with it", $code === 200 && !isset($j['address']) && $j['latitude'] === null && scalar("SELECT line1 FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT validatedAt FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT longitude FROM location WHERE id='$L_PORTLAND'") === null);
 [$code, $j] = loc('PATCH', '', $L_PORTLAND, $ADMIN, (object)['name' => 'Portland Pub']);
 check("PATCH without address leaves a cleared one cleared", $code === 200 && !isset($j['address']));
 
@@ -263,7 +263,7 @@ check("GET /location/subdivisions for an unseeded country -> empty list", $code 
 
 // 9. The other output shapes share the builder
 [$code, $j] = loc('GET', '', $L_ABDIJ, $ADMIN);
-check("GET /location/{id}: address block and country name", $code === 200 && $j['address']['formatted'] === array('Donkerstraat 12', '8640 Westvleteren') && count($j['address']) === 11 && $j['country_short_name'] === 'Belgium');
+check("GET /location/{id}: address block and country name", $code === 200 && $j['address']['formatted'] === array('Donkerstraat 12', '8640 Westvleteren') && count($j['address']) === 10 && $j['country_short_name'] === 'Belgium');
 $l = new Location(); $rows = $l->brewerLocations($BE_BREWER);
 $byId = array(); foreach($rows as $row){ $byId[$row['id']] = $row; }
 check("brewerLocations: rows with and without an address", isset($byId[$L_ABDIJ]['address']) && !isset($byId[$L_EMPTY]['address']) && $byId[$L_ABDIJ]['address']['telephone'] === '+3257400376' && $byId[$L_CANTILLON]['address']['admin_area']['name'] === 'Région de Bruxelles-Capitale');
@@ -276,7 +276,7 @@ check("nearbyLatLng: the Belgian row carries the address block, no top-level tel
 $admin->query("UPDATE location SET latitude=50.9, longitude=2.73 WHERE id='$L_EMPTY'");
 $l = new Location(); $near = $l->nearbyLatLng(50.8957, 2.72, 25, 'true', '', 10);
 $empty = null; foreach($near['locationArray'] as $row){ if($row['location']['id'] === $L_EMPTY){ $empty = $row; } }
-check("nearbyLatLng: a location without an address has the all-null block", $empty !== null && $empty['location']['address']['line1'] === null && $empty['location']['address']['validation'] === null && count(array_filter($empty['location']['address'], fn($v) => $v !== null)) === 0);
+check("nearbyLatLng: a location without an address has the all-null block", $empty !== null && $empty['location']['address']['line1'] === null && count(array_filter($empty['location']['address'], fn($v) => $v !== null)) === 0);
 $l = new Location(); $l->validate($L_CANTILLON, true); $so = $l->generateLocationSearchObject();
 check("search object: address keys, regions facet, no states for a Belgian row", $so['address'] === array('line1' => 'Rue Gheude 56', 'locality' => 'Anderlecht', 'sub_code' => 'BE-BRU', 'postal_code' => '1070', 'telephone' => '+15035550100') && $so['regions'] === array('BE-BRU') && !isset($so['states']) && $so['countries'] === array('BE') && $so['cities'] === array('Anderlecht'));
 $l = new Location(); $l->validate($L_WESTFIELD, true); $so = $l->generateLocationSearchObject();
@@ -289,7 +289,7 @@ check("brewer search object: US keeps 'City, ST'", in_array('CA', $bso['states']
 // 10. Metrics read the merged columns
 $m = new Metrics(); $m->snapshot();
 $named = array(); $res = $admin->query("SELECT metric, dimension, value FROM metrics_daily"); while($row = $res->fetch_assoc()){ $named[$row['metric'] . '|' . $row['dimension']] = intval($row['value']); }
-check("metrics: location_with_address counts rows with a street; location_country and address_validation grouped", ($named['location_with_address|'] ?? null) === 4 && ($named['location_country|BE'] ?? null) === 4 && ($named['address_validation|validated'] ?? null) === 4);
+check("metrics: location_with_address counts rows with a street; location_country grouped", ($named['location_with_address|'] ?? null) === 4 && ($named['location_country|BE'] ?? null) === 4);
 
 // ----- Done -----
 $admin->query("DROP DATABASE " . DB_NAME);

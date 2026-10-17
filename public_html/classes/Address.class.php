@@ -31,7 +31,7 @@ parsers share the acceptance gate:
 
 One vocabulary, Google's postalAddress one: line1, line2, locality,
 dependent_locality, sub_code, postal_code, telephone on the way in; those
-plus formatted, language_code, validation and admin_area on the way out.
+plus formatted, language_code and admin_area on the way out.
 Inside this class the US parsing block still speaks address1/address2/city,
 because tests/address-parse.php and the 2026-08-05 audit do; syncLegacy()
 keeps the two property sets equal and nothing outside the class sees them.
@@ -44,8 +44,7 @@ class Address {
 
     /* The regions Google Address Validation covers (2026-10). A location
        outside this list is refused at POST /location (error 51), so an
-       address never has to degrade; `validation = 'geocoded'` is reserved
-       for the day that changes. */
+       address never has to degrade. */
     const COUNTRIES = array('AR', 'AT', 'AU', 'BE', 'BG', 'BR', 'CA', 'CH', 'CL', 'CO', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'HR', 'HU', 'IE', 'IN', 'IT', 'JP', 'LT', 'LU', 'LV', 'MX', 'MY', 'NL', 'NO', 'NZ', 'PL', 'PR', 'PT', 'SE', 'SG', 'SI', 'SK', 'US');
 
     /* USPS CASS only standardizes US and Puerto Rico addresses. */
@@ -113,8 +112,7 @@ class Address {
     public $formatted = null;       // array of display lines, or null
     public $languageCode = '';
     public $telephone = null;       // E.164 string, or null
-    public $validation = 'unverified';
-    public $validatedAt = null;
+    public $validatedAt = null;      // when the validator last accepted it
 
     // Subdivision as loaded/looked up
     public $subName = '';
@@ -253,10 +251,10 @@ class Address {
         return !$this->error;
     }
 
-    /* The eleven column values after a successful validateFor(), in table
+    /* The ten column values after a successful validateFor(), in table
        order: line1, line2, locality, dependentLocality, sub_code, postalCode,
-       formatted, languageCode, telephone, validation, validatedAt. Empty
-       optionals go to NULL. */
+       formatted, languageCode, telephone, validatedAt. Empty optionals go to
+       NULL. */
     public function columns(){
         return array(
             $this->line1,
@@ -268,12 +266,11 @@ class Address {
             is_array($this->formatted) && !empty($this->formatted) ? json_encode($this->formatted, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
             $this->languageCode !== '' ? $this->languageCode : null,
             $this->telephone,
-            $this->validation,
             $this->validatedAt,
         );
     }
 
-    const COLUMN_NAMES = array('line1', 'line2', 'locality', 'dependentLocality', 'sub_code', 'postalCode', 'formatted', 'languageCode', 'telephone', 'validation', 'validatedAt');
+    const COLUMN_NAMES = array('line1', 'line2', 'locality', 'dependentLocality', 'sub_code', 'postalCode', 'formatted', 'languageCode', 'telephone', 'validatedAt');
 
     /* [latitude, longitude] from the validation that just ran, or null when
        this validateFor() did not call Google (a telephone-only patch). */
@@ -635,7 +632,6 @@ class Address {
         if($this->error){
             return;
         }
-        $this->validation = 'validated';
         $this->validatedAt = time();
 
         // Capture coordinates from the same response (no separate geocode call needed)
@@ -1765,7 +1761,6 @@ class Address {
         $this->formatted = is_array($decoded) ? $decoded : null;
         $this->languageCode = strval($row['languageCode'] ?? '');
         $this->telephone = isset($row['telephone']) && $row['telephone'] !== '' ? strval($row['telephone']) : null;
-        $this->validation = strval($row['validation'] ?? 'unverified');
         $this->validatedAt = isset($row['validatedAt']) ? intval($row['validatedAt']) : null;
         $this->subName = strval($row['sub_name'] ?? '');
         $this->subType = strval($row['sub_type'] ?? '');
@@ -1804,7 +1799,6 @@ class Address {
         // A stored row always has a street and a locality; every key null
         // is the "no address" block the nearby list renders for a location
         // without one.
-        $hasRow = $this->line1 !== '';
         return array(
             'line1' => $nullable($this->line1),
             'line2' => $nullable($this->line2),
@@ -1815,7 +1809,6 @@ class Address {
             'formatted' => is_array($this->formatted) ? array_values($this->formatted) : null,
             'language_code' => $nullable($this->languageCode),
             'telephone' => $nullable($this->telephone),
-            'validation' => $hasRow ? $this->validation : null,
             'admin_area' => $this->sub_code === '' ? null : array(
                 'sub_code' => $this->sub_code,
                 'name' => $nullable($this->subName),
