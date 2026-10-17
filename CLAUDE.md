@@ -82,9 +82,11 @@ Entity classes (`Beer`, `Brewer`, `Location`, `Users`) share a consistent struct
 - `Address::validate()` JOINs with the `subdivisions` table to get the subdivision name and type in one query
 
 ### Verification & Permissions
-Two-tier verification controls who can edit entities:
-- **cbVerified** — Catalog.beer admin verified; only admins can edit
-- **brewerVerified** — Brewery staff verified; staff or admins can edit
+Two badges; only one of them restricts editing:
+- **cbVerified** — Catalog.beer admin reviewed the record. **An indicator, not a gate** (since 2026-10-13): any account may edit a cb_verified brewer, beer, location or address. Admin writes set it (except an admin URL-only brewer PATCH, which carries both badges through); **any non-admin write clears it**, so the badge always describes content an admin has seen. Address writes clear it on the parent location via `Location::updateLastModified($id, true)`. The old 403 error numbers 161/166/185/191 are retired, not reused.
+- **brewerVerified** — Brewery staff verified; **still a gate**: only that brewery's staff or admins can edit (errors 168/186/187/192). It is the stronger claim of the two, since the brewery itself vouched for the record. `GET /brewer/{id}/permissions` reports `edit` from this flag alone.
+
+Deletes are a separate rule and do not depend on either badge: admins and brewery staff only.
 
 Staff status determined by: user email domain matching brewer's `domainName`, or explicit entry in `privileges` table. Admin status is a flag on the user account.
 

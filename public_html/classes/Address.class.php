@@ -220,30 +220,16 @@ class Address {
                 // Get Brewer Domain Name
                 $brewer->validate($location->brewerID, true);
 
-                if($location->cbVerified){
+                if($location->brewerVerified){
                     if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
                         // Allow PUT/PATCH. User is brewery staff.
                     }else{
                         if(!$users->admin){
                             // Deny
                             $this->error = true;
-                            $this->errorMsg = 'Sorry, because this location is cb_verified, we limit editing capabilities to Catalog.beer Admins. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
+                            $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
                             $this->responseCode = 403;
-                            $this->logError(191, 'Forbidden: General User, PUT/PATCH, /address, cb_verified', "User: $userID / Location: $locationID");
-                        }
-                    }
-                }else{
-                    if($location->brewerVerified){
-                        if(!empty($brewer->domainName) && $userEmailDomain == $brewer->domainName || in_array($location->brewerID, $userBrewerPrivileges)){
-                            // Allow PUT/PATCH. User is brewery staff.
-                        }else{
-                            if(!$users->admin){
-                                // Deny
-                                $this->error = true;
-                                $this->errorMsg = 'Sorry, because this location is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this location, please [contact us](https://catalog.beer/contact)';
-                                $this->responseCode = 403;
-                                $this->logError(192, 'Forbidden: General User, PUT/PATCH, /location, brewer_verified', "User: $userID / Location: $locationID");
-                            }
+                            $this->logError(192, 'Forbidden: General User, PUT/PATCH, /location, brewer_verified', "User: $userID / Location: $locationID");
                         }
                     }
                 }
@@ -353,7 +339,7 @@ class Address {
                         }
 
                         if(!$db->error){
-                            $this->afterWrite($location, true);
+                            $this->afterWrite($location, true, !$users->admin);
                         }else{
                             // Query Error
                             $this->error = true;
@@ -430,7 +416,7 @@ class Address {
                         // rest of this cluster. It returns the unchanged
                         // location object, not an error.
                         if(!$this->error && !empty($setClauses)){
-                            $this->afterWrite($location, $patchAddress);
+                            $this->afterWrite($location, $patchAddress, !$users->admin);
                         }
                     }
                 }
@@ -473,16 +459,18 @@ class Address {
     }
 
     /* Coordinates, lastModified and the search index, after a successful
-       write. $addressChanged is false for a telephone-only PATCH. */
-    private function afterWrite($location, $addressChanged){
+       write. $addressChanged is false for a telephone-only PATCH; $clearBadge
+       (a non-admin wrote) drops cb_verified on the parent location, since the
+       badge describes content an admin has seen (2026-10-13). */
+    private function afterWrite($location, $addressChanged, $clearBadge){
         // Store Latitude and Longitude (captured during validation — Address
         // Validation geocodes every accepted address, so no fallback lookup)
         if($addressChanged && $this->latLongFound){
             $location->saveCoordinates($this->locationID, $this->latitude, $this->longitude);
         }
 
-        // Update Last Modified
-        $location->updateLastModified($this->locationID);
+        // Update Last Modified (and clear cb_verified on a non-admin write)
+        $location->updateLastModified($this->locationID, $clearBadge);
         if($location->error){
             $this->error = true;
             $this->errorMsg = $location->errorMsg;

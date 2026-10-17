@@ -232,8 +232,13 @@ check("PATCH US number -> +1 E.164", $code === 200 && $j['address']['telephone']
 check("plain key may PATCH an unverified location", $code === 200);
 $admin->query("UPDATE location SET cbVerified=1 WHERE id='$L_SANJOSE'");
 [$code, $j] = addr('PATCH', '', $L_SANJOSE, $PLAIN, (object)['telephone' => '(408) 555-0100']);
-check("plain key refused on a cb_verified location (191)", $code === 403);
-$admin->query("UPDATE location SET cbVerified=0 WHERE id='$L_SANJOSE'");
+check("plain key may PATCH a cb_verified location, and the badge clears (2026-10-13)", $code === 200 && intval(scalar("SELECT cbVerified FROM location WHERE id='$L_SANJOSE'")) === 0);
+$admin->query("UPDATE location SET brewerVerified=1 WHERE id='$L_SANJOSE'");
+[$code, $j] = addr('PATCH', '', $L_SANJOSE, $PLAIN, (object)['telephone' => '(408) 555-0100']);
+check("plain key refused on a brewer_verified location (192)", $code === 403);
+[$code, $j] = addr('PATCH', '', $L_SANJOSE, $ADMIN, (object)['telephone' => '(408) 555-0100']);
+check("admin may PATCH a brewer_verified location without clearing cb_verified", $code === 200 && intval(scalar("SELECT cbVerified FROM location WHERE id='$L_SANJOSE'")) === 0);
+$admin->query("UPDATE location SET brewerVerified=0 WHERE id='$L_SANJOSE'");
 
 // 8. Reference lists
 [$code, $j] = addr('GET', 'countries', '', $ADMIN);
