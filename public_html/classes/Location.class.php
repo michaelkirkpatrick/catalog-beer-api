@@ -466,18 +466,15 @@ class Location {
                 // Update Database
                 $db->query($sql, $params);
                 if(!$db->error){
-                    // The object answers with what was just written
-                    if(isset($addressResult) && $addressResult !== null){
-                        if($addressResult['action'] === 'clear'){
-                            $this->address = null;
-                            $this->addressRow = null;
-                            $this->latitude = null;
-                            $this->longitude = null;
-                        }elseif($addressResult['action'] === 'set' && $addressResult['coords'] !== null){
-                            $this->latitude = $addressResult['coords'][0];
-                            $this->longitude = $addressResult['coords'][1];
-                        }
-                    }
+                    /*--
+                    Answer with the stored row, not the in-memory one: the
+                    coordinate columns are float(9,7)/float(10,7), so a value
+                    read back differs from Google's in the eighth decimal, and
+                    the validator does not carry a subdivision's name the way
+                    the JOIN does. One SELECT keeps every response to this
+                    location identical, written or read.
+                    --*/
+                    $this->validate($this->locationID, true);
                     if($newLocation){
                         // Successfully Added
                         $this->responseCode = 201;

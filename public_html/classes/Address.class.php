@@ -392,6 +392,8 @@ class Address {
                     // Get State Info
                     $this->stateShort = substr($this->sub_code, 3, 2);
                     $this->stateLong = $subdivisions->sub_name;
+                    $this->subName = $subdivisions->sub_name;
+                    $this->subType = $subdivisions->subType;
                     $this->validState['sub_code'] = 'valid';
                 }else{
                     // Invalid Subdivision

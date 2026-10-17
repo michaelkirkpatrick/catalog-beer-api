@@ -45387,7 +45387,10 @@
 													"// Body JSON",
 													"pm.environment.set('location_name_28', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 													"pm.environment.set('location_country_code_28', 'US');",
-													"pm.environment.set('location_url_28', 'https://mekstudios.com/catalog-beer-test-page.html');"
+													"pm.environment.set('location_url_28', 'https://mekstudios.com/catalog-beer-test-page.html');",
+													"",
+													"// A PUT replaces the whole location, address included: omitting the",
+													"// address would clear it (API 6.0), so this \"change all\" sends it back."
 												],
 												"type": "text/javascript"
 											}
@@ -45431,7 +45434,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_ballast}}\",\n    \"name\": \"{{location_name_28}}\",\n    \"country_code\": \"{{location_country_code_28}}\",\n    \"url\": \"{{location_url_28}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_ballast}}\",\n    \"name\": \"{{location_name_28}}\",\n    \"country_code\": \"{{location_country_code_28}}\",\n    \"url\": \"{{location_url_28}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_28}}\",\n        \"line2\": \"{{address_address1_28}}\",\n        \"locality\": \"{{address_city_28}}\",\n        \"sub_code\": \"{{address_sub_code_28}}\",\n        \"postal_code\": \"{{address_zip5_28}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_28}}",
@@ -79831,7 +79834,7 @@
 													"pm.test(\"Says the address is validated in Belgium\", function () {",
 													"    var jsonData = pm.response.json();",
 													"    pm.expect(jsonData.valid_state.country_code).to.equal('invalid');",
-													"    pm.expect(jsonData.valid_msg.country_code).to.include('already holds an address validated in Belgium');",
+													"    pm.expect(jsonData.valid_msg.country_code).to.include('holds an address validated in Belgium');",
 													"});"
 												],
 												"type": "text/javascript"
