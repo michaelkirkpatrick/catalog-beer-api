@@ -12,7 +12,7 @@ from the full 587-address production audit — see scratch/address-audit);
 fixtures/google-address-validation-intl.json holds 22 international responses
 captured 2026-10-13 from the staging box (the key is IP-restricted).
 
-When Google or the parser changes behaviour, re-capture with the audit script
+When Google or the parser changes behavior, re-capture with the audit script
 and update the expectations here BY HAND — every expected value in this table
 has been human-verified, which is what makes a failure meaningful. Don't
 regenerate them mechanically from parser output.
@@ -177,7 +177,7 @@ $expectedIntl = array(
     'BE6' => array('Meir 85', 'bus 3', 'Antwerpen', '2000', array('Meir 85/bus 3', '2000 Antwerpen'), array()),              // unit cut out of the folded line; formatted keeps Google's fold
     'BE7' => 'REJECT',                                                                                                       // OTHER: nonexistent street
     'NL1' => array('Funenkade 7', '', 'Amsterdam', '1018 AL', array('Funenkade 7', '1018 AL Amsterdam'), array()),
-    'NL2' => array('Funenkade 7', '', 'Amsterdam', '1018 AL', array('Funenkade 7', '1018 AL Amsterdam'), array()),          // "1018al" normalised by Google
+    'NL2' => array('Funenkade 7', '', 'Amsterdam', '1018 AL', array('Funenkade 7', '1018 AL Amsterdam'), array()),          // "1018al" normalized by Google
     'DE1' => array('Alte Akademie 2', '', 'Freising', '85354', array('Alte Akademie 2', '85354 Freising'), array()),
     'DE2' => array('Köpenicker Straße 70', '', 'Berlin', '10179', array('Köpenicker Straße 70', '10179 Berlin'), array()), // postal "Str." expanded from the route
     'FR1' => array("28 Rue de la Goutte d'Or", '', 'Paris', '75018', array("28 Rue de la Goutte d'Or", '75018 Paris'), array()),
@@ -253,7 +253,7 @@ foreach($expandCases as $c){
     printf("%s %-40s -> %s\n", $ok ? 'PASS' : 'FAIL', "'" . $c[0] . "'", "'" . $got . "'" . ($ok ? '' : " expected '" . $c[2] . "'"));
 }
 
-// E.164 normalisation from the location's country.
+// E.164 normalization from the location's country.
 echo "\n--- normalizeTelephone ---\n";
 $phoneCases = array(
     array('+32 57 40 03 76', 'BE', '+3257400376'),

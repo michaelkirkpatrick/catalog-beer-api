@@ -1601,7 +1601,7 @@ class Location {
     }
 
     /* metric defaults to the country's convention when the caller did not
-       say: miles in the US, Liberia and Myanmar, kilometres everywhere else. */
+       say: miles in the US, Liberia and Myanmar, kilometers everywhere else. */
     private function defaultMetric($metric, $country){
         if($metric === '' || $metric === null){
             return in_array($country, array('US', 'LR', 'MM'), true) ? 'false' : 'true';

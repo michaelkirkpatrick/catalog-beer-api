@@ -61,7 +61,7 @@ class BrewerLead {
     // The admin user behind the key, once authorised
     private $userID = '';
 
-    // ----- Authorisation -----
+    // ----- Authorization -----
     // Same gate as /review: the key must belong to a user with the admin flag.
     // Master keys are not in api_keys and so are refused; a lead carries a
     // real account as the reviewer who read it.

@@ -169,7 +169,7 @@ check("countrySeeded: BE yes, ZA no", Subdivisions::countrySeeded('BE') && !Subd
 
 // 4. The location country gate
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Nieuw', 'country_code' => 'be']);
-check("POST /location with country_code be -> created, normalised to BE", in_array($code, array(200, 201), true) && ($j['country_code'] ?? null) === 'BE' && ($j['country_short_name'] ?? null) === 'Belgium' && !isset($j['address']));
+check("POST /location with country_code be -> created, normalized to BE", in_array($code, array(200, 201), true) && ($j['country_code'] ?? null) === 'BE' && ($j['country_short_name'] ?? null) === 'Belgium' && !isset($j['address']));
 $L_NEW = $j['id'] ?? '';
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Nope', 'country_code' => 'XX']);
 check("POST /location with XX -> 400, not an ISO code", $code === 400 && str_contains($j['valid_msg']['country_code'] ?? '', 'ISO 3166-1'));

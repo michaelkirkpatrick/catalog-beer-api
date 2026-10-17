@@ -54,7 +54,7 @@ class Address {
     /* NANP countries: a national number is ten digits, optionally led by 1. */
     const NANP = array('US', 'CA', 'PR');
 
-    /* E.164 country calling codes, for normalising a nationally-formatted
+    /* E.164 country calling codes, for normalizing a nationally-formatted
        number using the location's country. */
     const CALLING_CODES = array(
         'AR' => '54', 'AT' => '43', 'AU' => '61', 'BE' => '32', 'BG' => '359', 'BR' => '55',
@@ -683,7 +683,7 @@ class Address {
             $this->city = self::deriveCity($result, $sentCity);
             /*--
             A premise-level verdict does not guarantee a complete CASS block.
-            When USPS does not recognise the submitted community as a mailing
+            When USPS does not recognize the submitted community as a mailing
             city ("Paoli WI", an unincorporated place whose post office is
             Belleville), standardizedAddress comes back partial — city and
             state but no ZIP, or ZIP but no state — while Google's own
@@ -1124,7 +1124,7 @@ class Address {
     So, in order:
     1. CASS didn't standardize (no ZIP in the block) or has no city: its city
        is at best an echo of the client's input, and Google's locality holds
-       the real mailing city ("Paoli" -> "Belleville"). Unchanged behaviour.
+       the real mailing city ("Paoli" -> "Belleville"). Unchanged behavior.
     2. A candidate carries the unabbreviated form of the SAME name — Google's
        locality/sublocality/neighborhood, or the client's own sent city
        (postal.locality is NOT reliable for this: on zip5-only requests it
@@ -1490,7 +1490,7 @@ class Address {
         if($n < 3){ return implode(' ', $tokens); }   // too short to hold suffix + name
 
         /*--
-        RECOGNISING a directional or type has to work on either spelling, and
+        RECOGNIZING a directional or type has to work on either spelling, and
         REWRITING only ever applies to the spelled-out one. Keeping those apart
         matters because this function sees both: Google's text spells words out
         ("North Avenue Northeast") while a CASS-sourced street arrives already
@@ -1526,7 +1526,7 @@ class Address {
     type while "Avenue" and "ST" read as different ones.
 
     Wider than apAbbreviate()'s table on purpose: that one only lists types we
-    ABBREVIATE for display, while this one has to recognise types we
+    ABBREVIATE for display, while this one has to recognize types we
     deliberately leave spelled out (Way, Loop, Route, Plaza, Green) — Quil
     Ceda's Boulevard/Way disagreement is invisible without them.
     --*/
@@ -1680,7 +1680,7 @@ class Address {
     // ----- Telephone -----
 
     /*--
-    Normalise a submitted telephone number to E.164 using the location's
+    Normalize a submitted telephone number to E.164 using the location's
     country for the default calling code. Pure — replayed by
     tests/address-parse.php. Returns the "+..." string, or null when the
     input cannot be read as a number of that country.

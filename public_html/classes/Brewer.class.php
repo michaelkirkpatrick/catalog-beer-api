@@ -454,7 +454,7 @@ class Brewer {
                 }
 
                 /*--
-                Validate first, compare after, and normalise '' to null before
+                Validate first, compare after, and normalize '' to null before
                 storing — the same shape beer's abv/ibu use, for three reasons:
 
                 - The column is nullable and PUT clears it to NULL. PATCH wrote
@@ -817,7 +817,7 @@ class Brewer {
         return $fields[$key];
     }
 
-    // Must set $this->status. Normalises to the stored spelling.
+    // Must set $this->status. Normalizes to the stored spelling.
     private function validateStatus(){
         $value = is_string($this->status) ? strtolower(trim($this->status)) : null;
         if(in_array($value, self::STATUSES, true)){
@@ -840,7 +840,7 @@ class Brewer {
     }
 
     /*--
-    $field is 'founded_year' or 'closed_year'; validates and normalises the
+    $field is 'founded_year' or 'closed_year'; validates and normalizes the
     matching property. Year only: that is what every source states ("est.
     2014", "closed in 2023"), and nothing anyone queries needs finer. Accepts
     an integer or a four-digit string; a float, a date, or "2014ish" is
@@ -877,7 +877,7 @@ class Brewer {
 
     /*--
     The two rules that span fields, checked on the effective values after the
-    single-field validators have normalised them. Mirrored by the schema's
+    single-field validators have normalized them. Mirrored by the schema's
     chk_brewer_closed_year and chk_brewer_years, so a request that slipped
     past here would 500 on the write rather than store a contradiction.
     --*/
@@ -1184,7 +1184,7 @@ class Brewer {
 
             if($urlCheck->serving($probe) && !empty($probe['final_url'])){
                 // Where the redirects landed, filtered: adopt only provable
-                // canonicalisation (https, www, trailing slash). An age gate
+                // canonicalization (https, www, trailing slash). An age gate
                 // or cookie wall answers 200 from its own path — storing
                 // that path would bake our cookie jar's state into the
                 // record, unfixably, since re-validating a corrective PATCH
@@ -2171,7 +2171,7 @@ class Brewer {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
+        // Sanitized FULLTEXT query strings (see SearchQuery.class.php)
         $searchTerms = SearchQuery::terms($query);
         // Distinctive terms drive the match label only, never the ranking —
         // see SearchQuery::brewerDistinctiveTerms()

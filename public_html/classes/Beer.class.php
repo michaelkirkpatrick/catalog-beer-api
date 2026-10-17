@@ -297,7 +297,7 @@ class Beer {
                             $params[] = $this->description;
                         }
                         // !== null, not !empty(): a real 0 IBU has to reach the
-                        // column. validateIBU() has already normalised unknown
+                        // column. validateIBU() has already normalized unknown
                         // to null, so this is the only test needed.
                         if($this->ibu !== null){
                             $columns[] = 'ibu';
@@ -382,7 +382,7 @@ class Beer {
                 /*--
                 Validate Description
 
-                Validate first, compare after, and normalise '' to null before
+                Validate first, compare after, and normalize '' to null before
                 storing — the same order abv and ibu use below. PUT clears this
                 column to NULL, so PATCH writing '' left the two paths
                 disagreeing about what "no description" looks like; and a loose
@@ -1906,7 +1906,7 @@ class Beer {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
+        // Sanitized FULLTEXT query strings (see SearchQuery.class.php)
         $searchTerms = SearchQuery::terms($query);
 
         // Ranking is tiered, not a blended score. A single relevance value

@@ -82,7 +82,7 @@ php tests/address.php
 
 Every expected value in the table has been checked by a human against what
 USPS and Google actually returned. That is what makes a failure meaningful, so
-when behaviour legitimately changes, edit the expectations by hand rather than
+when behavior legitimately changes, edit the expectations by hand rather than
 pasting in whatever the parser now emits. New address shapes should arrive as
 new fixtures captured from the live API (see `scratch/address-audit/`), not as
 hand-written JSON.

@@ -171,7 +171,7 @@ $settings = array(
     ),
 
     /*
-    Snippets for the prose fields (~30 words, ellipsised). Beer descriptions
+    Snippets for the prose fields (~30 words, ellipsized). Beer descriptions
     are nearly empty today (~0.2% populated), so result rows treat the snippet
     as a bonus — but styles are well-described and brewers improve with the
     data-quality work, and this setting is what they'll render through.

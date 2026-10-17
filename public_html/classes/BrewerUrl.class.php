@@ -10,11 +10,11 @@ acquired brand that carries on under its own name live on a page of its
 owner's site (Whetstone Beer Co. at https://northchair.com/whetstone-beer/)
 beside the owner's own record at the root. brewer.domainName is therefore
 indexed but not unique; brewer.url stays UNIQUE as the byte-identical
-backstop, so every normalised comparison has to happen here, before the
+backstop, so every normalized comparison has to happen here, before the
 INSERT.
 
   host($url)     the domainName rule: host, lowercased, www. stripped
-  pageKey($url)  host + normalised path (+ query), what "the same page" means
+  pageKey($url)  host + normalized path (+ query), what "the same page" means
   isRoot($url)   the page is the homepage
   conflict()     the brewer this URL collides with, or null
 
