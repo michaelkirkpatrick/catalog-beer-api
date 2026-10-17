@@ -28,6 +28,9 @@ define('DB_HOST', getenv('CB_TEST_DB_HOST') ?: '127.0.0.1');
 define('DB_USER', getenv('CB_TEST_DB_USER') ?: 'root');
 define('DB_PASSWORD', getenv('CB_TEST_DB_PASSWORD') ?: '');
 define('DB_NAME', 'cb_post_test');
+// The site reads with a master key whose account is an admin (POST /login
+// needs one). It must still never see a draft.
+define('MASTER_API_KEYS', serialize(array('bbbbbbbb-0000-4000-8000-000000000003')));
 date_default_timezone_set('America/Los_Angeles');
 spl_autoload_register(function ($c) { require_once ROOT . '/classes/' . $c . '.class.php'; });
 
@@ -46,17 +49,19 @@ $admin->select_db(DB_NAME);
 $sql = "SET FOREIGN_KEY_CHECKS=0;\n" . file_get_contents($schemaPath) . "\nSET FOREIGN_KEY_CHECKS=1;\n" . <<<'SQL'
 INSERT INTO users (id,email,passwordHash,name,emailVerified,admin) VALUES
  ('aaaaaaaa-0000-4000-8000-000000000001','editor@example.com','x','Editor',1,1),
- ('aaaaaaaa-0000-4000-8000-000000000002','plain@example.com','x','Plain User',1,0);
+ ('aaaaaaaa-0000-4000-8000-000000000002','plain@example.com','x','Plain User',1,0),
+ ('aaaaaaaa-0000-4000-8000-000000000003','site@example.com','x','Site (master key)',1,1);
 INSERT INTO api_keys (id,userID) VALUES
  ('bbbbbbbb-0000-4000-8000-000000000001','aaaaaaaa-0000-4000-8000-000000000001'),
- ('bbbbbbbb-0000-4000-8000-000000000002','aaaaaaaa-0000-4000-8000-000000000002');
+ ('bbbbbbbb-0000-4000-8000-000000000002','aaaaaaaa-0000-4000-8000-000000000002'),
+ ('bbbbbbbb-0000-4000-8000-000000000003','aaaaaaaa-0000-4000-8000-000000000003');
 SQL;
 $admin->multi_query($sql);
 do { if($r = $admin->store_result()){ $r->free(); } } while($admin->more_results() && $admin->next_result());
 echo "scratch database " . DB_NAME . " loaded\n";
 
 // ----- Scenario -----
-$ADMIN = 'bbbbbbbb-0000-4000-8000-000000000001'; $PLAIN = 'bbbbbbbb-0000-4000-8000-000000000002';
+$ADMIN = 'bbbbbbbb-0000-4000-8000-000000000001'; $PLAIN = 'bbbbbbbb-0000-4000-8000-000000000002'; $MASTER = 'bbbbbbbb-0000-4000-8000-000000000003';
 function call($method, $function, $id, $key, $data = null, $get = []) {
     $_GET = $get; $p = new Post(); $p->api($method, $function, $id, $key, $get['count'] ?? 500, $get['cursor'] ?? base64_encode('0'), $data ?? new stdClass());
     return [$p->responseCode, $p->json, $p->responseHeader];
@@ -127,6 +132,14 @@ check("draft by slug, non-admin -> 404", $code === 404);
 check("draft by id, admin -> 200", $code === 200 && $j['title'] === "Brewers' Status & Years");
 [$code, $j] = call('GET', '', '', $PLAIN, null, ['status' => 'draft']);
 check("non-admin listing drafts -> 403", $code === 403);
+[$code, $j] = call('GET', 'channel', '', $MASTER, null, ['channel' => 'news', 'slug' => 'brewers-status-years']);
+check("draft by slug, master key of an admin account -> 404", $code === 404);
+[$code, $j] = call('GET', '', $DRAFT, $MASTER);
+check("draft by id, master key -> 404", $code === 404);
+[$code, $j] = call('GET', '', '', $MASTER, null, ['status' => 'all']);
+check("master key listing drafts -> 403", $code === 403);
+[$code, $j] = call('POST', '', '', $MASTER, (object)['channel' => 'news', 'title' => 'Hi', 'body' => 'x']);
+check("master key cannot write -> 401", $code === 401);
 
 // 6. list: published only, newest first, channel filter, pagination
 [$code, $j] = call('GET', '', '', $PLAIN);

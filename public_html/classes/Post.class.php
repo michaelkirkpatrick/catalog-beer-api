@@ -55,7 +55,16 @@ class Post {
     // ----- Authorisation -----
     // Reads are open to any key, so being a non-admin is not an error here --
     // it only decides whether drafts are visible. Writes call requireAdmin().
+    //
+    // A master key is never an admin here, even though its account carries
+    // the admin flag (POST /login requires it). The website reads every
+    // public page with the master key, so if it counted, /news/{slug} would
+    // render a draft to anyone who guessed the slug. The admin editor reads
+    // and writes with the signed-in admin's own key instead.
     private function checkAdmin($apiKey){
+        if(in_array($apiKey, unserialize(MASTER_API_KEYS), true)){
+            return;
+        }
         $apiKeys = new apiKeys();
         if($apiKeys->validate($apiKey, true)){
             $users = new Users();
