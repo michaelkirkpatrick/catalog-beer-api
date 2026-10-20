@@ -43,11 +43,12 @@ class Location {
     Create, replace or patch a location, address included.
 
     $address is the nested `address` object reduced by api(): null when the
-    request did not carry one, false for an explicit null (clear), or the
-    seven request keys ('' when absent). $addressPatchFields names the keys
-    the request actually sent inside it (PATCH only). The address validates
-    BEFORE the row is written, so a refused address writes nothing -- a
-    created location never exists without the address that was sent with it.
+    request did not carry one, false for an explicit null, or the seven
+    request keys ('' when absent). $addressPatchFields names the keys the
+    request actually sent inside it (PATCH only). The address is required:
+    POST and PUT must carry it, and PATCH may change it but not remove it.
+    It validates BEFORE the row is written, so a refused address writes
+    nothing -- a location is never created or replaced without one.
     --*/
     public function add($brewerID, $name, $url, $countryCode, $userID, $method, $locationID, $patchFields, $address = null, $addressPatchFields = array()){
 
@@ -305,9 +306,8 @@ class Location {
                 $this->countryCode = $countryCode;
                 $this->validateCC();
 
-                // Address: validated against the (new) country before anything
-                // is written. A PUT that omits it clears it, as with any
-                // optional field on a PUT.
+                // Address: required, and validated against the (new) country
+                // before anything is written.
                 $addressResult = null;
                 if(!$this->error){
                     $addressResult = $this->resolveAddress($method, $newLocation, $address, $addressPatchFields, $originalCountry ?? null);
@@ -437,8 +437,8 @@ class Location {
                     }
                 }
 
-                // Address: merged with the stored one and re-validated, or
-                // cleared by an explicit null; untouched when not sent.
+                // Address: merged with the stored one and re-validated;
+                // untouched when not sent. An explicit null is refused.
                 if(!$this->error){
                     $addressResult = $this->resolveAddress('PATCH', false, $address, $addressPatchFields, $originalCountry ?? null);
                     if(!$this->error){
@@ -640,30 +640,55 @@ class Location {
 
     /*--
     Work out what the request does to the address. Returns
-    array(action => 'none'|'keep'|'set'|'clear', columns => the eleven column
-    values when 'set', coords => [lat, lng] when the validator geocoded).
-    Sets the error state (nested under valid_state.address) when the address
-    is refused.
+    array(action => 'keep'|'set', columns => the ten column values when
+    'set', coords => [lat, lng] when the validator geocoded). Sets the error
+    state (nested under valid_state.address) when the address is refused.
 
-      $address  null   not sent: 'keep' on PATCH, 'clear' on a PUT of an
-                       existing row (omitted optional fields clear), 'none'
-                       on a create
-                false  explicit null: 'clear'
+      $address  null   not sent: 'keep' on PATCH; on POST and PUT it is
+                       validated as an empty address, so the client hears
+                       which fields its country requires
+                false  explicit null: the same as not sent on POST and PUT,
+                       refused on PATCH (345) -- an address can be corrected
+                       but not removed
                 array  the seven request keys: validate, 'set'
+
+    The address is required because it rides on the location's own write:
+    it was optional only while it took a second request to /address.
+    Locations that predate the rule and hold no address still read and
+    PATCH; their next PUT, or a PATCH that sends an address, fills it in.
 
     The country rule: once a location holds an address, changing its country
     without sending the address again is refused (341) -- the stored address
     was validated for the country it is in, and the two cannot disagree on
-    one row. Sending the address with the new country re-validates it there;
-    sending null clears it.
+    one row. Sending the address with the new country re-validates it there.
     --*/
     private function resolveAddress($method, $newLocation, $address, array $addressPatchFields, $originalCountry){
         $result = array('action' => 'keep', 'columns' => null, 'coords' => null);
         $hadAddress = is_array($this->addressRow) && !empty($this->addressRow['line1']);
 
-        if($address === false){
-            $result['action'] = 'clear';
-        }elseif(is_array($address)){
+        if($address === false && $method === 'PATCH'){
+            $this->error = true;
+            $this->errorMsg = 'A location needs its address, so it can be corrected but not removed. Send the corrected address instead of null.';
+            $this->validState['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'invalid');
+            $this->validMsg['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), $this->errorMsg);
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 345;
+            $errorLog->errorMsg = 'PATCH tried to remove a location\'s address';
+            $errorLog->badData = "locationID: $this->locationID";
+            $errorLog->filename = 'API / Location.class.php';
+            $errorLog->write();
+            return $result;
+        }
+        $missing = (($address === null || $address === false) && $method !== 'PATCH');
+        if($missing){
+            $address = array_fill_keys(Address::FIELDS, '');
+            $addressPatchFields = array();
+        }
+
+        if(is_array($address)){
             $validator = new Address();
             $stored = ($method === 'PATCH' && !$newLocation) ? $this->addressRow : null;
             if($validator->validateFor($this->countryCode, $address, $method, $addressPatchFields, $stored)){
@@ -674,21 +699,18 @@ class Location {
             }else{
                 $this->error = true;
                 if($validator->errorMsg !== null){ $this->errorMsg = $validator->errorMsg; }
+                if($missing){ $this->errorMsg = 'Every location needs its address. Send it as an address object in the same request.'; }
                 $this->responseCode = $validator->responseCode;
                 $this->validState['address'] = $validator->validState;
                 $this->validMsg['address'] = $validator->validMsg;
             }
-        }elseif($newLocation){
-            $result['action'] = 'none';
-        }elseif($method === 'PUT'){
-            $result['action'] = 'clear';
         }
 
         if(!$this->error && !$newLocation && $hadAddress && $originalCountry !== null
             && $this->countryCode !== $originalCountry && $result['action'] === 'keep'){
             $this->error = true;
             $this->validState['country_code'] = 'invalid';
-            $this->validMsg['country_code'] = 'This location holds an address validated in ' . CountryCode::shortName($originalCountry) . '. To move it to ' . CountryCode::shortName($this->countryCode) . ', send the address again in the same request so it can be validated there, or send "address": null to clear it.';
+            $this->validMsg['country_code'] = 'This location holds an address validated in ' . CountryCode::shortName($originalCountry) . '. To move it to ' . CountryCode::shortName($this->countryCode) . ', send the address again in the same request so it can be validated there.';
             $this->responseCode = 400;
 
             // Log Error
@@ -703,7 +725,7 @@ class Location {
     }
 
     /* The SET clauses for an address result on an UPDATE: every column when
-       set or cleared, nothing when kept. Coordinates follow the address. */
+       set, nothing when kept. Coordinates follow the address. */
     private function addressClauses($addressResult, array &$setClauses, array &$params){
         if($addressResult === null){ return; }
         if($addressResult['action'] === 'set'){
@@ -715,12 +737,6 @@ class Location {
                 $setClauses[] = 'latitude=?';   $params[] = $addressResult['coords'][0];
                 $setClauses[] = 'longitude=?';  $params[] = $addressResult['coords'][1];
             }
-        }elseif($addressResult['action'] === 'clear'){
-            foreach(Address::COLUMN_NAMES as $col){
-                $setClauses[] = "$col=NULL";
-            }
-            $setClauses[] = 'latitude=NULL';
-            $setClauses[] = 'longitude=NULL';
         }
     }
 
@@ -1848,7 +1864,7 @@ class Location {
 
     /*--
     Reduce the request's nested `address` to what add() takes: [null, []]
-    when absent, [false, []] for an explicit null (clear), or [fields, sent]
+    when absent, [false, []] for an explicit null, or [fields, sent]
     where fields holds the seven keys ('' when absent) and sent the ones the
     request carried (an explicit null inside the object counts as sent and
     clears that field on PATCH). Anything else -- a string, a number, an
@@ -1865,7 +1881,7 @@ class Location {
             $this->error = true;
             $this->responseCode = 400;
             $this->validState['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'invalid');
-            $this->validMsg['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'address must be an object with line1, line2, locality, dependent_locality, sub_code, postal_code and telephone, or null to clear it.');
+            $this->validMsg['address'] = array_fill_keys(array_keys(self::ADDRESS_STATE), 'address must be an object with line1, line2, locality, dependent_locality, sub_code, postal_code and telephone.');
 
             // Log Error
             $errorLog = new LogError();

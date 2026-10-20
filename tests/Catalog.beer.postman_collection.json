@@ -11565,7 +11565,11 @@
 											"pm.environment.set('location_brewer_id_1', pm.variables.replaceIn('{{brewer_id_7}}'));",
 											"pm.environment.set('location_name_1', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 											"pm.environment.set('location_country_code_1', 'US');",
-											"//pm.environment.set('location_url_1', 'https://catalog.beer/catalog-beer-test-page.html');"
+											"//pm.environment.set('location_url_1', 'https://catalog.beer/catalog-beer-test-page.html');",
+											"// The address rides on the create (required since 6.0); A-14 re-sends it",
+											"pm.environment.set('address_address2_1', '9045 Carroll Way');",
+											"pm.environment.set('address_city_1', 'San Diego');",
+											"pm.environment.set('address_sub_code_1', 'US-CA');"
 										],
 										"type": "text/javascript"
 									}
@@ -11609,7 +11613,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_1}}\",\n        \"locality\": \"{{address_city_1}}\",\n        \"sub_code\": \"{{address_sub_code_1}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -11625,7 +11629,7 @@
 							"response": []
 						},
 						{
-							"name": "A-3 location_id, no data",
+							"name": "A-3 POST, no data",
 							"event": [
 								{
 									"listen": "test",
@@ -11703,7 +11707,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -11716,7 +11720,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {}\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -11724,21 +11728,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-4 location_id, line1",
+							"name": "A-4 POST, line1",
 							"event": [
 								{
 									"listen": "test",
@@ -11816,7 +11819,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -11829,7 +11832,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -11837,21 +11840,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-5 location_id, line1, locality",
+							"name": "A-5 POST, line1, locality",
 							"event": [
 								{
 									"listen": "test",
@@ -11929,7 +11931,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -11942,7 +11944,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"locality\": \"{{$randomCity}}\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"locality\": \"{{$randomCity}}\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -11950,21 +11952,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-18 location_id, line1, invalid sub_code",
+							"name": "A-18 POST, line1, invalid sub_code",
 							"event": [
 								{
 									"listen": "test",
@@ -12042,7 +12043,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12055,7 +12056,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"sub_code\": \"US-MX\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"sub_code\": \"US-MX\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12063,21 +12064,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-6 location_id, line1, sub_code",
+							"name": "A-6 POST, line1, sub_code",
 							"event": [
 								{
 									"listen": "test",
@@ -12155,7 +12155,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12168,7 +12168,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"sub_code\": \"US-CA\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"sub_code\": \"US-CA\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12176,21 +12176,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-9 location_id, no data",
+							"name": "A-9 POST, no data",
 							"event": [
 								{
 									"listen": "test",
@@ -12268,7 +12267,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12281,7 +12280,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": null,\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": null,\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12289,21 +12288,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-10 location_id, line1",
+							"name": "A-10 POST, line1",
 							"event": [
 								{
 									"listen": "test",
@@ -12381,7 +12379,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12394,7 +12392,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12402,21 +12400,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-11 location_id, line1, locality",
+							"name": "A-11 POST, line1, locality",
 							"event": [
 								{
 									"listen": "test",
@@ -12494,7 +12491,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12507,7 +12504,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": \"{{$randomCity}}\",\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": \"{{$randomCity}}\",\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12515,21 +12512,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-19 location_id, line1, invalid sub_code",
+							"name": "A-19 POST, line1, invalid sub_code",
 							"event": [
 								{
 									"listen": "test",
@@ -12607,7 +12603,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12620,7 +12616,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": \"US-MX\",\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-MX\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12628,21 +12624,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-12 location_id, line1, sub_code",
+							"name": "A-12 POST, line1, sub_code",
 							"event": [
 								{
 									"listen": "test",
@@ -12720,7 +12715,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -12733,7 +12728,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": \"US-CA\",\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_1}}\",\n    \"name\": \"{{location_name_1}}\",\n    \"country_code\": \"{{location_country_code_1}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -12741,14 +12736,13 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_1}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_1}}"
+										"location"
 									]
 								}
 							},
@@ -14052,7 +14046,10 @@
 											"pm.environment.set('location_brewer_id_2', pm.variables.replaceIn('{{brewer_id_7}}'));",
 											"pm.environment.set('location_name_2', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 											"pm.environment.set('location_country_code_2', 'US');",
-											"pm.environment.set('location_url_2', 'https://catalog.beer/catalog-beer-test-page.html');"
+											"pm.environment.set('location_url_2', 'https://catalog.beer/catalog-beer-test-page.html');",
+											"// The address rides on the create (required since 6.0); A-15 re-sends it",
+											"pm.environment.set('address_address2_2', '9045 Carroll Way');",
+											"pm.environment.set('address_zip5_2', '92121');"
 										],
 										"type": "text/javascript"
 									}
@@ -14096,7 +14093,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_2}}\",\n    \"name\": \"{{location_name_2}}\",\n    \"country_code\": \"{{location_country_code_2}}\",\n    \"url\": \"{{location_url_2}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_2}}\",\n    \"name\": \"{{location_name_2}}\",\n    \"country_code\": \"{{location_country_code_2}}\",\n    \"url\": \"{{location_url_2}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_2}}\",\n        \"postal_code\": \"{{address_zip5_2}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -14345,7 +14342,12 @@
 											"pm.environment.set('location_brewer_id_3', pm.variables.replaceIn('{{brewer_id_7}}'));",
 											"pm.environment.set('location_name_3', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 											"pm.environment.set('location_country_code_3', 'US');",
-											"//pm.environment.set('location_url_1', 'https://catalog.beer/catalog-beer-test-page.html');"
+											"//pm.environment.set('location_url_1', 'https://catalog.beer/catalog-beer-test-page.html');",
+											"// The address rides on the create (required since 6.0); A-41 re-sends it",
+											"pm.environment.set('address_address2_3', '9045 Carroll Way');",
+											"pm.environment.set('address_zip5_3', '92121');",
+											"pm.environment.set('address_zip4_3', '2405');",
+											"pm.environment.set('address_telephone_3', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 										],
 										"type": "text/javascript"
 									}
@@ -14389,7 +14391,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_3}}\",\n    \"name\": \"{{location_name_3}}\",\n    \"country_code\": \"{{location_country_code_3}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_3}}\",\n    \"name\": \"{{location_name_3}}\",\n    \"country_code\": \"{{location_country_code_3}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_3}}\",\n        \"postal_code\": \"{{address_zip5_3}}-{{address_zip4_3}}\",\n        \"telephone\": \"{{address_telephone_3}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location/{{location_id_3}}",
@@ -14406,7 +14408,7 @@
 							"response": []
 						},
 						{
-							"name": "A-39 Telephone Only",
+							"name": "A-39 POST, Telephone Only",
 							"event": [
 								{
 									"listen": "test",
@@ -14484,7 +14486,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -14497,7 +14499,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_3}}\",\n    \"name\": \"{{location_name_3}}\",\n    \"country_code\": \"{{location_country_code_3}}\",\n    \"address\": {\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -14505,21 +14507,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_3}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_3}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-40 line1, postal_code (ZIP+4), invalid telephone",
+							"name": "A-40 POST, line1, postal_code (ZIP+4), invalid telephone",
 							"event": [
 								{
 									"listen": "test",
@@ -14597,7 +14598,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -14610,7 +14611,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_3}}\",\n    \"name\": \"{{location_name_3}}\",\n    \"country_code\": \"{{location_country_code_3}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -14618,14 +14619,13 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_3}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_3}}"
+										"location"
 									]
 								}
 							},
@@ -14863,7 +14863,12 @@
 											"pm.environment.set('location_brewer_id_4', pm.variables.replaceIn('{{brewer_id_7}}'));",
 											"pm.environment.set('location_name_4', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 											"pm.environment.set('location_country_code_4', 'US');",
-											"pm.environment.set('location_url_4', 'https://catalog.beer/catalog-beer-test-page.html');"
+											"pm.environment.set('location_url_4', 'https://catalog.beer/catalog-beer-test-page.html');",
+											"// The address rides on the create (required since 6.0); A-16 re-sends it",
+											"pm.environment.set('address_address1_4', '#406');",
+											"pm.environment.set('address_address2_4', '5401 Linda Vista Rd');",
+											"pm.environment.set('address_city_4', 'San Diego');",
+											"pm.environment.set('address_sub_code_4', 'US-CA');"
 										],
 										"type": "text/javascript"
 									}
@@ -14907,7 +14912,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_4}}\",\n    \"name\": \"{{location_name_4}}\",\n    \"country_code\": \"{{location_country_code_4}}\",\n    \"url\": \"{{location_url_4}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_4}}\",\n    \"name\": \"{{location_name_4}}\",\n    \"country_code\": \"{{location_country_code_4}}\",\n    \"url\": \"{{location_url_4}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_4}}\",\n        \"line2\": \"{{address_address1_4}}\",\n        \"locality\": \"{{address_city_4}}\",\n        \"sub_code\": \"{{address_sub_code_4}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location/{{location_id_4}}",
@@ -15034,7 +15039,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_4}}\",\n    \"name\": \"{{location_name_4}}\",\n    \"country_code\": \"{{location_country_code_4}}\",\n    \"url\": \"{{location_url_4}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_4}}\",\n    \"name\": \"{{location_name_4}}\",\n    \"country_code\": \"{{location_country_code_4}}\",\n    \"url\": \"{{location_url_4}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_4}}\",\n        \"line2\": \"{{address_address1_4}}\",\n        \"locality\": \"{{address_city_4}}\",\n        \"sub_code\": \"{{address_sub_code_4}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location/{{location_id_4}}",
@@ -19235,7 +19240,11 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_5', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_5', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_5', 'US');"
+											"pm.environment.set('location_country_code_5', 'US');",
+											"// The address rides on the create (required since 6.0); A-42 re-sends it",
+											"pm.environment.set('address_address1_5', '#406');",
+											"pm.environment.set('address_address2_5', '5401 Linda Vista Rd');",
+											"pm.environment.set('address_zip5_5', '92110');"
 										],
 										"type": "text/javascript"
 									}
@@ -19279,7 +19288,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_5}}\",\n    \"name\": \"{{location_name_5}}\",\n    \"country_code\": \"{{location_country_code_5}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_5}}\",\n    \"name\": \"{{location_name_5}}\",\n    \"country_code\": \"{{location_country_code_5}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_5}}\",\n        \"line2\": \"{{address_address1_5}}\",\n        \"postal_code\": \"{{address_zip5_5}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -19524,7 +19533,12 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_6', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_6', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_6', 'US');"
+											"pm.environment.set('location_country_code_6', 'US');",
+											"// The address rides on the create (required since 6.0); A-43 re-sends it",
+											"pm.environment.set('address_address1_6', '#406');",
+											"pm.environment.set('address_address2_6', '5401 Linda Vista Rd');",
+											"pm.environment.set('address_zip5_6', '92110');",
+											"pm.environment.set('address_zip4_6', '2402');"
 										],
 										"type": "text/javascript"
 									}
@@ -19568,7 +19582,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_6}}\",\n    \"name\": \"{{location_name_6}}\",\n    \"country_code\": \"{{location_country_code_6}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_6}}\",\n    \"name\": \"{{location_name_6}}\",\n    \"country_code\": \"{{location_country_code_6}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_6}}\",\n        \"line2\": \"{{address_address1_6}}\",\n        \"postal_code\": \"{{address_zip5_6}}-{{address_zip4_6}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -21276,7 +21290,11 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_7', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_7', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_7', 'US');"
+											"pm.environment.set('location_country_code_7', 'US');",
+											"// The address rides on the create (required since 6.0); A-31 re-sends it",
+											"pm.environment.set('address_address2_7', '9045 Carroll Way');",
+											"pm.environment.set('address_city_7', 'San Diego');",
+											"pm.environment.set('address_sub_code_7', 'US-CA');"
 										],
 										"type": "text/javascript"
 									}
@@ -21320,7 +21338,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_7}}\",\n    \"name\": \"{{location_name_7}}\",\n    \"country_code\": \"{{location_country_code_7}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_7}}\",\n    \"name\": \"{{location_name_7}}\",\n    \"country_code\": \"{{location_country_code_7}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_7}}\",\n        \"line2\": null,\n        \"locality\": \"{{address_city_7}}\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"{{address_sub_code_7}}\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -21569,7 +21587,10 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_8', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_8', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_8', 'US');"
+											"pm.environment.set('location_country_code_8', 'US');",
+											"// The address rides on the create (required since 6.0); A-32 re-sends it",
+											"pm.environment.set('address_address2_8', '9045 Carroll Way');",
+											"pm.environment.set('address_zip5_8', '92121');"
 										],
 										"type": "text/javascript"
 									}
@@ -21613,7 +21634,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_8}}\",\n    \"name\": \"{{location_name_8}}\",\n    \"country_code\": \"{{location_country_code_8}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_8}}\",\n    \"name\": \"{{location_name_8}}\",\n    \"country_code\": \"{{location_country_code_8}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_8}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"{{address_zip5_8}}\",\n        \"telephone\": null\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -21862,7 +21883,12 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_9', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_9', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_9', 'US');"
+											"pm.environment.set('location_country_code_9', 'US');",
+											"// The address rides on the create (required since 6.0); A-54 re-sends it",
+											"pm.environment.set('address_address2_9', '9045 Carroll Way');",
+											"pm.environment.set('address_zip5_9', '92121');",
+											"pm.environment.set('address_zip4_9', '2405');",
+											"pm.environment.set('address_telephone_9', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 										],
 										"type": "text/javascript"
 									}
@@ -21906,7 +21932,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_9}}\",\n    \"name\": \"{{location_name_9}}\",\n    \"country_code\": \"{{location_country_code_9}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_9}}\",\n    \"name\": \"{{location_name_9}}\",\n    \"country_code\": \"{{location_country_code_9}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_9}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"{{address_zip5_9}}-{{address_zip4_9}}\",\n        \"telephone\": \"{{address_telephone_9}}\"\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -21922,7 +21948,7 @@
 							"response": []
 						},
 						{
-							"name": "A-52 Telephone Only",
+							"name": "A-52 POST, Telephone Only",
 							"event": [
 								{
 									"listen": "test",
@@ -22000,7 +22026,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -22013,7 +22039,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": null,\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_9}}\",\n    \"name\": \"{{location_name_9}}\",\n    \"country_code\": \"{{location_country_code_9}}\",\n    \"address\": {\n        \"line1\": null,\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -22021,21 +22047,20 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_9}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_9}}"
+										"location"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "A-53 line1, postal_code (ZIP+4), invalid telephone",
+							"name": "A-53 POST, line1, postal_code (ZIP+4), invalid telephone",
 							"event": [
 								{
 									"listen": "test",
@@ -22113,7 +22138,7 @@
 										}
 									]
 								},
-								"method": "PATCH",
+								"method": "POST",
 								"header": [
 									{
 										"key": "Accept",
@@ -22126,7 +22151,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_9}}\",\n    \"name\": \"{{location_name_9}}\",\n    \"country_code\": \"{{location_country_code_9}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -22134,14 +22159,13 @@
 									}
 								},
 								"url": {
-									"raw": "https://{{base_url}}/location/{{location_id_9}}",
+									"raw": "https://{{base_url}}/location",
 									"protocol": "https",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
-										"location",
-										"{{location_id_9}}"
+										"location"
 									]
 								}
 							},
@@ -22380,7 +22404,12 @@
 											"// Body JSON",
 											"pm.environment.set('location_brewer_id_10', pm.variables.replaceIn('{{brewer_id_14}}'));",
 											"pm.environment.set('location_name_10', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-											"pm.environment.set('location_country_code_10', 'US');"
+											"pm.environment.set('location_country_code_10', 'US');",
+											"// The address rides on the create (required since 6.0); A-33 re-sends it",
+											"pm.environment.set('address_address1_10', '#406');",
+											"pm.environment.set('address_address2_10', '5401 Linda Vista Rd');",
+											"pm.environment.set('address_city_10', 'San Diego');",
+											"pm.environment.set('address_sub_code_10', 'US-CA');"
 										],
 										"type": "text/javascript"
 									}
@@ -22424,7 +22453,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_10}}\",\n    \"name\": \"{{location_name_10}}\",\n    \"country_code\": \"{{location_country_code_10}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_10}}\",\n    \"name\": \"{{location_name_10}}\",\n    \"country_code\": \"{{location_country_code_10}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_10}}\",\n        \"line2\": \"{{address_address1_10}}\",\n        \"locality\": \"{{address_city_10}}\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"{{address_sub_code_10}}\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -22712,7 +22741,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_11}}\",\n    \"name\": \"{{location_name_11}}\",\n    \"country_code\": \"{{location_country_code_11}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_11}}\",\n    \"name\": \"{{location_name_11}}\",\n    \"country_code\": \"{{location_country_code_11}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110\",\n        \"telephone\": null\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -22998,7 +23027,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_12}}\",\n    \"name\": \"{{location_name_12}}\",\n    \"country_code\": \"{{location_country_code_12}}\"\n}"
+									"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_12}}\",\n    \"name\": \"{{location_name_12}}\",\n    \"country_code\": \"{{location_country_code_12}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110-2402\",\n        \"telephone\": null\n    }\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/location",
@@ -31129,7 +31158,11 @@
 													"pm.environment.set('location_brewer_id_13', pm.variables.replaceIn('{{brewer_id_21}}'));",
 													"pm.environment.set('location_name_13', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 													"pm.environment.set('location_country_code_13', 'US');",
-													"//pm.environment.set('location_url_13', 'https://catalog.beer/catalog-beer-test-page.html');"
+													"//pm.environment.set('location_url_13', 'https://catalog.beer/catalog-beer-test-page.html');",
+													"// The address rides on the create (required since 6.0); A-70 re-sends it",
+													"pm.environment.set('address_address2_13', '9045 Carroll Way');",
+													"pm.environment.set('address_city_13', 'San Diego');",
+													"pm.environment.set('address_sub_code_13', 'US-CA');"
 												],
 												"type": "text/javascript"
 											}
@@ -31173,7 +31206,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{address_address2_13}}\",\n        \"locality\": \"{{address_city_13}}\",\n        \"sub_code\": \"{{address_sub_code_13}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -31189,7 +31222,7 @@
 									"response": []
 								},
 								{
-									"name": "A-58 location_id, no data",
+									"name": "A-58 POST, no data",
 									"event": [
 										{
 											"listen": "test",
@@ -31267,7 +31300,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31280,7 +31313,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {}\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31288,21 +31321,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-59 location_id, line1",
+									"name": "A-59 POST, line1",
 									"event": [
 										{
 											"listen": "test",
@@ -31380,7 +31412,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31393,7 +31425,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31401,21 +31433,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-60 location_id, line1, locality",
+									"name": "A-60 POST, line1, locality",
 									"event": [
 										{
 											"listen": "test",
@@ -31493,7 +31524,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31506,7 +31537,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"locality\": \"{{$randomCity}}\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"locality\": \"{{$randomCity}}\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31514,21 +31545,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-61 location_id, line1, invalid sub_code",
+									"name": "A-61 POST, line1, invalid sub_code",
 									"event": [
 										{
 											"listen": "test",
@@ -31606,7 +31636,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31619,7 +31649,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"sub_code\": \"US-MX\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"sub_code\": \"US-MX\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31627,21 +31657,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-62 location_id, line1, sub_code",
+									"name": "A-62 POST, line1, sub_code",
 									"event": [
 										{
 											"listen": "test",
@@ -31719,7 +31748,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31732,7 +31761,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"sub_code\": \"US-CA\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"sub_code\": \"US-CA\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31740,21 +31769,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-65 location_id, no data",
+									"name": "A-65 POST, no data",
 									"event": [
 										{
 											"listen": "test",
@@ -31832,7 +31860,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31845,7 +31873,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": null,\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": null,\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31853,21 +31881,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-66 location_id, line1",
+									"name": "A-66 POST, line1",
 									"event": [
 										{
 											"listen": "test",
@@ -31945,7 +31972,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -31958,7 +31985,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -31966,21 +31993,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-67 location_id, line1, locality",
+									"name": "A-67 POST, line1, locality",
 									"event": [
 										{
 											"listen": "test",
@@ -32058,7 +32084,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -32071,7 +32097,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": \"{{$randomCity}}\",\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": \"{{$randomCity}}\",\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -32079,21 +32105,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-68 location_id, line1, invalid sub_code",
+									"name": "A-68 POST, line1, invalid sub_code",
 									"event": [
 										{
 											"listen": "test",
@@ -32171,7 +32196,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -32184,7 +32209,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": \"US-MX\",\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-MX\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -32192,21 +32217,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-69 location_id, line1, sub_code",
+									"name": "A-69 POST, line1, sub_code",
 									"event": [
 										{
 											"listen": "test",
@@ -32284,7 +32308,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -32297,7 +32321,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"{{$randomStreetAddress}}\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": \"US-CA\",\n\t\t\"postal_code\": null,\n\t\t\"telephone\": null\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_13}}\",\n    \"name\": \"{{location_name_13}}\",\n    \"country_code\": \"{{location_country_code_13}}\",\n    \"address\": {\n        \"line1\": \"{{$randomStreetAddress}}\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -32305,14 +32329,13 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_13}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_13}}"
+												"location"
 											]
 										}
 									},
@@ -33631,7 +33654,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_14}}\",\n    \"name\": \"{{location_name_14}}\",\n    \"country_code\": \"{{location_country_code_14}}\",\n    \"url\": \"{{location_url_14}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_14}}\",\n    \"name\": \"{{location_name_14}}\",\n    \"country_code\": \"{{location_country_code_14}}\",\n    \"url\": \"{{location_url_14}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -33873,7 +33896,9 @@
 													"pm.environment.set('location_id_15', pm.variables.replaceIn('{{$guid}}'));",
 													"pm.environment.set('location_brewer_id_15', pm.variables.replaceIn('{{brewer_id_21}}'));",
 													"pm.environment.set('location_name_15', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-													"pm.environment.set('location_country_code_15', 'US');"
+													"pm.environment.set('location_country_code_15', 'US');",
+													"// The address rides on the create (required since 6.0); A-74 re-sends it",
+													"pm.environment.set('address_telephone_15', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 												],
 												"type": "text/javascript"
 											}
@@ -33917,7 +33942,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_15}}\",\n    \"name\": \"{{location_name_15}}\",\n    \"country_code\": \"{{location_country_code_15}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_15}}\",\n    \"name\": \"{{location_name_15}}\",\n    \"country_code\": \"{{location_country_code_15}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"{{address_telephone_15}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_15}}",
@@ -33934,7 +33959,7 @@
 									"response": []
 								},
 								{
-									"name": "A-72 Telephone Only",
+									"name": "A-72 POST, Telephone Only",
 									"event": [
 										{
 											"listen": "test",
@@ -34012,7 +34037,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -34025,7 +34050,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_15}}\",\n    \"name\": \"{{location_name_15}}\",\n    \"country_code\": \"{{location_country_code_15}}\",\n    \"address\": {\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -34033,21 +34058,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_15}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_15}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-73 line1, postal_code (ZIP+4), invalid telephone",
+									"name": "A-73 POST, line1, postal_code (ZIP+4), invalid telephone",
 									"event": [
 										{
 											"listen": "test",
@@ -34125,7 +34149,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -34138,7 +34162,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_15}}\",\n    \"name\": \"{{location_name_15}}\",\n    \"country_code\": \"{{location_country_code_15}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -34146,14 +34170,13 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_15}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_15}}"
+												"location"
 											]
 										}
 									},
@@ -34435,7 +34458,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_16}}\",\n    \"name\": \"{{location_name_16}}\",\n    \"country_code\": \"{{location_country_code_16}}\",\n    \"url\": \"{{location_url_16}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_16}}\",\n    \"name\": \"{{location_name_16}}\",\n    \"country_code\": \"{{location_country_code_16}}\",\n    \"url\": \"{{location_url_16}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": \"San Diego\",\n        \"sub_code\": \"US-CA\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_16}}",
@@ -34557,7 +34580,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_16}}\",\n    \"name\": \"{{location_name_16}}\",\n    \"country_code\": \"{{location_country_code_16}}\",\n    \"url\": \"{{location_url_16}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_16}}\",\n    \"name\": \"{{location_name_16}}\",\n    \"country_code\": \"{{location_country_code_16}}\",\n    \"url\": \"{{location_url_16}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": \"San Diego\",\n        \"sub_code\": \"US-CA\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_16}}",
@@ -37331,7 +37354,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_17}}\",\n    \"name\": \"{{location_name_17}}\",\n    \"country_code\": \"{{location_country_code_17}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_17}}\",\n    \"name\": \"{{location_name_17}}\",\n    \"country_code\": \"{{location_country_code_17}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"postal_code\": \"92110\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -37620,7 +37643,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_18}}\",\n    \"name\": \"{{location_name_18}}\",\n    \"country_code\": \"{{location_country_code_18}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_18}}\",\n    \"name\": \"{{location_name_18}}\",\n    \"country_code\": \"{{location_country_code_18}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"postal_code\": \"92110-2402\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -39081,7 +39104,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_19}}\",\n    \"name\": \"{{location_name_19}}\",\n    \"country_code\": \"{{location_country_code_19}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_19}}\",\n    \"name\": \"{{location_name_19}}\",\n    \"country_code\": \"{{location_country_code_19}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": \"San Diego\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -39372,7 +39395,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_20}}\",\n    \"name\": \"{{location_name_20}}\",\n    \"country_code\": \"{{location_country_code_20}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_20}}\",\n    \"name\": \"{{location_name_20}}\",\n    \"country_code\": \"{{location_country_code_20}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -39617,7 +39640,9 @@
 													"pm.environment.set('location_brewer_id_21', pm.variables.replaceIn('{{brewer_id_28}}'));",
 													"pm.environment.set('location_name_21', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 													"pm.environment.set('location_country_code_21', 'US');",
-													""
+													"",
+													"// The address rides on the create (required since 6.0); A-90 re-sends it",
+													"pm.environment.set('address_telephone_21', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 												],
 												"type": "text/javascript"
 											}
@@ -39661,7 +39686,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_21}}\",\n    \"name\": \"{{location_name_21}}\",\n    \"country_code\": \"{{location_country_code_21}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_21}}\",\n    \"name\": \"{{location_name_21}}\",\n    \"country_code\": \"{{location_country_code_21}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"{{address_telephone_21}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -39677,7 +39702,7 @@
 									"response": []
 								},
 								{
-									"name": "A-88 Telephone Only",
+									"name": "A-88 POST, Telephone Only",
 									"event": [
 										{
 											"listen": "test",
@@ -39755,7 +39780,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -39768,7 +39793,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": null,\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_21}}\",\n    \"name\": \"{{location_name_21}}\",\n    \"country_code\": \"{{location_country_code_21}}\",\n    \"address\": {\n        \"line1\": null,\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -39776,21 +39801,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_21}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_21}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-89 line1, postal_code (ZIP+4), invalid telephone",
+									"name": "A-89 POST, line1, postal_code (ZIP+4), invalid telephone",
 									"event": [
 										{
 											"listen": "test",
@@ -39868,7 +39892,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -39881,7 +39905,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_21}}\",\n    \"name\": \"{{location_name_21}}\",\n    \"country_code\": \"{{location_country_code_21}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -39889,14 +39913,13 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_21}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_21}}"
+												"location"
 											]
 										}
 									},
@@ -40182,7 +40205,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_22}}\",\n    \"name\": \"{{location_name_22}}\",\n    \"country_code\": \"{{location_country_code_22}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_22}}\",\n    \"name\": \"{{location_name_22}}\",\n    \"country_code\": \"{{location_country_code_22}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": \"San Diego\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -40471,7 +40494,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_23}}\",\n    \"name\": \"{{location_name_23}}\",\n    \"country_code\": \"{{location_country_code_23}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_23}}\",\n    \"name\": \"{{location_name_23}}\",\n    \"country_code\": \"{{location_country_code_23}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -40761,7 +40784,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_24}}\",\n    \"name\": \"{{location_name_24}}\",\n    \"country_code\": \"{{location_country_code_24}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_24}}\",\n    \"name\": \"{{location_name_24}}\",\n    \"country_code\": \"{{location_country_code_24}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110-2402\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -44286,7 +44309,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_26}}\",\n    \"country_code\": \"{{location_country_code_26}}\",\n    \"url\": \"{{location_url_26}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_26}}\",\n    \"country_code\": \"{{location_country_code_26}}\",\n    \"url\": \"{{location_url_26}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -44593,7 +44616,9 @@
 													"// Body JSON",
 													"pm.environment.set('location_id_27', pm.variables.replaceIn('{{$guid}}'));",
 													"pm.environment.set('location_name_27', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
-													"pm.environment.set('location_country_code_27', 'US');"
+													"pm.environment.set('location_country_code_27', 'US');",
+													"// The address rides on the create (required since 6.0); A-99 re-sends it",
+													"pm.environment.set('address_telephone_27', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 												],
 												"type": "text/javascript"
 											}
@@ -44637,7 +44662,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_27}}\",\n    \"country_code\": \"{{location_country_code_27}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_27}}\",\n    \"country_code\": \"{{location_country_code_27}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"{{address_telephone_27}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_27}}",
@@ -44654,7 +44679,7 @@
 									"response": []
 								},
 								{
-									"name": "A-97 Telephone Only",
+									"name": "A-97 POST, Telephone Only",
 									"event": [
 										{
 											"listen": "test",
@@ -44732,7 +44757,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -44745,7 +44770,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_27}}\",\n    \"name\": \"{{location_name_27}}\",\n    \"country_code\": \"{{location_country_code_27}}\",\n    \"address\": {\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -44753,21 +44778,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_27}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_27}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-98 line1, postal_code (ZIP+4), invalid telephone",
+									"name": "A-98 POST, line1, postal_code (ZIP+4), invalid telephone",
 									"event": [
 										{
 											"listen": "test",
@@ -44845,7 +44869,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -44858,7 +44882,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_27}}\",\n    \"name\": \"{{location_name_27}}\",\n    \"country_code\": \"{{location_country_code_27}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -44866,14 +44890,13 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_27}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_27}}"
+												"location"
 											]
 										}
 									},
@@ -45154,7 +45177,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_28}}\",\n    \"country_code\": \"{{location_country_code_28}}\",\n    \"url\": \"{{location_url_28}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_28}}\",\n    \"country_code\": \"{{location_country_code_28}}\",\n    \"url\": \"{{location_url_28}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": \"San Diego\",\n        \"sub_code\": \"US-CA\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location/{{location_id_28}}",
@@ -45578,7 +45601,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_25}}\",\n    \"country_code\": \"{{location_country_code_25}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_32}}\",\n    \"name\": \"{{location_name_25}}\",\n    \"country_code\": \"{{location_country_code_25}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"locality\": \"San Diego\",\n        \"sub_code\": \"US-CA\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -47980,7 +48003,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_29}}\",\n    \"country_code\": \"{{location_country_code_29}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_29}}\",\n    \"country_code\": \"{{location_country_code_29}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"postal_code\": \"92110\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -48267,7 +48290,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_30}}\",\n    \"country_code\": \"{{location_country_code_30}}\"\n\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_30}}\",\n    \"country_code\": \"{{location_country_code_30}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"postal_code\": \"92110-2402\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -49725,7 +49748,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_31}}\",\n    \"country_code\": \"{{location_country_code_31}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_31}}\",\n    \"country_code\": \"{{location_country_code_31}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": \"San Diego\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -50012,7 +50035,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_32}}\",\n    \"country_code\": \"{{location_country_code_32}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_32}}\",\n    \"country_code\": \"{{location_country_code_32}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -50257,7 +50280,9 @@
 													"pm.environment.set('location_name_33', pm.variables.replaceIn('[Postman API Test] {{$randomStreetName}}'));",
 													"pm.environment.set('location_country_code_33', 'US');",
 													"",
-													""
+													"",
+													"// The address rides on the create (required since 6.0); A-115 re-sends it",
+													"pm.environment.set('address_telephone_33', (function(){ var d = function(){ return Math.floor(Math.random() * 10); }; var n = function(){ return 2 + Math.floor(Math.random() * 8); }; return '' + n() + d() + d() + '-' + n() + d() + d() + '-' + d() + d() + d() + d(); })());"
 												],
 												"type": "text/javascript"
 											}
@@ -50301,7 +50326,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_33}}\",\n    \"country_code\": \"{{location_country_code_33}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_33}}\",\n    \"country_code\": \"{{location_country_code_33}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"{{address_telephone_33}}\"\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -50317,7 +50342,7 @@
 									"response": []
 								},
 								{
-									"name": "A-113 Telephone Only",
+									"name": "A-113 POST, Telephone Only",
 									"event": [
 										{
 											"listen": "test",
@@ -50395,7 +50420,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -50408,7 +50433,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": null,\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": null,\n\t\t\"telephone\": \"619-555-0142\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_33}}\",\n    \"name\": \"{{location_name_33}}\",\n    \"country_code\": \"{{location_country_code_33}}\",\n    \"address\": {\n        \"line1\": null,\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": null,\n        \"telephone\": \"619-555-0142\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -50416,21 +50441,20 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_33}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_33}}"
+												"location"
 											]
 										}
 									},
 									"response": []
 								},
 								{
-									"name": "A-114 line1, postal_code (ZIP+4), invalid telephone",
+									"name": "A-114 POST, line1, postal_code (ZIP+4), invalid telephone",
 									"event": [
 										{
 											"listen": "test",
@@ -50508,7 +50532,7 @@
 												}
 											]
 										},
-										"method": "PATCH",
+										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
@@ -50521,7 +50545,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"address\": {\n\t\t\"line1\": \"9045 Carroll Way\",\n\t\t\"line2\": null,\n\t\t\"locality\": null,\n\t\t\"dependent_locality\": null,\n\t\t\"sub_code\": null,\n\t\t\"postal_code\": \"92121-2405\",\n\t\t\"telephone\": \"555-5555-5555\"\n\t}\n}",
+											"raw": "{\n    \"brewer_id\": \"{{location_brewer_id_33}}\",\n    \"name\": \"{{location_name_33}}\",\n    \"country_code\": \"{{location_country_code_33}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"line2\": null,\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92121-2405\",\n        \"telephone\": \"555-5555-5555\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -50529,14 +50553,13 @@
 											}
 										},
 										"url": {
-											"raw": "https://{{base_url}}/location/{{location_id_33}}",
+											"raw": "https://{{base_url}}/location",
 											"protocol": "https",
 											"host": [
 												"{{base_url}}"
 											],
 											"path": [
-												"location",
-												"{{location_id_33}}"
+												"location"
 											]
 										}
 									},
@@ -50821,7 +50844,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_34}}\",\n    \"country_code\": \"{{location_country_code_34}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_34}}\",\n    \"country_code\": \"{{location_country_code_34}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": \"San Diego\",\n        \"dependent_locality\": null,\n        \"sub_code\": \"US-CA\",\n        \"postal_code\": null,\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -51108,7 +51131,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_35}}\",\n    \"country_code\": \"{{location_country_code_35}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_35}}\",\n    \"country_code\": \"{{location_country_code_35}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -51397,7 +51420,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_36}}\",\n    \"country_code\": \"{{location_country_code_36}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_36}}\",\n    \"name\": \"{{location_name_36}}\",\n    \"country_code\": \"{{location_country_code_36}}\",\n    \"address\": {\n        \"line1\": \"5401 Linda Vista Rd\",\n        \"line2\": \"#406\",\n        \"locality\": null,\n        \"dependent_locality\": null,\n        \"sub_code\": null,\n        \"postal_code\": \"92110-2402\",\n        \"telephone\": null\n    }\n}"
 										},
 										"url": {
 											"raw": "https://{{base_url}}/location",
@@ -54092,7 +54115,7 @@
 												},
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\"\n}"
+													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 												}
 											},
 											"response": []
@@ -54203,7 +54226,7 @@
 												},
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\"\n}"
+													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 												}
 											},
 											"response": []
@@ -54501,7 +54524,7 @@
 												},
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\"\n}"
+													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"{{location_name_37}}\",\n    \"country_code\": \"{{location_country_code_37}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 												}
 											},
 											"response": []
@@ -54602,7 +54625,7 @@
 												},
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\"\n}"
+													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 												}
 											},
 											"response": []
@@ -54881,7 +54904,7 @@
 												},
 												"body": {
 													"mode": "raw",
-													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\"\n}"
+													"raw": "{\n    \"brewer_id\": \"{{brewer_id_37}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 												}
 											},
 											"response": []
@@ -57039,7 +57062,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_38}}\",\n    \"country_code\": \"{{location_country_code_38}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_38}}\",\n    \"country_code\": \"{{location_country_code_38}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -57273,7 +57296,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_39}}\",\n    \"country_code\": \"{{location_country_code_39}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_39}}\",\n    \"country_code\": \"{{location_country_code_39}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -57494,7 +57517,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_39}}\",\n    \"country_code\": \"{{location_country_code_39}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_38}}\",\n    \"name\": \"{{location_name_39}}\",\n    \"country_code\": \"{{location_country_code_39}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -58797,7 +58820,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"{{location_name_40}}\",\n    \"country_code\": \"{{location_country_code_40}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"{{location_name_40}}\",\n    \"country_code\": \"{{location_country_code_40}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -58897,7 +58920,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"[Postman API Test] {{$randomStreetName}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -59185,7 +59208,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"{{location_name_40}}\",\n    \"country_code\": \"{{location_country_code_40}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_39}}\",\n    \"name\": \"{{location_name_40}}\",\n    \"country_code\": \"{{location_country_code_40}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -59919,7 +59942,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_40}}\",\n    \"name\": \"{{location_name_41}}\",\n    \"country_code\": \"{{location_country_code_41}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_40}}\",\n    \"name\": \"{{location_name_41}}\",\n    \"country_code\": \"{{location_country_code_41}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -60770,7 +60793,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_41}}\",\n    \"name\": \"{{location_name_42}}\",\n    \"country_code\": \"{{location_country_code_42}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_41}}\",\n    \"name\": \"{{location_name_42}}\",\n    \"country_code\": \"{{location_country_code_42}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -60881,7 +60904,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_41}}\",\n    \"name\": \"{{location_name_42}}\",\n    \"country_code\": \"{{location_country_code_42}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_41}}\",\n    \"name\": \"{{location_name_42}}\",\n    \"country_code\": \"{{location_country_code_42}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -61548,7 +61571,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_42}}\",\n    \"name\": \"{{location_name_43}}\",\n    \"country_code\": \"{{location_country_code_43}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_42}}\",\n    \"name\": \"{{location_name_43}}\",\n    \"country_code\": \"{{location_country_code_43}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -67973,7 +67996,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_43}}\",\n    \"name\": \"{{location_name_44}}\",\n    \"country_code\": \"{{location_country_code_44}}\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_43}}\",\n    \"name\": \"{{location_name_44}}\",\n    \"country_code\": \"{{location_country_code_44}}\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -68312,7 +68335,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -68879,7 +68902,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"name\": \"{{location_name_45}}\",\n    \"country_code\": \"US\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"name\": \"{{location_name_45}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -68975,7 +68998,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\"\n}"
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_44}}\",\n    \"country_code\": \"US\",\n    \"address\": {\n        \"line1\": \"9045 Carroll Way\",\n        \"postal_code\": \"92121\"\n    }\n}"
 										}
 									},
 									"response": []
@@ -78989,7 +79012,7 @@
 													"    pm.expect(jsonData.object).to.equal('location');",
 													"    pm.expect(jsonData.country_code).to.equal('BE');",
 													"    pm.expect(jsonData.country_short_name).to.equal('Belgium');",
-													"    pm.expect(jsonData).to.not.have.property('address');",
+													"    pm.expect(jsonData).to.have.property('address');",
 													"});",
 													"",
 													"pm.environment.set('location_id_181', pm.response.json().id);"
@@ -79046,7 +79069,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Abdij\",\n    \"country_code\": \"be\"\n}",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Abdij\",\n    \"country_code\": \"be\",\n    \"address\": {\n        \"line1\": \"Donkerstraat 12\",\n        \"locality\": \"Westvleteren\",\n        \"postal_code\": \"8640\",\n        \"telephone\": \"057 40 03 76\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -79900,6 +79923,279 @@
 									"response": []
 								},
 								{
+									"name": "L-190 A Location Without An Address Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Every location needs its address\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.equal('Every location needs its address. Send it as an address object in the same request.');",
+													"    pm.expect(jsonData.valid_state.address.line1).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.address.locality).to.equal('invalid');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Abdij\",\n    \"country_code\": \"BE\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-191 A PUT Without An Address Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"Every location needs its address\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.equal('Every location needs its address. Send it as an address object in the same request.');",
+													"    pm.expect(jsonData.valid_state.address.line1).to.equal('invalid');",
+													"    pm.expect(jsonData.valid_state.address.locality).to.equal('invalid');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PUT",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_181}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_181}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Abdij\",\n    \"country_code\": \"BE\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-192 PATCH Cannot Remove The Address",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"An address is corrected, never removed\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.error_msg).to.equal('A location needs its address, so it can be corrected but not removed. Send the corrected address instead of null.');",
+													"    pm.expect(jsonData.valid_state.address.line1).to.equal('invalid');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "PATCH",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location/{{location_id_181}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location",
+												"{{location_id_181}}"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"address\": null\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
 									"name": "L-185 A Location In The Netherlands",
 									"event": [
 										{
@@ -79974,7 +80270,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Brouwerij\",\n    \"country_code\": \"NL\"\n}",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Brouwerij\",\n    \"country_code\": \"NL\",\n    \"address\": {\n        \"line1\": \"Funenkade 7\",\n        \"locality\": \"Amsterdam\",\n        \"postal_code\": \"1018al\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -80153,7 +80449,7 @@
 										},
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Brauerei\",\n    \"country_code\": \"DE\"\n}",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_58}}\",\n    \"name\": \"Brauerei\",\n    \"country_code\": \"DE\",\n    \"address\": {\n        \"line1\": \"Alte Akademie 2\",\n        \"postal_code\": \"85354\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"

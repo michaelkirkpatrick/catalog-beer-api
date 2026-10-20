@@ -633,26 +633,26 @@ Brewer,BR-231,Text Input - Newlines In A Description Are Kept,PATCH,/brewer/{{br
 Brewer,BR-232,Text Input - Tab In A Description Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
 Brewer,BR-233,Text Input - Edge Zero-Width Is Trimmed,PATCH,/brewer/{{brewer_id_52}},Admin,200,Done
 Brewer,BR-234,Text Input - Delete Brewery #52,DELETE,/brewer/{{brewer_id_52}},Admin,204,Done
-Address,A-3,Add Address - No Data,PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-4,Add Address - line1,PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-5,"Add Address - line1, locality",PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-6,"Add Address - line1, sub_code",PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-9,Add Address - No Data,PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-10,Add Address - line1,PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-11,"Add Address - line1, locality",PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-12,"Add Address - line1, sub_code",PATCH,/location/{{location_id_1}},Admin,400,Done
+Address,A-3,Add Address - No Data,POST,/location,Admin,400,Done
+Address,A-4,Add Address - line1,POST,/location,Admin,400,Done
+Address,A-5,"Add Address - line1, locality",POST,/location,Admin,400,Done
+Address,A-6,"Add Address - line1, sub_code",POST,/location,Admin,400,Done
+Address,A-9,Add Address - No Data,POST,/location,Admin,400,Done
+Address,A-10,Add Address - line1,POST,/location,Admin,400,Done
+Address,A-11,"Add Address - line1, locality",POST,/location,Admin,400,Done
+Address,A-12,"Add Address - line1, sub_code",POST,/location,Admin,400,Done
 Address,A-14,"Address #1 - line1, locality, sub_code",PATCH,/location/{{location_id_1}},Admin,201,Done
 Address,A-15,"Address #2 - line1, postal_code",PATCH,/location/{{location_id_2}},Admin,201,Done
 Address,A-16,"Address #4 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_4}},Admin,201,Done
-Address,A-18,"Add Address - line1, invalid sub_code",PATCH,/location/{{location_id_1}},Admin,400,Done
-Address,A-19,"Add Address - line1, invalid sub_code",PATCH,/location/{{location_id_1}},Admin,400,Done
+Address,A-18,"Add Address - line1, invalid sub_code",POST,/location,Admin,400,Done
+Address,A-19,"Add Address - line1, invalid sub_code",POST,/location,Admin,400,Done
 Address,A-31,"Address #7 - line1, locality, sub_code",PATCH,/location/{{location_id_7}},Admin,201,Done
 Address,A-32,"Address #8 - line1, postal_code",PATCH,/location/{{location_id_8}},Admin,201,Done
 Address,A-33,"Address #10 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_10}},Admin,201,Done
 Address,A-34,"Address #11 - line2, line1, postal_code",PATCH,/location/{{location_id_11}},Admin,201,Done
 Address,A-35,"Address #12 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_12}},Admin,201,Done
-Address,A-39,Address #3 - telephone only,PATCH,/location/{{location_id_3}},Admin,400,Done
-Address,A-40,"Address #3 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_3}},Admin,400,Done
+Address,A-39,Address #3 - telephone only,POST,/location,Admin,400,Done
+Address,A-40,"Address #3 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Admin,400,Done
 Address,A-41,"Address #3 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_3}},Admin,201,Done
 Address,A-42,"Address #5 - line2, line1, postal_code",PATCH,/location/{{location_id_5}},Admin,201,Done
 Address,A-43,"Address #6 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_6}},Admin,201,Done
@@ -666,24 +666,24 @@ Address,A-50,"Update Address #6 - line2, line1, postal_code (ZIP+4), telephone",
 Address,A-51,Update Address #6 - telephone,PATCH,/location/{{location_id_6}},Admin,200,Done
 Address,A-123,Update Address #6 - leading-zero ZIP (01085),PATCH,/location/{{location_id_6}},Admin,200,Done
 Address,A-124,Update Address #6 - re-submit the ZIP read back,PATCH,/location/{{location_id_6}},Admin,200,Done
-Address,A-52,Address #9 - telephone only,PATCH,/location/{{location_id_9}},Admin,400,Done
-Address,A-53,"Address #9 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_9}},Admin,400,Done
+Address,A-52,Address #9 - telephone only,POST,/location,Admin,400,Done
+Address,A-53,"Address #9 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Admin,400,Done
 Address,A-54,"Address #9 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_9}},Admin,201,Done
 Address,A-55,"Update Address #12 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_12}},Admin,200,Done
-Address,A-58,Add Address - No Data,PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-59,Add Address - line1,PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-60,"Add Address - line1, locality",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-61,"Add Address - line1, invalid sub_code",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-62,"Add Address - line1, sub_code",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-65,Add Address - No Data,PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-66,Add Address - line1,PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-67,"Add Address - line1, locality",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-68,"Add Address - line1, invalid sub_code",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
-Address,A-69,"Add Address - line1, sub_code",PATCH,/location/{{location_id_13}},Non-Admin,400,Done
+Address,A-58,Add Address - No Data,POST,/location,Non-Admin,400,Done
+Address,A-59,Add Address - line1,POST,/location,Non-Admin,400,Done
+Address,A-60,"Add Address - line1, locality",POST,/location,Non-Admin,400,Done
+Address,A-61,"Add Address - line1, invalid sub_code",POST,/location,Non-Admin,400,Done
+Address,A-62,"Add Address - line1, sub_code",POST,/location,Non-Admin,400,Done
+Address,A-65,Add Address - No Data,POST,/location,Non-Admin,400,Done
+Address,A-66,Add Address - line1,POST,/location,Non-Admin,400,Done
+Address,A-67,"Add Address - line1, locality",POST,/location,Non-Admin,400,Done
+Address,A-68,"Add Address - line1, invalid sub_code",POST,/location,Non-Admin,400,Done
+Address,A-69,"Add Address - line1, sub_code",POST,/location,Non-Admin,400,Done
 Address,A-70,"Address #13 - line1, locality, sub_code",PATCH,/location/{{location_id_13}},Non-Admin,201,Done
 Address,A-71,"Address #14 - line1, postal_code",PATCH,/location/{{location_id_14}},Non-Admin,201,Done
-Address,A-72,Address #15 - telephone only,PATCH,/location/{{location_id_15}},Non-Admin,400,Done
-Address,A-73,"Address #15 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_15}},Non-Admin,400,Done
+Address,A-72,Address #15 - telephone only,POST,/location,Non-Admin,400,Done
+Address,A-73,"Address #15 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Non-Admin,400,Done
 Address,A-74,"Address #15 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_15}},Non-Admin,201,Done
 Address,A-75,"Address #16 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_16}},Non-Admin,201,Done
 Address,A-76,"Address #17 - line2, line1, postal_code",PATCH,/location/{{location_id_17}},Non-Admin,201,Done
@@ -698,8 +698,8 @@ Address,A-84,"Update Address #18 - line2, line1, postal_code (ZIP+4), telephone"
 Address,A-85,Update Address #18 - telephone,PATCH,/location/{{location_id_18}},Non-Admin,200,Done
 Address,A-86,"Address #19 - line1, locality, sub_code",PATCH,/location/{{location_id_19}},Non-Admin,201,Done
 Address,A-87,"Address #20 - line1, postal_code",PATCH,/location/{{location_id_20}},Non-Admin,201,Done
-Address,A-88,Address #21 - telephone only,PATCH,/location/{{location_id_21}},Non-Admin,400,Done
-Address,A-89,"Address #21 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_21}},Non-Admin,400,Done
+Address,A-88,Address #21 - telephone only,POST,/location,Non-Admin,400,Done
+Address,A-89,"Address #21 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Non-Admin,400,Done
 Address,A-90,"Address #21 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_21}},Non-Admin,201,Done
 Address,A-91,"Address #22 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_22}},Non-Admin,201,Done
 Address,A-92,"Address #23 - line2, line1, postal_code",PATCH,/location/{{location_id_23}},Non-Admin,201,Done
@@ -707,8 +707,8 @@ Address,A-93,"Address #24 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{
 Address,A-94,"Update Address #24 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_24}},Non-Admin,201,Removed
 Address,A-95,"Address #25 - line1, locality, sub_code",PATCH,/location/{{location_id_25}},Brewery Staff,201,Done
 Address,A-96,"Address #26 - line1, postal_code",PATCH,/location/{{location_id_26}},Brewery Staff,201,Removed
-Address,A-97,Address #27 - telephone only,PATCH,/location/{{location_id_27}},Brewery Staff,400,Done
-Address,A-98,"Address #27 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_27}},Brewery Staff,400,Done
+Address,A-97,Address #27 - telephone only,POST,/location,Brewery Staff,400,Done
+Address,A-98,"Address #27 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Brewery Staff,400,Done
 Address,A-99,"Address #27 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_27}},Brewery Staff,201,Done
 Address,A-100,"Address #28 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_28}},Brewery Staff,201,Done
 Address,A-101,"Address #29 - line2, line1, postal_code",PATCH,/location/{{location_id_29}},Brewery Staff,201,Done
@@ -723,8 +723,8 @@ Address,A-109,"Update Address #30 - line2, line1, postal_code (ZIP+4), telephone
 Address,A-110,Update Address #30 - telephone,PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
 Address,A-111,"Address #31 - line1, locality, sub_code",PATCH,/location/{{location_id_31}},Brewery Staff,201,Done
 Address,A-112,"Address #32 - line1, postal_code",PATCH,/location/{{location_id_32}},Brewery Staff,201,Done
-Address,A-113,Address #33 - telephone only,PATCH,/location/{{location_id_33}},Brewery Staff,400,Done
-Address,A-114,"Address #33 - line1, postal_code (ZIP+4), invalid telephone",PATCH,/location/{{location_id_33}},Brewery Staff,400,Done
+Address,A-113,Address #33 - telephone only,POST,/location,Brewery Staff,400,Done
+Address,A-114,"Address #33 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Brewery Staff,400,Done
 Address,A-115,"Address #33 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_33}},Brewery Staff,201,Done
 Address,A-116,"Address #34 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_34}},Brewery Staff,201,Done
 Address,A-117,"Address #35 - line2, line1, postal_code",PATCH,/location/{{location_id_35}},Brewery Staff,201,Done
@@ -816,6 +816,9 @@ Address,A-128,A Postal Code Of The Wrong Shape Is Refused,PATCH,/location/{locat
 Address,A-129,Telephone PATCH Normalises A National Number,PATCH,/location/{location_id},Admin,200,Done
 Address,A-130,Telephone PATCH Null Clears It,PATCH,/location/{location_id},Admin,200,Done
 Location,L-184,Country Change Refused Once An Address Exists,PATCH,/location/{location_id},Admin,400,Done
+Location,L-190,A Location Without An Address Is Refused,POST,/location,Admin,400,Done
+Location,L-191,A PUT Without An Address Is Refused,PUT,/location/{location_id},Admin,400,Done
+Location,L-192,PATCH Cannot Remove The Address,PATCH,/location/{location_id},Admin,400,Done
 Location,L-185,A Location In The Netherlands,POST,/location,Admin,201,Done
 Address,A-131,"Dutch Postcode With Letters, Lowercase, No Space",PATCH,/location/{location_id},Admin,200,Done
 Location,L-186,A Location In Germany,POST,/location,Admin,201,Done

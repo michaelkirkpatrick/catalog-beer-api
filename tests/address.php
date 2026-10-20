@@ -5,8 +5,8 @@ validator, the address columns on `location`, Subdivisions.class.php and the
 Location country gate. Needs a LOCAL MySQL (it creates and drops a scratch database
 named cb_address_test); no network, no secrets file, no Apache. Nothing here
 reaches Google: the paths exercised are the ones that answer BEFORE the
-validation call (input shape, country rules, a PATCH of the telephone alone,
-clearing) and the read side (every output shape over rows written directly).
+validation call (input shape, country rules, the required address, a PATCH
+of the telephone alone) and the read side (every output shape over rows written directly).
 
     php tests/address.php [path/to/catalog-beer-mysql]
 
@@ -169,8 +169,7 @@ check("countrySeeded: BE yes, ZA no", Subdivisions::countrySeeded('BE') && !Subd
 
 // 4. The location country gate
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Nieuw', 'country_code' => 'be']);
-check("POST /location with country_code be -> created, normalized to BE", in_array($code, array(200, 201), true) && ($j['country_code'] ?? null) === 'BE' && ($j['country_short_name'] ?? null) === 'Belgium' && !isset($j['address']));
-$L_NEW = $j['id'] ?? '';
+check("POST /location with country_code be passes the gate and stops at the required address", $code === 400 && ($j['valid_state']['country_code'] ?? null) === 'valid' && ($j['valid_state']['address']['line1'] ?? null) === 'invalid');
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Nope', 'country_code' => 'XX']);
 check("POST /location with XX -> 400, not an ISO code", $code === 400 && str_contains($j['valid_msg']['country_code'] ?? '', 'ISO 3166-1'));
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Nope', 'country_code' => 'ZA']);
@@ -190,8 +189,8 @@ check("PATCH the same country (lowercase) is a no-op 200", $code === 200 && ($j[
 check("PATCH country on a location without an address -> 200", $code === 200 && ($j['country_code'] ?? null) === 'NL' && ($j['country_short_name'] ?? null) === 'Netherlands');
 loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['country_code' => 'BE']);
 [$code, $j] = loc('PUT', '', $L_ABDIJ, $ADMIN, (object)['brewer_id' => $BE_BREWER, 'name' => 'Abdij', 'country_code' => 'DE']);
-check("PUT with another country and no address -> 200, address cleared with it (PUT omits -> clears)", $code === 200 && !isset($j['address']) && $j['country_code'] === 'DE' && scalar("SELECT line1 FROM location WHERE id='$L_ABDIJ'") === null && scalar("SELECT latitude FROM location WHERE id='$L_ABDIJ'") === null);
-$admin->query("UPDATE location SET countryCode='BE', line1='Donkerstraat 12', locality='Westvleteren', postalCode='8640', formatted='[\"Donkerstraat 12\",\"8640 Westvleteren\"]', languageCode='nl', telephone='+3257400376', validatedAt=1760000000, latitude=50.8957083, longitude=2.7200225 WHERE id='$L_ABDIJ'");
+check("PUT with another country and no address -> 400, the address is required", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid' && str_contains($j['error_msg'] ?? '', 'needs its address'));
+check("...and nothing changed", scalar("SELECT countryCode FROM location WHERE id='$L_ABDIJ'") === 'BE' && scalar("SELECT line1 FROM location WHERE id='$L_ABDIJ'") === 'Donkerstraat 12');
 
 // 6. Address input rules that answer before Google (nested on the location)
 [$code, $j] = loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['address' => (object)[]]);
@@ -214,7 +213,13 @@ check("US PATCH postal_code with a bad +4 -> 400 (60)", $code === 400 && $j['val
 [$code, $j] = loc('PATCH', '', $L_SANJOSE, $ADMIN, (object)['address' => 'Donkerstraat 12']);
 check("address that is not an object -> 400 (344)", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid' && str_contains($j['valid_msg']['address']['line1'], 'must be an object'));
 [$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'country_code' => 'BE', 'address' => (object)['line1' => 'Donkerstraat 12']]);
-check("POST with a refused address creates nothing (atomic)", $code === 400 && $j['valid_state']['address']['locality'] === 'invalid' && intval(scalar("SELECT COUNT(*) FROM location WHERE brewerID='$BE_BREWER'")) === 4);
+check("POST with a refused address creates nothing (atomic)", $code === 400 && $j['valid_state']['address']['locality'] === 'invalid' && intval(scalar("SELECT COUNT(*) FROM location WHERE brewerID='$BE_BREWER'")) === 3);
+[$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'country_code' => 'BE']);
+check("POST without an address -> 400 naming the required fields, nothing created", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid' && $j['valid_state']['address']['locality'] === 'invalid' && str_contains($j['error_msg'] ?? '', 'needs its address') && intval(scalar("SELECT COUNT(*) FROM location WHERE brewerID='$BE_BREWER'")) === 3);
+[$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $US_BREWER, 'country_code' => 'US', 'address' => null]);
+check("POST with address null -> 400 on line1 and the US city/state pair", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid' && $j['valid_state']['address']['locality'] === 'invalid' && $j['valid_state']['address']['sub_code'] === 'invalid');
+[$code, $j] = loc('POST', '', '', $ADMIN, (object)['brewer_id' => $BE_BREWER, 'country_code' => 'BE', 'address' => (object)['telephone' => '+3225214928']]);
+check("POST with a telephone alone -> 400 on line1 (a telephone is not an address)", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid');
 [$code, $j] = loc('PATCH', '', 'dddddddd-0000-4000-8000-0000000000ff', $ADMIN, (object)['address' => (object)['line1' => 'x']]);
 check("unknown location -> 400 with the not-found message (the pre-6.0 answer, unchanged)", $code === 400 && str_contains($j['error_msg'] ?? '', "couldn't find a location"));
 
@@ -246,9 +251,12 @@ $admin->query("UPDATE location SET brewerVerified=1 WHERE id='$L_SANJOSE'");
 check("plain key refused on a brewer_verified location (187)", $code === 403);
 $admin->query("UPDATE location SET brewerVerified=0 WHERE id='$L_SANJOSE'");
 [$code, $j] = loc('PATCH', '', $L_PORTLAND, $ADMIN, (object)['address' => null]);
-check("PATCH address null -> cleared, coordinates with it", $code === 200 && !isset($j['address']) && $j['latitude'] === null && scalar("SELECT line1 FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT validatedAt FROM location WHERE id='$L_PORTLAND'") === null && scalar("SELECT longitude FROM location WHERE id='$L_PORTLAND'") === null);
-[$code, $j] = loc('PATCH', '', $L_PORTLAND, $ADMIN, (object)['name' => 'Portland Pub']);
-check("PATCH without address leaves a cleared one cleared", $code === 200 && !isset($j['address']));
+check("PATCH address null -> 400 (345), an address is corrected, never removed", $code === 400 && $j['valid_state']['address']['line1'] === 'invalid' && str_contains($j['error_msg'] ?? '', 'not removed'));
+check("...and the address is still there", scalar("SELECT line1 FROM location WHERE id='$L_PORTLAND'") === '5 Elm St' && scalar("SELECT locality FROM location WHERE id='$L_PORTLAND'") === 'Portland');
+[$code, $j] = loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['name' => 'Still No Address']);
+check("a location that predates the rule still PATCHes without an address", $code === 200 && $j['name'] === 'Still No Address' && !isset($j['address']));
+[$code, $j] = loc('PATCH', '', $L_EMPTY, $ADMIN, (object)['address' => null]);
+check("...but cannot send address null either", $code === 400);
 
 // 8. Reference lists
 [$code, $j] = loc('GET', 'countries', '', $ADMIN);
@@ -284,12 +292,12 @@ check("search object: US row carries states AND regions", $so['states'] === arra
 $b = new Brewer(); $b->validate($BE_BREWER, true); $bso = $b->generateBrewerSearchObject();
 check("brewer search object: regions and a 'City, Country' subtitle", in_array('BE-BRU', $bso['regions'] ?? array(), true) && !isset($bso['states']) && ($bso['subtitle'] ?? '') === 'Westvleteren, Belgium');
 $b = new Brewer(); $b->validate($US_BREWER, true); $bso = $b->generateBrewerSearchObject();
-check("brewer search object: US keeps 'City, ST'", in_array('CA', $bso['states'], true) && in_array('US-CA', $bso['regions'], true) && $bso['subtitle'] === 'San Jose, CA');
+check("brewer search object: US keeps 'City, ST'", in_array('CA', $bso['states'], true) && in_array('US-CA', $bso['regions'], true) && in_array($bso['subtitle'], array('San Jose, CA', 'Westfield, MA', 'Portland, OR'), true));
 
 // 10. Metrics read the merged columns
 $m = new Metrics(); $m->snapshot();
 $named = array(); $res = $admin->query("SELECT metric, dimension, value FROM metrics_daily"); while($row = $res->fetch_assoc()){ $named[$row['metric'] . '|' . $row['dimension']] = intval($row['value']); }
-check("metrics: location_with_address counts rows with a street; location_country grouped", ($named['location_with_address|'] ?? null) === 4 && ($named['location_country|BE'] ?? null) === 4);
+check("metrics: location_with_address counts rows with a street; location_country grouped", ($named['location_with_address|'] ?? null) === 5 && ($named['location_country|BE'] ?? null) === 3);
 
 // ----- Done -----
 $admin->query("DROP DATABASE " . DB_NAME);
