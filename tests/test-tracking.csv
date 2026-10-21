@@ -389,15 +389,15 @@ Beer,BEER-142,Search Beer - Invalid Method,POST,/beer/search?q=Postman,Admin,405
 Beer,BEER-144,Search Beer - Exact Name First,GET,/beer/search?q={{beer_name_24}},Admin,200,Done
 Beer,BEER-145,Search Beer - Punctuation Query,GET,/beer/search?q=*,Admin,200,Done
 Beer,BEER-143,All Beer,GET,/beer,Admin,200,Done
-Beer,BEER-146,"Suggestions - Trailing-Term Backoff Finds The Style",POST,/beer,Admin,400,Done
-Beer,BEER-147,"Suggestions - Weak Matches Are Labelled Partial",POST,/beer,Admin,400,Done
-Beer,BEER-148,"Suggestions - A Style Own Name Beats A Populous Alias",POST,/beer,Admin,400,Done
-Beer,BEER-149,"Suggestions - Contradicting Class Is Demoted",POST,/beer,Admin,400,Done
-Beer,BEER-150,"Suggestions - Absent When Nothing Matches",POST,/beer,Admin,400,Done
-Beer,BEER-151,"Suggestions - Invalid style_id Suggests From The Label",POST,/beer,Admin,400,Done
-Beer,BEER-152,"Suggestions - A Sour Label Suggests Sour Styles",POST,/beer,Admin,400,Done
-Beer,BEER-153,"Suggestions - The Head Term Outranks A False Friend",POST,/beer,Admin,400,Done
-Beer,BEER-154,"Suggestions - A Hopping Technique Does Not Bury The Base Style",POST,/beer,Admin,400,Done
+Beer,BEER-146,Suggestions - Trailing-Term Backoff Finds The Style,POST,/beer,Admin,400,Done
+Beer,BEER-147,Suggestions - Weak Matches Are Labelled Partial,POST,/beer,Admin,400,Done
+Beer,BEER-148,Suggestions - A Style Own Name Beats A Populous Alias,POST,/beer,Admin,400,Done
+Beer,BEER-149,Suggestions - Contradicting Class Is Demoted,POST,/beer,Admin,400,Done
+Beer,BEER-150,Suggestions - Absent When Nothing Matches,POST,/beer,Admin,400,Done
+Beer,BEER-151,Suggestions - Invalid style_id Suggests From The Label,POST,/beer,Admin,400,Done
+Beer,BEER-152,Suggestions - A Sour Label Suggests Sour Styles,POST,/beer,Admin,400,Done
+Beer,BEER-153,Suggestions - The Head Term Outranks A False Friend,POST,/beer,Admin,400,Done
+Beer,BEER-154,Suggestions - A Hopping Technique Does Not Bury The Base Style,POST,/beer,Admin,400,Done
 Beer,BEER-155,Unicode Search - Create Beer #25 (Accented Name),POST,/beer,Admin,201,Done
 Beer,BEER-156,Search Beer - Decomposed (NFD) Query Finds Accented Beer,GET,/beer/search?q={{beer_search_25_nfd}},Admin,200,Done
 Beer,BEER-157,Search Beer - Invalid UTF-8 Rejected,GET,/beer/search?q=%DCberbrew,Admin,400,Done
@@ -592,20 +592,20 @@ Location,L-175,Location #45 - PATCH clears name (empty string),PATCH,/location/{
 Location,L-176,Location #45 - PUT with name,PUT,/location/{{location_id_45}},Admin,200,Done
 Location,L-177,Location #45 - PUT without name clears it,PUT,/location/{{location_id_45}},Admin,200,Done
 Brewer,BR-198,Delete Brewery #44,DELETE,/brewer/{{brewer_id_44}},Admin,204,Done
-Brewer,BR-199,"Create Brewery #45 with a URL (brewery staff)",POST,/brewer,Brewery Staff,201,Done
-Brewer,BR-200,"Admin clears the URL - badges untouched",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
-Brewer,BR-201,"Create Brewery #46 reusing the freed URL",POST,/brewer,Brewery Staff,201,Done
-Brewer,BR-202,"Admin clears a second URL in a row",PATCH,/brewer/{{brewer_id_46}},Admin,200,Done
-Brewer,BR-203,"Admin repoints Brewery #45 to a working URL",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
-Brewer,BR-204,"Admin edits the name - that IS a verification",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
-Brewer,BR-216,"Brewery #45 - add descriptions before the null clear",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-199,Create Brewery #45 with a URL (brewery staff),POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-200,Admin clears the URL - badges untouched,PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-201,Create Brewery #46 reusing the freed URL,POST,/brewer,Brewery Staff,201,Done
+Brewer,BR-202,Admin clears a second URL in a row,PATCH,/brewer/{{brewer_id_46}},Admin,200,Done
+Brewer,BR-203,Admin repoints Brewery #45 to a working URL,PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-204,Admin edits the name - that IS a verification,PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
+Brewer,BR-216,Brewery #45 - add descriptions before the null clear,PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
 Brewer,BR-217,"Brewery #45 - PATCH url null clears it, descriptions untouched",PATCH,/brewer/{{brewer_id_45}},Admin,200,Done
 Location,L-178,"Location #46 under Brewery #45, with a URL",POST,/location,Admin,201,Done
-Location,L-179,"Location #46 - PATCH url null clears it",PATCH,/location/{{location_id_46}},Admin,200,Done
-Brewer,BR-205,"Delete Brewery #45",DELETE,/brewer/{{brewer_id_45}},Admin,204,Done
-Brewer,BR-206,"Delete Brewery #46",DELETE,/brewer/{{brewer_id_46}},Admin,204,Done
-Brewer,BR-207,"Create Brewery #47 as Admin",POST,/brewer,Admin,201,Done
-Brewer,BR-208,"Delete Brewery #47",DELETE,/brewer/{{brewer_id_47}},Admin,204,Done
+Location,L-179,Location #46 - PATCH url null clears it,PATCH,/location/{{location_id_46}},Admin,200,Done
+Brewer,BR-205,Delete Brewery #45,DELETE,/brewer/{{brewer_id_45}},Admin,204,Done
+Brewer,BR-206,Delete Brewery #46,DELETE,/brewer/{{brewer_id_46}},Admin,204,Done
+Brewer,BR-207,Create Brewery #47 as Admin,POST,/brewer,Admin,201,Done
+Brewer,BR-208,Delete Brewery #47,DELETE,/brewer/{{brewer_id_47}},Admin,204,Done
 Brewer,BR-209,Unicode Search - Create Brewery #48 (Accented Name),POST,/brewer,Admin,201,Done
 Brewer,BR-210,Search Brewers - Decomposed (NFD) Query Finds Accented Brewer,GET,/brewer/search?q={{brewer_search_48_nfd}},Admin,200,Done
 Brewer,BR-211,Search Brewers - Precomposed (NFC) Control,GET,/brewer/search?q={{brewer_search_48_nfc}},Admin,200,Done
@@ -633,118 +633,106 @@ Brewer,BR-231,Text Input - Newlines In A Description Are Kept,PATCH,/brewer/{{br
 Brewer,BR-232,Text Input - Tab In A Description Is Rejected,PATCH,/brewer/{{brewer_id_52}},Admin,400,Done
 Brewer,BR-233,Text Input - Edge Zero-Width Is Trimmed,PATCH,/brewer/{{brewer_id_52}},Admin,200,Done
 Brewer,BR-234,Text Input - Delete Brewery #52,DELETE,/brewer/{{brewer_id_52}},Admin,204,Done
-Address,A-1,"Add Address - No Location, No Data",POST,/address,Admin,400,Done
-Address,A-2,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Admin,400,Done
-Address,A-3,Add Address - No Data,POST,/address/{{location_id_1}},Admin,400,Done
-Address,A-4,Add Address - address2,POST,/address/{{location_id_1}},Admin,400,Done
-Address,A-5,"Add Address - address2, city",POST,/address/{{location_id_1}},Admin,400,Done
-Address,A-6,"Add Address - address2, sub_code",POST,/address/{{location_id_1}},Admin,400,Done
-Address,A-7,"Add Address - No Location, No Data",PUT,/address,Admin,400,Done
-Address,A-8,"Add Address - Unknown Location, No Data",PUT,/address/{{guid}},Admin,400,Done
-Address,A-9,Add Address - No Data,PUT,/address/{{location_id_1}},Admin,400,Done
-Address,A-10,Add Address - address2,PUT,/address/{{location_id_1}},Admin,400,Done
-Address,A-11,"Add Address - address2, city",PUT,/address/{{location_id_1}},Admin,400,Done
-Address,A-12,"Add Address - address2, sub_code",PUT,/address/{{location_id_1}},Admin,400,Done
-Address,A-13,Attempt Invalid Method,GET,/address/{{location_id_1}},Admin,405,Done
-Address,A-14,"Address #1 - address2, city, sub_code",POST,/address/{{location_id_1}},Admin,201,Done
-Address,A-15,"Address #2 - address2, zip5",POST,/address/{{location_id_2}},Admin,201,Done
-Address,A-16,"Address #4 - address 1, address2, city, sub_code",POST,/address/{{location_id_4}},Admin,201,Done
-Address,A-18,"Add Address - address2, invalid sub_code",POST,/address/{{location_id_1}},Admin,400,Done
-Address,A-19,"Add Address - address2, invalid sub_code",PUT,/address/{{location_id_1}},Admin,400,Done
-Address,A-31,"Address #7 - address2, city, sub_code",PUT,/address/{{location_id_7}},Admin,201,Done
-Address,A-32,"Address #8 - address2, zip5",PUT,/address/{{location_id_8}},Admin,201,Done
-Address,A-33,"Address #10 - address 1, address2, city, sub_code",PUT,/address/{{location_id_10}},Admin,201,Done
-Address,A-34,"Address #11 - address1, address2, zip5",PUT,/address/{{location_id_11}},Admin,201,Done
-Address,A-35,"Address #12 - address1, address2, zip5, zip4",PUT,/address/{{location_id_12}},Admin,201,Done
-Address,A-36,Attempt Invalid Method,GET,/address/{{location_id_1}},Non-Admin,405,Done
-Address,A-37,Attempt Invalid Method,DELETE,/address/{{location_id_1}},Admin,405,Done
-Address,A-38,Attempt Invalid Method,DELETE,/address/{{location_id_1}},Non-Admin,405,Done
-Address,A-39,Address #3 - telephone only,POST,/address/{{location_id_3}},Admin,400,Done
-Address,A-40,"Address #3 - address2, zip5, zip4, invalid telephone",POST,/address/{{location_id_3}},Admin,400,Done
-Address,A-41,"Address #3 - address2, zip5, zip4, telephone",POST,/address/{{location_id_3}},Admin,201,Done
-Address,A-42,"Address #5 - address1, address2, zip5",POST,/address/{{location_id_5}},Admin,201,Done
-Address,A-43,"Address #6 - address1, address2, zip5, zip4",POST,/address/{{location_id_6}},Admin,201,Done
-Address,A-44,"Update Address #6 - address2, city, sub_code",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-45,"Update Address #6 - address2, zip5",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-46,"Update Address #6 - address2, zip5, zip4",PATCH,/address/{{location_id_6}},,200,Done
-Address,A-47,"Update Address #6 - address 1, address2, city, sub_code",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-48,"Update Address #6 - address1, address2, zip5",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-49,"Update Address #6 - address1, address2, zip5, zip4",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-50,"Update Address #6 - address1, address2, zip5, zip4, telephone",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-51,Update Address #6 - telephone,PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-123,"Update Address #6 - leading-zero ZIP (01085)",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-124,"Update Address #6 - re-submit the ZIP read back",PATCH,/address/{{location_id_6}},Admin,200,Done
-Address,A-52,Address #9 - telephone only,PUT,/address/{{location_id_9}},Admin,400,Done
-Address,A-53,"Address #9 - address2, zip5, zip4, invalid telephone",PUT,/address/{{location_id_9}},Admin,400,Done
-Address,A-54,"Address #9 - address2, zip5, zip4, telephone",PUT,/address/{{location_id_9}},Admin,201,Done
-Address,A-55,"Update Address #12 - address2, city, sub_code, telephone",PUT,/address/{{location_id_12}},Admin,200,Done
-Address,A-56,"Add Address - No Location, No Data",POST,/address,Non-Admin,400,Done
-Address,A-57,"Add Address - Unknown Location, No Data",POST,/address/{{guid}},Non-Admin,400,Done
-Address,A-58,Add Address - No Data,POST,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-59,Add Address - address2,POST,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-60,"Add Address - address2, city",POST,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-61,"Add Address - address2, invalid sub_code",POST,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-62,"Add Address - address2, sub_code",POST,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-63,"Add Address - No Location, No Data",PUT,/address,Non-Admin,400,Done
-Address,A-64,"Add Address - Unknown Location, No Data",PUT,/address/{{guid}},Non-Admin,400,Done
-Address,A-65,Add Address - No Data,PUT,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-66,Add Address - address2,PUT,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-67,"Add Address - address2, city",PUT,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-68,"Add Address - address2, invalid sub_code",PUT,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-69,"Add Address - address2, sub_code",PUT,/address/{{location_id_13}},Non-Admin,400,Done
-Address,A-70,"Address #13 - address2, city, sub_code",POST,/address/{{location_id_13}},Non-Admin,201,Done
-Address,A-71,"Address #14 - address2, zip5",POST,/address/{{location_id_14}},Non-Admin,201,Done
-Address,A-72,Address #15 - telephone only,POST,/address/{{location_id_15}},Non-Admin,400,Done
-Address,A-73,"Address #15 - address2, zip5, zip4, invalid telephone",POST,/address/{{location_id_15}},Non-Admin,400,Done
-Address,A-74,"Address #15 - address2, zip5, zip4, telephone",POST,/address/{{location_id_15}},Non-Admin,201,Done
-Address,A-75,"Address #16 - address 1, address2, city, sub_code",POST,/address/{{location_id_16}},Non-Admin,201,Done
-Address,A-76,"Address #17 - address1, address2, zip5",POST,/address/{{location_id_17}},Non-Admin,201,Done
-Address,A-77,"Address #18 - address1, address2, zip5, zip4",POST,/address/{{location_id_18}},Non-Admin,201,Done
-Address,A-78,"Update Address #18 - address2, city, sub_code",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-79,"Update Address #18 - address2, zip5",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-80,"Update Address #18 - address2, zip5, zip4",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-81,"Update Address #18 - address 1, address2, city, sub_code",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-82,"Update Address #18 - address1, address2, zip5",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-83,"Update Address #18 - address1, address2, zip5, zip4",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-84,"Update Address #18 - address1, address2, zip5, zip4, telephone",PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-85,Update Address #18 - telephone,PATCH,/address/{{location_id_18}},Non-Admin,200,Done
-Address,A-86,"Address #19 - address2, city, sub_code",PUT,/address/{{location_id_19}},Non-Admin,201,Done
-Address,A-87,"Address #20 - address2, zip5",PUT,/address/{{location_id_20}},Non-Admin,201,Done
-Address,A-88,Address #21 - telephone only,PUT,/address/{{location_id_21}},Non-Admin,400,Done
-Address,A-89,"Address #21 - address2, zip5, zip4, invalid telephone",PUT,/address/{{location_id_21}},Non-Admin,400,Done
-Address,A-90,"Address #21 - address2, zip5, zip4, telephone",PUT,/address/{{location_id_21}},Non-Admin,201,Done
-Address,A-91,"Address #22 - address 1, address2, city, sub_code",PUT,/address/{{location_id_22}},Non-Admin,201,Done
-Address,A-92,"Address #23 - address1, address2, zip5",PUT,/address/{{location_id_23}},Non-Admin,201,Done
-Address,A-93,"Address #24 - address1, address2, zip5, zip4",PUT,/address/{{location_id_24}},Non-Admin,201,Done
-Address,A-94,"Update Address #24 - address2, city, sub_code, telephone",PUT,/address/{{location_id_24}},Non-Admin,201,Removed
-Address,A-95,"Address #25 - address2, city, sub_code",POST,/address/{{location_id_25}},Brewery Staff,201,Done
-Address,A-96,"Address #26 - address2, zip5",POST,/address/{{location_id_26}},Brewery Staff,201,Removed
-Address,A-97,Address #27 - telephone only,POST,/address/{{location_id_27}},Brewery Staff,400,Done
-Address,A-98,"Address #27 - address2, zip5, zip4, invalid telephone",POST,/address/{{location_id_27}},Brewery Staff,400,Done
-Address,A-99,"Address #27 - address2, zip5, zip4, telephone",POST,/address/{{location_id_27}},Brewery Staff,201,Done
-Address,A-100,"Address #28 - address 1, address2, city, sub_code",POST,/address/{{location_id_28}},Brewery Staff,201,Done
-Address,A-101,"Address #29 - address1, address2, zip5",POST,/address/{{location_id_29}},Brewery Staff,201,Done
-Address,A-102,"Address #30 - address1, address2, zip5, zip4",POST,/address/{{location_id_30}},Brewery Staff,201,Done
-Address,A-103,"Update Address #30 - address2, city, sub_code",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-104,"Update Address #30 - address2, zip5",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-105,"Update Address #30 - address2, zip5, zip4",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-106,"Update Address #30 - address 1, address2, city, sub_code",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-107,"Update Address #30 - address1, address2, zip5",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-108,"Update Address #30 - address1, address2, zip5, zip4",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-109,"Update Address #30 - address1, address2, zip5, zip4, telephone",PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-110,Update Address #30 - telephone,PATCH,/address/{{location_id_30}},Brewery Staff,200,Done
-Address,A-111,"Address #31 - address2, city, sub_code",PUT,/address/{{location_id_31}},Brewery Staff,201,Done
-Address,A-112,"Address #32 - address2, zip5",PUT,/address/{{location_id_32}},Brewery Staff,201,Done
-Address,A-113,Address #33 - telephone only,PUT,/address/{{location_id_33}},Brewery Staff,400,Done
-Address,A-114,"Address #33 - address2, zip5, zip4, invalid telephone",PUT,/address/{{location_id_33}},Brewery Staff,400,Done
-Address,A-115,"Address #33 - address2, zip5, zip4, telephone",PUT,/address/{{location_id_33}},Brewery Staff,201,Done
-Address,A-116,"Address #34 - address 1, address2, city, sub_code",PUT,/address/{{location_id_34}},Brewery Staff,201,Done
-Address,A-117,"Address #35 - address1, address2, zip5",PUT,/address/{{location_id_35}},Brewery Staff,201,Done
-Address,A-118,"Address #36 - address1, address2, zip5, zip4",PUT,/address/{{location_id_36}},Brewery Staff,201,Done
-Address,A-119,"Update Address #36 - address2, city, sub_code, telephone",PUT,/address/{{location_id_36}},Brewery Staff,201,Done
-Address,A-120,"Update Address #12 - address2, city, sub_code, telephone",PUT,/address/{{location_id_12}},Admin,200,Done
-Address,A-121,"Address #14 - address2, zip5",POST,/address/{{location_id_14}},Non-Admin,201,Done
-Address,A-122,"Not Found - unfindable address, expect 400",PUT,/address/{{location_id_36}},Admin,400,Done
+Address,A-3,Add Address - No Data,POST,/location,Admin,400,Done
+Address,A-4,Add Address - line1,POST,/location,Admin,400,Done
+Address,A-5,"Add Address - line1, locality",POST,/location,Admin,400,Done
+Address,A-6,"Add Address - line1, sub_code",POST,/location,Admin,400,Done
+Address,A-9,Add Address - No Data,POST,/location,Admin,400,Done
+Address,A-10,Add Address - line1,POST,/location,Admin,400,Done
+Address,A-11,"Add Address - line1, locality",POST,/location,Admin,400,Done
+Address,A-12,"Add Address - line1, sub_code",POST,/location,Admin,400,Done
+Address,A-14,"Address #1 - line1, locality, sub_code",PATCH,/location/{{location_id_1}},Admin,201,Done
+Address,A-15,"Address #2 - line1, postal_code",PATCH,/location/{{location_id_2}},Admin,201,Done
+Address,A-16,"Address #4 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_4}},Admin,201,Done
+Address,A-18,"Add Address - line1, invalid sub_code",POST,/location,Admin,400,Done
+Address,A-19,"Add Address - line1, invalid sub_code",POST,/location,Admin,400,Done
+Address,A-31,"Address #7 - line1, locality, sub_code",PATCH,/location/{{location_id_7}},Admin,201,Done
+Address,A-32,"Address #8 - line1, postal_code",PATCH,/location/{{location_id_8}},Admin,201,Done
+Address,A-33,"Address #10 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_10}},Admin,201,Done
+Address,A-34,"Address #11 - line2, line1, postal_code",PATCH,/location/{{location_id_11}},Admin,201,Done
+Address,A-35,"Address #12 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_12}},Admin,201,Done
+Address,A-39,Address #3 - telephone only,POST,/location,Admin,400,Done
+Address,A-40,"Address #3 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Admin,400,Done
+Address,A-41,"Address #3 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_3}},Admin,201,Done
+Address,A-42,"Address #5 - line2, line1, postal_code",PATCH,/location/{{location_id_5}},Admin,201,Done
+Address,A-43,"Address #6 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_6}},Admin,201,Done
+Address,A-44,"Update Address #6 - line1, locality, sub_code",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-45,"Update Address #6 - line1, postal_code",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-46,"Update Address #6 - line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_6}},,200,Done
+Address,A-47,"Update Address #6 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-48,"Update Address #6 - line2, line1, postal_code",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-49,"Update Address #6 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-50,"Update Address #6 - line2, line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-51,Update Address #6 - telephone,PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-123,Update Address #6 - leading-zero ZIP (01085),PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-124,Update Address #6 - re-submit the ZIP read back,PATCH,/location/{{location_id_6}},Admin,200,Done
+Address,A-52,Address #9 - telephone only,POST,/location,Admin,400,Done
+Address,A-53,"Address #9 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Admin,400,Done
+Address,A-54,"Address #9 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_9}},Admin,201,Done
+Address,A-55,"Update Address #12 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_12}},Admin,200,Done
+Address,A-58,Add Address - No Data,POST,/location,Non-Admin,400,Done
+Address,A-59,Add Address - line1,POST,/location,Non-Admin,400,Done
+Address,A-60,"Add Address - line1, locality",POST,/location,Non-Admin,400,Done
+Address,A-61,"Add Address - line1, invalid sub_code",POST,/location,Non-Admin,400,Done
+Address,A-62,"Add Address - line1, sub_code",POST,/location,Non-Admin,400,Done
+Address,A-65,Add Address - No Data,POST,/location,Non-Admin,400,Done
+Address,A-66,Add Address - line1,POST,/location,Non-Admin,400,Done
+Address,A-67,"Add Address - line1, locality",POST,/location,Non-Admin,400,Done
+Address,A-68,"Add Address - line1, invalid sub_code",POST,/location,Non-Admin,400,Done
+Address,A-69,"Add Address - line1, sub_code",POST,/location,Non-Admin,400,Done
+Address,A-70,"Address #13 - line1, locality, sub_code",PATCH,/location/{{location_id_13}},Non-Admin,201,Done
+Address,A-71,"Address #14 - line1, postal_code",PATCH,/location/{{location_id_14}},Non-Admin,201,Done
+Address,A-72,Address #15 - telephone only,POST,/location,Non-Admin,400,Done
+Address,A-73,"Address #15 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Non-Admin,400,Done
+Address,A-74,"Address #15 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_15}},Non-Admin,201,Done
+Address,A-75,"Address #16 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_16}},Non-Admin,201,Done
+Address,A-76,"Address #17 - line2, line1, postal_code",PATCH,/location/{{location_id_17}},Non-Admin,201,Done
+Address,A-77,"Address #18 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_18}},Non-Admin,201,Done
+Address,A-78,"Update Address #18 - line1, locality, sub_code",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-79,"Update Address #18 - line1, postal_code",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-80,"Update Address #18 - line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-81,"Update Address #18 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-82,"Update Address #18 - line2, line1, postal_code",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-83,"Update Address #18 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-84,"Update Address #18 - line2, line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-85,Update Address #18 - telephone,PATCH,/location/{{location_id_18}},Non-Admin,200,Done
+Address,A-86,"Address #19 - line1, locality, sub_code",PATCH,/location/{{location_id_19}},Non-Admin,201,Done
+Address,A-87,"Address #20 - line1, postal_code",PATCH,/location/{{location_id_20}},Non-Admin,201,Done
+Address,A-88,Address #21 - telephone only,POST,/location,Non-Admin,400,Done
+Address,A-89,"Address #21 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Non-Admin,400,Done
+Address,A-90,"Address #21 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_21}},Non-Admin,201,Done
+Address,A-91,"Address #22 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_22}},Non-Admin,201,Done
+Address,A-92,"Address #23 - line2, line1, postal_code",PATCH,/location/{{location_id_23}},Non-Admin,201,Done
+Address,A-93,"Address #24 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_24}},Non-Admin,201,Done
+Address,A-94,"Update Address #24 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_24}},Non-Admin,201,Removed
+Address,A-95,"Address #25 - line1, locality, sub_code",PATCH,/location/{{location_id_25}},Brewery Staff,201,Done
+Address,A-96,"Address #26 - line1, postal_code",PATCH,/location/{{location_id_26}},Brewery Staff,201,Removed
+Address,A-97,Address #27 - telephone only,POST,/location,Brewery Staff,400,Done
+Address,A-98,"Address #27 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Brewery Staff,400,Done
+Address,A-99,"Address #27 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_27}},Brewery Staff,201,Done
+Address,A-100,"Address #28 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_28}},Brewery Staff,201,Done
+Address,A-101,"Address #29 - line2, line1, postal_code",PATCH,/location/{{location_id_29}},Brewery Staff,201,Done
+Address,A-102,"Address #30 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_30}},Brewery Staff,201,Done
+Address,A-103,"Update Address #30 - line1, locality, sub_code",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-104,"Update Address #30 - line1, postal_code",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-105,"Update Address #30 - line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-106,"Update Address #30 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-107,"Update Address #30 - line2, line1, postal_code",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-108,"Update Address #30 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-109,"Update Address #30 - line2, line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-110,Update Address #30 - telephone,PATCH,/location/{{location_id_30}},Brewery Staff,200,Done
+Address,A-111,"Address #31 - line1, locality, sub_code",PATCH,/location/{{location_id_31}},Brewery Staff,201,Done
+Address,A-112,"Address #32 - line1, postal_code",PATCH,/location/{{location_id_32}},Brewery Staff,201,Done
+Address,A-113,Address #33 - telephone only,POST,/location,Brewery Staff,400,Done
+Address,A-114,"Address #33 - line1, postal_code (ZIP+4), invalid telephone",POST,/location,Brewery Staff,400,Done
+Address,A-115,"Address #33 - line1, postal_code (ZIP+4), telephone",PATCH,/location/{{location_id_33}},Brewery Staff,201,Done
+Address,A-116,"Address #34 - address 1, line1, locality, sub_code",PATCH,/location/{{location_id_34}},Brewery Staff,201,Done
+Address,A-117,"Address #35 - line2, line1, postal_code",PATCH,/location/{{location_id_35}},Brewery Staff,201,Done
+Address,A-118,"Address #36 - line2, line1, postal_code (ZIP+4)",PATCH,/location/{{location_id_36}},Brewery Staff,201,Done
+Address,A-119,"Update Address #36 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_36}},Brewery Staff,201,Done
+Address,A-120,"Update Address #12 - line1, locality, sub_code, telephone",PATCH,/location/{{location_id_12}},Admin,200,Done
+Address,A-121,"Address #14 - line1, postal_code",PATCH,/location/{{location_id_14}},Non-Admin,201,Done
+Address,A-122,"Not Found - unfindable address, expect 400",PATCH,/location/{{location_id_36}},Admin,400,Done
 Style,STYLE-1,"List Styles - Shape, Version & Count",GET,/style,Admin,200,Done
 Style,STYLE-2,List Styles - New BJCP 2025 Cider/Perry Present,GET,/style,Admin,200,Done
 Style,STYLE-3,Get Style - New Cider Style (ice-cider),GET,/style/ice-cider,Admin,200,Done
@@ -753,36 +741,36 @@ Style,STYLE-5,Get Style - Not Found,GET,/style/not-a-real-style-xyz,Admin,404,Do
 Style,STYLE-6,List Parents (Families),GET,/style/parent,Admin,200,Done
 Style,STYLE-7,List Classes (Ale/Lager),GET,/style/class,Admin,200,Done
 Style,STYLE-8,Method Not Allowed (POST),POST,/style,Admin,405,Done
-Style,STYLE-9,"Search - Envelope & Compact Row Shape",GET,/style/search?q=stout&count=5,Admin,200,Done
-Style,STYLE-10,"Search - Exact Alias Ranks First",GET,/style/search?q=NEIPA,Admin,200,Done
-Style,STYLE-11,"Search - Abbreviation Reaches Spelled-Out Names",GET,/style/search?q=ipa&count=5,Admin,200,Done
-Style,STYLE-12,"Search - All Terms Outrank Popularity",GET,/style/search?q=juicy ipa,Admin,200,Done
-Style,STYLE-13,"Search - Catch-All Styles Demoted",GET,/style/search?q=stout&count=5,Admin,200,Done
-Style,STYLE-14,"Search - Pagination Page 1",GET,/style/search?q=ipa&count=4,Admin,200,Done
+Style,STYLE-9,Search - Envelope & Compact Row Shape,GET,/style/search?q=stout&count=5,Admin,200,Done
+Style,STYLE-10,Search - Exact Alias Ranks First,GET,/style/search?q=NEIPA,Admin,200,Done
+Style,STYLE-11,Search - Abbreviation Reaches Spelled-Out Names,GET,/style/search?q=ipa&count=5,Admin,200,Done
+Style,STYLE-12,Search - All Terms Outrank Popularity,GET,/style/search?q=juicy ipa,Admin,200,Done
+Style,STYLE-13,Search - Catch-All Styles Demoted,GET,/style/search?q=stout&count=5,Admin,200,Done
+Style,STYLE-14,Search - Pagination Page 1,GET,/style/search?q=ipa&count=4,Admin,200,Done
 Style,STYLE-15,"Search - Pagination Page 2 (No Overlap, No Repeated Families)",GET,/style/search?q=ipa&count=4&cursor=,Admin,200,Done
-Style,STYLE-16,"Search - Missing Query",GET,/style/search,Admin,400,Done
-Style,STYLE-17,"Search - Count Below Range",GET,/style/search?q=ipa&count=0,Admin,400,Done
-Style,STYLE-18,"Search - Count Above Range",GET,/style/search?q=ipa&count=101,Admin,400,Done
-Style,STYLE-19,"Search - Query Too Long",GET,/style/search?q=<300 chars>,Admin,400,Done
-Style,STYLE-20,"Search - Punctuation-Only Query Returns Empty",GET,/style/search?q=*,Admin,200,Done
-Style,STYLE-21,"Search - No Match Returns Empty",GET,/style/search?q=zzzqqqnotastyle,Admin,200,Done
-Style,STYLE-22,"Search - Name Match Outranks Populous Alias Match",GET,/style/search?q=flanders red ale,Admin,200,Done
-Style,STYLE-23,"Search - Head Term Outranks Leading Modifiers",GET,/style/search?q=imperial stout,Admin,200,Done
-Style,STYLE-24,"Search - Squashed One-Word Compound Resolves",GET,/style/search?q=Berlinerweisse,Admin,200,Done
+Style,STYLE-16,Search - Missing Query,GET,/style/search,Admin,400,Done
+Style,STYLE-17,Search - Count Below Range,GET,/style/search?q=ipa&count=0,Admin,400,Done
+Style,STYLE-18,Search - Count Above Range,GET,/style/search?q=ipa&count=101,Admin,400,Done
+Style,STYLE-19,Search - Query Too Long,GET,/style/search?q=<300 chars>,Admin,400,Done
+Style,STYLE-20,Search - Punctuation-Only Query Returns Empty,GET,/style/search?q=*,Admin,200,Done
+Style,STYLE-21,Search - No Match Returns Empty,GET,/style/search?q=zzzqqqnotastyle,Admin,200,Done
+Style,STYLE-22,Search - Name Match Outranks Populous Alias Match,GET,/style/search?q=flanders red ale,Admin,200,Done
+Style,STYLE-23,Search - Head Term Outranks Leading Modifiers,GET,/style/search?q=imperial stout,Admin,200,Done
+Style,STYLE-24,Search - Squashed One-Word Compound Resolves,GET,/style/search?q=Berlinerweisse,Admin,200,Done
 Style,STYLE-25,Search - Invalid UTF-8 Rejected,GET,/style/search?q=%DCbier,Admin,400,Done
-Billing,BILL-1,"Billing Status",GET,/billing,Billing User,200,Done
-Billing,BILL-2,"Spend Cap Below Minimum",PATCH,/billing,Billing User,400,Done
-Billing,BILL-3,"Spend Cap Wrong Type",PATCH,/billing,Billing User,400,Done
-Billing,BILL-4,"Set Spend Cap",PATCH,/billing,Billing User,200,Done
-Billing,BILL-5,"Restore Spend Cap",PATCH,/billing,Billing User,200,Done
-Billing,BILL-6,"Checkout Session - Missing URLs",POST,/billing/checkout-session,Billing User,400,Done
-Billing,BILL-7,"Checkout Session - Off-Domain URL",POST,/billing/checkout-session,Billing User,400,Done
-Billing,BILL-8,"Checkout Session - Create",POST,/billing/checkout-session,Billing User,201,Done
-Billing,BILL-9,"Portal Session - Off-Domain URL",POST,/billing/portal-session,Billing User,400,Done
-Billing,BILL-10,"Portal Session - Create",POST,/billing/portal-session,Billing User,201,Done
-Billing,BILL-11,"Webhook - Method Not Allowed",GET,/stripe-webhook,None,405,Done
-Billing,BILL-12,"Webhook - No Signature",POST,/stripe-webhook,None,400,Done
-Billing,BILL-13,"Webhook - Bad Signature",POST,/stripe-webhook,None,400,Done
+Billing,BILL-1,Billing Status,GET,/billing,Billing User,200,Done
+Billing,BILL-2,Spend Cap Below Minimum,PATCH,/billing,Billing User,400,Done
+Billing,BILL-3,Spend Cap Wrong Type,PATCH,/billing,Billing User,400,Done
+Billing,BILL-4,Set Spend Cap,PATCH,/billing,Billing User,200,Done
+Billing,BILL-5,Restore Spend Cap,PATCH,/billing,Billing User,200,Done
+Billing,BILL-6,Checkout Session - Missing URLs,POST,/billing/checkout-session,Billing User,400,Done
+Billing,BILL-7,Checkout Session - Off-Domain URL,POST,/billing/checkout-session,Billing User,400,Done
+Billing,BILL-8,Checkout Session - Create,POST,/billing/checkout-session,Billing User,201,Done
+Billing,BILL-9,Portal Session - Off-Domain URL,POST,/billing/portal-session,Billing User,400,Done
+Billing,BILL-10,Portal Session - Create,POST,/billing/portal-session,Billing User,201,Done
+Billing,BILL-11,Webhook - Method Not Allowed,GET,/stripe-webhook,None,405,Done
+Billing,BILL-12,Webhook - No Signature,POST,/stripe-webhook,None,400,Done
+Billing,BILL-13,Webhook - Bad Signature,POST,/stripe-webhook,None,400,Done
 Brewer,BR-238,Shared Domain - Create Brewery #54 (sub-page),POST,/brewer,Admin,201,Done
 Brewer,BR-239,Shared Domain - Create Brewery #55 (root of the same host),POST,/brewer,Admin,201,Done
 Brewer,BR-240,Shared Domain - Second Root On The Host Is Refused,POST,/brewer,Admin,400,Done
@@ -817,3 +805,29 @@ Brewer,BR-264,Brewer Status - An Admin Sets The Country Uppercased,PATCH,/brewer
 Brewer,BR-265,Brewer Status - PUT Without The Fields Resets Them,PUT,/brewer/{id},Admin,200,Done
 Brewer,BR-266,Brewer Status - Delete Brewery #57,DELETE,/brewer/{id},Admin,204,Done
 Brewer,BR-267,Brewer Status - Delete Brewery #57b,DELETE,/brewer/{id},Admin,204,Done
+Brewer,BR-268,Create Brewery #58 In Belgium,POST,/brewer,Admin,201,Done
+Location,L-181,A Location In Belgium,POST,/location,Admin,201,Done
+Location,L-182,A Country Outside The Validation List Is Refused,POST,/location,Admin,400,Done
+Location,L-183,Not A Country Code,POST,/location,Admin,400,Done
+Address,A-125,Belgian Address Validated By Google,PATCH,/location/{location_id},Admin,200,Done
+Address,A-126,A Client Province Is Kept When Google Reports None,PATCH,/location/{location_id},Admin,200,Done
+Address,A-127,A Province From Another Country Is Refused,PATCH,/location/{location_id},Admin,400,Done
+Address,A-128,A Postal Code Of The Wrong Shape Is Refused,PATCH,/location/{location_id},Admin,400,Done
+Address,A-129,Telephone PATCH Normalises A National Number,PATCH,/location/{location_id},Admin,200,Done
+Address,A-130,Telephone PATCH Null Clears It,PATCH,/location/{location_id},Admin,200,Done
+Location,L-184,Country Change Refused Once An Address Exists,PATCH,/location/{location_id},Admin,400,Done
+Location,L-190,A Location Without An Address Is Refused,POST,/location,Admin,400,Done
+Location,L-191,A PUT Without An Address Is Refused,PUT,/location/{location_id},Admin,400,Done
+Location,L-192,PATCH Cannot Remove The Address,PATCH,/location/{location_id},Admin,400,Done
+Location,L-185,A Location In The Netherlands,POST,/location,Admin,201,Done
+Address,A-131,"Dutch Postcode With Letters, Lowercase, No Space",PATCH,/location/{location_id},Admin,200,Done
+Location,L-186,A Location In Germany,POST,/location,Admin,201,Done
+Address,A-132,German Address From Street And Postal Code Alone,PATCH,/location/{location_id},Admin,200,Done
+Location,L-187,Nearby By Postal Code In Belgium,GET,/location/zip?postal_code=8640&country=BE,Admin,200,Done
+Location,L-188,Nearby By City Without A Region,GET,/location/city?city=Vleteren&country=BE,Admin,200,Done
+Location,L-189,The zip_code Alias Still Means A US ZIP,GET,/location/zip?zip_code=8640,Admin,400,Done
+Address,A-133,Countries A Location May Be In,GET,/location/countries,Admin,200,Done
+Address,A-134,Subdivisions Of Belgium,GET,/location/subdivisions?country=be,Admin,200,Done
+Address,A-135,Subdivisions With A Bad Country,GET,/location/subdivisions?country=XX,Admin,400,Done
+Brewer,BR-269,Brewer Locations Carry Both Vocabularies,GET,/brewer/{brewer_id}/locations,Admin,200,Done
+Brewer,BR-270,Delete Brewery #58,DELETE,/brewer/{brewer_id},Admin,204,Done

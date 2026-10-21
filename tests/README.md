@@ -50,23 +50,39 @@ If any of these pages are missing or return a non-200 response, URL validation t
 ## Address parsing (offline, no server needed)
 
 `address-parse.php` is a plain PHP regression test for the pure halves of
-`USAddresses` — `parseValidatedAddress()` (street/unit), `deriveCity()` (the
-un-abbreviated USPS mailing city), and `relocationConflict()` (the gate that
-400s a match on a different street or city instead of storing it).
+`Address` — `parseValidatedAddress()` (US street/unit), `deriveCity()` (the
+un-abbreviated USPS mailing city), `relocationConflict()` (the gate that
+400s a match on a different street or city instead of storing it),
+`parseInternational()` (every other country: line1/line2/locality/postal
+code/formatted lines from Google's own rendering), `expandPostalLine()` and
+`normalizeTelephone()` (E.164).
 
 ```bash
-php tests/address-parse.php        # 51 fixtures, exit 1 on failure
+php tests/address-parse.php        # 51 US + 22 international fixtures + phone cases, exit 1 on failure
 php tests/address-parse.php -v     # also dump each fixture's components
 ```
 
-No network and no database: `fixtures/google-address-validation.json` holds
-real captured API responses. **Run it for any change to address parsing** —
-Newman cannot cover this ground, because Google is live and its answer for the
-same address varies with the request shape.
+No network and no database: `fixtures/google-address-validation.json` (US)
+and `fixtures/google-address-validation-intl.json` (BE, NL, DE, FR, GB, LU,
+IE, CA, AU, ES, IT, JP, MX; captured 2026-10-13 from the staging box, since
+the Google key is IP-restricted) hold real API responses. **Run it for any
+change to address parsing** — Newman cannot cover this ground, because Google
+is live and its answer for the same address varies with the request shape.
+
+`address.php` needs a local MySQL (scratch database `cb_address_test`, built
+from the canonical schema) and covers what the parser test cannot: the two
+migrations' data statements replayed verbatim (the US copy and the ISO seed,
+then the fold onto `location`), the nested `address` on POST/PUT/PATCH
+`/location` (merge, replace, clear, atomic create), `Subdivisions::lookup()`
+and the location country gate. No network, no secrets file.
+
+```bash
+php tests/address.php
+```
 
 Every expected value in the table has been checked by a human against what
 USPS and Google actually returned. That is what makes a failure meaningful, so
-when behaviour legitimately changes, edit the expectations by hand rather than
+when behavior legitimately changes, edit the expectations by hand rather than
 pasting in whatever the parser now emits. New address shapes should arrive as
 new fixtures captured from the live API (see `scratch/address-audit/`), not as
 hand-written JSON.

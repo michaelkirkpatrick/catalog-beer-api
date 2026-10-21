@@ -10,17 +10,17 @@ acquired brand that carries on under its own name live on a page of its
 owner's site (Whetstone Beer Co. at https://northchair.com/whetstone-beer/)
 beside the owner's own record at the root. brewer.domainName is therefore
 indexed but not unique; brewer.url stays UNIQUE as the byte-identical
-backstop, so every normalised comparison has to happen here, before the
+backstop, so every normalized comparison has to happen here, before the
 INSERT.
 
   host($url)     the domainName rule: host, lowercased, www. stripped
-  pageKey($url)  host + normalised path (+ query), what "the same page" means
+  pageKey($url)  host + normalized path (+ query), what "the same page" means
   isRoot($url)   the page is the homepage
   conflict()     the brewer this URL collides with, or null
 
 Sharing a domain shares staff, by design: brewery-staff rights come from an
 email-domain match against domainName (Privileges::isBreweryStaff and the
-gates in Brewer/Beer/Location/USAddresses), so an @owner.com address is
+gates in Brewer/Beer/Location/Address), so an @owner.com address is
 staff on every record that stores owner.com — the acquirer managing its
 acquisition. Nothing here touches permissions.
 

@@ -61,7 +61,7 @@ class BrewerLead {
     // The admin user behind the key, once authorised
     private $userID = '';
 
-    // ----- Authorisation -----
+    // ----- Authorization -----
     // Same gate as /review: the key must belong to a user with the admin flag.
     // Master keys are not in api_keys and so are refused; a lead carries a
     // real account as the reviewer who read it.
@@ -286,9 +286,10 @@ class BrewerLead {
         // ISO 3166-2, the form every address object carries (US-OR). A bare
         // region code is accepted and prefixed with the country, since that
         // is what a news article prints and what the agent is likeliest to
-        // send. A US code must be a known state or territory; for any other
-        // country the shape is all the catalog can check, and its country
-        // part must agree with country_code.
+        // send. Where the catalog holds subdivisions for the country (the 40
+        // Google Address Validation regions since October 2026) the code
+        // must be one of them; elsewhere the shape is all it can check. Its
+        // country part must agree with country_code either way.
         $subCode = null;
         if(isset($data->sub_code) && !is_null($data->sub_code) && $data->sub_code !== ''){
             $candidate = strtoupper(TextInput::trim(strval($data->sub_code)));
@@ -299,12 +300,14 @@ class BrewerLead {
                 $messages['sub_code'] = 'sub_code must be an ISO 3166-2 code (US-OR, or OR).';
             }elseif(substr($candidate, 0, 2) !== $countryCode){
                 $messages['sub_code'] = 'sub_code ' . $candidate . ' is not in country_code ' . $countryCode . '.';
-            }elseif($countryCode === 'US'){
+            }elseif(Subdivisions::countrySeeded($countryCode)){
                 $subdivisions = new Subdivisions();
                 if($subdivisions->validate($candidate, false)){
                     $subCode = $candidate;
                 }else{
-                    $messages['sub_code'] = 'sub_code must be a US state or territory code (US-OR, or OR).';
+                    $messages['sub_code'] = $countryCode === 'US'
+                        ? 'sub_code must be a US state or territory code (US-OR, or OR).'
+                        : 'sub_code must be an ISO 3166-2 code of ' . CountryCode::shortName($countryCode) . ' (see GET /location/subdivisions?country=' . $countryCode . ').';
                 }
             }else{
                 $subCode = $candidate;

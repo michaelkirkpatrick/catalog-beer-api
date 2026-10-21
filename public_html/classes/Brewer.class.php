@@ -454,7 +454,7 @@ class Brewer {
                 }
 
                 /*--
-                Validate first, compare after, and normalise '' to null before
+                Validate first, compare after, and normalize '' to null before
                 storing — the same shape beer's abv/ibu use, for three reasons:
 
                 - The column is nullable and PUT clears it to NULL. PATCH wrote
@@ -817,7 +817,7 @@ class Brewer {
         return $fields[$key];
     }
 
-    // Must set $this->status. Normalises to the stored spelling.
+    // Must set $this->status. Normalizes to the stored spelling.
     private function validateStatus(){
         $value = is_string($this->status) ? strtolower(trim($this->status)) : null;
         if(in_array($value, self::STATUSES, true)){
@@ -840,7 +840,7 @@ class Brewer {
     }
 
     /*--
-    $field is 'founded_year' or 'closed_year'; validates and normalises the
+    $field is 'founded_year' or 'closed_year'; validates and normalizes the
     matching property. Year only: that is what every source states ("est.
     2014", "closed in 2023"), and nothing anyone queries needs finer. Accepts
     an integer or a four-digit string; a float, a date, or "2014ish" is
@@ -877,7 +877,7 @@ class Brewer {
 
     /*--
     The two rules that span fields, checked on the effective values after the
-    single-field validators have normalised them. Mirrored by the schema's
+    single-field validators have normalized them. Mirrored by the schema's
     chk_brewer_closed_year and chk_brewer_years, so a request that slipped
     past here would 500 on the write rather than store a contradiction.
     --*/
@@ -1184,7 +1184,7 @@ class Brewer {
 
             if($urlCheck->serving($probe) && !empty($probe['final_url'])){
                 // Where the redirects landed, filtered: adopt only provable
-                // canonicalisation (https, www, trailing slash). An age gate
+                // canonicalization (https, www, trailing slash). An age gate
                 // or cookie wall answers 200 from its own path — storing
                 // that path would bake our cookie jar's state into the
                 // record, unfixably, since re-validating a corrective PATCH
@@ -1736,6 +1736,7 @@ class Brewer {
         $array['location_count'] = $locations['count'];
         if(!empty($locations['geoloc'])){$array['_geoloc'] = $locations['geoloc'];}
         if(!empty($locations['states'])){$array['states'] = $locations['states'];}
+        if(!empty($locations['regions'])){$array['regions'] = $locations['regions'];}
         if(!empty($locations['cities'])){$array['cities'] = $locations['cities'];}
         if(!empty($locations['countries'])){$array['countries'] = $locations['countries'];}
 
@@ -1785,7 +1786,7 @@ class Brewer {
     The reverse of cascadeNameToChildren(): because brewer records denormalize
     their locations' geography (_geoloc / states / cities / location_count), any
     location or address write invalidates the parent. Callers in
-    Location.class.php and USAddresses.class.php use this instead of rebuilding
+    Location.class.php and Address.class.php use this instead of rebuilding
     a Brewer by hand.
 
     Runs on its own instance so validate() failures can't leak error state into
@@ -1836,6 +1837,7 @@ class Brewer {
         $facets = $this->locationFacets();
         $geo = array(
             'states'    => $facets['states'],
+            'regions'   => $facets['regions'],
             'cities'    => $facets['cities'],
             'countries' => $facets['countries']
         );
@@ -1855,7 +1857,7 @@ class Brewer {
     moment a location or address changes. Called from refreshSearchObject()
     when the trigger was a location/address write.
 
-    Always sends all three keys, even when empty — an empty array must
+    Always sends all four keys, even when empty — an empty array must
     propagate so that closing a brewer's last Oregon taproom removes its beers
     from the Oregon facet. One batched call rather than N PUTs.
     */
@@ -1870,6 +1872,7 @@ class Brewer {
         $facets = $this->locationFacets();
         $patch = array(
             'states'    => $facets['states'],
+            'regions'   => $facets['regions'],
             'cities'    => $facets['cities'],
             'countries' => $facets['countries']
         );
@@ -2011,10 +2014,10 @@ class Brewer {
     and ranks against the closest one — exactly the multi-taproom case.
 
     Any location or address write must re-save the parent brewer or these values
-    go stale; see the cascades in Location.class.php and USAddresses.class.php.
+    go stale; see the cascades in Location.class.php and Address.class.php.
     */
     private function locationFacets(){
-        $facets = array('geoloc'=>array(), 'states'=>array(), 'cities'=>array(), 'countries'=>array(), 'count'=>0, 'primary'=>null);
+        $facets = array('geoloc'=>array(), 'states'=>array(), 'regions'=>array(), 'cities'=>array(), 'countries'=>array(), 'count'=>0, 'primary'=>null);
 
         // A brewer being saved for the first time has no locations yet
         if(empty($this->brewerID)){
@@ -2022,7 +2025,7 @@ class Brewer {
         }
 
         $db = new Database();
-        $result = $db->query("SELECT l.latitude, l.longitude, l.countryCode, a.city, a.sub_code FROM location l LEFT JOIN US_addresses a ON a.locationID = l.id WHERE l.brewerID=? ORDER BY l.name", [$this->brewerID]);
+        $result = $db->query("SELECT l.latitude, l.longitude, l.countryCode, l.locality, l.sub_code FROM location l WHERE l.brewerID=? ORDER BY l.name", [$this->brewerID]);
 
         if($db->error){
             // Query Error — degrade to no geo rather than failing the sync
@@ -2049,20 +2052,31 @@ class Brewer {
                 $facets['countries'][] = $row['countryCode'];
             }
 
-            // State — sub_code is 'US-OR'; same substring convention as brewerLocations()
-            $stateShort = !empty($row['sub_code']) ? substr($row['sub_code'], 3, 2) : null;
+            // Region — the ISO 3166-2 code for every country (US-OR, BE-VWV);
+            // `states` keeps the bare US state code the existing facet UI
+            // reads, US rows only. Same values as the location search object.
+            $isUS = Address::isUS($row['countryCode'] ?? '');
+            $stateShort = ($isUS && !empty($row['sub_code'])) ? substr($row['sub_code'], 3, 2) : null;
+            if(!empty($row['sub_code'])){
+                $facets['regions'][] = $row['sub_code'];
+            }
             if(!empty($stateShort)){
                 $facets['states'][] = $stateShort;
             }
 
             // City
-            if(!empty($row['city'])){
-                $facets['cities'][] = $row['city'];
+            if(!empty($row['locality'])){
+                $facets['cities'][] = $row['locality'];
             }
 
-            // Primary — first location by name with a usable "City, ST"
-            if($facets['primary'] === null && !empty($row['city']) && !empty($stateShort)){
-                $facets['primary'] = $row['city'] . ', ' . $stateShort;
+            // Primary — first location by name with a usable place label:
+            // "City, ST" in the US, "City, Country" elsewhere.
+            if($facets['primary'] === null && !empty($row['locality'])){
+                if($isUS && !empty($stateShort)){
+                    $facets['primary'] = $row['locality'] . ', ' . $stateShort;
+                }elseif(!$isUS && !empty($row['countryCode'])){
+                    $facets['primary'] = $row['locality'] . ', ' . CountryCode::shortName($row['countryCode']);
+                }
             }
         }
         $db->close();
@@ -2071,6 +2085,7 @@ class Brewer {
         // value. array_values() re-indexes so these encode as JSON arrays;
         // array_unique() alone leaves gaps that json_encode turns into objects.
         $facets['states'] = array_values(array_unique($facets['states']));
+        $facets['regions'] = array_values(array_unique($facets['regions']));
         $facets['cities'] = array_values(array_unique($facets['cities']));
         $facets['countries'] = array_values(array_unique($facets['countries']));
 
@@ -2156,7 +2171,7 @@ class Brewer {
         // Request count+1 to determine if there are more results
         $fetchCount = $count + 1;
 
-        // Sanitised FULLTEXT query strings (see SearchQuery.class.php)
+        // Sanitized FULLTEXT query strings (see SearchQuery.class.php)
         $searchTerms = SearchQuery::terms($query);
         // Distinctive terms drive the match label only, never the ranking —
         // see SearchQuery::brewerDistinctiveTerms()

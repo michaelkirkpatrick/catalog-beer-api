@@ -35,7 +35,8 @@ ErrorDocument 503 /errors.php?code=503
 # API Endpoints
 RewriteRule ^activity/?$ index.php?endpoint=activity [L]
 
-RewriteRule ^address(\/[-0-9a-f]{36})?$ index.php?endpoint=address&id=$1 [L]
+# Retired in 6.0 (the address rides on /location); answers 404 with a pointer
+RewriteRule ^address(/.*)?$ index.php?endpoint=address [L]
 
 RewriteRule ^brewer/search$ index.php?endpoint=brewer&function=search [QSA,L]
 RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
@@ -70,6 +71,8 @@ RewriteRule ^style/?$ index.php?endpoint=style [L]
 # (count's default matches), an infinite loop for any paginating client above.
 RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [QSA,L]
 RewriteRule ^location/map$ index.php?endpoint=location&function=map [L]
+RewriteRule ^location/countries$ index.php?endpoint=location&function=countries [L]
+RewriteRule ^location/subdivisions$ index.php?endpoint=location&function=subdivisions [QSA,L]
 RewriteRule ^location/nearby$ index.php?endpoint=location&function=nearby [QSA,L]
 RewriteRule ^location/zip$ index.php?endpoint=location&function=zip [QSA,L]
 RewriteRule ^location/city$ index.php?endpoint=location&function=city [QSA,L]

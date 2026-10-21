@@ -67,13 +67,10 @@ $settings = array(
         // brewer.name so a street match never outranks a name match, and
         // above the prose for the same reason descriptions rank last.
         //
-        // address2 is the STREET, not address1 — USPS ordering, which the
-        // rest of USAddresses follows (address2 is the required field; the
-        // "missing the street address" validation fires on it). address1 is
-        // the secondary unit ("Ste 401") and stays unsearchable: nobody
-        // finds a brewery by its suite number.
-        'unordered(address.address2)',
-        'unordered(address.zip5)',
+        // line1 is the street; line2, the secondary unit ("Ste 401"), stays
+        // unsearchable: nobody finds a brewery by its suite number.
+        'unordered(address.line1)',
+        'unordered(address.postal_code)',
         'short_description',
         'description'
     ),
@@ -98,6 +95,9 @@ $settings = array(
         'style_family',
         'style_class',
         'states',
+        // ISO 3166-2 for every country (US-OR, BE-VWV); `states` stays the
+        // bare US code the existing facet UI reads
+        'regions',
         'searchable(cities)',
         'countries',
         'cb_verified',
@@ -171,7 +171,7 @@ $settings = array(
     ),
 
     /*
-    Snippets for the prose fields (~30 words, ellipsised). Beer descriptions
+    Snippets for the prose fields (~30 words, ellipsized). Beer descriptions
     are nearly empty today (~0.2% populated), so result rows treat the snippet
     as a bonus — but styles are well-described and brewers improve with the
     data-quality work, and this setting is what they'll render through.
@@ -192,7 +192,7 @@ $settings = array(
     a near-miss postal code; either it's the code or it isn't.
     */
     'disableTypoToleranceOnAttributes' => array(
-        'address.zip5'
+        'address.postal_code'
     )
 );
 
