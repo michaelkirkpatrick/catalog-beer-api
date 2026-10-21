@@ -1209,6 +1209,32 @@ class Beer {
         return $valid;
     }
 
+    // ?modified_since on GET /beer -- the incremental-sync filter.
+    // Same contract as Brewer::modifiedSince(): inclusive Unix seconds, absent
+    // means no filter, anything malformed (the empty string included) is a 400.
+    private function modifiedSince(){
+        if(!isset($_GET['modified_since'])){
+            return null;
+        }
+        $raw = $_GET['modified_since'];
+        if(is_string($raw) && ctype_digit($raw) && strlen($raw) <= 10){
+            return intval($raw);
+        }
+
+        $this->error = true;
+        $this->errorMsg = 'Sorry, the modified_since value you supplied is invalid. Send a Unix timestamp: the whole number of seconds since 1970-01-01 UTC, such as the last_modified value of a record you already hold.';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 357;
+        $errorLog->errorMsg = 'Invalid modified_since (/beer)';
+        $errorLog->badData = is_string($raw) ? $raw : gettype($raw);
+        $errorLog->filename = 'API / Beer.class.php';
+        $errorLog->write();
+        return null;
+    }
+
     // Get Beer IDs
     //
     // $enriched adds style + a representative SRM to each row (a beer -> style
@@ -1216,7 +1242,10 @@ class Beer {
     // public GET /beer contract stays id/name/last_modified; the website's A-Z
     // beer index uses the enriched shape to render style names + SRM swatches
     // without a per-row fetch. Nothing new is stored — SRM comes from the style.
-    public function getBeers($cursor, $count, $enriched = false){
+    //
+    // $modifiedSince (int|null) keeps only rows with lastModified >= it; the
+    // count and the cursor range are computed over the same filtered set.
+    public function getBeers($cursor, $count, $enriched = false, $modifiedSince = null){
         // Return Array
         $beerArray = array();
 
@@ -1227,7 +1256,7 @@ class Beer {
         if(is_int($offset) && $offset >= 0){
             if(is_int($count)){
                 // Within Limits?
-                $numBeers = $this->countBeers();
+                $numBeers = $this->countBeers($modifiedSince);
                 $this->totalCount = $numBeers;
                 if($offset > $numBeers){
                     // Outside Range
@@ -1290,11 +1319,19 @@ class Beer {
         if(!$this->error){
             // Prep for Database
             $db = new Database();
+            $where = '';
+            $params = [];
+            if($modifiedSince !== null){
+                $where = ' WHERE b.lastModified >= ?';
+                $params[] = $modifiedSince;
+            }
+            $params[] = $offset;
+            $params[] = $count;
             if($enriched){
                 // Master-key only: style name + representative SRM (from the
                 // beer's style) for the website's beer index. LEFT JOIN so beers
                 // with no matched style_id still return (srm/style null).
-                $result = $db->query("SELECT b.id, b.name, b.style, s.srm_min, s.srm_max FROM beer b LEFT JOIN style s ON b.style_id = s.id ORDER BY b.name LIMIT ?, ?", [$offset, $count]);
+                $result = $db->query("SELECT b.id, b.name, b.style, s.srm_min, s.srm_max FROM beer b LEFT JOIN style s ON b.style_id = s.id" . $where . " ORDER BY b.name LIMIT ?, ?", $params);
                 if(!$db->error){
                     while($array = $result->fetch_assoc()){
                         $beerInfo = array(
@@ -1312,7 +1349,7 @@ class Beer {
                     $this->responseCode = $db->responseCode;
                 }
             }else{
-                $result = $db->query("SELECT id, name, lastModified FROM beer ORDER BY name LIMIT ?, ?", [$offset, $count]);
+                $result = $db->query("SELECT b.id, b.name, b.lastModified FROM beer b" . $where . " ORDER BY b.name LIMIT ?, ?", $params);
                 if(!$db->error){
                     while($array = $result->fetch_assoc()){
                         // Beer Info
@@ -1353,9 +1390,9 @@ class Beer {
         return $val;
     }
 
-    public function nextCursor($cursor, $count){
+    public function nextCursor($cursor, $count, $modifiedSince = null){
         // Number of Beers
-        $numBeers = ($this->totalCount > 0) ? $this->totalCount : $this->countBeers();
+        $numBeers = ($this->totalCount > 0) ? $this->totalCount : $this->countBeers($modifiedSince);
 
         // Next Cursor
         $offset = intval(base64_decode($cursor));
@@ -1370,13 +1407,17 @@ class Beer {
     }
 
     // Number of Beers
-    public function countBeers(){
+    public function countBeers($modifiedSince = null){
         // Return
         $count = 0;
 
         // Query Database
         $db = new Database();
-        $result = $db->query("SELECT COUNT(*) AS numBeers FROM beer");
+        if($modifiedSince !== null){
+            $result = $db->query("SELECT COUNT(*) AS numBeers FROM beer WHERE lastModified >= ?", [$modifiedSince]);
+        }else{
+            $result = $db->query("SELECT COUNT(*) AS numBeers FROM beer");
+        }
         if(!$db->error){
             $array = $result->fetch_assoc();
             $count = intval($array['numBeers']);
@@ -2101,15 +2142,25 @@ class Beer {
                             $enriched = true;
                         }
 
+                        // ?modified_since=<unix seconds>: only beers changed at
+                        // or after that moment (see Brewer::modifiedSince() for
+                        // the contract). A malformed value is a 400.
+                        $modifiedSince = $this->modifiedSince();
+
                         // Query
-                        $beerArray = $this->getBeers($cursor, $count, $enriched);
+                        if(!$this->error){
+                            $beerArray = $this->getBeers($cursor, $count, $enriched, $modifiedSince);
+                        }
                         if(!$this->error){
                             // Start JSON
                             $this->json['object'] = 'list';
                             $this->json['url'] = '/beer';
+                            if($modifiedSince !== null){
+                                $this->json['modified_since'] = $modifiedSince;
+                            }
 
                             // Next Cursor
-                            $nextCursor = $this->nextCursor($cursor, $count);
+                            $nextCursor = $this->nextCursor($cursor, $count, $modifiedSince);
                             if(!empty($nextCursor)){
                                 $this->json['has_more'] = true;
                                 $this->json['next_cursor'] = $nextCursor;

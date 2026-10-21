@@ -1393,7 +1393,46 @@ class Brewer {
     }
 
     // Validate Cursor and Count
-    private function validateCursorCount($cursor, $count){
+    // ?modified_since on GET /brewer
+    //
+    // The incremental-sync filter: a client that mirrored the catalog comes
+    // back with the Unix time it last synced and gets only the brewers whose
+    // last_modified is at or after it, instead of re-listing and re-fetching
+    // every brewer. Inclusive on purpose -- a write in the same second as the
+    // client's clock reading is caught, and a duplicate costs a sync nothing
+    // while a miss is a stale record forever. The same value is honoured by
+    // GET /beer and GET /location. What it cannot report is a delete: rows
+    // are hard-deleted, so a mirror learns of one only from a 404 on the
+    // entity itself.
+    //
+    // Returns null when the parameter is absent, the integer when it is well
+    // formed, and sets the error state (400) otherwise. The empty string is
+    // malformed, not absent: a sync client with a broken clock variable must
+    // get a 400, never a quiet download of the whole catalog.
+    private function modifiedSince(){
+        if(!isset($_GET['modified_since'])){
+            return null;
+        }
+        $raw = $_GET['modified_since'];
+        if(is_string($raw) && ctype_digit($raw) && strlen($raw) <= 10){
+            return intval($raw);
+        }
+
+        $this->error = true;
+        $this->errorMsg = 'Sorry, the modified_since value you supplied is invalid. Send a Unix timestamp: the whole number of seconds since 1970-01-01 UTC, such as the last_modified value of a record you already hold.';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 356;
+        $errorLog->errorMsg = 'Invalid modified_since (/brewer)';
+        $errorLog->badData = is_string($raw) ? $raw : gettype($raw);
+        $errorLog->filename = $this->filename;
+        $errorLog->write();
+        return null;
+    }
+
+    private function validateCursorCount($cursor, $count, $modifiedSince = null){
         // Prep Variables
         $offset = intval(base64_decode($cursor));
         $count = intval($count);
@@ -1401,7 +1440,7 @@ class Brewer {
         if(is_int($offset) && $offset >= 0){
             if(is_int($count)){
                 // Within Limits?
-                $numBrewers = $this->countBrewers();
+                $numBrewers = $this->countBrewers($modifiedSince);
                 $this->totalCount = $numBrewers;
                 if($offset > $numBrewers){
                     // Outside Range
@@ -1470,23 +1509,35 @@ class Brewer {
     // API key (see api()), so the public GET /brewer contract stays
     // id/name/last_modified; the website's A-Z brewer index uses the enriched
     // shape to show each brewer's beer count without a per-row fetch.
-    public function getBrewers($cursor, $count, $enriched = false){
+    //
+    // $modifiedSince (int|null) keeps only rows with lastModified >= it; the
+    // page count and the cursor range are computed over the same filtered set,
+    // so paging a filtered list works exactly like paging the whole one.
+    public function getBrewers($cursor, $count, $enriched = false, $modifiedSince = null){
         // Return Array
         $brewerArray = array();
 
         // Validate $cursor and $count
-        $cursorCountArray = $this->validateCursorCount($cursor, $count);
+        $cursorCountArray = $this->validateCursorCount($cursor, $count, $modifiedSince);
         $offset = $cursorCountArray[0];
         $count = $cursorCountArray[1];
 
         if(!$this->error){
             // Prep for Database
             $db = new Database();
+            $where = '';
+            $params = [];
+            if($modifiedSince !== null){
+                $where = ' WHERE lastModified >= ?';
+                $params[] = $modifiedSince;
+            }
+            $params[] = $offset;
+            $params[] = $count;
             if($enriched){
                 // Master-key only: per-brewer beer count for the website's brewer
                 // index. Correlated subquery so the COUNT runs only for the page's
                 // rows (LIMIT bounds the outer scan), not every brewer.
-                $result = $db->query("SELECT b.id, b.name, (SELECT COUNT(*) FROM beer WHERE beer.brewerID = b.id) AS beer_count FROM brewer b ORDER BY b.name LIMIT ?, ?", [$offset, $count]);
+                $result = $db->query("SELECT b.id, b.name, (SELECT COUNT(*) FROM beer WHERE beer.brewerID = b.id) AS beer_count FROM brewer b" . $where . " ORDER BY b.name LIMIT ?, ?", $params);
                 if(!$db->error){
                     while($array = $result->fetch_assoc()){
                         $brewerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'beer_count'=>intval($array['beer_count']));
@@ -1499,7 +1550,7 @@ class Brewer {
                     $this->responseCode = $db->responseCode;
                 }
             }else{
-                $result = $db->query("SELECT id, name, lastModified FROM brewer ORDER BY name LIMIT ?, ?", [$offset, $count]);
+                $result = $db->query("SELECT id, name, lastModified FROM brewer" . $where . " ORDER BY name LIMIT ?, ?", $params);
                 if(!$db->error){
                     while($array = $result->fetch_assoc()){
                         $brewerInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
@@ -1519,9 +1570,9 @@ class Brewer {
         return $brewerArray;
     }
 
-    public function nextCursor($cursor, $count){
+    public function nextCursor($cursor, $count, $modifiedSince = null){
         // Use cached count from validateCursorCount() called by getBrewers()
-        $numBrewers = ($this->totalCount > 0) ? $this->totalCount : $this->countBrewers();
+        $numBrewers = ($this->totalCount > 0) ? $this->totalCount : $this->countBrewers($modifiedSince);
 
         // Next Cursor
         $offset = intval(base64_decode($cursor));
@@ -1536,13 +1587,17 @@ class Brewer {
     }
 
     // Number of Brewers
-    public function countBrewers(){
+    public function countBrewers($modifiedSince = null){
         // Return
         $count = 0;
 
         // Query Database
         $db = new Database();
-        $result = $db->query("SELECT COUNT(*) AS numBrewers FROM brewer");
+        if($modifiedSince !== null){
+            $result = $db->query("SELECT COUNT(*) AS numBrewers FROM brewer WHERE lastModified >= ?", [$modifiedSince]);
+        }else{
+            $result = $db->query("SELECT COUNT(*) AS numBrewers FROM brewer");
+        }
         if(!$db->error){
             $array = $result->fetch_assoc();
             $count = intval($array['numBrewers']);
@@ -2391,14 +2446,24 @@ class Brewer {
                         if(!empty($_GET['enriched']) && in_array($apiKey, unserialize(MASTER_API_KEYS))){
                             $enriched = true;
                         }
-                        $brewerArray = $this->getBrewers($cursor, $count, $enriched);
+                        // ?modified_since=<unix seconds> narrows the list to
+                        // brewers changed at or after that moment (see
+                        // modifiedSince()). A malformed value is a 400, never
+                        // the whole catalog.
+                        $modifiedSince = $this->modifiedSince();
+                        if(!$this->error){
+                            $brewerArray = $this->getBrewers($cursor, $count, $enriched, $modifiedSince);
+                        }
                         if(!$this->error){
                             // Start JSON
                             $this->json['object'] = 'list';
                             $this->json['url'] = '/brewer';
+                            if($modifiedSince !== null){
+                                $this->json['modified_since'] = $modifiedSince;
+                            }
 
                             // Next Cursor
-                            $nextCursor = $this->nextCursor($cursor, $count);
+                            $nextCursor = $this->nextCursor($cursor, $count, $modifiedSince);
                             if(!empty($nextCursor)){
                                 $this->json['has_more'] = true;
                                 $this->json['next_cursor'] = $nextCursor;

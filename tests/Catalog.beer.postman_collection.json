@@ -81270,6 +81270,1241 @@
 									"response": []
 								}
 							]
+						},
+						{
+							"name": "Modified Since",
+							"item": [
+								{
+									"name": "BR-271 Create Brewery #59",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"pm.environment.set('brewer_name_59', pm.variables.replaceIn('[Postman API Test] {{$randomCompanyName}}'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"pm.test(\"Carries a last_modified to sync from\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.object).to.equal('brewer');",
+													"    pm.expect(jsonData.last_modified).to.be.a('number');",
+													"});",
+													"",
+													"// Save Variables: the creation time is the moment a mirror would sync from",
+													"pm.environment.set('brewer_id_59', pm.response.json().id);",
+													"pm.environment.set('ms_since', String(pm.response.json().last_modified));"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{brewer_name_59}}\",\n    \"country_code\": \"BE\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-181 Create Beer #34",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
+													"",
+													"// Body JSON",
+													"var suffix = String(Math.floor(Math.random() * 1000000));",
+													"pm.environment.set('beer_name_34', '[Postman API Test] Tripel ' + suffix);"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('beer_id_34', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"name\": \"{{beer_name_34}}\",\n    \"style\": \"American-Style India Pale Ale\",\n    \"abv\": 9.0,\n    \"brewer_id\": \"{{brewer_id_59}}\"\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-193 Create Location #193 In Belgium",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success - Created (HTTP 201)\", function () {",
+													"    pm.response.to.have.status(201);",
+													"});",
+													"",
+													"// Save Variables",
+													"pm.environment.set('location_id_193', pm.response.json().id);"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											]
+										},
+										"body": {
+											"mode": "raw",
+											"raw": "{\n    \"brewer_id\": \"{{brewer_id_59}}\",\n    \"name\": \"Abdij\",\n    \"country_code\": \"BE\",\n    \"address\": {\n        \"line1\": \"Donkerstraat 12\",\n        \"locality\": \"Westvleteren\",\n        \"postal_code\": \"8640\"\n    }\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-272 Brewers Since The Creation Include Brewery #59",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"A filtered list that carries the new record\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var since = parseInt(pm.environment.get('ms_since'));",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'modified_since', 'has_more', 'data');",
+													"    pm.expect(jsonData.object).to.equal('list');",
+													"    pm.expect(jsonData.url).to.equal('/brewer');",
+													"    pm.expect(jsonData.modified_since).to.equal(since);",
+													"    var ids = jsonData.data.map(function (row) { return row.id; });",
+													"    pm.expect(ids).to.include(pm.environment.get('brewer_id_59'));",
+													"    jsonData.data.forEach(function (row) {",
+													"        pm.expect(row).to.have.all.keys('id', 'name', 'last_modified');",
+													"        pm.expect(row.last_modified).to.be.at.least(since);",
+													"    });",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function(){",
+													"   pm.response.to.have.header(\"content-type\", \"application/json\"); ",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since={{ms_since}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "{{ms_since}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-182 Beers Since The Creation Include Beer #34",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"A filtered list that carries the new record\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var since = parseInt(pm.environment.get('ms_since'));",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'modified_since', 'has_more', 'data');",
+													"    pm.expect(jsonData.object).to.equal('list');",
+													"    pm.expect(jsonData.url).to.equal('/beer');",
+													"    pm.expect(jsonData.modified_since).to.equal(since);",
+													"    var ids = jsonData.data.map(function (row) { return row.id; });",
+													"    pm.expect(ids).to.include(pm.environment.get('beer_id_34'));",
+													"    jsonData.data.forEach(function (row) {",
+													"        pm.expect(row).to.have.all.keys('id', 'name', 'last_modified');",
+													"        pm.expect(row.last_modified).to.be.at.least(since);",
+													"    });",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function(){",
+													"   pm.response.to.have.header(\"content-type\", \"application/json\"); ",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer?modified_since={{ms_since}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "{{ms_since}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-194 Locations Since The Creation Include Location #193",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"A filtered list that carries the new record\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    var since = parseInt(pm.environment.get('ms_since'));",
+													"    pm.expect(jsonData).to.include.all.keys('object', 'url', 'modified_since', 'has_more', 'data');",
+													"    pm.expect(jsonData.object).to.equal('list');",
+													"    pm.expect(jsonData.url).to.equal('/location');",
+													"    pm.expect(jsonData.modified_since).to.equal(since);",
+													"    var ids = jsonData.data.map(function (row) { return row.id; });",
+													"    pm.expect(ids).to.include(pm.environment.get('location_id_193'));",
+													"    jsonData.data.forEach(function (row) {",
+													"        pm.expect(row).to.have.all.keys('id', 'name', 'last_modified');",
+													"        pm.expect(row.last_modified).to.be.at.least(since);",
+													"    });",
+													"});",
+													"",
+													"pm.test(\"Content-Type Header Present\", function(){",
+													"   pm.response.to.have.header(\"content-type\", \"application/json\"); ",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location?modified_since={{ms_since}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "{{ms_since}}"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-273 Brewers Since The Future Is An Empty Page",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"Empty, with has_more false and no cursor\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'modified_since', 'has_more', 'data');",
+													"    pm.expect(jsonData.modified_since).to.equal(4102444800);",
+													"    pm.expect(jsonData.has_more).to.equal(false);",
+													"    pm.expect(jsonData.data).to.be.an('array').that.is.empty;",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since=4102444800",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "4102444800"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-274 Count Pages The Filtered List",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Found OK (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"One row, and a cursor only when there is more\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.data).to.have.lengthOf(1);",
+													"    pm.expect(jsonData.has_more).to.be.a('boolean');",
+													"    if (jsonData.has_more) {",
+													"        pm.expect(jsonData.next_cursor).to.equal('MQ==');",
+													"    } else {",
+													"        pm.expect(jsonData).to.not.have.property('next_cursor');",
+													"    }",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since={{ms_since}}&count=1",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "{{ms_since}}"
+												},
+												{
+													"key": "count",
+													"value": "1"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-275 A Cursor Past The Filtered List Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"The cursor is judged against the filtered count\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('cursor');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since=4102444800&cursor=MQ==",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "4102444800"
+												},
+												{
+													"key": "cursor",
+													"value": "MQ=="
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-276 A Non-Integer modified_since Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"The refusal names modified_since and sends no data\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('modified_since');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since=yesterday",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "yesterday"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-277 A Signed modified_since Is Refused",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"The refusal names modified_since and sends no data\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('modified_since');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer?modified_since=-1",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "-1"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BEER-183 A Non-Integer modified_since Is Refused On /beer",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"The refusal names modified_since and sends no data\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('modified_since');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer?modified_since=1.5",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": "1.5"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "L-195 An Empty modified_since Is Refused On /location",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Bad Request (HTTP 400)\", function () {",
+													"    pm.response.to.have.status(400);",
+													"});",
+													"",
+													"pm.test(\"The refusal names modified_since and sends no data\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+													"    pm.expect(jsonData.error).to.equal(true);",
+													"    pm.expect(jsonData.error_msg).to.include('modified_since');",
+													"});"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/location?modified_since=",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"location"
+											],
+											"query": [
+												{
+													"key": "modified_since",
+													"value": ""
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-278 Delete Brewery #59",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"No Content (HTTP 204)\", function () {",
+													"    pm.response.to.have.status(204);",
+													"});",
+													"",
+													"pm.environment.unset('brewer_name_59');",
+													"pm.environment.unset('beer_name_34');",
+													"pm.environment.unset('beer_id_34');",
+													"pm.environment.unset('location_id_193');",
+													"pm.environment.unset('ms_since');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/brewer/{{brewer_id_59}}",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"brewer",
+												"{{brewer_id_59}}"
+											]
+										}
+									},
+									"response": []
+								}
+							]
 						}
 					]
 				},

@@ -91,6 +91,17 @@ and the location country gate. No network, no secrets file.
 php tests/address.php
 ```
 
+`modified-since.php` needs a local MySQL too (scratch database
+`cb_modified_since_test`) and covers `?modified_since` on `GET /brewer`,
+`/beer` and `/location`: the inclusive filter, paging over the filtered set,
+the empty page's `has_more`, every malformed value as a 400, the master-key
+enriched shapes, and that the canonical schema carries the `lastModified`
+index the filter relies on.
+
+```bash
+php tests/modified-since.php [path/to/catalog-beer-schema.sql]
+```
+
 Every expected value in the table has been checked by a human against what
 USPS and Google actually returned. That is what makes a failure meaningful, so
 when behavior legitimately changes, edit the expectations by hand rather than
