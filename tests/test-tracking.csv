@@ -831,3 +831,17 @@ Address,A-134,Subdivisions Of Belgium,GET,/location/subdivisions?country=be,Admi
 Address,A-135,Subdivisions With A Bad Country,GET,/location/subdivisions?country=XX,Admin,400,Done
 Brewer,BR-269,Brewer Locations Carry Both Vocabularies,GET,/brewer/{brewer_id}/locations,Admin,200,Done
 Brewer,BR-270,Delete Brewery #58,DELETE,/brewer/{brewer_id},Admin,204,Done
+Brewer,BR-271,Create Brewery #59,POST,/brewer,Admin,201,Done
+Beer,BEER-181,Create Beer #34,POST,/beer,Admin,201,Done
+Location,L-193,Create Location #193 In Belgium,POST,/location,Admin,201,Done
+Brewer,BR-272,Brewers Since The Creation Include Brewery #59,GET,/brewer?modified_since={{ms_since}},Admin,200,Done
+Beer,BEER-182,Beers Since The Creation Include Beer #34,GET,/beer?modified_since={{ms_since}},Admin,200,Done
+Location,L-194,Locations Since The Creation Include Location #193,GET,/location?modified_since={{ms_since}},Admin,200,Done
+Brewer,BR-273,Brewers Since The Future Is An Empty Page,GET,/brewer?modified_since=4102444800,Admin,200,Done
+Brewer,BR-274,Count Pages The Filtered List,GET,/brewer?modified_since={{ms_since}}&count=1,Admin,200,Done
+Brewer,BR-275,A Cursor Past The Filtered List Is Refused,GET,/brewer?modified_since=4102444800&cursor=MQ==,Admin,400,Done
+Brewer,BR-276,A Non-Integer modified_since Is Refused,GET,/brewer?modified_since=yesterday,Admin,400,Done
+Brewer,BR-277,A Signed modified_since Is Refused,GET,/brewer?modified_since=-1,Admin,400,Done
+Beer,BEER-183,A Non-Integer modified_since Is Refused On /beer,GET,/beer?modified_since=1.5,Admin,400,Done
+Location,L-195,An Empty modified_since Is Refused On /location,GET,/location?modified_since=,Admin,400,Done
+Brewer,BR-278,Delete Brewery #59,DELETE,/brewer/{brewer_id},Admin,204,Done

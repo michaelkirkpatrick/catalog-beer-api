@@ -1199,7 +1199,33 @@ class Location {
 
     // Validate Cursor and Count
     // Same contract (and shared error numbers 94-97) as the brewer/beer lists.
-    private function validateCursorCount($cursor, $count){
+    // ?modified_since on GET /location -- the incremental-sync filter.
+    // Same contract as Brewer::modifiedSince(): inclusive Unix seconds, absent
+    // means no filter, anything malformed (the empty string included) is a 400.
+    private function modifiedSince(){
+        if(!isset($_GET['modified_since'])){
+            return null;
+        }
+        $raw = $_GET['modified_since'];
+        if(is_string($raw) && ctype_digit($raw) && strlen($raw) <= 10){
+            return intval($raw);
+        }
+
+        $this->error = true;
+        $this->errorMsg = 'Sorry, the modified_since value you supplied is invalid. Send a Unix timestamp: the whole number of seconds since 1970-01-01 UTC, such as the last_modified value of a record you already hold.';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 358;
+        $errorLog->errorMsg = 'Invalid modified_since (/location)';
+        $errorLog->badData = is_string($raw) ? $raw : gettype($raw);
+        $errorLog->filename = 'API / Location.class.php';
+        $errorLog->write();
+        return null;
+    }
+
+    private function validateCursorCount($cursor, $count, $modifiedSince = null){
         // Prep Variables
         $offset = intval(base64_decode($cursor));
         $count = intval($count);
@@ -1207,7 +1233,7 @@ class Location {
         if(is_int($offset) && $offset >= 0){
             if(is_int($count)){
                 // Within Limits?
-                $numLocations = $this->countLocations();
+                $numLocations = $this->countLocations($modifiedSince);
                 $this->totalCount = $numLocations;
                 if($offset > $numLocations){
                     // Outside Range
@@ -1278,19 +1304,30 @@ class Location {
     // location GETs are all geo lookups). name is null when the location has
     // no name of its own (nullable since Jul 2026); consumers that need a
     // display title compose one, as the location page does.
-    public function getLocations($cursor, $count){
+    //
+    // $modifiedSince (int|null) keeps only rows with lastModified >= it; the
+    // count and the cursor range are computed over the same filtered set.
+    public function getLocations($cursor, $count, $modifiedSince = null){
         // Return Array
         $locationArray = array();
 
         // Validate $cursor and $count
-        $cursorCountArray = $this->validateCursorCount($cursor, $count);
+        $cursorCountArray = $this->validateCursorCount($cursor, $count, $modifiedSince);
         $offset = $cursorCountArray[0];
         $count = $cursorCountArray[1];
 
         if(!$this->error){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT id, name, lastModified FROM location ORDER BY name LIMIT ?, ?", [$offset, $count]);
+            $where = '';
+            $params = [];
+            if($modifiedSince !== null){
+                $where = ' WHERE lastModified >= ?';
+                $params[] = $modifiedSince;
+            }
+            $params[] = $offset;
+            $params[] = $count;
+            $result = $db->query("SELECT id, name, lastModified FROM location" . $where . " ORDER BY name LIMIT ?, ?", $params);
             if(!$db->error){
                 while($array = $result->fetch_assoc()){
                     $locationInfo = array('id'=>$array['id'], 'name'=>$array['name'], 'last_modified'=>intval($array['lastModified']));
@@ -1309,9 +1346,9 @@ class Location {
         return $locationArray;
     }
 
-    public function nextCursor($cursor, $count){
+    public function nextCursor($cursor, $count, $modifiedSince = null){
         // Use cached count from validateCursorCount() called by getLocations()
-        $numLocations = ($this->totalCount > 0) ? $this->totalCount : $this->countLocations();
+        $numLocations = ($this->totalCount > 0) ? $this->totalCount : $this->countLocations($modifiedSince);
 
         // Next Cursor
         $offset = intval(base64_decode($cursor));
@@ -1326,13 +1363,17 @@ class Location {
     }
 
     // Number of Locations
-    public function countLocations(){
+    public function countLocations($modifiedSince = null){
         // Return
         $count = 0;
 
         // Query Database
         $db = new Database();
-        $result = $db->query("SELECT COUNT(*) AS numLocations FROM location");
+        if($modifiedSince !== null){
+            $result = $db->query("SELECT COUNT(*) AS numLocations FROM location WHERE lastModified >= ?", [$modifiedSince]);
+        }else{
+            $result = $db->query("SELECT COUNT(*) AS numLocations FROM location");
+        }
         if(!$db->error){
             $array = $result->fetch_assoc();
             $count = intval($array['numLocations']);
@@ -2061,14 +2102,23 @@ class Location {
                     if($count === null){
                         $count = 500;
                     }
-                    $locationArray = $this->getLocations($cursor, $count);
+                    // ?modified_since=<unix seconds>: only locations changed at
+                    // or after that moment (see Brewer::modifiedSince() for
+                    // the contract). A malformed value is a 400.
+                    $modifiedSince = $this->modifiedSince();
+                    if(!$this->error){
+                        $locationArray = $this->getLocations($cursor, $count, $modifiedSince);
+                    }
                     if(!$this->error){
                         // Start JSON
                         $this->json['object'] = 'list';
                         $this->json['url'] = '/location';
+                        if($modifiedSince !== null){
+                            $this->json['modified_since'] = $modifiedSince;
+                        }
 
                         // Next Cursor
-                        $nextCursor = $this->nextCursor($cursor, $count);
+                        $nextCursor = $this->nextCursor($cursor, $count, $modifiedSince);
                         if(!empty($nextCursor)){
                             $this->json['has_more'] = true;
                             $this->json['next_cursor'] = $nextCursor;
