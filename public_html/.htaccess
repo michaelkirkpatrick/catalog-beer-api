@@ -85,6 +85,11 @@ RewriteRule ^login$ index.php?endpoint=login [L]
 
 RewriteRule ^metrics/?$ index.php?endpoint=metrics [L]
 
+# /news posts and the API changelog (Post.class.php). Reads are public, writes
+# admin-only. QSA on the list rule carries channel=, status=, count=, cursor=.
+RewriteRule ^post/(news|api)/([a-z0-9.-]+)$ index.php?endpoint=post&function=channel&channel=$1&slug=$2 [L]
+RewriteRule ^post(\/[-0-9a-f]{36})?$ index.php?endpoint=post&id=$1 [QSA,L]
+
 # The brewer review loop's queue and record (Review.class.php). Admin-only.
 RewriteRule ^review/claim$ index.php?endpoint=review&function=claim [L]
 RewriteRule ^review(\/[-0-9a-f]{36})?$ index.php?endpoint=review&id=$1 [QSA,L]
