@@ -1739,6 +1739,18 @@ class Address {
             $this->responseCode = 400;
             $this->logError(65, 'Invalid telephone number', "telephone: $raw / countryCode: " . $this->countryCode);
             $this->telephone = null;
+        }elseif(Telephone::lengthKnown($e164) === false){
+            // Readable, but not a length the number's own country issues: a
+            // digit dropped or doubled. The check is only on length (see
+            // Telephone::lengthKnown) so a real number is never refused by a
+            // stale table.
+            $parts = Telephone::parse($e164);
+            $this->error = true;
+            $this->validState['telephone'] = 'invalid';
+            $this->validMsg['telephone'] = 'The telephone number you submitted has ' . strlen($parts['nsn']) . ' digits after the +' . $parts['cc'] . ' country code, which is not a length ' . (Telephone::countryName($e164) ?? 'that country') . ' issues. Please check it for a missing or extra digit.';
+            $this->responseCode = 400;
+            $this->logError(346, 'Telephone number of a length its country does not issue', "telephone: $raw / e164: $e164 / countryCode: " . $this->countryCode);
+            $this->telephone = null;
         }else{
             $this->telephone = $e164;
         }
@@ -1809,6 +1821,11 @@ class Address {
             'formatted' => is_array($this->formatted) ? array_values($this->formatted) : null,
             'language_code' => $nullable($this->languageCode),
             'telephone' => $nullable($this->telephone),
+            // The same number the way its country writes it, grouped from the
+            // numbering plan (Telephone.class.php); the E.164 string when the
+            // calling code is one we hold no plan for.
+            'telephone_formatted' => $nullable($this->telephone) === null ? null : (Telephone::formatInternational($this->telephone) ?? $this->telephone),
+            'telephone_national' => $nullable($this->telephone) === null ? null : (Telephone::formatNational($this->telephone) ?? $this->telephone),
             'admin_area' => $this->sub_code === '' ? null : array(
                 'sub_code' => $this->sub_code,
                 'name' => $nullable($this->subName),

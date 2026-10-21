@@ -1824,7 +1824,12 @@ class Location {
             $array['address']['locality'] = $address->locality;
             if($address->sub_code !== ''){$array['address']['sub_code'] = $address->sub_code;}
             if($address->postalCode !== ''){$array['address']['postal_code'] = $address->postalCode;}
-            if(!empty($address->telephone)){$array['address']['telephone'] = $address->telephone;}
+            if(!empty($address->telephone)){
+                $array['address']['telephone'] = $address->telephone;
+                // Display forms, so the results page needn't regroup the digits.
+                $array['address']['telephone_formatted'] = Telephone::formatInternational($address->telephone) ?? $address->telephone;
+                $array['address']['telephone_national'] = Telephone::formatNational($address->telephone) ?? $address->telephone;
+            }
         }
         // Geography under the same facet names brewers and beers use, so one
         // states/regions/cities/countries refinement works across all record

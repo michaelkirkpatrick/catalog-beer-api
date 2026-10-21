@@ -69,6 +69,17 @@ the Google key is IP-restricted) hold real API responses. **Run it for any
 change to address parsing** — Newman cannot cover this ground, because Google
 is live and its answer for the same address varies with the request shape.
 
+`telephone.php` covers `Telephone` (an E.164 number written the way its
+country writes it: `telephone_formatted` / `telephone_national`) and the
+generated `TelephoneMetadata` table it reads. Expected layouts are each
+country's own convention, checked by a person; when a metadata rebuild
+(`tools/build-telephone-metadata.py`) changes one, decide which side is right
+before editing it.
+
+```bash
+php tests/telephone.php            # 40-country table check, ~55 numbers, length gate, exit 1 on failure
+```
+
 `address.php` needs a local MySQL (scratch database `cb_address_test`, built
 from the canonical schema) and covers what the parser test cannot: the two
 migrations' data statements replayed verbatim (the US copy and the ISO seed,
