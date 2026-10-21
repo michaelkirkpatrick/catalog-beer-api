@@ -5,6 +5,7 @@ Posts: the frontend's /news announcements and the API changelog at /changelog.
   GET    /post?channel=&count=&cursor=   published posts, newest first; any key
   GET    /post?status=draft|all          admin only: drafts for the editor
   GET    /post/{id}                      one post; a draft is 404 unless admin
+                                         AND ?status=all (or draft) is sent
   GET    /post/{channel}/{slug}          the same, by the URL the site shows
   POST   /post                           admin only
   PATCH  /post/{id}                      admin only; partial update
@@ -13,12 +14,20 @@ Posts: the frontend's /news announcements and the API changelog at /changelog.
 Two channels. `news` is prose for everyone; `api` is one row per
 catalog-beer-api release and the only channel that carries a `version` or a
 `breaking` flag. The table is described in
-catalog-beer-mysql/migrations/2026-10-17-post.sql.
+catalog-beer-mysql/migrations/2026-10-17-post.sql (authorUserID dropped
+2026-10-21: any admin edits any post, so the column answered nothing).
 
-`body` is HTML written by an admin and emitted raw by the frontend. That is
-safe for the same reason Alert::$msg is on the frontend: only an admin key can
-write it, so whoever writes a post could already write raw HTML into the
-codebase. Everything else here is plain text and is escaped on output.
+`body` is Markdown written by an admin; the frontend renders it with
+Parsedown, raw HTML inside it allowed. That is safe for the same reason
+Alert::$msg is on the frontend: only an admin key can write it, so whoever
+writes a post could already write raw HTML into the codebase. The API stores
+and returns the Markdown as written. Everything else here is plain text and
+is escaped on output.
+
+Drafts are opt-in by request, never by key alone: an admin sees them only
+when the request says ?status=all or ?status=draft. The website reads every
+public page with the master key, whose account is an admin, and never sends
+status=, so a draft cannot reach a public page however its slug is guessed.
 
 `published_at` is the date a reader sees, not the date the row was written,
 so a release can be back-dated to the day it was pushed. Publishing without
@@ -48,31 +57,32 @@ class Post {
 
     // Set by checkAdmin()
     private $isAdmin = false;
-    private $userID = null;
 
     const COLUMNS = "id, channel, slug, title, summary, body, version, breaking+0 AS breaking, status, publishedAt, createdAt, lastModified";
 
     // ----- Authorisation -----
     // Reads are open to any key, so being a non-admin is not an error here --
-    // it only decides whether drafts are visible. Writes call requireAdmin().
-    //
-    // A master key is never an admin here, even though its account carries
-    // the admin flag (POST /login requires it). The website reads every
-    // public page with the master key, so if it counted, /news/{slug} would
-    // render a draft to anyone who guessed the slug. The admin editor reads
-    // and writes with the signed-in admin's own key instead.
+    // it only decides whether drafts can be asked for. Writes call
+    // requireAdmin(). An admin is any key whose account carries the admin
+    // flag, master keys included: until 2026-10-21 the master key was
+    // excluded to keep drafts off the public pages, which locked the
+    // master-key account out of its own editor. showDrafts() carries that
+    // protection now.
     private function checkAdmin($apiKey){
-        if(in_array($apiKey, unserialize(MASTER_API_KEYS), true)){
-            return;
-        }
         $apiKeys = new apiKeys();
         if($apiKeys->validate($apiKey, true)){
             $users = new Users();
             if($users->validate($apiKeys->userID, true) && $users->admin){
                 $this->isAdmin = true;
-                $this->userID = $apiKeys->userID;
             }
         }
+    }
+
+    // Drafts are shown only to an admin who asked for them with ?status=all
+    // or ?status=draft. A read without status= is a public read whatever the
+    // key, so the website's master-key pages can never render one.
+    private function showDrafts(){
+        return $this->isAdmin && in_array($_GET['status'] ?? 'published', array('draft', 'all'), true);
     }
 
     private function requireAdmin($apiKey, $context){
@@ -206,7 +216,10 @@ class Post {
     }
 
     // ----- GET /post/{id}, GET /post/{channel}/{slug} -----
-    public function get($postID, $channel = null, $slug = null){
+    // $includeDrafts is for the writes: PATCH, DELETE and the read-back after
+    // a save already passed requireAdmin() and must find a draft whatever the
+    // query string says. A GET request never sets it.
+    public function get($postID, $channel = null, $slug = null, $includeDrafts = false){
         $db = new Database();
         if(is_null($channel)){
             $result = $db->query("SELECT " . self::COLUMNS . " FROM post WHERE id=?", [$postID]);
@@ -221,9 +234,9 @@ class Post {
         $row = $result->num_rows === 1 ? $result->fetch_assoc() : null;
         $db->close();
 
-        // A draft is invisible to everyone but an admin, so a non-admin learns
-        // nothing from guessing an id or a slug.
-        if(is_null($row) || ($row['status'] === 'draft' && !$this->isAdmin)){
+        // A draft is invisible unless an admin asked for drafts, so nobody
+        // learns anything from guessing an id or a slug.
+        if(is_null($row) || ($row['status'] === 'draft' && !$includeDrafts && !$this->showDrafts())){
             $this->notFound(is_null($channel) ? $postID : "$channel/$slug", 'GET /post');
             return;
         }
@@ -313,7 +326,7 @@ class Post {
         $patch = $method === 'PATCH';
         $existing = null;
         if($patch){
-            $this->get($postID);
+            $this->get($postID, null, null, true);
             if($this->error){
                 return;
             }
@@ -448,8 +461,8 @@ class Post {
         }else{
             $uuid = new uuid();
             $postID = $uuid->generate('post');
-            $db->query("INSERT INTO post (id, channel, slug, title, summary, body, version, breaking, status, publishedAt, authorUserID, createdAt, lastModified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [$postID, $channel, $slug, $title, $summary, $body, $version, $breaking ? 1 : 0, $status, $publishedAt, $this->userID, $now, $now]);
+            $db->query("INSERT INTO post (id, channel, slug, title, summary, body, version, breaking, status, publishedAt, createdAt, lastModified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$postID, $channel, $slug, $title, $summary, $body, $version, $breaking ? 1 : 0, $status, $publishedAt, $now, $now]);
         }
         if($db->error){
             $this->dbError($db, "$method /post");
@@ -458,7 +471,7 @@ class Post {
         }
         $db->close();
 
-        $this->get($postID);
+        $this->get($postID, null, null, true);
         if(!$this->error && !$patch){
             $this->responseCode = 201;
             $this->responseHeader = 'Location: ' . $this->json['url'];
@@ -467,7 +480,7 @@ class Post {
 
     // ----- DELETE /post/{id} -----
     public function delete($postID){
-        $this->get($postID);
+        $this->get($postID, null, null, true);
         if($this->error){
             return;
         }

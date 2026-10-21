@@ -10,8 +10,10 @@ The schema path defaults to ../catalog-beer-mysql/catalog-beer-schema.sql.
 Connection defaults to root@127.0.0.1 with no password (Homebrew MySQL);
 override with CB_TEST_DB_HOST / CB_TEST_DB_USER / CB_TEST_DB_PASSWORD.
 
-What it proves: only an admin key writes; reads are open but a draft is
-invisible to a non-admin by id, by slug and in the list; the channel rules
+What it proves: only an admin key writes, the master key's admin account
+included; reads are open but a draft is invisible to a non-admin by id, by
+slug and in the list, and invisible to an admin too unless the request says
+?status=all, so the website's master-key reads never see one; the channel rules
 (version and breaking are api-only, version required there) hold; slugs
 default to v{version} and to the title; publishing stamps published_at and a
 published post cannot lose it; slug and version conflicts are 409s that name
@@ -29,7 +31,8 @@ define('DB_USER', getenv('CB_TEST_DB_USER') ?: 'root');
 define('DB_PASSWORD', getenv('CB_TEST_DB_PASSWORD') ?: '');
 define('DB_NAME', 'cb_post_test');
 // The site reads with a master key whose account is an admin (POST /login
-// needs one). It must still never see a draft.
+// needs one). It is an admin like any other, but its public reads never send
+// status=, so they must never see a draft.
 define('MASTER_API_KEYS', serialize(array('bbbbbbbb-0000-4000-8000-000000000003')));
 date_default_timezone_set('America/Los_Angeles');
 spl_autoload_register(function ($c) { require_once ROOT . '/classes/' . $c . '.class.php'; });
@@ -129,17 +132,27 @@ check("draft by id, non-admin -> 404", $code === 404);
 [$code, $j] = call('GET', 'channel', '', $PLAIN, null, ['channel' => 'news', 'slug' => 'brewers-status-years']);
 check("draft by slug, non-admin -> 404", $code === 404);
 [$code, $j] = call('GET', '', $DRAFT, $ADMIN);
-check("draft by id, admin -> 200", $code === 200 && $j['title'] === "Brewers' Status & Years");
+check("draft by id, admin without status= -> 404 (a public read)", $code === 404);
+[$code, $j] = call('GET', '', $DRAFT, $ADMIN, null, ['status' => 'all']);
+check("draft by id, admin with status=all -> 200", $code === 200 && $j['title'] === "Brewers' Status & Years");
+[$code, $j] = call('GET', '', $DRAFT, $PLAIN, null, ['status' => 'all']);
+check("draft by id, non-admin with status=all -> still 404", $code === 404);
 [$code, $j] = call('GET', '', '', $PLAIN, null, ['status' => 'draft']);
 check("non-admin listing drafts -> 403", $code === 403);
+// The master key: an admin, so it edits like one, but a read without
+// status= is a public read and the website's pages send none.
 [$code, $j] = call('GET', 'channel', '', $MASTER, null, ['channel' => 'news', 'slug' => 'brewers-status-years']);
-check("draft by slug, master key of an admin account -> 404", $code === 404);
+check("draft by slug, master key, no status= -> 404", $code === 404);
 [$code, $j] = call('GET', '', $DRAFT, $MASTER);
-check("draft by id, master key -> 404", $code === 404);
+check("draft by id, master key, no status= -> 404", $code === 404);
+[$code, $j] = call('GET', '', $DRAFT, $MASTER, null, ['status' => 'all']);
+check("draft by id, master key with status=all -> 200", $code === 200);
 [$code, $j] = call('GET', '', '', $MASTER, null, ['status' => 'all']);
-check("master key listing drafts -> 403", $code === 403);
-[$code, $j] = call('POST', '', '', $MASTER, (object)['channel' => 'news', 'title' => 'Hi', 'body' => 'x']);
-check("master key cannot write -> 401", $code === 401);
+check("master key listing drafts -> 200 with the draft in it", $code === 200 && in_array($DRAFT, array_column($j['data'], 'id'), true));
+[$code, $j] = call('POST', '', '', $MASTER, (object)['channel' => 'news', 'title' => 'From the master key', 'body' => '# Hi']);
+check("master key writes like any admin -> 201", $code === 201);
+[$code] = call('DELETE', '', $j['id'] ?? '', $MASTER);
+check("...and deletes its own post -> 204", $code === 204);
 
 // 6. list: published only, newest first, channel filter, pagination
 [$code, $j] = call('GET', '', '', $PLAIN);
@@ -192,10 +205,11 @@ check("PUT -> 405 with Allow", $code === 405 && str_starts_with($hdr, 'Allow:'))
 [$code, $j] = call('GET', 'channel', '', $PLAIN, null, ['channel' => 'beer', 'slug' => 'x']);
 check("unknown channel in path -> 404", $code === 404);
 
-// 11. deleting the author keeps the posts
+// 11. posts belong to nobody: deleting the admin who wrote them changes nothing
 $admin->query("DELETE FROM users WHERE id='aaaaaaaa-0000-4000-8000-000000000001'");
-$left = $admin->query("SELECT COUNT(*) AS n, SUM(authorUserID IS NULL) AS orphaned FROM post")->fetch_assoc();
-check("author delete keeps every post, author nulled", intval($left['n']) === 4 && intval($left['orphaned']) === 4);
+$left = $admin->query("SELECT COUNT(*) AS n FROM post")->fetch_assoc();
+check("deleting the writing admin keeps every post", intval($left['n']) === 4);
+check("schema carries no authorUserID", $admin->query("SHOW COLUMNS FROM post LIKE 'authorUserID'")->num_rows === 0);
 
 $admin->query("DROP DATABASE " . DB_NAME);
 echo $fails === 0 ? "\nall checks passed\n" : "\n$fails check(s) FAILED\n";
