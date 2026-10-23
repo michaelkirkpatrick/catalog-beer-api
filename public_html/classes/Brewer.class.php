@@ -23,7 +23,6 @@ class Brewer {
     public $closedYear = null;          // Optional; needs status 'closed'
     public $countryCode = 'US';
     public $urlStatus = '';             // Internal — never in the brewer object
-    private $urlNote = '';              // Write-only curation note — never in the brewer object
     public $lastModified = 0;
 
     const STATUSES = array('active', 'closed');
@@ -52,7 +51,7 @@ class Brewer {
     from $patchFields. Kept out of the positional list because nine positional
     arguments was already the limit of readable.
     --*/
-    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields, $urlNote = '', $fields = array()){
+    public function add($name, $description, $shortDescription, $url, $userID, $method, $brewerID, $patchFields, $fields = array()){
 
         // Required Classes
         $db = new Database();
@@ -65,7 +64,6 @@ class Brewer {
         $urlVerified = false;
         $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
         $originalURL = null;    // Set on PUT/PATCH of an existing brewer — a changed URL resets the url-monitoring columns
-        $originalURLStatus = null;  // The monitoring verdict the URL change is reacting to; recorded in brewer_url_history
         $originalStatus = null;     // Set on PUT/PATCH of an existing brewer; a reopen clears closedYear
         switch($method){
             case 'POST':
@@ -96,7 +94,6 @@ class Brewer {
                     $originalName = $this->name;
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
-                    $originalURLStatus = $this->urlStatus;
                     $originalStatus = $this->status;
                 }else{
                     // Brewer doesn't exist, they'd like to add it
@@ -135,7 +132,6 @@ class Brewer {
                     $originalName = $this->name;
                     // Save original URL to detect a change — drives the url-monitoring reset below
                     $originalURL = $this->url;
-                    $originalURLStatus = $this->urlStatus;
                     $originalStatus = $this->status;
                 }
                 break;
@@ -320,18 +316,6 @@ class Brewer {
         if(!$this->error){
             // Track whether we should run the query
             $runQuery = false;
-
-            /*--
-            url_note reaches every write method, so validate it once here rather
-            than in each branch. Gated on admin because that is the only case
-            where the note is kept — a non-admin's note is dropped at the
-            logURLChange() call below and never stored, so validating it would
-            reject a request over a value we were going to discard anyway.
-            --*/
-            if($users->admin){
-                $this->urlNote = $urlNote;
-                $this->validateURLNote();
-            }
 
             if($method == 'POST' || $method == 'PUT'){
                 // Validate Name
@@ -566,8 +550,8 @@ class Brewer {
                     are still whatever the row already held — report those, not
                     the values the admin branch put in memory further up.
 
-                    Without this, an admin PATCH of url_note alone (or of {})
-                    came back cb_verified: true over a row that still said false,
+                    Without this, an admin PATCH of {} (or one whose values all
+                    matched) came back cb_verified: true over a row that still said false,
                     because the response is rendered from class state. The stored
                     value was the correct one: a note about a URL change is not a
                     review of the record, so it should not verify it. Only the
@@ -613,20 +597,6 @@ class Brewer {
                             $this->cascadeNameToChildren();
                         }
 
-                        /*--
-                        Record the URL change, after the row is updated so a
-                        failed write leaves no phantom entry. Loose != so an
-                        unchanged URL is not logged and a NULL original equals an
-                        empty submission — a brewer whose URL we cleared earlier
-                        has a NULL original, and gaining a URL back is a real
-                        change worth recording.
-                        --*/
-                        if($this->url != $originalURL){
-                            // url_note is a curation field: admins only. It is
-                            // never echoed back, so there is nothing for a
-                            // general key to gain by writing to it.
-                            self::logURLChange($this->brewerID, $originalURL, $this->url, $originalURLStatus, 'api', ($users->admin ? $this->urlNote : null), $userID);
-                        }
                     }
 
                     // Add Privileges?
@@ -944,88 +914,6 @@ class Brewer {
     }
 
     /*--
-    url_note is write-only curation metadata: admins only, never echoed back,
-    and stored on the brewer_url_history row rather than on the brewer. It was
-    the one writable free-text field with no trim and no length check — an
-    overlong note was silently byte-truncated on its way into the history row.
-
-    Reported through errorMsg rather than validMsg because validState/validMsg
-    mirror the fields of the brewer object, and url_note is not one of them.
-    Adding a key there would also change the shape of every brewer 400.
-    --*/
-    private function validateURLNote(){
-        $this->urlNote = TextInput::trim($this->urlNote);
-
-        if($this->urlNote === ''){
-            return;
-        }
-
-        // Single line. Reported through errorMsg for the same reason as the
-        // length failure below — url_note is not a field of the brewer object.
-        $problem = TextInput::check($this->urlNote);
-        if($problem !== ''){
-            $this->error = true;
-            $this->errorMsg = $problem;
-            $this->responseCode = 400;
-
-            // Log Error
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 305;
-            $errorLog->errorMsg = 'Forbidden characters in brewer url_note';
-            $errorLog->badData = $this->urlNote;
-            $errorLog->filename = $this->filename;
-            $errorLog->write();
-            return;
-        }
-
-        /*--
-        Count characters, not bytes: the note column is varchar(255) and MySQL
-        measures varchar in characters. preg_match_all() returns false only on
-        malformed UTF-8, which index.php has already rejected before we get
-        here — so treating that as invalid is the safe reading.
-        --*/
-        $length = preg_match_all('/./us', $this->urlNote);
-
-        if($length !== false && $length <= 255){
-            return;
-        }
-
-        // Note Too Long
-        $this->error = true;
-        $this->errorMsg = 'Sorry, the note explaining this URL change is too long. Notes are limited to 255 characters. Any chance you can shorten it?';
-        $this->responseCode = 400;
-
-        // Log Error
-        $errorLog = new LogError();
-        $errorLog->errorNumber = 304;
-        $errorLog->errorMsg = 'Brewer url_note too long (>255 characters)';
-        $errorLog->badData = $this->urlNote;
-        $errorLog->filename = $this->filename;
-        $errorLog->write();
-    }
-
-    /*--
-    Trim a note to the note column's 255 characters without splitting a
-    multibyte character. substr() counts bytes, so it could hand bind_param a
-    dangling lead byte — MySQL then rejects the row with error 1366 and the
-    history entry is lost silently, since logURLChange() only logs that failure
-    rather than surfacing it. mb_substr() is not an option: production has no
-    mbstring extension.
-
-    validateURLNote() already 400s an overlong note from the API, so this is the
-    backstop for the other callers of the public static logURLChange().
-    --*/
-    private static function truncateNote($note){
-        if(preg_match('/^.{0,255}/us', $note, $match)){
-            return $match[0];
-        }
-
-        // Malformed UTF-8 would fail in MySQL the same way, so drop the note
-        // rather than lose the whole history row with it.
-        return null;
-    }
-
-    /*--
     Builds the url/domainName/url-monitoring half of an UPDATE for PUT and PATCH.
     $this->url and $this->domainName must already be validated. Appends to
     $setClauses/$setParams by reference so both callers stay in step — the two
@@ -1077,50 +965,6 @@ class Brewer {
             $setClauses[] = 'urlFinal=NULL';
             $setClauses[] = 'urlLastKnown=NULL';
         }
-    }
-
-    /*--
-    Append-only record of every change to a brewer's URL, so a future reader can
-    tell "this brewery has no website" from "this brewery's domain lapsed in 2019
-    and now redirects to a casino, don't go looking". Never blocks the write it
-    describes: a failure here is logged and swallowed.
-
-    $verdict is the urlStatus the change reacted to; $source is 'api', 'cron' or
-    'cleanup'; $changedBy is the acting userID, or null for the cron.
-    --*/
-    public static function logURLChange($brewerID, $oldURL, $newURL, $verdict, $source, $note = null, $changedBy = null){
-        if(empty($brewerID)){
-            return;
-        }
-
-        $db = new Database();
-        if($db->error){
-            return;
-        }
-
-        $db->query("INSERT INTO brewer_url_history (brewerID, oldURL, newURL, verdict, source, note, changedBy, changedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
-            $brewerID,
-            !empty($oldURL) ? $oldURL : null,
-            !empty($newURL) ? $newURL : null,
-            !empty($verdict) ? $verdict : null,
-            $source,
-            !empty($note) ? self::truncateNote($note) : null,
-            !empty($changedBy) ? $changedBy : null,
-            time()
-        ]);
-
-        if($db->error){
-            // Database::query() already logged the SQL detail. Note the context
-            // here so a missing history row is traceable to the brewer.
-            $errorLog = new LogError();
-            $errorLog->errorNumber = 288;
-            $errorLog->errorMsg = 'Failed to record brewer URL history';
-            $errorLog->badData = "Brewer: $brewerID / Old: $oldURL / New: $newURL";
-            $errorLog->filename = 'API / Brewer.class.php';
-            $errorLog->write();
-        }
-
-        $db->close();
     }
 
     public function validateURL($url, $type, $class){
@@ -1287,7 +1131,7 @@ class Brewer {
 
     /*--
     The domainName rule (host, lowercased, www. stripped), delegated to
-    BrewerUrl so Brewer, BrewerLead and the tests agree on it. Pure: no
+    BrewerUrl so Brewer and the tests agree on it. Pure: no
     database, no error state. It is also called from the permissions block
     on the raw, not yet validated URL, where a scheme-less "northchair.com"
     used to reach parse_url() without a scheme and 500 — BrewerUrl::host()
@@ -2507,10 +2351,9 @@ class Brewer {
                 if(empty($data->description)){$data->description = '';}
                 if(empty($data->short_description)){$data->short_description = '';}
                 if(empty($data->url)){$data->url = '';}
-                if(empty($data->url_note)){$data->url_note = '';}
 
                 // Add Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array(), $data->url_note, $this->statusFields($data));
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'POST', '', array(), $this->statusFields($data));
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -2531,10 +2374,9 @@ class Brewer {
                 if(empty($data->description)){$data->description = '';}
                 if(empty($data->short_description)){$data->short_description = '';}
                 if(empty($data->url)){$data->url = '';}
-                if(empty($data->url_note)){$data->url_note = '';}
 
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array(), $data->url_note, $this->statusFields($data));
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PUT', $id, array(), $this->statusFields($data));
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);
@@ -2582,16 +2424,8 @@ class Brewer {
                 $fields = $this->statusFields($data);
                 foreach(array_keys($fields) as $field){$patchFields[] = $field;}
 
-                /*--
-                url_note is write-only and admin-only: a short reason recorded
-                against the URL change in brewer_url_history ("domain lapsed,
-                now a casino"). It is not a brewer field, so it never joins
-                $patchFields and never appears in the response.
-                --*/
-                if(empty($data->url_note)){$data->url_note = '';}
-
                 // Update Brewer
-                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields, $data->url_note, $fields);
+                $this->add($data->name, $data->description, $data->short_description, $data->url, $apiKeys->userID, 'PATCH', $id, $patchFields, $fields);
                 if(!$this->error){
                     // Generate Brewer Object JSON
                     $this->generateBrewerObject(true);

@@ -44,7 +44,6 @@ RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/beer$ index.php?endpoint=brewer&id=$1&function=beer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/locations$ index.php?endpoint=brewer&id=$1&function=locations [L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})/permissions$ index.php?endpoint=brewer&id=$1&function=permissions [L]
-RewriteRule ^brewer(\/[-0-9a-f]{36})/review$ index.php?endpoint=review&id=$1&function=brewer [QSA,L]
 RewriteRule ^brewer(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer&id=$1 [L]
 RewriteRule ^brewer/count$ index.php?endpoint=brewer&function=count [L]
 
@@ -90,15 +89,8 @@ RewriteRule ^metrics/?$ index.php?endpoint=metrics [L]
 RewriteRule ^post/(news|api)/([a-z0-9.-]+)$ index.php?endpoint=post&function=channel&channel=$1&slug=$2 [L]
 RewriteRule ^post(\/[-0-9a-f]{36})?$ index.php?endpoint=post&id=$1 [QSA,L]
 
-# The brewer review loop's queue and record (Review.class.php). Admin-only.
-RewriteRule ^review/claim$ index.php?endpoint=review&function=claim [L]
-RewriteRule ^review(\/[-0-9a-f]{36})?$ index.php?endpoint=review&id=$1 [QSA,L]
-
-# The review loop's lead queue (BrewerLead.class.php). Admin-only. Kept out of
-# the ^brewer block above: none of those rules admit a hyphen, but a reader
-# scanning for /brewer routes should not find this one among them.
-RewriteRule ^brewer-lead/claim$ index.php?endpoint=brewer-lead&function=claim [L]
-RewriteRule ^brewer-lead(\/[-0-9a-f]{36})?$ index.php?endpoint=brewer-lead&id=$1 [QSA,L]
+# /review and /brewer-lead moved to the review service (review.catalog.beer,
+# repo catalog-beer-review) on 2026-10-23 and now fall through to the 404.
 
 RewriteRule ^usage/my-usage/?$ index.php?endpoint=usage&function=my-usage [L]
 RewriteRule ^usage/?$ index.php?endpoint=usage [L]
