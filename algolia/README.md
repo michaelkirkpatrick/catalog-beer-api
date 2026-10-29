@@ -40,7 +40,7 @@ php /var/www/html/api.catalog.beer/algolia/batch-upload.php [staging|production]
 
 **A record's `objectID` is the entity's own id**: a beer, brewer or location is indexed under its UUID, a style under `style-<slug>`. UUIDs don't collide across the three entity types, so the combined index needs no separate key, and every sync, cascade and delete addresses Algolia by the id it already has.
 
-Until 2026-10-29 each entity carried a second random UUID in a local `algolia` table (`algolia_id` → `beer_id`/`brewer_id`/`location_id`), looked up on every save and delete. The table held 209k rows (81 MB) and existed only for that indirection. The re-key: deploy, run `batch-upload.php` (writes every record under its new id — the index briefly holds both copies, so search shows duplicates for the length of the run), run `delete-legacy-ids.php` (reads the old ids from the table and deletes them in batches of 1,000), then run `catalog-beer-mysql/migrations/2026-10-29-drop-algolia-table.sql` and delete `delete-legacy-ids.php`.
+Until 2026-10-29 each entity carried a second random UUID in a local `algolia` table (`algolia_id` → `beer_id`/`brewer_id`/`location_id`), looked up on every save and delete. The table held 209k rows (81 MB) and existed only for that indirection. The re-key (done 2026-10-29 on both servers): deploy, run `batch-upload.php` (writes every record under its new id — the index briefly holds both copies, so search shows duplicates for the length of the run), delete the old records by their ids from the table (a one-time script, since removed), then `catalog-beer-mysql/migrations/2026-10-29-drop-algolia-table.sql`.
 
 ## Record shape
 
