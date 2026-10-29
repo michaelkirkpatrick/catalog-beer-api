@@ -11,8 +11,9 @@ class PostmarkSendEmail {
     public $TrackLinks = 'None';
     public $bcc = '';
     public $Attachments = [];
+    public $ReplyTo = '';
 
-    function generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments = []){
+    function generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments = [], $replyTo = ''){
         $this->to = $to;
         $this->bcc = 'michael@catalog.beer';
         $this->subject = $subject;
@@ -20,6 +21,12 @@ class PostmarkSendEmail {
         $this->HtmlBody = $htmlBody;
         $this->TextBody = $textBody;
         $this->Attachments = $attachments;
+        if(!empty($replyTo)){
+            $this->ReplyTo = $replyTo;
+        }else{
+            // Omitted from the JSON, so Postmark replies go to From
+            unset($this->ReplyTo);
+        }
     }
 }   
 ?>
