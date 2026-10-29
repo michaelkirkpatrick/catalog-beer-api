@@ -54,6 +54,7 @@ check("Visa label", $b->cardLabel($visa) === 'Visa ending 5503, expires 10/2028'
 check("Amex label spells the brand out", $b->cardLabel($amex) === 'American Express ending 4009, expires 04/2030');
 check("unknown brand is capitalized", $b->cardLabel(array('card' => array('brand' => 'cartes_bancaires', 'last4' => '1', 'exp_month' => 1, 'exp_year' => 2030))) === 'Cartes_bancaires ending 1, expires 01/2030');
 check("no card -> empty label", $b->cardLabel(null) === '');
+check("short label drops the expiry", $b->cardLabel($visa, false) === 'Visa ending 5503');
 
 // noticeAlerts
 $titles = function($alerts){ return array_map(fn($a) => $a[0], $alerts); };

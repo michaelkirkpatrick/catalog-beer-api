@@ -889,15 +889,20 @@ class Billing {
         return null;
     }
 
-    // "Visa ending 5503, expires 10/2028"
-    public function cardLabel($paymentMethod){
+    // "Visa ending 5503, expires 10/2028", or "Visa ending 5503" without the
+    // expiry (the inbox preview line, where space is short)
+    public function cardLabel($paymentMethod, $withExpiry = true){
         if(empty($paymentMethod['card'])){
             return '';
         }
         $card = $paymentMethod['card'];
         $brands = array('visa' => 'Visa', 'mastercard' => 'Mastercard', 'amex' => 'American Express', 'discover' => 'Discover', 'diners' => 'Diners Club', 'jcb' => 'JCB', 'unionpay' => 'UnionPay');
         $brand = $brands[$card['brand'] ?? ''] ?? ucfirst($card['brand'] ?? 'Card');
-        return $brand . ' ending ' . ($card['last4'] ?? '????') . ', expires ' . sprintf('%02d', intval($card['exp_month'] ?? 0)) . '/' . intval($card['exp_year'] ?? 0);
+        $label = $brand . ' ending ' . ($card['last4'] ?? '????');
+        if(!$withExpiry){
+            return $label;
+        }
+        return $label . ', expires ' . sprintf('%02d', intval($card['exp_month'] ?? 0)) . '/' . intval($card['exp_year'] ?? 0);
     }
 
     // Anything on the notice that might stop the charge going through, as
@@ -1027,7 +1032,8 @@ class Billing {
             $cardText = $card !== '' ? $card : 'the card on your account';
             $cap = $this->dollars($user['monthlySpendCapCents']);
             $subject = "Your " . $this->monthOnly($monthLabel) . " API bill: $amount";
-            $preheader = "We'll charge $cardText on " . date('F j', $chargeTs) . '.';
+            $shortCard = $card !== '' ? $this->cardLabel($paymentMethod, false) : $cardText;
+            $preheader = "We'll charge $shortCard on " . date('F j', $chargeTs) . '.';
             $template = 'email-billing-notice.html';
             $tag = 'billing-notice';
             $replacements['##AMOUNT##'] = $this->h($amount);
