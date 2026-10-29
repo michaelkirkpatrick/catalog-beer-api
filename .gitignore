@@ -29,3 +29,6 @@ scratch/*
 
 # Deploy targets (server addresses + SSH user). See deploy.conf.example.
 deploy.conf
+
+# Claude Code local settings and worktrees
+.claude/
