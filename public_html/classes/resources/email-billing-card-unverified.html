@@ -1,0 +1,51 @@
+<body itemscope itemtype="http://schema.org/EmailMessage" style="margin:0;padding:0;background-color:#f6f6f6;">
+		<!-- email-billing-card-unverified.html -- tokens: NAME CARD BILLING_URL -->
+		<!-- Pair with email-billing-head.html (not email-head.html): it carries the dark-mode and phone-width styles these classes use. -->
+		<table class="body-wrap" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#f6f6f6" style="background-color:#f6f6f6;width:100%;">
+			<tr>
+				<td></td>
+				<td class="container" width="600" style="max-width:600px;">
+					<div class="content" style="max-width:600px;margin:0 auto;padding:20px;">
+						<table class="main" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e9e9e9;border-radius:3px;">
+							<tr>
+								<td class="content-wrap" style="padding:24px;color:#333333;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:15px;line-height:1.6;">
+									<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:600;color:#000000;">Billing isn&#8217;t on yet</h1>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Hi ##NAME##,</p>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">You just added <strong style="color:#000000;">##CARD##</strong> to your Catalog.beer API account, but your bank told us the security code (CVC) didn&#8217;t match. So you don&#8217;t hit a declined charge later, we haven&#8217;t turned billing on.</p>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Your key stays on the free tier until a card checks out. Usually it&#8217;s just a mistyped code &#8212; adding the card again fixes it.</p>
+									<table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+										<tr>
+											<td style="padding:0 0 20px 0;">
+												<table class="btn-table" cellpadding="0" cellspacing="0" border="0" role="presentation">
+													<tr>
+														<td class="btn-cell" align="center" bgcolor="#348eda" style="background-color:#348eda;border-radius:5px;">
+															<a href="##BILLING_URL##" style="display:inline-block;padding:14px 28px;font-size:16px;line-height:20px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:5px;text-align:center;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;">Add your card again</a>
+														</td>
+													</tr>
+												</table>
+											</td>
+										</tr>
+									</table>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">If the code is right and it still fails, your bank may need to approve the card. Questions? Just reply to this email.</p>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Thanks!</p>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">-Michael</p>
+									<p style="margin:0 0 0px;color:#333333;font-size:15px;line-height:1.6;">Michael Kirkpatrick<br/>Founder, Catalog.beer<br/><a href="mailto:michael@catalog.beer" style="color:#348eda;">michael@catalog.beer</a></p>
+								</td>
+							</tr>
+						</table>
+						<div class="footer" style="padding:20px;color:#999999;">
+							<table width="100%" role="presentation">
+								<tr>
+									<td class="aligncenter content-block" align="center" style="text-align:center;font-size:12px;color:#999999;">
+										<a href="https://catalog.beer" style="color:#a1afa2;">Catalog.beer</a>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</div>
+				</td>
+				<td></td>
+			</tr>
+		</table>
+	</body>
+</html>

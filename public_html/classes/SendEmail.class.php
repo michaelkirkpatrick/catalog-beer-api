@@ -7,6 +7,9 @@ $sendEmail->email = '';
 
 class SendEmail {
 
+    // Billing emails reply here (a Gmail-hosted inbox)
+    const BILLING_REPLY_TO = 'Catalog.beer Billing <billing@catalog.beer>';
+
     // Variables
     public $email;
 
@@ -150,11 +153,25 @@ class SendEmail {
         $this->send($to, $subject, $tag, $htmlBody, $textBody, $attachments);
     }
 
-    private function send($to, $subject, $tag, $htmlBody, $textBody, $attachments = []){
+    // Billing emails (Billing.class.php): the notice on the 1st, a failed
+    // payment, billing turned off, a card that failed verification. Stripe
+    // sends the receipt itself. $template names a body file in
+    // classes/resources/; $replacements maps ##TOKEN## => value, already
+    // escaped by the caller. Replies go to the billing inbox.
+    public function billingEmail($to, $subject, $tag, $template, $replacements, $textBody){
+        $htmlBody = file_get_contents(ROOT . '/classes/resources/email-billing-head.html');
+        $htmlBody .= file_get_contents(ROOT . '/classes/resources/' . $template);
+        $htmlBody = str_replace(array_keys($replacements), array_values($replacements), $htmlBody);
+
+        $this->send($to, $subject, $tag, $htmlBody, $textBody, [], self::BILLING_REPLY_TO);
+        return !$this->error;
+    }
+
+    private function send($to, $subject, $tag, $htmlBody, $textBody, $attachments = [], $replyTo = ''){
         if(!$this->testing){
             // Generate Postmark Email Body
             $postmarkSendEmail = new PostmarkSendEmail();
-            $postmarkSendEmail->generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments);
+            $postmarkSendEmail->generateBody($to, $subject, $tag, $htmlBody, $textBody, $attachments, $replyTo);
             $json = json_encode($postmarkSendEmail);
 
             // Start cURL
