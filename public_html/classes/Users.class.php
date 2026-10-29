@@ -13,6 +13,7 @@ class Users {
     public $passwordResetKey = '';
     public $admin = false;
     public $stripeCustomerID = '';
+    public $signupIP = '';   // POST /users only: the website visitor's address, sent by the frontend as signup_ip
 
     // Validation
     public $error = false;
@@ -166,6 +167,14 @@ class Users {
                         $this->validateEmail();
                         $this->validatePassword();
 
+                        // Sign-up caps, counted per network and site-wide.
+                        // Only website sign-ups carry an address, so only they
+                        // are counted and only they can trip the caps.
+                        $signupNet = SignupGuard::network($this->signupIP);
+                        if(!$this->error && $signupNet !== null){
+                            $this->checkSignupRate($signupNet, $db);
+                        }
+
                         // Hash Password
                         $passwordHash = password_hash($this->password, PASSWORD_DEFAULT);
 
@@ -178,8 +187,8 @@ class Users {
                         if(!$this->error){
                             // Insert into Database
                             $db = new Database();
-                            $sql = "INSERT INTO users (id, email, passwordHash, name, admin, emailVerified) VALUES (?, ?, ?, ?, b'0', b'0')";
-                            $db->query($sql, [$this->userID, $this->email, $passwordHash, $this->name]);
+                            $sql = "INSERT INTO users (id, email, passwordHash, name, admin, emailVerified, createdAt, signupIP, signupNet) VALUES (?, ?, ?, ?, b'0', b'0', ?, ?, ?)";
+                            $db->query($sql, [$this->userID, $this->email, $passwordHash, $this->name, time(), ($signupNet !== null ? substr($this->signupIP, 0, 45) : null), $signupNet]);
                             if(!$db->error){
                                 if($sendEmailVerification){
                                     // Generate Email Auth Code
@@ -475,6 +484,25 @@ class Users {
             // Save Email
             $this->email = $sendEmail->email;
 
+            // Disposable address? Refused on creation and on a change of email
+            // alike, so an account can't be opened with a real address and then
+            // moved to a throwaway one. See SignupGuard for the 2026-10-29 wave.
+            if(SignupGuard::isDisposableEmail($this->email)){
+                $this->error = true;
+                $this->validState['email'] = 'invalid';
+                $this->validMsg['email'] = 'Please use an email address you will keep. Temporary and disposable addresses can\'t be used for a Catalog.beer account.';
+                $this->responseCode = 400;
+
+                // Log Error
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 359;
+                $errorLog->errorMsg = 'Disposable email domain refused';
+                $errorLog->badData = $this->email . ' / signup_ip: ' . $this->signupIP;
+                $errorLog->filename = 'API / Users.class.php';
+                $errorLog->write();
+                return;
+            }
+
             // Does user already exist?
             $db = new Database();
             if(!empty($excludeUserID)){
@@ -561,6 +589,58 @@ class Users {
             $errorLog->errorNumber = 33;
             $errorLog->errorMsg = 'Missing password';
             $errorLog->badData = '';
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+        }
+    }
+
+    /**
+     * The two sign-up caps (SignupGuard::MAX_PER_NETWORK_PER_DAY and
+     * MAX_SITEWIDE_PER_HOUR), both counted over rows that carry a signupNet —
+     * accounts the website created. Sets a 429 with a message the form shows.
+     */
+    private function checkSignupRate(string $network, Database $db): void {
+        $now = time();
+
+        $result = $db->query("SELECT COUNT(*) AS n FROM users WHERE signupNet = ? AND createdAt > ?", [$network, $now - 86400]);
+        if($db->error){
+            $this->error = true;
+            $this->errorMsg = $db->errorMsg;
+            $this->responseCode = $db->responseCode;
+            return;
+        }
+        if((int)$result->fetch_assoc()['n'] >= SignupGuard::MAX_PER_NETWORK_PER_DAY){
+            $this->error = true;
+            $this->responseCode = 429;
+            $this->errorMsg = 'Several accounts have been created from your network in the last day, so we can\'t open another one right now. Please try again tomorrow, or contact us at https://catalog.beer/contact if you need more than one account.';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 360;
+            $errorLog->errorMsg = 'Sign-up cap: too many accounts from one network in 24 hours';
+            $errorLog->badData = "network: $network / email: $this->email";
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        $result = $db->query("SELECT COUNT(*) AS n FROM users WHERE signupNet IS NOT NULL AND createdAt > ?", [$now - 3600]);
+        if($db->error){
+            $this->error = true;
+            $this->errorMsg = $db->errorMsg;
+            $this->responseCode = $db->responseCode;
+            return;
+        }
+        if((int)$result->fetch_assoc()['n'] >= SignupGuard::MAX_SITEWIDE_PER_HOUR){
+            $this->error = true;
+            $this->responseCode = 429;
+            $this->errorMsg = 'Account creation is paused for a little while. Please try again in an hour.';
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 361;
+            $errorLog->errorMsg = 'Sign-up breaker: site-wide hourly cap reached; refusing website sign-ups';
+            $errorLog->badData = "network: $network / email: $this->email";
             $errorLog->filename = 'API / Users.class.php';
             $errorLog->write();
         }
@@ -1146,6 +1226,11 @@ class Users {
                     if(empty($data->email)){$data->email = '';}
                     if(empty($data->password)){$data->password = '';}
                     if(empty($data->terms_agreement)){$data->terms_agreement = '';}
+
+                    // Where the sign-up came from. Only the website sends it
+                    // (the visitor's REMOTE_ADDR); Newman and scripts don't,
+                    // and without it the per-network cap does not apply.
+                    $this->signupIP = (isset($data->signup_ip) && is_string($data->signup_ip)) ? $data->signup_ip : '';
 
                     // Create Account
                     $this->createAccount($data->name, $data->email, $data->password, $data->terms_agreement, $apiKey, 'POST', '', array());
