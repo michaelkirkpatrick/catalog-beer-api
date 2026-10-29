@@ -3,8 +3,8 @@
 	<head>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="x-apple-disable-message-reformatting" />
-		<meta name="color-scheme" content="light dark" />
-		<meta name="supported-color-schemes" content="light dark" />
+		<meta name="color-scheme" content="light only" />
+		<meta name="supported-color-schemes" content="light only" />
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<title>Catalog.beer</title>
 		
@@ -286,32 +286,27 @@
 		}
 		/* -------------------------------------
 		    BILLING EMAILS
-		    Additions over email-head.html: explicit text colours (so nothing
-		    leans on a white background), word wrapping for long tokens,
-		    phone-width padding, and a dark-mode palette for clients that
-		    honour prefers-color-scheme. Inline styles in the body files carry
-		    the light palette for clients that strip this block.
+		    Additions over email-head.html. Light only: every text and
+		    background colour is also set inline in the body files, so a
+		    client that force-inverts (Gmail app) still keeps contrast.
 		------------------------------------- */
 		:root {
-		  color-scheme: light dark;
-		  supported-color-schemes: light dark;
+		  color-scheme: light only;
+		  supported-color-schemes: light only;
 		}
 		body, .body-wrap {
 		  margin: 0 !important;
 		  padding: 0 !important;
 		}
-		.main, .main td, .main p {
-		  color: #333333;
-		}
-		.content-wrap p, .content-wrap td {
-		  font-size: 15px;
-		  line-height: 1.6;
-		}
 		.content-wrap a {
 		  word-break: break-word;
 		}
-		.btn-cell a {
-		  color: #ffffff !important;
+
+		@media only screen and (max-width: 640px) {
+		  /* undo the generic 640px rule's 5px bottom margin on headings */
+		  .content-wrap h1 {
+		    margin: 0 0 12px !important;
+		  }
 		}
 
 		@media only screen and (max-width: 480px) {
@@ -323,73 +318,6 @@
 		  }
 		  .amount-big {
 		    font-size: 34px !important;
-		  }
-		}
-
-		@media only screen and (max-width: 640px) {
-		  /* undo the generic 640px rule's 5px bottom margin on headings */
-		  .content-wrap h1 {
-		    margin: 0 0 12px !important;
-		  }
-		}
-
-		@media (prefers-color-scheme: dark) {
-		  body, .body-wrap {
-		    background-color: #1b1d1f !important;
-		  }
-		  .main {
-		    background-color: #26292c !important;
-		    border-color: #3a3f44 !important;
-		  }
-		  .main td, .main p, .main li, .main span, .main strong {
-		    color: #e6e6e6 !important;
-		  }
-		  .main h1 {
-		    color: #ffffff !important;
-		  }
-		  .main .muted, .main .muted span {
-		    color: #a8adb2 !important;
-		  }
-		  .main a {
-		    color: #6db3f2 !important;
-		  }
-		  .panel {
-		    background-color: #1f2225 !important;
-		    border-color: #3a3f44 !important;
-		  }
-		  .panel .amount-big {
-		    color: #ffffff !important;
-		  }
-		  .line-items td {
-		    border-color: #3a3f44 !important;
-		  }
-		  .line-items .total td {
-		    border-top-color: #9aa0a6 !important;
-		  }
-		  .notice {
-		    background-color: #3a2e14 !important;
-		    border-color: #a8761c !important;
-		  }
-		  .notice td, .notice p, .notice strong {
-		    color: #f3e3c3 !important;
-		  }
-		  .notice-bad {
-		    background-color: #3a1a1d !important;
-		    border-color: #b0414c !important;
-		  }
-		  .notice-bad td, .notice-bad p, .notice-bad strong {
-		    color: #f5d0d3 !important;
-		  }
-		  .btn-cell, .btn-cell a {
-		    background-color: #2f7fc6 !important;
-		    border-color: #2f7fc6 !important;
-		    color: #ffffff !important;
-		  }
-		  .footer, .footer td {
-		    color: #8a9096 !important;
-		  }
-		  .footer a {
-		    color: #a1afa2 !important;
 		  }
 		}
 		</style>

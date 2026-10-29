@@ -1,6 +1,6 @@
 <body itemscope itemtype="http://schema.org/EmailMessage" style="margin:0;padding:0;background-color:#f6f6f6;">
-		<!-- email-billing-carried-forward.html -- tokens: NAME MONTH AMOUNT BALANCE FLOOR ALERTS LINE_ITEMS BILLING_URL -->
-		<!-- Pair with email-billing-head.html (not email-head.html): it carries the dark-mode and phone-width styles these classes use. -->
+		<!-- email-billing-carried-forward.html -- tokens: NAME MONTH SUMMARY BALANCE FLOOR ALERTS LINE_ITEMS BILLING_URL -->
+		<!-- Pair with email-billing-head.html (not email-head.html): it carries the light-only colour scheme and phone-width styles these classes use. -->
 		<table class="body-wrap" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#f6f6f6" style="background-color:#f6f6f6;width:100%;">
 			<tr>
 				<td></td>
@@ -9,9 +9,14 @@
 						<table class="main" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e9e9e9;border-radius:3px;">
 							<tr>
 								<td class="content-wrap" style="padding:24px;color:#333333;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:15px;line-height:1.6;">
+									<table cellpadding="0" cellspacing="0" border="0" role="presentation">
+										<tr>
+											<td style="padding:0 0 20px 0;"><a href="https://catalog.beer" style="text-decoration:none;"><img src="https://catalog.beer/images/email-logo.png" width="40" height="40" alt="Catalog.beer" border="0" style="display:block;width:40px;height:40px;border:0;outline:none;text-decoration:none;color:#000000;font-size:15px;font-weight:bold;" /></a></td>
+										</tr>
+									</table>
 									<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:600;color:#000000;">Nothing to pay for ##MONTH##</h1>
 									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Hi ##NAME##,</p>
-									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Your ##MONTH## API usage came to <strong style="color:#000000;">##AMOUNT##</strong>. That&#8217;s under our ##FLOOR## invoice minimum, so we haven&#8217;t charged you anything this month &#8212; it&#8217;s been added to your balance instead.</p>
+									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">##SUMMARY##</p>
 									<table width="100%" cellpadding="0" cellspacing="0" role="presentation">
 										<tr>
 											<td style="padding:0 0 20px 0;">

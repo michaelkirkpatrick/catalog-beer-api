@@ -1019,7 +1019,7 @@ class Billing {
         if($due){
             $amount = $this->dollars($totalCents);
             $chargeDate = date('F j, Y', $chargeTs);
-            $cardText = $card !== '' ? $card : 'your card on file';
+            $cardText = $card !== '' ? $card : 'the card on your account';
             $cap = $this->dollars($user['monthlySpendCapCents']);
             $subject = "Your $monthLabel Catalog.beer API bill: $amount";
             $template = 'email-billing-notice.html';

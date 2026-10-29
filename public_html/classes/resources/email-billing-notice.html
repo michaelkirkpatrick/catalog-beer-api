@@ -1,6 +1,6 @@
 <body itemscope itemtype="http://schema.org/EmailMessage" style="margin:0;padding:0;background-color:#f6f6f6;">
 		<!-- email-billing-notice.html -- tokens: NAME MONTH AMOUNT CHARGE_DATE CARD ALERTS LINE_ITEMS CAP BILLING_URL -->
-		<!-- Pair with email-billing-head.html (not email-head.html): it carries the dark-mode and phone-width styles these classes use. -->
+		<!-- Pair with email-billing-head.html (not email-head.html): it carries the light-only colour scheme and phone-width styles these classes use. -->
 		<table class="body-wrap" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#f6f6f6" style="background-color:#f6f6f6;width:100%;">
 			<tr>
 				<td></td>
@@ -9,6 +9,11 @@
 						<table class="main" width="100%" cellpadding="0" cellspacing="0" role="presentation" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e9e9e9;border-radius:3px;">
 							<tr>
 								<td class="content-wrap" style="padding:24px;color:#333333;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:15px;line-height:1.6;">
+									<table cellpadding="0" cellspacing="0" border="0" role="presentation">
+										<tr>
+											<td style="padding:0 0 20px 0;"><a href="https://catalog.beer" style="text-decoration:none;"><img src="https://catalog.beer/images/email-logo.png" width="40" height="40" alt="Catalog.beer" border="0" style="display:block;width:40px;height:40px;border:0;outline:none;text-decoration:none;color:#000000;font-size:15px;font-weight:bold;" /></a></td>
+										</tr>
+									</table>
 									<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;font-weight:600;color:#000000;">Your ##MONTH## Catalog.beer API bill</h1>
 									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Hi ##NAME##,</p>
 									<p style="margin:0 0 16px;color:#333333;font-size:15px;line-height:1.6;">Here&#8217;s your API bill for ##MONTH##. There&#8217;s nothing you need to do &#8212; we&#8217;ll charge your card automatically.</p>
