@@ -36,6 +36,10 @@ php /var/www/html/api.catalog.beer/algolia/batch-upload.php [staging|production]
 - Optional `limit` restricts the number of brewers processed (useful for testing)
 - Loads credentials from the vhost-root `common/passwords.php` and the classes from the sibling `public_html/`, so it must be run from the deployed server (not locally)
 
+## Index per environment
+
+Callers pass the logical index `'catalog'`; `Algolia::indexName()` resolves it to `catalog` on production and `catalog_staging` on staging (same Algolia application, one write key). After a staging deploy that changes the index shape, or to rebuild staging search from staging's database: `php settings.php staging && php synonyms.php staging && php batch-upload.php staging`. Never point a staging script at production to rehearse it; production runs take the `limit` argument instead.
+
 ## objectIDs
 
 **A record's `objectID` is the entity's own id**: a beer, brewer or location is indexed under its UUID, a style under `style-<slug>`. UUIDs don't collide across the three entity types, so the combined index needs no separate key, and every sync, cascade and delete addresses Algolia by the id it already has.

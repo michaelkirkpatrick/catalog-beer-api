@@ -45,6 +45,27 @@ class Algolia {
     }
 
     /**
+     * The physical index behind the logical name 'catalog'
+     *
+     * Staging and production share one Algolia application, so the logical
+     * index every caller names ('catalog') maps to a physical index per
+     * environment: `catalog` on production, `catalog_staging` on staging.
+     * Before 2026-10-29 both environments wrote to `catalog`, so every
+     * staging write -- the Newman suite's creates and deletes, a rehearsal
+     * of batch-upload.php -- landed in live search. Callers keep passing
+     * 'catalog'; only the URL changes. The frontend's search code picks the
+     * same name by environment.
+     *
+     * @return string
+     */
+    public static function indexName(){
+        if(defined('ENVIRONMENT') && ENVIRONMENT === 'staging'){
+            return 'catalog_staging';
+        }
+        return 'catalog';
+    }
+
+    /**
      * Save an object to an Algolia index
      *
      * PUTs the search object to Algolia. Errors are logged but do NOT
@@ -80,7 +101,7 @@ class Algolia {
         }
 
         // Build URL
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/{$objectID}";
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/" . self::indexName() . "/{$objectID}";
 
         // JSON Payload
         $jsonData = json_encode($searchObject);
@@ -146,7 +167,7 @@ class Algolia {
         }
 
         // Build URL
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/{$objectID}";
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/" . self::indexName() . "/{$objectID}";
 
         // Initialize cURL
         $ch = curl_init();
@@ -214,7 +235,7 @@ class Algolia {
         }
 
         // Build URL
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/settings";
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/" . self::indexName() . "/settings";
 
         // Initialize cURL
         $ch = curl_init();
@@ -310,7 +331,7 @@ class Algolia {
         }
 
         // Build URL — replaceExistingSynonyms so stale groups can't linger
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/synonyms/batch?replaceExistingSynonyms=true";
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/" . self::indexName() . "/synonyms/batch?replaceExistingSynonyms=true";
 
         // Initialize cURL
         $ch = curl_init();
@@ -438,7 +459,7 @@ class Algolia {
         }
 
         // Build URL
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/batch";
+        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/" . self::indexName() . "/batch";
 
         foreach(array_chunk(array_values($bodies), 1000) as $chunk){
             // Build Request Body
