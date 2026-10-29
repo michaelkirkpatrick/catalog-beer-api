@@ -837,13 +837,21 @@ class Billing {
             // Create and auto-advance the invoice; Stripe finalizes it, charges
             // the default payment method, and emails the receipt when
             // Settings > Customer emails > Successful payments is on.
+            //
+            // The idempotency key names the charge rows going on the invoice,
+            // not the key and month: Stripe replays a key's first response for
+            // 24 hours, so a second invoice for the same key that day (a
+            // re-run after more rows went pending) would get the earlier
+            // invoice back and leave the new items unbilled.
+            $chargeIDs = array_column($charges, 'id');
+            sort($chargeIDs);
             $invoice = $stripe->request('POST', '/v1/invoices', array(
                 'customer' => $customerID,
                 'collection_method' => 'charge_automatically',
                 'auto_advance' => 'true',
                 'pending_invoice_items_behavior' => 'include',
                 'description' => 'Catalog.beer API usage'
-            ), 'cb-inv-' . $pendingApiKey . '-' . $year . '-' . $month);
+            ), 'cb-inv-' . $pendingApiKey . '-' . md5(implode(',', $chargeIDs)));
             if($stripe->error || empty($invoice['id'])){
                 $errorLog = new LogError();
                 $errorLog->errorNumber = 283;
