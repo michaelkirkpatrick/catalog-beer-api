@@ -732,7 +732,7 @@ class Billing {
 
             $first = $charges[0];
             $paymentMethod = $this->defaultPaymentMethod($first['stripeCustomerID']);
-            $alerts = $this->noticeAlerts($paymentMethod, $chargeTs, intval($first['billingEnabled']) == 1);
+            $alerts = $this->noticeAlerts($paymentMethod, $chargeTs, intval($first['billingEnabled']) == 1, $due);
 
             if($this->sendNotice($first, $charges, $totalCents, $due, $monthLabel, $chargeTs, $paymentMethod, $alerts)){
                 $db->query("UPDATE billing_charges SET noticeSentAt=?, lastUpdated=? WHERE apiKey=? AND status='pending'", [time(), time(), $pendingApiKey]);
@@ -901,26 +901,50 @@ class Billing {
     }
 
     // Anything on the notice that might stop the charge going through, as
-    // [title, text] pairs. Pure, so tests/billing-notice.php covers it.
-    public function noticeAlerts($paymentMethod, $chargeTs, $billingEnabled){
+    // [title, text] pairs. $due says whether this notice announces a charge
+    // or a balance carried forward, which changes what is worth saying: an
+    // expiry date only matters before a charge. Pure, so
+    // tests/billing-notice.php covers it.
+    public function noticeAlerts($paymentMethod, $chargeTs, $billingEnabled, $due = true){
         $alerts = array();
+        $floor = $this->dollars(self::INVOICE_FLOOR_CENTS);
         if(empty($paymentMethod['card'])){
-            $alerts[] = array('No card on file', 'We couldn\'t find a card to charge. Add one before ' . date('F j', $chargeTs) . ' so the payment goes through.');
+            if($due){
+                $alerts[] = array('No card on file', 'We couldn\'t find a card to charge. Add one before ' . date('F j', $chargeTs) . ' so the payment goes through.');
+            }else{
+                $alerts[] = array('No card on file', 'Add a card so we can charge your balance once it reaches ' . $floor . '.');
+            }
             return $alerts;
         }
         $card = $paymentMethod['card'];
         // A card is good through the last day of its expiry month
         $expiresTs = mktime(0, 0, 0, intval($card['exp_month'] ?? 0) + 1, 1, intval($card['exp_year'] ?? 0));
-        if($expiresTs <= $chargeTs){
+        if($due && $expiresTs <= $chargeTs){
             $alerts[] = array('Your card expires before the charge date', 'Update it before ' . date('F j', $chargeTs) . ' so the payment goes through.');
         }
         if(($card['checks']['cvc_check'] ?? '') === 'fail'){
-            $alerts[] = array('Your bank couldn\'t confirm this card\'s security code', 'The charge may be declined. Adding the card again now, with its security code, avoids a failed payment.');
+            $alerts[] = array('Your bank couldn\'t confirm this card\'s security code', ($due ? 'The charge may be declined.' : 'A future charge may be declined.') . ' Adding the card again now, with its security code, avoids a failed payment.');
         }
         if(!$billingEnabled){
-            $alerts[] = array('Billing is turned off for this key', 'This charge covers requests made while billing was on, so it will still be collected. Your key is on the free tier until you turn billing back on.');
+            if($due){
+                $alerts[] = array('Billing is turned off for this key', 'This charge covers requests made while billing was on, so it will still be collected. Your key is on the free tier until you turn billing back on.');
+            }else{
+                $alerts[] = array('Billing is turned off for this key', 'This balance covers requests made while billing was on. It will be charged once it reaches ' . $floor . ', or in January if it never does. Your key is on the free tier until you turn billing back on.');
+            }
         }
         return $alerts;
+    }
+
+    // The opening line of the carried-forward notice. Spells out where the
+    // balance came from when earlier months are in it, so this month's
+    // amount and the balance can't read as a contradiction.
+    public function carriedSummary($monthLabel, $thisMonthCents, $totalCents){
+        $floor = $this->dollars(self::INVOICE_FLOOR_CENTS);
+        $earlier = $totalCents - $thisMonthCents;
+        if($earlier > 0){
+            return 'Your ' . $monthLabel . ' usage came to ' . $this->dollars($thisMonthCents) . '. With ' . $this->dollars($earlier) . ' carried from earlier months, your balance is ' . $this->dollars($totalCents) . ', under our ' . $floor . ' minimum, so nothing is charged this month.';
+        }
+        return 'Your ' . $monthLabel . ' usage came to ' . $this->dollars($thisMonthCents) . ', under our ' . $floor . ' minimum, so nothing is charged this month.';
     }
 
     private function monthName($charge){
@@ -1018,10 +1042,11 @@ class Billing {
             $subject = "Your $monthLabel Catalog.beer API usage: $amount, nothing charged yet";
             $template = 'email-billing-carried-forward.html';
             $tag = 'billing-carried-forward';
-            $replacements['##AMOUNT##'] = $this->h($amount);
+            $summary = $this->carriedSummary($monthLabel, $thisMonthCents, $totalCents);
+            $replacements['##SUMMARY##'] = $this->h($summary);
             $replacements['##BALANCE##'] = $this->h($balance);
             $replacements['##FLOOR##'] = $this->h($floor);
-            $textBody = "Hi $name,\r\n\r\nYour Catalog.beer API usage for $monthLabel came to $amount. We don't charge until your balance reaches $floor, so nothing is charged this month and your balance of $balance carries forward. Whatever is left is charged in January regardless.\r\n\r\n$lineText\r\n" . $alertText . "Review your billing at $billingURL\r\n\r\n" . $this->emailSignoff();
+            $textBody = "Hi $name,\r\n\r\n$summary Your balance of $balance carries forward and is charged once it reaches $floor; whatever is left is charged in January regardless.\r\n\r\n$lineText\r\n" . $alertText . "Review your billing at $billingURL\r\n\r\n" . $this->emailSignoff();
         }
 
         $sendEmail = new SendEmail();

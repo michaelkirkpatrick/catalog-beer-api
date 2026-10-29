@@ -69,6 +69,14 @@ $cvcUnchecked = $visa; $cvcUnchecked['card']['checks']['cvc_check'] = 'unchecked
 check("unchecked CVC is not flagged", $b->noticeAlerts($cvcUnchecked, $chargeTs, true) === array());
 check("billing turned off is flagged", $titles($b->noticeAlerts($visa, $chargeTs, false)) === array('Billing is turned off for this key'));
 check("alerts stack", count($b->noticeAlerts($cvcFail, $chargeTs, false)) === 2);
+$texts = function($alerts){ return array_map(fn($a) => $a[1], $alerts); };
+check("carried forward: no card asks for one before the $5 floor, not a date", $texts($b->noticeAlerts(null, $chargeTs, true, false)) === array('Add a card so we can charge your balance once it reaches $5.00.'));
+check("carried forward: an expiring card is not flagged (nothing is charged)", $b->noticeAlerts($expiredOct, $chargeTs, true, false) === array());
+check("carried forward: failed CVC talks about a future charge", strpos($texts($b->noticeAlerts($cvcFail, $chargeTs, true, false))[0], 'A future charge may be declined.') === 0);
+
+// carriedSummary -- this month's amount and the balance never contradict
+check("summary with earlier months names both", $b->carriedSummary('October 2026', 300, 400) === 'Your October 2026 usage came to $3.00. With $1.00 carried from earlier months, your balance is $4.00, under our $5.00 minimum, so nothing is charged this month.');
+check("summary without earlier months", $b->carriedSummary('October 2026', 300, 300) === 'Your October 2026 usage came to $3.00, under our $5.00 minimum, so nothing is charged this month.');
 
 // lineDetail
 $ryan = array('year' => 2026, 'month' => 10, 'totalRequests' => 174713, 'billableRequests' => 173713, 'amountCents' => 17400);
