@@ -1143,11 +1143,10 @@ class Style {
     attribute, which makes "NEIPA" reach the Juicy or Hazy IPA style record
     directly — the alias vocabulary doing double duty as a synonym mechanism.
 
-    objectID is deterministic ('style-' + slug) rather than routed through the
-    algolia table: style slugs are stable, public, and curated, so there is
-    nothing to gain from the random-ID indirection the user-writable types
-    need — and it spares a schema migration. Styles are a slow-moving
-    vocabulary with no API write path, so there is no real-time sync either;
+    objectID is deterministic ('style-' + slug): style slugs are stable,
+    public, and curated. (The entity types use their own UUIDs as objectIDs,
+    so every record type keys itself.) Styles are a slow-moving vocabulary
+    with no API write path, so there is no real-time sync either;
     batch-upload.php is the only writer.
 
     Built as one method returning all styles (two queries total) instead of a

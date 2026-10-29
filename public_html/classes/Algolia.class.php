@@ -1,12 +1,6 @@
 <?php
 class Algolia {
 
-    //
-    public $algolia_id = null;
-    public $beer_id = null;
-    public $brewer_id = null;
-    public $location_id = null;
-
     // Error Variables
     public $error = false;
     public $errorMsg = null;
@@ -48,163 +42,6 @@ class Algolia {
             $cut = substr($cut, 0, $boundary);
         }
         return rtrim($cut);
-    }
-
-    /**
-     * Add a new Algolia record
-     *
-     * Inserts a new record into the 'algolia' table with a unique algolia_id.
-     *
-     * @param string $type      The type of record ('beer', 'brewer', 'location')
-     * @param string $record_id The ID of the record in the respective table
-     *
-     * @return string The generated algolia_id on success
-     *
-     * @throws InvalidArgumentException If the provided type is invalid
-     * @throws Exception If the insert operation fails
-     */
-    public function add($type, $record_id){
-        // Required Classes
-        $errorLog = new LogError();
-        $errorLog->filename = 'Algolia.class.php';
-        $db = new Database();
-        $uuid = new uuid();
-
-        // Define valid types and corresponding column names
-        $validTypes = [
-            'beer'     => 'beer_id',
-            'brewer'   => 'brewer_id',
-            'location' => 'location_id',
-        ];
-
-        // Validate the type
-        if (!array_key_exists($type, $validTypes)) {
-            // Invalid Type
-            $this->error = true;
-            $this->errorMsg = "Invalid type provided. Must be one of: 'beer', 'brewer', 'location'.";
-
-            // Log Error
-            $errorLog->errorNumber = 205;
-            $errorLog->errorMsg = $this->errorMsg;
-            $errorLog->badData = $type;
-            $errorLog->write();
-            return;
-        }
-
-        // Prepare the data for insertion
-        $foreignKeyColumn = $validTypes[$type];
-        $data = [
-            'beer_id'     => null,
-            'brewer_id'   => null,
-            'location_id' => null,
-        ];
-        $data[$foreignKeyColumn] = $record_id;
-
-        // Attempt insertion with retries in case of UUID collision
-        $maxRetries = 5;
-        for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
-            // Generate a unique algolia_id
-            $algolia_id = $uuid->createCode();
-
-            // Insert using prepared statement
-            $db->query("INSERT INTO `algolia` (`algolia_id`, `beer_id`, `brewer_id`, `location_id`) VALUES (?, ?, ?, ?)", [$algolia_id, $data['beer_id'], $data['brewer_id'], $data['location_id']]);
-
-            if (!$db->error) {
-                // Successful insertion
-                $db->close();
-                return $algolia_id;
-            } else {
-                // Check if it might be a duplicate key error, reset error for retry
-                $db->error = false;
-                $db->errorMsg = null;
-                $db->responseCode = 200;
-
-                // Log the collision occurrence
-                $errorLog->errorNumber = 208;
-                $errorLog->errorMsg = "UUID collision detected on attempt. Retrying...";
-                $errorLog->badData = $attempt + 1;
-                $errorLog->write();
-            }
-        }
-
-        // If all retries fail
-        $db->close();
-
-        // Error
-        $this->error = true;
-        $this->errorMsg = "There was an error processing your request.";
-
-        // Log Error
-        $errorLog->errorNumber = 210;
-        $errorLog->errorMsg = "Failed to generate a unique algolia_id after {$maxRetries} attempts.";
-        $errorLog->badData = null;
-        $errorLog->write();
-    }
-
-    /**
-     * Lookup Algolia ID by Record
-     *
-     * Retrieves the algolia_id associated with a given beer_id, brewer_id, or location_id.
-     *
-     * @param string $type      The type of record ('beer', 'brewer', 'location')
-     * @param string $record_id The ID of the record in the respective table
-     *
-     * @return string|null The algolia_id if found, or null if not found
-     *
-     * @throws InvalidArgumentException If the provided type is invalid
-     * @throws Exception If the query fails
-     */
-    public function getAlgoliaIdByRecord($type, $record_id){
-        // Required Classes
-        $errorLog = new LogError();
-        $errorLog->filename = 'Algolia.class.php';
-        $db = new Database();
-
-        // Define valid types and corresponding column names
-        $validTypes = [
-            'beer'     => 'beer_id',
-            'brewer'   => 'brewer_id',
-            'location' => 'location_id',
-        ];
-
-        // Validate the type
-        if (!array_key_exists($type, $validTypes)) {
-            // Invalid Type
-            $this->error = true;
-            $this->errorMsg = "Invalid type provided. Must be one of: 'beer', 'brewer', 'location'.";
-
-            // Log Error
-            $errorLog->errorNumber = 211;
-            $errorLog->errorMsg = $this->errorMsg;
-            $errorLog->badData = $type;
-            $errorLog->write();
-            return null;
-        }
-
-        // Determine the column based on type
-        $column = $validTypes[$type];
-
-        // Query using prepared statement (column name is from whitelist, safe to interpolate)
-        $result = $db->query("SELECT `algolia_id` FROM `algolia` WHERE `{$column}` = ? LIMIT 1", [$record_id]);
-        if($db->error){
-            // Query Error
-            $this->error = true;
-            $this->errorMsg = "There was an error processing your request.";
-
-            // Log Error
-            $errorLog->errorNumber = 214;
-            $errorLog->errorMsg = "Execution error.";
-            $errorLog->badData = $db->errorMsg;
-            $errorLog->write();
-            $db->close();
-            return null;
-        }
-
-        $record = $result->fetch_assoc();
-        $db->close();
-
-        // Return the algolia_id or null if not found
-        return $record ? $record['algolia_id'] : null;
     }
 
     /**
@@ -288,10 +125,6 @@ class Algolia {
      *
      * DELETEs the object from Algolia. Errors are logged but do NOT set
      * $this->error.
-     *
-     * Does NOT touch the local algolia table. Every caller deletes the entity
-     * row first, and algolia.beer_id/brewer_id/location_id are all ON DELETE
-     * CASCADE, so the row is already gone by the time this runs.
      *
      * @param string $indexName The index ('catalog')
      * @param string $objectID The Algolia objectID to delete
@@ -429,10 +262,6 @@ class Algolia {
      * their Algolia records must go in the same pass — and a large brewer has
      * hundreds of beers, so N records cost one HTTP call instead of N DELETEs.
      *
-     * Like deleteObject(), does NOT touch the local algolia table: the caller's
-     * entity rows cascade-delete their algolia rows at the MySQL layer, and by
-     * the time this runs those rows are already gone.
-     *
      * Errors are logged but do NOT set $this->error — Algolia failures should
      * not fail the API response.
      *
@@ -440,77 +269,11 @@ class Algolia {
      * @param array  $objectIDs List of Algolia objectIDs to delete
      */
     public function batchDelete($indexName, $objectIDs){
-        // Required Classes
-        $errorLog = new LogError();
-        $errorLog->filename = 'Algolia.class.php';
-
-        // Validate Index
-        $validIndexes = ['catalog'];
-        if(!in_array($indexName, $validIndexes)){
-            // Invalid Index
-            $errorLog->errorNumber = 291;
-            $errorLog->errorMsg = 'Invalid index name for batchDelete.';
-            $errorLog->badData = $indexName;
-            $errorLog->write();
-            return;
+        $bodies = array();
+        foreach(array_filter($objectIDs) as $objectID){
+            $bodies[] = array('objectID' => $objectID);
         }
-
-        // Nothing to do
-        $objectIDs = array_values(array_filter($objectIDs));
-        if(empty($objectIDs)){
-            return;
-        }
-
-        // Build URL
-        $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/batch";
-
-        // Chunk — Algolia caps a batch at 1,000 operations
-        $chunks = array_chunk($objectIDs, 1000);
-        foreach($chunks as $chunk){
-            // Build Request Body
-            $requests = array();
-            foreach($chunk as $objectID){
-                $requests[] = array(
-                    'action' => 'deleteObject',
-                    'body'   => array('objectID' => $objectID)
-                );
-            }
-            $jsonData = json_encode(array('requests'=>$requests));
-
-            // Initialize cURL
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                "x-algolia-application-id: " . ALGOLIA_APPLICATION_ID,
-                "x-algolia-api-key: " . ALGOLIA_WRITE_API_KEY,
-                "Content-Type: application/json"
-            ]);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-
-            // Execute
-            $response = curl_exec($ch);
-
-            if(curl_errno($ch)){
-                // cURL Error
-                $errorLog->errorNumber = 292;
-                $errorLog->errorMsg = curl_error($ch);
-                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk);
-                $errorLog->write();
-                continue;
-            }
-
-            $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-            if($httpStatus < 200 || $httpStatus >= 300){
-                // HTTP Error
-                $errorLog->errorNumber = 293;
-                $errorLog->errorMsg = "HTTP Status {$httpStatus}";
-                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk) . " / Response: {$response}";
-                $errorLog->write();
-            }
-        }
+        $this->batch($indexName, 'deleteObject', $bodies, array('index' => 291, 'curl' => 292, 'http' => 293));
     }
 
     /**
@@ -610,6 +373,34 @@ class Algolia {
      * @param array  $objects   List of partial objects, each containing 'objectID'
      */
     public function batchPartialUpdate($indexName, $objects){
+        $this->batch($indexName, 'partialUpdateObjectNoCreate', $objects, array('index' => 273, 'missing' => 274, 'curl' => 275, 'http' => 276));
+    }
+
+    /**
+     * Save many objects in one request
+     *
+     * POSTs a batch of updateObject operations — the batched form of
+     * saveObject(): a full replace of each record, creating it when absent.
+     * batch-upload.php uses it so a re-index costs one call per 1,000 records
+     * instead of one PUT each.
+     *
+     * Errors are logged but do NOT set $this->error.
+     *
+     * @param string $indexName The index ('catalog')
+     * @param array  $objects   List of search objects, each containing 'objectID'
+     */
+    public function batchSave($indexName, $objects){
+        $this->batch($indexName, 'updateObject', $objects, array('index' => 363, 'missing' => 364, 'curl' => 365, 'http' => 366));
+    }
+
+    /*--
+    POST a list of bodies to the index's /batch endpoint as $action operations,
+    1,000 per request (Algolia's cap; also 10 MB). $errors maps the failure
+    kinds to this caller's error numbers: 'index' (unknown index), 'missing'
+    (a body without an objectID, skipped; omit it to send bodies as given),
+    'curl' and 'http'.
+    --*/
+    private function batch($indexName, $action, $bodies, array $errors){
         // Required Classes
         $errorLog = new LogError();
         $errorLog->filename = 'Algolia.class.php';
@@ -618,46 +409,44 @@ class Algolia {
         $validIndexes = ['catalog'];
         if(!in_array($indexName, $validIndexes)){
             // Invalid Index
-            $errorLog->errorNumber = 273;
-            $errorLog->errorMsg = 'Invalid index name for batchPartialUpdate.';
+            $errorLog->errorNumber = $errors['index'];
+            $errorLog->errorMsg = "Invalid index name for {$action} batch.";
             $errorLog->badData = $indexName;
             $errorLog->write();
             return;
         }
 
-        // Nothing to do
-        if(empty($objects)){
-            return;
+        // Drop any body missing an objectID rather than sending a malformed batch
+        if(isset($errors['missing'])){
+            $queue = array();
+            foreach($bodies as $body){
+                if(!empty($body['objectID'])){
+                    $queue[] = $body;
+                }else{
+                    $errorLog->errorNumber = $errors['missing'];
+                    $errorLog->errorMsg = "Skipped object with missing objectID in {$action} batch.";
+                    $errorLog->badData = json_encode($body);
+                    $errorLog->write();
+                }
+            }
+            $bodies = $queue;
         }
 
-        // Drop any object missing an objectID rather than sending a malformed batch
-        $queue = array();
-        foreach($objects as $object){
-            if(!empty($object['objectID'])){
-                $queue[] = $object;
-            }else{
-                $errorLog->errorNumber = 274;
-                $errorLog->errorMsg = 'Skipped object with missing objectID in batchPartialUpdate.';
-                $errorLog->badData = json_encode($object);
-                $errorLog->write();
-            }
-        }
-        if(empty($queue)){
+        // Nothing to do
+        if(empty($bodies)){
             return;
         }
 
         // Build URL
         $url = "https://" . ALGOLIA_APPLICATION_ID . ".algolia.net/1/indexes/{$indexName}/batch";
 
-        // Chunk — Algolia caps a batch at 1,000 operations / 10MB
-        $chunks = array_chunk($queue, 1000);
-        foreach($chunks as $chunk){
+        foreach(array_chunk(array_values($bodies), 1000) as $chunk){
             // Build Request Body
             $requests = array();
-            foreach($chunk as $object){
+            foreach($chunk as $body){
                 $requests[] = array(
-                    'action' => 'partialUpdateObjectNoCreate',
-                    'body'   => $object
+                    'action' => $action,
+                    'body'   => $body
                 );
             }
             $jsonData = json_encode(array('requests'=>$requests));
@@ -679,9 +468,9 @@ class Algolia {
 
             if(curl_errno($ch)){
                 // cURL Error
-                $errorLog->errorNumber = 275;
+                $errorLog->errorNumber = $errors['curl'];
                 $errorLog->errorMsg = curl_error($ch);
-                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk);
+                $errorLog->badData = "Index: {$indexName} / {$action} batch of " . count($chunk);
                 $errorLog->write();
                 continue;
             }
@@ -690,9 +479,9 @@ class Algolia {
 
             if($httpStatus < 200 || $httpStatus >= 300){
                 // HTTP Error
-                $errorLog->errorNumber = 276;
+                $errorLog->errorNumber = $errors['http'];
                 $errorLog->errorMsg = "HTTP Status {$httpStatus}";
-                $errorLog->badData = "Index: {$indexName} / batch of " . count($chunk) . " / Response: {$response}";
+                $errorLog->badData = "Index: {$indexName} / {$action} batch of " . count($chunk) . " / Response: {$response}";
                 $errorLog->write();
             }
         }

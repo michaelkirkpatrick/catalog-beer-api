@@ -1,4 +1,12 @@
 <?php
+// Full re-index of the Algolia `catalog` index: every brewer, its locations
+// and beers, then the style vocabulary. Each brewer goes up as one batch
+// (brewer + locations + beers, Algolia::batchSave() chunks at 1,000), so a
+// run is ~6,700 requests rather than one PUT per record. updateObject is an
+// upsert, so the script is safe to re-run.
+//
+// Usage: php batch-upload.php [staging|production] [limit]
+
 // CLI only
 if(php_sapi_name() !== 'cli'){
     exit(1);
@@ -30,154 +38,80 @@ spl_autoload_register(function ($class_name) {
     require_once ROOT . '/classes/' . $class_name . '.class.php';
 });
 
-/**
- * Ensure a local algolia table record exists for the entity.
- * Returns the algolia_id (existing or newly created).
- */
-function ensureAlgoliaRecord($type, $recordId){
-    $algolia = new Algolia();
-    $algoliaId = $algolia->getAlgoliaIdByRecord($type, $recordId);
-    if($algoliaId === null){
-        $algoliaId = $algolia->add($type, $recordId);
-    }
-    return $algoliaId;
-}
-
 // Required Classes
 $brewer = new Brewer();
 $location = new Location();
 $beer = new Beer();
 $algolia = new Algolia();
 
-// Save Array
-$listOfLocationIDs = array();
-$listOfBeerIDs = array();
-
-// ----- Brewers -----
+// ----- Brewers, each with its locations and beers -----
 
 // Get a list of all the Brewers and brewerID's
 $fetchCount = ($limit > 0) ? $limit : 10000;
 $brewerList = $brewer->getBrewers(base64_encode('0'), $fetchCount);
 
-// Counter
+// Counters
 $numBrewers = count($brewerList);
+$numLocations = 0;
+$numBeers = 0;
 $counter = 0;
 
 if($limit > 0){
     echo "Limit: $limit brewers\n\n";
 }
-echo "--- Processing $numBrewers brewers...\n\n";
+echo "--- Processing $numBrewers brewers (with their locations and beers)...\n\n";
 
-// Loop Through all the Brewers
 for($i=0; $i<$numBrewers; $i++){
-    // Brewer ID
     $brewerID = $brewerList[$i]['id'];
+    $objects = array();
 
-    // Ensure Algolia record exists
-    ensureAlgoliaRecord('brewer', $brewerID);
-
-    // Get Brewer Basic Info
+    // Brewer
     $brewer->validate($brewerID, true);
-    $brewerInfo = $brewer->generateBrewerSearchObject();
+    $objects[] = $brewer->generateBrewerSearchObject();
 
-    // Collect Location IDs for this brewer
+    // Locations — the validated brewer is passed in so each location doesn't
+    // re-validate the parent
     $locations = $location->brewerLocations($brewerID);
     if(!empty($locations)){
-        for($j=0; $j<count($locations); $j++){
-            $listOfLocationIDs[] = $locations[$j]['id'];
+        foreach($locations as $row){
+            $location->validate($row['id'], true);
+            $objects[] = $location->generateLocationSearchObject($brewer);
+            $numLocations++;
         }
     }
 
-    // Collect Beer IDs for this brewer
+    // Beers — same brewer pass-through
     $beerInfo = $beer->brewerBeers($brewerID);
-    if(!empty($beerInfo)){
-        for($j=0; $j<count($beerInfo['data']); $j++){
-            $listOfBeerIDs[] = $beerInfo['data'][$j]['id'];
+    if(!empty($beerInfo['data'])){
+        foreach($beerInfo['data'] as $row){
+            $beer->validate($row['id'], true);
+            $objects[] = $beer->generateBeerSearchObject($brewer);
+            $numBeers++;
         }
     }
 
-    // Send to Algolia via PUT (upsert)
-    $algolia->saveObject('catalog', $brewerInfo);
+    // One batch per brewer (chunked at 1,000 inside)
+    $algolia->batchSave('catalog', $objects);
     $counter++;
     $percent = round(($counter/$numBrewers) * 100);
-    echo "[$percent%] Brewer: $brewer->name\n";
-}
-echo "\n\n--- Done with Brewers. Starting Locations...\n\n";
-
-
-// ----- Locations -----
-
-$numLocations = count($listOfLocationIDs);
-$counter = 0;
-
-echo "--- Processing $numLocations locations...\n\n";
-
-for($i=0; $i<$numLocations; $i++){
-    $locationID = $listOfLocationIDs[$i];
-
-    // Ensure Algolia record exists
-    ensureAlgoliaRecord('location', $locationID);
-
-    // Get Location Info
-    $location->validate($locationID, true);
-    $array = $location->generateLocationSearchObject();
-
-    // Send to Algolia via PUT (upsert)
-    $algolia->saveObject('catalog', $array);
-    $counter++;
-    $percent = ($numLocations > 0) ? round(($counter/$numLocations) * 100) : 0;
-    // $array['name'] is the composed display name — location names are optional
-    echo "[$percent%] Location: {$array['name']}\n";
+    echo "[$percent%] Brewer: $brewer->name (" . (count($objects) - 1) . " children)\n";
 }
 
-echo "\n\n--- Done with Locations. Starting Beers...\n\n";
-
-// ----- Beers -----
-
-$numBeers = count($listOfBeerIDs);
-$counter = 0;
-
-echo "--- Processing $numBeers beers...\n\n";
-
-for($i=0; $i<$numBeers; $i++){
-    $beerID = $listOfBeerIDs[$i];
-
-    // Ensure Algolia record exists
-    ensureAlgoliaRecord('beer', $beerID);
-
-    // Get Beer Info
-    $beer->validate($beerID, true);
-    $array = $beer->generateBeerSearchObject();
-
-    // Send to Algolia via PUT (upsert)
-    $algolia->saveObject('catalog', $array);
-    $counter++;
-    $percent = ($numBeers > 0) ? round(($counter/$numBeers) * 100) : 0;
-    echo "[$percent%] Beer: $beer->name\n";
-}
-
-echo "\n\n--- Done with Beers. Starting Styles...\n\n";
+echo "\n\n--- Done: $numBrewers brewers, $numLocations locations, $numBeers beers. Starting Styles...\n\n";
 
 // ----- Styles -----
 //
-// Deterministic objectIDs ('style-' + slug), so no algolia-table bookkeeping,
-// and no per-style loop on the data side: generateStyleSearchObjects() builds
-// the whole vocabulary in two queries. Not limited by the brewer $limit — the
-// style set is ~250 records and always uploads in full.
+// Deterministic objectIDs ('style-' + slug), and no per-style loop on the data
+// side: generateStyleSearchObjects() builds the whole vocabulary in two
+// queries. Not limited by the brewer $limit — the style set is ~250 records
+// and always uploads in full.
 
 $style = new Style();
 $styleObjects = $style->generateStyleSearchObjects();
 $numStyles = count($styleObjects);
-$counter = 0;
 
 echo "--- Processing $numStyles styles...\n\n";
+$algolia->batchSave('catalog', array_values($styleObjects));
 
-foreach($styleObjects as $styleObject){
-    $algolia->saveObject('catalog', $styleObject);
-    $counter++;
-    $percent = ($numStyles > 0) ? round(($counter/$numStyles) * 100) : 0;
-    echo "[$percent%] Style: {$styleObject['name']}\n";
-}
-
-echo "\n\n--- Done with Styles. Script complete.\n";
+echo "--- Done with Styles. Script complete.\n";
 ?>

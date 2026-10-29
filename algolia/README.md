@@ -26,7 +26,7 @@ Why it exists: Algolia ANDs query tokens and "ipa" is not a token anywhere in "A
 
 ## batch-upload.php
 
-Performs a full upload of all brewers, locations, beers, and styles to the Algolia `catalog` index. Uses PUT (upsert) via `Algolia::saveObject()`, so it's safe to re-run without creating duplicates. Run this on the server via SSH:
+Performs a full upload of all brewers, locations, beers, and styles to the Algolia `catalog` index. Each brewer goes up as one `Algolia::batchSave()` call holding the brewer, its locations and its beers (`updateObject`, an upsert, chunked at 1,000 per request), so a run is ~6,700 requests rather than one PUT per record and is safe to re-run without creating duplicates. Run this on the server via SSH:
 
 ```bash
 php /var/www/html/api.catalog.beer/algolia/batch-upload.php [staging|production] [limit]
@@ -36,7 +36,11 @@ php /var/www/html/api.catalog.beer/algolia/batch-upload.php [staging|production]
 - Optional `limit` restricts the number of brewers processed (useful for testing)
 - Loads credentials from the vhost-root `common/passwords.php` and the classes from the sibling `public_html/`, so it must be run from the deployed server (not locally)
 
-The script processes brewers before it has collected locations, which is safe: `generateBrewerSearchObject()` queries the `location` table directly rather than relying on the script's loop order.
+## objectIDs
+
+**A record's `objectID` is the entity's own id**: a beer, brewer or location is indexed under its UUID, a style under `style-<slug>`. UUIDs don't collide across the three entity types, so the combined index needs no separate key, and every sync, cascade and delete addresses Algolia by the id it already has.
+
+Until 2026-10-29 each entity carried a second random UUID in a local `algolia` table (`algolia_id` → `beer_id`/`brewer_id`/`location_id`), looked up on every save and delete. The table held 209k rows (81 MB) and existed only for that indirection. The re-key: deploy, run `batch-upload.php` (writes every record under its new id — the index briefly holds both copies, so search shows duplicates for the length of the run), run `delete-legacy-ids.php` (reads the old ids from the table and deletes them in batches of 1,000), then run `catalog-beer-mysql/migrations/2026-10-29-drop-algolia-table.sql` and delete `delete-legacy-ids.php`.
 
 ## Record shape
 
@@ -59,7 +63,7 @@ Notes:
 - **Only locations carry `address.*`** (`line1`, `line2`, `locality`, `sub_code`, `postal_code`, `telephone`), so the searchable street (`address.line1`) and postal code (`address.postal_code`) return taproom hits — never the parent brewer or its beers. The unit (`line2`) is deliberately left unsearchable; nobody looks up a brewery by suite number. City and region are searchable through the shared `cities`/`states`/`regions` facet copies instead, which all three types carry. `address.postal_code` is in `disableTypoToleranceOnAttributes`: a postal token would otherwise fall under `minWordSizefor1Typo`, and 97701 matching 97702 is a different town, not a near miss. Records indexed before October 2026 still carry the old `address.address2`/`zip5` keys until `batch-upload.php` rewrites them.
 - Beer `abv` and `ibu` are **omitted when unknown**, never written as 0 — numeric range filters match a literal 0, so an unknown ABV indexed as 0 would sit inside every "under 5%" refinement. Records missing the attribute are excluded from numeric filters, which is correct for unknown. (Consequence: an IBU filter only sees beers with a listed IBU; the frontend says so.)
 - Beer `srm` is the representative integer collapsed from the style's `srm_min..srm_max` (same rule as the enriched list endpoint) — it drives the swatch, and style records carry the raw range for their gradient.
-- **Style objectIDs are deterministic** (`style-<slug>`), not routed through the `algolia` table: slugs are stable, public, and curated, so the random-ID indirection the user-writable types need buys nothing here. Styles have no API write path and therefore no real-time sync — `batch-upload.php` is the only writer; re-run it (and `synonyms.php`) after a style-library update.
+- **Style objectIDs are deterministic** (`style-<slug>`): slugs are stable, public, and curated. Styles have no API write path and therefore no real-time sync — `batch-upload.php` is the only writer; re-run it (and `synonyms.php`) after a style-library update.
 
 ## Real-time Sync
 
@@ -87,6 +91,6 @@ Steps 4 and 5 can swap — the page treats every new field as optional and degra
 
 ## Brewer delete
 
-Deleting a brewer removes its own Algolia record **and** its children's: MySQL cascades the delete to beers, locations, and their `algolia`-table rows, so `Brewer::delete()` captures every child's `algolia_id` *before* the SQL delete (`childAlgoliaIds()`) and removes them afterward in one `Algolia::batchDelete()` call. Neither `batchDelete()` nor `deleteObject()` cleans up the local `algolia` table — the FK cascade already handled it, for single deletes as well as the brewer cascade.
+Deleting a brewer removes its own Algolia record **and** its children's: MySQL cascades the delete to beers and locations, so `Brewer::delete()` captures every child's id *before* the SQL delete (`childIds()`) and removes them afterward in one `Algolia::batchDelete()` call.
 
 (Historical note: before Jul 2026 the children's records were left orphaned in the index — invisible in the old 8-hit modal, but a full `/search` results page renders orphans as hits that 404. If any predate the fix, a full `batch-upload.php` run does not remove them; delete them from the dashboard or ignore — they 404 harmlessly and are few.)

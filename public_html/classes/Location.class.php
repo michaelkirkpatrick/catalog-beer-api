@@ -486,9 +486,8 @@ class Location {
                         }
                         $this->responseHeader = $responseHeaderString . 'catalog.beer/location/' . $this->locationID;
 
-                        // Create Algolia ID and sync to Algolia
+                        // Sync new location to Algolia
                         $algolia = new Algolia();
-                        $algolia->add('location', $this->locationID);
                         $algolia->saveObject('catalog', $this->generateLocationSearchObject($this->brewerObj));
 
                         // Refresh the parent — brewer records denormalize their
@@ -1403,18 +1402,13 @@ class Location {
             $isBreweryStaff = $privileges->isBreweryStaff($users, $brewer, true);
 
             if($users->admin || $isBreweryStaff){
-                // Look up Algolia ID before deleting
-                $algolia = new Algolia();
-                $algoliaId = $algolia->getAlgoliaIdByRecord('location', $locationID);
-
                 // Delete Location
                 $db = new Database();
                 $db->query("DELETE FROM location WHERE id=?", [$locationID]);
                 if(!$db->error){
-                    // Delete from Algolia
-                    if($algoliaId !== null){
-                        $algolia->deleteObject('catalog', $algoliaId);
-                    }
+                    // Delete from Algolia — the objectID is the location's own id
+                    $algolia = new Algolia();
+                    $algolia->deleteObject('catalog', $locationID);
 
                     // Refresh the parent — its denormalized geography still
                     // carries this location's coordinates, city, and state.
@@ -1844,9 +1838,10 @@ class Location {
             $brewer->validate($this->brewerID, true);
         }
 
-        // Get Algolia ID
-        $algolia = new Algolia();
-        $array['objectID'] = $algolia->getAlgoliaIdByRecord('location', $this->locationID);
+        // The Algolia objectID is the location's own id: UUIDs don't collide
+        // across the three entity types, so the combined index needs no
+        // separate key.
+        $array['objectID'] = $this->locationID;
 
         // Generate JSON
         $array['locationID'] = $this->locationID;

@@ -479,9 +479,8 @@ class Beer {
                         }
                         $this->responseHeader = $responseHeaderString . 'catalog.beer/beer/' . $this->beerID;
 
-                        // Create Algolia ID and sync to Algolia
+                        // Sync new beer to Algolia
                         $algolia = new Algolia();
-                        $algolia->add('beer', $this->beerID);
                         $algolia->saveObject('catalog', $this->generateBeerSearchObject());
 
                         // The brewer record's beer_count just changed
@@ -1598,18 +1597,13 @@ class Beer {
             $isBreweryStaff = $privileges->isBreweryStaff($users, $brewer, true);
 
             if($users->admin || $isBreweryStaff){
-                // Look up Algolia ID before deleting
-                $algolia = new Algolia();
-                $algoliaId = $algolia->getAlgoliaIdByRecord('beer', $beerID);
-
                 // Delete Beer
                 $db = new Database();
                 $db->query("DELETE FROM beer WHERE id=?", [$beerID]);
                 if(!$db->error){
-                    // Delete from Algolia
-                    if($algoliaId !== null){
-                        $algolia->deleteObject('catalog', $algoliaId);
-                    }
+                    // Delete from Algolia — the objectID is the beer's own id
+                    $algolia = new Algolia();
+                    $algolia->deleteObject('catalog', $beerID);
 
                     // The brewer record's beer_count just changed
                     Brewer::refreshSearchObject($this->brewerID);
@@ -1674,21 +1668,25 @@ class Beer {
         $this->json['brewer'] = $brewer->json;
     }
 
-    public function generateBeerSearchObject(){
-        // Generates the Beer Object for Algolia
+    public function generateBeerSearchObject($brewerObj = null){
+        // Generates the Beer Object for Algolia. $brewerObj is an optional
+        // already-validated Brewer (batch-upload.php passes one per brewer so
+        // its beers don't each re-validate the parent).
         $array = array();
 
         // Get Brewery Data
-        if($this->brewerObj !== null){
+        if($brewerObj !== null){
+            $brewer = $brewerObj;
+        }elseif($this->brewerObj !== null){
             $brewer = $this->brewerObj;
         }else{
             $brewer = new Brewer();
             $brewer->validate($this->brewerID, true);
         }
 
-        // Get Algolia ID
-        $algolia = new Algolia();
-        $array['objectID'] = $algolia->getAlgoliaIdByRecord('beer', $this->beerID);
+        // The Algolia objectID is the beer's own id: UUIDs don't collide across
+        // the three entity types, so the combined index needs no separate key.
+        $array['objectID'] = $this->beerID;
 
         // Create Output Array
         $array['beerID'] = $this->beerID;

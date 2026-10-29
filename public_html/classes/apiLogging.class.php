@@ -49,8 +49,17 @@ class apiLogging {
             if($method == 'GET'){
                 // Don't save the response (Memory Issues with large requests)
                 $this->response = '';
+            }elseif($responseCode >= 200 && $responseCode < 300){
+                // A successful write echoes the whole entity back. Keep only
+                // what /activity reads from it (the resource's id and name and
+                // its brewer's) — the full object was 1.1 KB a row, and two
+                // bulk-load months of POST /beer put 150 MB of them in this
+                // table. The write itself is the catalog's record; this is not
+                // an audit log (see Claude Ideas/audit-log.md).
+                $this->response = self::responseStub($response);
             }else{
-                // Save the Response
+                // Save the error response: small, and the only record of why
+                // an external caller's write was refused.
                 $this->response = $this->scrubSensitive($response);
             }
             $this->responseCode = $responseCode;
@@ -74,6 +83,41 @@ class apiLogging {
             $errorLog->filename = 'API / apiLogging.class.php';
             $errorLog->write();
         }
+    }
+
+    /*--
+    Reduce a successful write's response to the keys Activity.class.php reads
+    back out of it: id, name, and the nested brewer's id and name (a beer or
+    location response carries its parent). Anything else — the description,
+    the address, the style, the valid_state block — is already in the entity
+    row and was only ever duplicated here. Returns '' when the response holds
+    none of those keys (a DELETE, or a non-entity response), so the column
+    stays empty rather than storing "[]".
+    --*/
+    public static function responseStub($response): string {
+        if($response === null || $response === ''){
+            return '';
+        }
+        $decoded = json_decode(is_string($response) ? $response : json_encode($response), true);
+        if(!is_array($decoded)){
+            return '';
+        }
+
+        $stub = array();
+        foreach(array('id', 'name') as $key){
+            if(isset($decoded[$key]) && is_scalar($decoded[$key])){
+                $stub[$key] = $decoded[$key];
+            }
+        }
+        if(isset($decoded['brewer']) && is_array($decoded['brewer'])){
+            foreach(array('id', 'name') as $key){
+                if(isset($decoded['brewer'][$key]) && is_scalar($decoded['brewer'][$key])){
+                    $stub['brewer'][$key] = $decoded['brewer'][$key];
+                }
+            }
+        }
+
+        return empty($stub) ? '' : json_encode($stub);
     }
 
     // Redact known-sensitive fields from a JSON body or response before storage.
