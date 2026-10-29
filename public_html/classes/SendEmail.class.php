@@ -157,11 +157,18 @@ class SendEmail {
     // payment, billing turned off, a card that failed verification. Stripe
     // sends the receipt itself. $template names a body file in
     // classes/resources/; $replacements maps ##TOKEN## => value, already
-    // escaped by the caller. Replies go to the billing inbox.
-    public function billingEmail($to, $subject, $tag, $template, $replacements, $textBody){
+    // escaped by the caller. Replies go to the billing inbox. $preheader is
+    // the line inbox lists show after the subject: a hidden first element of
+    // the body, padded so the visible text doesn't run on into the preview.
+    public function billingEmail($to, $subject, $tag, $template, $replacements, $textBody, $preheader = ''){
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-billing-head.html');
         $htmlBody .= file_get_contents(ROOT . '/classes/resources/' . $template);
         $htmlBody = str_replace(array_keys($replacements), array_values($replacements), $htmlBody);
+        if($preheader !== ''){
+            $hidden = '<div style="display:none;font-size:1px;color:#f6f6f6;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">'
+                . htmlspecialchars($preheader, ENT_QUOTES, 'UTF-8') . str_repeat('&#847;&zwnj;&nbsp;', 60) . '</div>';
+            $htmlBody = preg_replace_callback('/<body[^>]*>/', fn($m) => $m[0] . $hidden, $htmlBody, 1);
+        }
 
         $this->send($to, $subject, $tag, $htmlBody, $textBody, [], self::BILLING_REPLY_TO);
         return !$this->error;

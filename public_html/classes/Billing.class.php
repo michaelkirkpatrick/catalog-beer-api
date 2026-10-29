@@ -458,7 +458,7 @@ class Billing {
                             $errorLog->write();
 
                             $label = $this->cardLabel($card);
-                            $this->sendWebhookEmail($object['customer'], 'We couldn\'t verify the card you added to Catalog.beer', 'billing-card-unverified', 'email-billing-card-unverified.html',
+                            $this->sendWebhookEmail($object['customer'], 'Card not verified', 'Your bank couldn\'t confirm its security code, so billing is still off.', 'billing-card-unverified', 'email-billing-card-unverified.html',
                                 array('##CARD##' => $this->h($label)),
                                 "You just added a card ($label) for Catalog.beer API billing, but your bank reported that the security code didn't match, so we haven't turned billing on. Please add the card again, checking the 3- or 4-digit code: https://catalog.beer/billing");
                             break;
@@ -519,7 +519,7 @@ class Billing {
                     $label = $this->cardLabel($this->defaultPaymentMethod($object['customer']));
                     $cardText = $label !== '' ? $label : 'your card on file';
                     $invoiceURL = $object['hosted_invoice_url'] ?? 'https://catalog.beer/billing';
-                    $this->sendWebhookEmail($object['customer'], "We couldn't charge your card for Catalog.beer ($amount)", 'billing-payment-failed', 'email-billing-payment-failed.html',
+                    $this->sendWebhookEmail($object['customer'], "Payment failed: $amount", "We'll retry automatically. Pay now or update your card.", 'billing-payment-failed', 'email-billing-payment-failed.html',
                         array('##AMOUNT##' => $this->h($amount), '##CARD##' => $this->h($cardText), '##MONTHS##' => $this->h($months), '##INVOICE_URL##' => $this->h($invoiceURL)),
                         "We tried to charge $amount to $cardText for your Catalog.beer API usage in $months, and the payment didn't go through.\r\n\r\nStripe will retry automatically over the next couple of weeks. To settle it now, pay the invoice here: $invoiceURL\r\n\r\nOr update your card at https://catalog.beer/billing\r\n\r\nIf the payment still can't be collected, billing is turned off and your key goes back to the free 1,000 requests a month.");
                 }
@@ -544,7 +544,7 @@ class Billing {
                     if($type == 'invoice.marked_uncollectible'){
                         $amount = $this->dollars($object['amount_due'] ?? 0);
                         $invoiceURL = $object['hosted_invoice_url'] ?? 'https://catalog.beer/billing';
-                        $this->sendWebhookEmail($object['customer'], 'Catalog.beer API billing is turned off', 'billing-turned-off', 'email-billing-turned-off.html',
+                        $this->sendWebhookEmail($object['customer'], 'API billing turned off', "Your key is back on the free tier. $amount is still open.", 'billing-turned-off', 'email-billing-turned-off.html',
                             array('##AMOUNT##' => $this->h($amount), '##INVOICE_URL##' => $this->h($invoiceURL), '##FREE_LIMIT##' => '1,000'),
                             "We weren't able to collect $amount for your Catalog.beer API usage after several tries, so we've turned billing off. Your key is back on the free tier of 1,000 requests a month.\r\n\r\nThe invoice is still open. You can pay it here: $invoiceURL\r\n\r\nAdding a card at https://catalog.beer/billing turns billing back on.");
                     }
@@ -947,6 +947,11 @@ class Billing {
         return 'Your ' . $monthLabel . ' usage came to ' . $this->dollars($thisMonthCents) . ', under our ' . $floor . ' minimum, so nothing is charged this month.';
     }
 
+    // "October 2026" -> "October": subjects stay short, the body has the year
+    private function monthOnly($monthLabel){
+        return explode(' ', $monthLabel)[0];
+    }
+
     private function monthName($charge){
         return date('F Y', mktime(0, 0, 0, intval($charge['month']), 1, intval($charge['year'])));
     }
@@ -1021,7 +1026,8 @@ class Billing {
             $chargeDate = date('F j, Y', $chargeTs);
             $cardText = $card !== '' ? $card : 'the card on your account';
             $cap = $this->dollars($user['monthlySpendCapCents']);
-            $subject = "Your $monthLabel Catalog.beer API bill: $amount";
+            $subject = "Your " . $this->monthOnly($monthLabel) . " API bill: $amount";
+            $preheader = "We'll charge $cardText on " . date('F j', $chargeTs) . '.';
             $template = 'email-billing-notice.html';
             $tag = 'billing-notice';
             $replacements['##AMOUNT##'] = $this->h($amount);
@@ -1039,7 +1045,8 @@ class Billing {
             $amount = $this->dollars($thisMonthCents);
             $balance = $this->dollars($totalCents);
             $floor = $this->dollars(self::INVOICE_FLOOR_CENTS);
-            $subject = "Your $monthLabel Catalog.beer API usage: $amount, nothing charged yet";
+            $subject = "Your " . $this->monthOnly($monthLabel) . " API usage: $amount, nothing due";
+            $preheader = "Your $balance balance carries forward until it reaches $floor.";
             $template = 'email-billing-carried-forward.html';
             $tag = 'billing-carried-forward';
             $summary = $this->carriedSummary($monthLabel, $thisMonthCents, $totalCents);
@@ -1050,7 +1057,7 @@ class Billing {
         }
 
         $sendEmail = new SendEmail();
-        return $sendEmail->billingEmail($user['email'], $subject, $tag, $template, $replacements, $textBody);
+        return $sendEmail->billingEmail($user['email'], $subject, $tag, $template, $replacements, $textBody, $preheader);
     }
 
     // The account behind a Stripe customer, for webhook emails
@@ -1068,7 +1075,7 @@ class Billing {
         return $user;
     }
 
-    private function sendWebhookEmail($stripeCustomerID, $subject, $tag, $template, $replacements, $text){
+    private function sendWebhookEmail($stripeCustomerID, $subject, $preheader, $tag, $template, $replacements, $text){
         $user = $this->userForCustomer($stripeCustomerID);
         if(empty($user)){
             return;
@@ -1079,7 +1086,7 @@ class Billing {
         $textBody = "Hi $name,\r\n\r\n" . $text . "\r\n\r\n" . $this->emailSignoff();
 
         $sendEmail = new SendEmail();
-        if(!$sendEmail->billingEmail($user['email'], $subject, $tag, $template, $replacements, $textBody)){
+        if(!$sendEmail->billingEmail($user['email'], $subject, $tag, $template, $replacements, $textBody, $preheader)){
             // Logged and dropped: the webhook still answers 200, or Stripe
             // would redeliver the event and repeat its other effects.
             $errorLog = new LogError();
