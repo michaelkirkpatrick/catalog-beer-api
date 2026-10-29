@@ -411,7 +411,7 @@ class Algolia {
      * @param array  $objects   List of search objects, each containing 'objectID'
      */
     public function batchSave($indexName, $objects){
-        $this->batch($indexName, 'updateObject', $objects, array('index' => 363, 'missing' => 364, 'curl' => 365, 'http' => 366));
+        $this->batch($indexName, 'updateObject', $objects, array('index' => 367, 'missing' => 368, 'curl' => 369, 'http' => 370));
     }
 
     /*--
