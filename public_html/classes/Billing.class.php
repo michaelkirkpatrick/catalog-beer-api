@@ -1047,7 +1047,7 @@ class Billing {
             $replacements['##AMOUNT##'] = $this->h($amount);
             $replacements['##CHARGE_DATE##'] = $this->h($chargeDate);
             $replacements['##CARD##'] = $this->h($cardText);
-            $replacements['##CAP##'] = $this->h($cap . ' monthly spend cap');
+            $replacements['##CAP##'] = $this->h($cap);
             $textBody = "Hi $name,\r\n\r\nHere's your Catalog.beer API bill for $monthLabel. We'll charge $amount to $cardText on $chargeDate.\r\n\r\n$lineText  Total: $amount\r\n\r\n" . $alertText . "Your monthly spend cap is $cap. Review your billing or update your card at $billingURL\r\n\r\n" . $this->emailSignoff();
         }else{
             $thisMonthCents = 0;
