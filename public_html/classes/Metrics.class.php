@@ -216,16 +216,6 @@ class Metrics {
             $m[] = array('beer_beverage_type', $dim, $count);
         }
 
-        // ----- URL health -----
-        // Optional: the check-urls monitoring columns may not be migrated yet
-        // on every environment. Probe first — a failed query would abort the
-        // whole snapshot.
-        if($this->columnExists($db, 'brewer', 'urlStatus')){
-            foreach($this->grouped($db, "SELECT urlStatus AS d, COUNT(*) FROM brewer GROUP BY d") as $dim => $count){
-                $m[] = array('brewer_url_status', $dim, $count);
-            }
-        }
-
         return $m;
     }
 

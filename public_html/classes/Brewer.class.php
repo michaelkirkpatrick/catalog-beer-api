@@ -22,7 +22,6 @@ class Brewer {
     public $foundedYear = null;         // Optional
     public $closedYear = null;          // Optional; needs status 'closed'
     public $countryCode = 'US';
-    public $urlStatus = '';             // Internal — never in the brewer object
     public $lastModified = 0;
 
     const STATUSES = array('active', 'closed');
@@ -63,7 +62,7 @@ class Brewer {
         $newBrewer = false;
         $urlVerified = false;
         $originalName = null;   // Set on PUT/PATCH of an existing brewer; null means "no rename to cascade"
-        $originalURL = null;    // Set on PUT/PATCH of an existing brewer — a changed URL resets the url-monitoring columns
+        $originalURL = null;    // Set on PUT/PATCH of an existing brewer — compared to tell a URL-only PATCH (which keeps the badges)
         $originalStatus = null;     // Set on PUT/PATCH of an existing brewer; a reopen clears closedYear
         switch($method){
             case 'POST':
@@ -92,7 +91,7 @@ class Brewer {
                     $originalBV = $this->brewerVerified;
                     // Save original name to detect a rename — drives the Algolia cascade below
                     $originalName = $this->name;
-                    // Save original URL to detect a change — drives the url-monitoring reset below
+                    // Save original URL to detect a change — drives the URL-only check below
                     $originalURL = $this->url;
                     $originalStatus = $this->status;
                 }else{
@@ -130,7 +129,7 @@ class Brewer {
                     $originalBV = $this->brewerVerified;
                     // Save original name to detect a rename — drives the Algolia cascade below
                     $originalName = $this->name;
-                    // Save original URL to detect a change — drives the url-monitoring reset below
+                    // Save original URL to detect a change — drives the URL-only check below
                     $originalURL = $this->url;
                     $originalStatus = $this->status;
                 }
@@ -397,7 +396,7 @@ class Brewer {
                         }else{
                             $setClauses[] = 'shortDescription=NULL';
                         }
-                        $this->urlSetClauses($originalURL, $setClauses, $setParams);
+                        $this->urlSetClauses($setClauses, $setParams);
                         $sql = "UPDATE brewer SET " . implode(', ', $setClauses) . " WHERE id=?";
                         $setParams[] = $this->brewerID;
                         $db->query($sql, $setParams);
@@ -432,7 +431,7 @@ class Brewer {
                     if($url != $this->url){
                         $this->url = $this->validateURL($url, 'url', 'brewer');
                         if(!$this->error){
-                            $this->urlSetClauses($originalURL, $setClauses, $setParams);
+                            $this->urlSetClauses($setClauses, $setParams);
                         }
                     }
                 }
@@ -913,12 +912,12 @@ class Brewer {
     }
 
     /*--
-    Builds the url/domainName/url-monitoring half of an UPDATE for PUT and PATCH.
+    Builds the url/domainName half of an UPDATE for PUT and PATCH.
     $this->url and $this->domainName must already be validated. Appends to
     $setClauses/$setParams by reference so both callers stay in step — the two
     paths drifting apart is what let PATCH write '' where PUT wrote NULL.
     --*/
-    private function urlSetClauses($originalURL, &$setClauses, &$setParams){
+    private function urlSetClauses(&$setClauses, &$setParams){
         if($this->url !== ''){
             $setClauses[] = 'url=?';
             $setParams[] = $this->url;
@@ -931,38 +930,6 @@ class Brewer {
             // staff check, which treats '' and NULL alike but reads cleaner.
             $setClauses[] = 'url=NULL';
             $setClauses[] = 'domainName=NULL';
-        }
-
-        // Compare post-validation: "foo.com" normalizes to the stored
-        // "https://foo.com/", and an unchanged URL keeps its monitoring history.
-        // (Loose != so a NULL original equals an empty string.)
-        if($this->url == $originalURL){
-            return;
-        }
-
-        if($this->url === '' && !empty($originalURL)){
-            /*--
-            The URL was cleared, not replaced — almost always because the
-            monitoring cron found it dead, parked or hijacked. Keep the verdict
-            and the timestamps: urlStatus says what went wrong, urlLastOkAt says
-            when the domain last served this brewery's own site, and
-            urlLastKnown holds the address itself. Wiping them would leave the
-            record reading "no website, never checked", which is the opposite of
-            what we just learned, and would send the next person searching for a
-            brewery that has probably closed.
-            --*/
-            $setClauses[] = 'urlLastKnown=?';
-            $setParams[] = $originalURL;
-        }else{
-            // Replaced with a different URL. The monitoring columns describe the
-            // old address, so reset to baseline; urlCheckedAt=NULL puts the
-            // brewer at the front of the check-urls queue.
-            $setClauses[] = "urlStatus='unverified'";
-            $setClauses[] = 'urlCheckedAt=NULL';
-            $setClauses[] = 'urlLastOkAt=NULL';
-            $setClauses[] = 'urlFailCount=0';
-            $setClauses[] = 'urlFinal=NULL';
-            $setClauses[] = 'urlLastKnown=NULL';
         }
     }
 
@@ -993,9 +960,7 @@ class Brewer {
                 return $returnURL;
             }
 
-            // Reachability is UrlCheck's job — same probe the check-urls cron
-            // uses, so a URL accepted here isn't flagged dead by the cron the
-            // next morning, or vice versa.
+            // Reachability is UrlCheck's job.
             $urlCheck = new UrlCheck();
             $probe = $urlCheck->reachable($url);
 
@@ -1037,7 +1002,6 @@ class Brewer {
                 // The server answered but didn't serve us the site — a WAF
                 // block, or an outage. Store what was submitted: a challenge
                 // page or error page's redirect target is not the brewery.
-                // check-urls will re-test it on its own schedule.
                 $returnURL = $url;
             }
 
@@ -1152,7 +1116,7 @@ class Brewer {
         if(!empty($brewerID)){
             // Prep for Database
             $db = new Database();
-            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, status, foundedYear, closedYear, countryCode, urlStatus, lastModified FROM brewer WHERE id=?", [$brewerID]);
+            $result = $db->query("SELECT name, description, shortDescription, url, domainName, cbVerified, brewerVerified, status, foundedYear, closedYear, countryCode, lastModified FROM brewer WHERE id=?", [$brewerID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid
@@ -1181,7 +1145,6 @@ class Brewer {
                         $this->foundedYear = is_null($array['foundedYear']) ? null : intval($array['foundedYear']);
                         $this->closedYear = is_null($array['closedYear']) ? null : intval($array['closedYear']);
                         $this->countryCode = $array['countryCode'];
-                        $this->urlStatus = $array['urlStatus'];
                         $this->lastModified = intval($array['lastModified']);
 
                         if($array['cbVerified']){
