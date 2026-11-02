@@ -470,6 +470,9 @@ class Beer {
                 $db->query($sql, $params);
                 if(!$db->error){
                     // Successful database operation
+                    // The audit row first, so it and the search index
+                    // describe the same state (Audit.class.php)
+                    Audit::record('beer', $this->beerID, $newBeer ? 'create' : 'update');
                     if($newBeer){
                         // Created New Beer
                         $this->responseCode = 201;
@@ -1582,6 +1585,38 @@ class Beer {
         return $beerInfo;
     }
 
+    // Audit log (Audit.class.php): kept in every snapshot, never written back
+    // by a revert; see Brewer::AUDIT_STATE_COLUMNS.
+    const AUDIT_STATE_COLUMNS = array('lastModified', 'createdAt', 'cbVerified', 'brewerVerified');
+
+    // GET /beer/{id}/history (admin)
+    public function history($beerID, $apiKey){
+        Audit::historyRoute('beer', $beerID, $apiKey, $this);
+    }
+
+    /*--
+    POST /beer/{id}/revert {"audit_id": N, "note": "..."} (admin). The
+    snapshot at row N goes back through add() as a PUT, so the style is
+    re-resolved and the brewer must still exist; recorded as action=revert.
+    See Brewer::revert().
+    --*/
+    public function revert($beerID, $auditID, $note, $apiKey){
+        $apiKeys = Audit::requireAdmin($apiKey, $this, 373, 'POST /beer/{id}/revert');
+        if($apiKeys === null){
+            return;
+        }
+        $row = Audit::revertTarget('beer', $beerID, $auditID, $this);
+        if($row === null){
+            return;
+        }
+        $s = $row['snapshot'];
+        Audit::beginRevert($row['id'], Audit::revertNote($note));
+        $this->add($s['brewerID'] ?? '', $s['name'] ?? '', $s['style'] ?? '', $s['style_id'] ?? '', $s['parent'] ?? '', $s['class'] ?? '', $s['style_confidence'] ?? '', $s['description'] ?? '',
+            isset($s['abv']) ? floatval($s['abv']) : '', isset($s['ibu']) ? intval($s['ibu']) : '',
+            $apiKeys->userID, 'PUT', $beerID, array());
+        Audit::cancelRevert();
+    }
+
     public function delete($beerID, $userID){
         if($this->validate($beerID, true)){
             // Get User Information
@@ -1601,6 +1636,9 @@ class Beer {
                 $db = new Database();
                 $db->query("DELETE FROM beer WHERE id=?", [$beerID]);
                 if(!$db->error){
+                    // The tombstone; the previous audit row holds the beer
+                    Audit::record('beer', $beerID, 'delete');
+
                     // Delete from Algolia — the objectID is the beer's own id
                     $algolia = new Algolia();
                     $algolia->deleteObject('catalog', $beerID);
@@ -2080,6 +2118,10 @@ class Beer {
                 }else{
                     if(!empty($function)){
                         switch($function){
+                            case 'history':
+                                // GET https://api.catalog.beer/beer/{beer_id}/history (admin)
+                                $this->history($id, $apiKey);
+                                break;
                             case 'search':
                                 // GET https://api.catalog.beer/beer/search?q=
                                 $searchQuery = isset($_GET['q']) ? $_GET['q'] : '';
@@ -2176,6 +2218,21 @@ class Beer {
                 }
                 break;
             case 'POST':
+                if($function === 'revert'){
+                    // POST https://api.catalog.beer/beer/{beer_id}/revert (admin)
+                    $this->revert($id, $data->audit_id ?? null, $data->note ?? null, $apiKey);
+                    if(!$this->error){
+                        $this->generateBeerObject();
+                    }else{
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                        if(!empty($this->validMsg)){
+                            $this->json['valid_state'] = $this->validState;
+                            $this->json['valid_msg'] = $this->validMsg;
+                        }
+                    }
+                    break;
+                }
                 if(!empty($function)){
                     // Method Not Allowed for /beer/{function}
                     $this->responseCode = 405;

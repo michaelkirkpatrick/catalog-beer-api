@@ -568,6 +568,9 @@ class Brewer {
             if($runQuery){
                 if(!$db->error){
                     // Successful database operation
+                    // The audit row first, so it and the search index
+                    // describe the same state (Audit.class.php)
+                    Audit::record('brewer', $this->brewerID, $newBrewer ? 'create' : 'update');
                     if($newBrewer){
                         // Created New Brewer
                         $this->responseCode = 201;
@@ -1468,6 +1471,48 @@ class Brewer {
         }
     }
 
+    /*--
+    Audit log (Audit.class.php). State columns describe the present rather
+    than the content: kept in every snapshot as evidence, never written back
+    by a revert -- add() recomputes the badges for the reverting admin and
+    stamps lastModified itself.
+    --*/
+    const AUDIT_STATE_COLUMNS = array('lastModified', 'createdAt', 'cbVerified', 'brewerVerified');
+
+    // GET /brewer/{id}/history (admin)
+    public function history($brewerID, $apiKey){
+        Audit::historyRoute('brewer', $brewerID, $apiKey, $this);
+    }
+
+    /*--
+    POST /brewer/{id}/revert {"audit_id": N, "note": "..."} (admin). Writes
+    the snapshot at history row N back THROUGH add() as a PUT built from it,
+    so every rule a write obeys (URL conflict, closed years, country) applies
+    to a revert too, and the result is recorded as action=revert with
+    revertOf. A deleted brewer comes back under its own id (201), which is
+    also its Algolia objectID and what every consumer keys on. Reverting to
+    the state already held writes no row (the no-op rule) and answers 200.
+    --*/
+    public function revert($brewerID, $auditID, $note, $apiKey){
+        $apiKeys = Audit::requireAdmin($apiKey, $this, 373, 'POST /brewer/{id}/revert');
+        if($apiKeys === null){
+            return;
+        }
+        $row = Audit::revertTarget('brewer', $brewerID, $auditID, $this);
+        if($row === null){
+            return;
+        }
+        $s = $row['snapshot'];
+        Audit::beginRevert($row['id'], Audit::revertNote($note));
+        $this->add($s['name'] ?? '', $s['description'] ?? '', $s['shortDescription'] ?? '', $s['url'] ?? '', $apiKeys->userID, 'PUT', $brewerID, array(), array(
+            'status' => $s['status'] ?? 'active',
+            'founded_year' => $s['foundedYear'] ?? null,
+            'closed_year' => $s['closedYear'] ?? null,
+            'country_code' => $s['countryCode'] ?? 'US'
+        ));
+        Audit::cancelRevert();
+    }
+
     public function delete($brewerID, $userID){
         if($this->validate($brewerID, true)){
             // Get User Information
@@ -1490,12 +1535,20 @@ class Brewer {
                 $db = new Database();
                 $db->query("DELETE FROM brewer WHERE id=?", [$brewerID]);
                 if(!$db->error){
+                    // The tombstones: the brewer's own, then one per child
+                    // the cascade took, since those never pass through
+                    // Beer/Location::delete(). Their last content is the
+                    // previous audit row of each.
+                    Audit::record('brewer', $brewerID, 'delete');
+                    Audit::recordDeletes('beer', $childIds['beer'], 'cascade: brewer deleted');
+                    Audit::recordDeletes('location', $childIds['location'], 'cascade: brewer deleted');
+
                     // Delete from Algolia: the brewer's record, then every
                     // child record in one batched call. Each objectID is the
                     // entity's own id.
                     $algolia = new Algolia();
                     $algolia->deleteObject('catalog', $brewerID);
-                    $algolia->batchDelete('catalog', $childIds);
+                    $algolia->batchDelete('catalog', array_merge($childIds['beer'], $childIds['location']));
                 }else{
                     // Database Error
                     $this->error = true;
@@ -1826,9 +1879,10 @@ class Brewer {
     unreachable orphans. Failures degrade to whatever was collected (logged)
     — a sync problem must not block the delete.
     */
+    // The brewer's beer and location ids, keyed by type
     private function childIds(){
         $db = new Database();
-        $ids = array();
+        $ids = array('beer' => array(), 'location' => array());
 
         $children = array(
             'beer'     => "SELECT id FROM beer WHERE brewerID=?",
@@ -1854,7 +1908,7 @@ class Brewer {
             }
 
             while($row = $result->fetch_assoc()){
-                $ids[] = $row['id'];
+                $ids[$type][] = $row['id'];
             }
         }
         $db->close();
@@ -2154,6 +2208,10 @@ class Brewer {
                 }else{
                     if(!empty($function)){
                         switch($function){
+                            case 'history':
+                                // GET https://api.catalog.beer/brewer/{brewer_id}/history (admin)
+                                $this->history($id, $apiKey);
+                                break;
                             case 'search':
                                 // GET https://api.catalog.beer/brewer/search?q=
                                 $searchQuery = isset($_GET['q']) ? $_GET['q'] : '';
@@ -2282,6 +2340,21 @@ class Brewer {
                 }
                 break;
             case 'POST':
+                if($function === 'revert'){
+                    // POST https://api.catalog.beer/brewer/{brewer_id}/revert (admin)
+                    $this->revert($id, $data->audit_id ?? null, $data->note ?? null, $apiKey);
+                    if(!$this->error){
+                        $this->generateBrewerObject(true);
+                    }else{
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                        if(!empty($this->validMsg)){
+                            $this->json['valid_state'] = $this->validState;
+                            $this->json['valid_msg'] = $this->validMsg;
+                        }
+                    }
+                    break;
+                }
                 if(!empty($function)){
                     // Method Not Allowed for /brewer/{function}
                     $this->responseCode = 405;

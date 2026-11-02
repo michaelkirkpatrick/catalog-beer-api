@@ -219,6 +219,9 @@ class Billing {
 
             $db = new Database();
             $db->query("UPDATE users SET stripeCustomerID=? WHERE id=?", [$customerID, $apiKeys->userID]);
+            if(!$db->error){
+                Audit::set('user', $apiKeys->userID, 'stripeCustomerID', null, $customerID);
+            }
             if($db->error){
                 $this->error = true;
                 $this->errorMsg = $db->errorMsg;
@@ -367,6 +370,9 @@ class Billing {
         }
         $db->close();
 
+        // The setting whose history api_logging never kept (Audit.class.php)
+        Audit::set('api_key', $apiKey, 'monthlySpendCapCents', $apiKeys->monthlySpendCapCents, $cap);
+
         $this->json['object'] = 'billing';
         $this->json['billing_enabled'] = $apiKeys->billingEnabled;
         $this->json['monthly_spend_cap_cents'] = $cap;
@@ -406,6 +412,8 @@ class Billing {
             return;
         }
         $db->close();
+
+        Audit::set('api_key', $apiKey, 'billingEnabled', $apiKeys->billingEnabled ? 1 : 0, 0);
 
         $this->json['object'] = 'billing';
         $this->json['billing_enabled'] = false;
@@ -469,7 +477,7 @@ class Billing {
                             'invoice_settings' => array('default_payment_method' => $paymentMethod)
                         ));
                         if(!$stripe->error){
-                            $this->setBillingEnabledForCustomer($object['customer'], 1);
+                            $this->setBillingEnabledForCustomer($object['customer'], 1, $type);
                         }
                     }
                 }
@@ -482,7 +490,7 @@ class Billing {
                     $paymentMethods = $stripe->request('GET', '/v1/payment_methods', array('customer' => $customerID, 'type' => 'card'));
                     if(!$stripe->error && empty($paymentMethods['data'])){
                         // No cards left — key reverts to the free hard cap
-                        $this->setBillingEnabledForCustomer($customerID, 0);
+                        $this->setBillingEnabledForCustomer($customerID, 0, $type);
 
                         $errorLog = new LogError();
                         $errorLog->errorNumber = 287;
@@ -537,7 +545,7 @@ class Billing {
                 // extending paid overage to this customer.
                 $this->updateChargeStatus($object['id'] ?? '', 'written_off');
                 if(!empty($object['customer'])){
-                    $this->setBillingEnabledForCustomer($object['customer'], 0);
+                    $this->setBillingEnabledForCustomer($object['customer'], 0, $type);
 
                     // Tell the customer when retries ran out; a hand-voided
                     // invoice is our own decision and gets no email.
@@ -568,8 +576,18 @@ class Billing {
         }
     }
 
-    private function setBillingEnabledForCustomer($stripeCustomerID, $enabled){
+    private function setBillingEnabledForCustomer($stripeCustomerID, $enabled, $note = null){
         $db = new Database();
+        // The keys this touches, read first so each gets its audit row with
+        // the value it held (Audit.class.php; the webhook has no actor, so
+        // the note carries the Stripe event type).
+        $keys = array();
+        $result = $db->query("SELECT ak.id, ak.billingEnabled+0 AS billingEnabled FROM api_keys ak INNER JOIN users u ON ak.userID = u.id WHERE u.stripeCustomerID=?", [$stripeCustomerID]);
+        if(!$db->error){
+            while($row = $result->fetch_assoc()){
+                $keys[$row['id']] = intval($row['billingEnabled']);
+            }
+        }
         $db->query("UPDATE api_keys ak INNER JOIN users u ON ak.userID = u.id SET ak.billingEnabled=? WHERE u.stripeCustomerID=?", [$enabled, $stripeCustomerID]);
         if($db->error){
             $errorLog = new LogError();
@@ -578,6 +596,10 @@ class Billing {
             $errorLog->badData = 'customer: ' . $stripeCustomerID . ' / enabled: ' . $enabled;
             $errorLog->filename = 'API / Billing.class.php';
             $errorLog->write();
+        }else{
+            foreach($keys as $keyID => $was){
+                Audit::set('api_key', $keyID, 'billingEnabled', $was, $enabled, $note);
+            }
         }
         $db->close();
     }

@@ -102,6 +102,20 @@ index the filter relies on.
 php tests/modified-since.php [path/to/catalog-beer-schema.sql]
 ```
 
+`audit.php` needs a local MySQL too (scratch database `cb_audit_test`) and
+covers the audit log: every write path leaves a row naming the key's user and
+the key; the snapshot is the raw row after the write; a PUT of the current
+values leaves nothing; a delete leaves a tombstone and a brewer delete one per
+cascaded child; the settings sites (spend cap, billing, privileges, email,
+password, keys, account deletion); the history and feed reads; revert through
+the entity's own PUT, including restoring a deleted record; the baseline
+backfill script (included with the scratch constants); and that the schema
+carries the table with no foreign key. No network, no secrets file.
+
+```bash
+php tests/audit.php [path/to/catalog-beer-schema.sql]
+```
+
 Every expected value in the table has been checked by a human against what
 USPS and Google actually returned. That is what makes a failure meaningful, so
 when behavior legitimately changes, edit the expectations by hand rather than

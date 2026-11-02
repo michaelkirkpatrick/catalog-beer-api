@@ -38,6 +38,9 @@ RewriteRule ^activity/?$ index.php?endpoint=activity [L]
 # Retired in 6.0 (the address rides on /location); answers 404 with a pointer
 RewriteRule ^address(/.*)?$ index.php?endpoint=address [L]
 
+RewriteRule ^audit/?$ index.php?endpoint=audit [QSA,L]
+RewriteRule ^brewer(\/[-0-9a-f]{36})/history$ index.php?endpoint=brewer&id=$1&function=history [QSA,L]
+RewriteRule ^brewer(\/[-0-9a-f]{36})/revert$ index.php?endpoint=brewer&id=$1&function=revert [L]
 RewriteRule ^brewer/search$ index.php?endpoint=brewer&function=search [QSA,L]
 RewriteRule ^brewer$ index.php?endpoint=brewer [QSA,L]
 RewriteRule ^brewer/$ index.php?endpoint=brewer [QSA,L]
@@ -53,6 +56,8 @@ RewriteRule ^billing/?$ index.php?endpoint=billing [L]
 
 RewriteRule ^stripe-webhook$ index.php?endpoint=stripe-webhook [L]
 
+RewriteRule ^beer(\/[-0-9a-f]{36})/history$ index.php?endpoint=beer&id=$1&function=history [QSA,L]
+RewriteRule ^beer(\/[-0-9a-f]{36})/revert$ index.php?endpoint=beer&id=$1&function=revert [L]
 RewriteRule ^beer/search$ index.php?endpoint=beer&function=search [QSA,L]
 RewriteRule ^beer/?$ index.php?endpoint=beer [QSA,L]
 RewriteRule ^beer(\/[-0-9a-f]{36})?$ index.php?endpoint=beer&id=$1 [L]
@@ -68,6 +73,8 @@ RewriteRule ^style/?$ index.php?endpoint=style [L]
 # cursor= surviving the rewrite. Without it the query string is replaced and
 # pagination silently restarts at offset 0 -- invisible below 500 rows
 # (count's default matches), an infinite loop for any paginating client above.
+RewriteRule ^location(\/[-0-9a-f]{36})/history$ index.php?endpoint=location&id=$1&function=history [QSA,L]
+RewriteRule ^location(\/[-0-9a-f]{36})/revert$ index.php?endpoint=location&id=$1&function=revert [L]
 RewriteRule ^location(\/[-0-9a-f]{36})?$ index.php?endpoint=location&id=$1 [QSA,L]
 RewriteRule ^location/map$ index.php?endpoint=location&function=map [L]
 RewriteRule ^location/countries$ index.php?endpoint=location&function=countries [L]

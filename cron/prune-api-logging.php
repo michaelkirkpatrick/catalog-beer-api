@@ -27,6 +27,9 @@ spl_autoload_register(function ($class_name) {
 });
 
 // Prune old api_logging rows (keep 3 months)
+// api_logging ONLY. audit_log is never pruned and must never be added here or
+// to anything like this: it is the record of who changed what, and trimming
+// it would make it api_logging with more steps (Claude Ideas/audit-log.md § 3).
 $usage = new Usage();
 $usage->pruneApiLogging(3);
 ?>

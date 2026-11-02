@@ -147,6 +147,8 @@ if($endpoint == 'stripe-webhook'){
         exit;
     }
     $billing = new Billing();
+    // No actor: the audit rows a webhook writes say so in their source
+    Audit::setContext(null, null, 'webhook', $_SERVER['REMOTE_ADDR'] ?? null);
     $billing->webhook($input, $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '');
     http_response_code($billing->responseCode);
     header('Content-Type: application/json');
@@ -223,6 +225,10 @@ if(isset($_SERVER['HTTPS'])){
                     // the server can set a response header, so a client cannot
                     // forge the exemption. Never put the key itself here.
                     header('X-CB-Auth: 1');
+                    // Who every audit row written during this request names
+                    // (Audit.class.php): the key's user, the key itself --
+                    // master keys included -- and the remote address.
+                    Audit::setContext($apiKeys->userID, $apiKey, 'api', $_SERVER['REMOTE_ADDR'] ?? null);
                 }else{
                     if($apiKeys->error){
                         // validate() failed internally (database error, duplicate
@@ -350,6 +356,13 @@ if(!$error){
             $json = $activity->json;
             $responseCode = $activity->responseCode;
             $responseHeader = $activity->responseHeader;
+            break;
+        case 'audit':
+            $audit = new Audit();
+            $audit->api($method, $function, $id, $apiKey);
+            $json = $audit->json;
+            $responseCode = $audit->responseCode;
+            $responseHeader = $audit->responseHeader;
             break;
         case 'address':
             // Gone in 6.0: the address is written through POST/PUT/PATCH

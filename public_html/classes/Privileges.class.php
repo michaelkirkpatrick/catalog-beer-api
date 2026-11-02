@@ -57,6 +57,13 @@ class Privileges {
                             $this->error = true;
                             $this->errorMsg = $db->errorMsg;
                             $this->responseCode = $db->responseCode;
+                        }else{
+                            // Privilege rows are keyed by the USER in the
+                            // audit log: entityID is the user, the field is
+                            // the brewer granted (null -> id) or removed
+                            // (id -> null). The auto-grant on a domain match
+                            // arrives here too (Audit.class.php).
+                            Audit::set('privilege', $userID, 'brewerID', null, $brewerID);
                         }
 
                         // Close Database Connection
@@ -187,6 +194,8 @@ class Privileges {
             $this->error = true;
             $this->errorMsg = $db->errorMsg;
             $this->responseCode = $db->responseCode;
+        }elseif($db->getAffectedRows() > 0){
+            Audit::set('privilege', $userID, 'brewerID', $brewerID, null);
         }
         $db->close();
     }
@@ -199,14 +208,24 @@ class Privileges {
         This function does not perform this validation so as to not do it every time.
         ---*/
 
-        // Delete all brewery privileges for this user
+        // Delete all brewery privileges for this user, each recorded as
+        // cleared (Audit.class.php; the caller is an email-domain change)
         $db = new Database();
+        $brewerIDs = array();
+        $result = $db->query("SELECT brewerID FROM privileges WHERE userID=?", [$userID]);
+        if(!$db->error){
+            while($row = $result->fetch_assoc()){ $brewerIDs[] = $row['brewerID']; }
+        }
         $db->query("DELETE FROM privileges WHERE userID=?", [$userID]);
         if($db->error){
             // Database Error
             $this->error = true;
             $this->errorMsg = $db->errorMsg;
             $this->responseCode = $db->responseCode;
+        }else{
+            foreach($brewerIDs as $brewerID){
+                Audit::set('privilege', $userID, 'brewerID', $brewerID, null, 'email domain changed');
+            }
         }
         $db->close();
     }

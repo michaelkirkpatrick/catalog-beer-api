@@ -838,3 +838,26 @@ Brewer,BR-277,A Signed modified_since Is Refused,GET,/brewer?modified_since=-1,A
 Beer,BEER-183,A Non-Integer modified_since Is Refused On /beer,GET,/beer?modified_since=1.5,Admin,400,Done
 Location,L-195,An Empty modified_since Is Refused On /location,GET,/location?modified_since=,Admin,400,Done
 Brewer,BR-278,Delete Brewery #59,DELETE,/brewer/{brewer_id},Admin,204,Done
+Brewer,BR-279,Create Brewery #60,POST,/brewer,Admin,201,Pending
+Brewer,BR-280,Patch Brewery #60 Description,PATCH,/brewer/{brewer_id},Admin,200,Pending
+Brewer,BR-281,Brewery #60 History Lists Both Revisions,GET,/brewer/{brewer_id}/history,Admin,200,Pending
+Brewer,BR-282,History Is Admin-Only,GET,/brewer/{brewer_id}/history,General User,403,Pending
+Brewer,BR-283,Revert Is Admin-Only,POST,/brewer/{brewer_id}/revert,General User,403,Pending
+Brewer,BR-284,A Malformed audit_id Is Refused,POST,/brewer/{brewer_id}/revert,Admin,400,Pending
+Brewer,BR-285,An Unknown audit_id Is Not Found,POST,/brewer/{brewer_id}/revert,Admin,404,Pending
+Brewer,BR-286,Revert Brewery #60 To Its First Revision,POST,/brewer/{brewer_id}/revert,Admin,200,Pending
+Brewer,BR-287,History Records The Revert,GET,/brewer/{brewer_id}/history,Admin,200,Pending
+Brewer,BR-288,History Pages With count,GET,/brewer/{brewer_id}/history?count=2,Admin,200,Pending
+Brewer,BR-289,A Bad count Is Refused,GET,/brewer/{brewer_id}/history?count=5000,Admin,400,Pending
+Audit,AUD-1,The Audit Feed Filters By Entity,GET,/audit?entity_type=brewer&entity_id={brewer_id},Admin,200,Pending
+Audit,AUD-2,The Audit Feed Is Admin-Only,GET,/audit,General User,403,Pending
+Audit,AUD-3,An Unknown entity_type Is Refused,GET,/audit?entity_type=style,Admin,400,Pending
+Audit,AUD-4,The Audit Feed Is Read-Only,POST,/audit,Admin,405,Pending
+Beer,BEER-184,Create Beer #34,POST,/beer,Admin,201,Pending
+Beer,BEER-185,Delete Beer #34,DELETE,/beer/{beer_id},Admin,204,Pending
+Beer,BEER-186,A Deleted Beer Still Has Its History,GET,/beer/{beer_id}/history,Admin,200,Pending
+Beer,BEER-187,A Tombstone Cannot Be Reverted To,POST,/beer/{beer_id}/revert,Admin,400,Pending
+Beer,BEER-188,Revert Restores The Deleted Beer Under Its Own Id,POST,/beer/{beer_id}/revert,Admin,201,Pending
+Beer,BEER-189,The Restored Beer Reads Back,GET,/beer/{beer_id},Admin,200,Pending
+Brewer,BR-290,Delete Brewery #60,DELETE,/brewer/{brewer_id},Admin,204,Pending
+Brewer,BR-291,A Deleted Brewery Keeps Its History And Its Children's Tombstones,GET,/audit?entity_id={brewer_id},Admin,200,Pending

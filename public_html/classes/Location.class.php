@@ -475,6 +475,11 @@ class Location {
                     location identical, written or read.
                     --*/
                     $this->validate($this->locationID, true);
+
+                    // The audit row first, so it and the search index
+                    // describe the same state (Audit.class.php). The address
+                    // is columns on this row, so this is its history too.
+                    Audit::record('location', $this->locationID, $newLocation ? 'create' : 'update');
                     if($newLocation){
                         // Successfully Added
                         $this->responseCode = 201;
@@ -1387,6 +1392,58 @@ class Location {
         return $count;
     }
 
+    // Audit log (Audit.class.php): kept in every snapshot, never written back
+    // by a revert. The coordinates and validatedAt are derived from the
+    // address by the validator, which a revert runs again.
+    const AUDIT_STATE_COLUMNS = array('lastModified', 'createdAt', 'cbVerified', 'brewerVerified', 'latitude', 'longitude', 'validatedAt', 'formatted', 'languageCode');
+
+    // GET /location/{id}/history (admin)
+    public function history($locationID, $apiKey){
+        Audit::historyRoute('location', $locationID, $apiKey, $this);
+    }
+
+    /*--
+    POST /location/{id}/revert {"audit_id": N, "note": "..."} (admin). The
+    snapshot at row N goes back through add() as a PUT with its address as
+    the nested object, so the address is validated again (Google) and the
+    closed-brewer and country rules apply; recorded as action=revert. A
+    snapshot from before addresses were required has none to send, and the
+    PUT is refused the way any address-less PUT is. See Brewer::revert().
+    --*/
+    public function revert($locationID, $auditID, $note, $apiKey){
+        $apiKeys = Audit::requireAdmin($apiKey, $this, 373, 'POST /location/{id}/revert');
+        if($apiKeys === null){
+            return;
+        }
+        $row = Audit::revertTarget('location', $locationID, $auditID, $this);
+        if($row === null){
+            return;
+        }
+        $s = $row['snapshot'];
+        $address = false;
+        $sent = array();
+        if(!empty($s['line1'])){
+            $address = array(
+                'line1' => $s['line1'] ?? '',
+                'line2' => $s['line2'] ?? '',
+                'locality' => $s['locality'] ?? '',
+                'dependent_locality' => $s['dependentLocality'] ?? '',
+                'sub_code' => $s['sub_code'] ?? '',
+                'postal_code' => $s['postalCode'] ?? '',
+                'telephone' => $s['telephone'] ?? ''
+            );
+            foreach(Address::FIELDS as $key){
+                if(!array_key_exists($key, $address)){
+                    $address[$key] = '';
+                }
+            }
+            $sent = Address::FIELDS;
+        }
+        Audit::beginRevert($row['id'], Audit::revertNote($note));
+        $this->add($s['brewerID'] ?? '', $s['name'] ?? '', $s['url'] ?? '', $s['countryCode'] ?? '', $apiKeys->userID, 'PUT', $locationID, array(), $address, $sent);
+        Audit::cancelRevert();
+    }
+
     public function delete($locationID, $userID){
         if($this->validate($locationID, true)){
             // Get User Information
@@ -1406,6 +1463,9 @@ class Location {
                 $db = new Database();
                 $db->query("DELETE FROM location WHERE id=?", [$locationID]);
                 if(!$db->error){
+                    // The tombstone; the previous audit row holds the location
+                    Audit::record('location', $locationID, 'delete');
+
                     // Delete from Algolia — the objectID is the location's own id
                     $algolia = new Algolia();
                     $algolia->deleteObject('catalog', $locationID);
@@ -1990,6 +2050,9 @@ class Location {
                         $this->json['error'] = true;
                         $this->json['error_msg'] = $this->errorMsg;
                     }
+                }elseif($function == 'history'){
+                    // GET https://api.catalog.beer/location/{location_id}/history (admin)
+                    $this->history($id, $apiKey);
                 }elseif($function == 'countries' || $function == 'subdivisions'){
                     // GET https://api.catalog.beer/location/countries
                     // GET https://api.catalog.beer/location/subdivisions?country=BE
@@ -2144,6 +2207,21 @@ class Location {
                 }
                 break;
             case 'POST':
+                if($function === 'revert'){
+                    // POST https://api.catalog.beer/location/{location_id}/revert (admin)
+                    $this->revert($id, $data->audit_id ?? null, $data->note ?? null, $apiKey);
+                    if(!$this->error){
+                        $this->generateLocationObject($this->brewerObj);
+                    }else{
+                        $this->json['error'] = true;
+                        $this->json['error_msg'] = $this->errorMsg;
+                        if(!empty($this->validMsg)){
+                            $this->json['valid_state'] = $this->validState;
+                            $this->json['valid_msg'] = $this->validMsg;
+                        }
+                    }
+                    break;
+                }
                 if(!empty($function)){
                     // Method Not Allowed for /location/{function}
                     $this->responseCode = 405;

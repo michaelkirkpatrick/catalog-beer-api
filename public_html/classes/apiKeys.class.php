@@ -33,6 +33,9 @@ class apiKeys {
                         $db = new Database();
                         $db->query("INSERT INTO api_keys (id, userID) VALUES (?, ?)", [$apiKey, $userID]);
                         if(!$db->error){
+                            // A key issued is a settings event (Audit.class.php)
+                            Audit::record('api_key', $apiKey, 'create');
+
                             // Successfully added apiKey
                             $this->userID = $userID;
                             $this->apiKey = $apiKey;
@@ -215,14 +218,24 @@ class apiKeys {
         This function does not perform this validation so as to not do it every time.
         --*/
 
-        // Delete API Keys for this userID
+        // Delete API Keys for this userID. The keys being withdrawn are read
+        // first so each gets its tombstone (Audit.class.php); the caller is an
+        // email-domain change, and the user's email row written in the same
+        // request says so.
         $db = new Database();
+        $keyIDs = array();
+        $result = $db->query("SELECT id FROM api_keys WHERE userID=?", [$userID]);
+        if(!$db->error){
+            while($row = $result->fetch_assoc()){ $keyIDs[] = $row['id']; }
+        }
         $db->query("DELETE FROM api_keys WHERE userID=?", [$userID]);
         if($db->error){
             // Database Error
             $this->error = true;
             $this->errorMsg = $db->errorMsg;
             $this->responseCode = $db->responseCode;
+        }else{
+            Audit::recordDeletes('api_key', $keyIDs, 'key withdrawn');
         }
         $db->close();
     }

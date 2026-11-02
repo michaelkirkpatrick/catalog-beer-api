@@ -190,6 +190,8 @@ class Users {
                             $sql = "INSERT INTO users (id, email, passwordHash, name, admin, emailVerified, createdAt, signupIP, signupNet) VALUES (?, ?, ?, ?, b'0', b'0', ?, ?, ?)";
                             $db->query($sql, [$this->userID, $this->email, $passwordHash, $this->name, time(), ($signupNet !== null ? substr($this->signupIP, 0, 45) : null), $signupNet]);
                             if(!$db->error){
+                                // The account's first audit row (Audit.class.php)
+                                Audit::record('user', $this->userID, 'create');
                                 if($sendEmailVerification){
                                     // Generate Email Auth Code
                                     $uuid = new uuid();
@@ -245,6 +247,7 @@ class Users {
                         // Save Variables
                         $originalEmail = $this->email;
                         $originalEmailDomainName = $this->emailDomainName($originalEmail);
+                        $originalEmailVerified = $this->emailVerified ? 1 : 0;
 
                         // Reset Variables
                         $this->resetVars();
@@ -329,6 +332,19 @@ class Users {
                             // Update Database
                             $db->query($sql, $setParams);
                             if(!$db->error){
+                                // The settings rows (Audit.class.php): the
+                                // email as old -> new, the verification it
+                                // reset, and that the password changed (never
+                                // the value).
+                                if(in_array('email', $patchFields) && $originalEmail !== $this->email){
+                                    Audit::set('user', $userID, 'email', $originalEmail, $this->email);
+                                }
+                                if($sendEmailVerification){
+                                    Audit::set('user', $userID, 'emailVerified', $originalEmailVerified, 0, 'email domain changed');
+                                }
+                                if(in_array('password', $patchFields)){
+                                    Audit::set('user', $userID, 'passwordHash', null, null, 'password changed');
+                                }
                                 if($sendEmailVerification){
                                     // Generate Email Auth Code
                                     $uuid = new uuid();
@@ -781,6 +797,8 @@ class Users {
                         $userID = $resultArray['id'];
                         $db->query("UPDATE users SET emailVerified=b'1', emailAuth=NULL, emailAuthSent=NULL WHERE id=?", [$userID]);
                         if(!$db->error){
+                            Audit::set('user', $userID, 'emailVerified', 0, 1);
+
                             // Validate User
                             $this->validate($userID, true);
 
@@ -863,10 +881,36 @@ class Users {
         // Validation already performed by usersAPI()
         // If API Key is an Admin ($this->admin) or if $userID = requester's userID
         if($this->admin || $userID == $this->userID){
-            // Delete User
+            // What the cascade takes with the account, read first so each
+            // gets its audit row (Audit.class.php): the email as the note on
+            // the account's tombstone, a tombstone per key, and the
+            // privileges as cleared.
             $db = new Database();
+            $email = null;
+            $keyIDs = array();
+            $brewerIDs = array();
+            $result = $db->query("SELECT email FROM users WHERE id=?", [$userID]);
+            if(!$db->error && $result->num_rows === 1){
+                $email = $result->fetch_assoc()['email'];
+            }
+            $result = $db->query("SELECT id FROM api_keys WHERE userID=?", [$userID]);
+            if(!$db->error){
+                while($row = $result->fetch_assoc()){ $keyIDs[] = $row['id']; }
+            }
+            $result = $db->query("SELECT brewerID FROM privileges WHERE userID=?", [$userID]);
+            if(!$db->error){
+                while($row = $result->fetch_assoc()){ $brewerIDs[] = $row['brewerID']; }
+            }
+
+            // Delete User
             $db->query("DELETE FROM users WHERE id=?", [$userID]);
-            if($db->error){
+            if(!$db->error){
+                Audit::record('user', $userID, 'delete', $email);
+                Audit::recordDeletes('api_key', $keyIDs, 'cascade: account deleted');
+                foreach($brewerIDs as $brewerID){
+                    Audit::set('privilege', $userID, 'brewerID', $brewerID, null, 'cascade: account deleted');
+                }
+            }else{
                 // Database Error
                 $this->error = true;
                 $this->errorMsg = $db->errorMsg;
@@ -1041,6 +1085,10 @@ class Users {
 
                     // Update Password in Database
                     $db->query("UPDATE users SET passwordHash=?, passwordResetKey=NULL, passwordResetSent=NULL WHERE id=?", [$passwordHash, $userID]);
+                    if(!$db->error){
+                        // That it changed, never the value (Audit.class.php)
+                        Audit::set('user', $userID, 'passwordHash', null, null, 'password reset');
+                    }
                     if($db->error){
                         // Database Error
                         $this->error = true;
