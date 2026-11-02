@@ -333,6 +333,55 @@ $brewer->add('', 'Now described.', '', '', $ADMIN_USER, 'PATCH', 'cccccccc-0000-
 $h = Audit::history('brewer', 'cccccccc-0000-4000-8000-000000000101', null, base64_encode('0'));
 check("the first live edit after the baseline shows its diff against it", count($h['data']) === 2 && $h['data'][0]['changed_fields'] == array('description', 'lastModified') && $h['data'][0]['source'] === 'api' && $h['data'][1]['source'] === 'backfill');
 
+// ----- 11. /activity reads audit_log, with the Newman suite's entities filtered out -----
+actsAs($ADMIN, $ADMIN_USER);
+$suite = new Brewer();
+$suite->add('[Postman API Test] Suite Brewing', 'Created by the test suite.', '', '', $ADMIN_USER, 'POST', '', array(), array('country_code' => 'US'));
+$SUITE = $suite->brewerID;
+$suiteBeer = new Beer();
+$suiteBeer->add($SUITE, 'Suite Lager', 'IPA', '', '', '', '', '', '4.5', '', $ADMIN_USER, 'POST', '', array());   // not prefixed itself: excluded through its brewer
+$SUITE_BEER = $suiteBeer->beerID;
+$suiteBeer = new Beer();
+$suiteBeer->delete($SUITE_BEER, $ADMIN_USER);   // its tombstone shares the id, so it goes too
+check("suite fixtures written", !$suite->error && !$suiteBeer->error && count(rows('beer', $SUITE_BEER)) === 2);
+
+$activity = new Activity();
+$activity->api('GET', '', '', $PLAIN);
+check("non-admin GET /activity -> 401", $activity->responseCode === 401 && $activity->json['error'] === true);
+$activity = new Activity();
+$activity->api('GET', '', '', $ADMIN);
+$j = $activity->json;
+check("admin GET /activity -> 200, sourced from audit_log", $activity->responseCode === 200 && ($j['source'] ?? '') === 'audit_log' && $j['period_months'] === 3);
+check("the suite's brewer and its beer are the two excluded entities", $j['test_entities_excluded'] === 2);
+
+// Expected counts straight from the table: catalog rows, no settings, no
+// baseline, none of the suite's
+$expected = array();
+foreach(allRows() as $row){
+    if(!in_array($row['entityType'], array('brewer', 'beer', 'location'), true) || $row['action'] === 'set' || $row['source'] === 'backfill'){ continue; }
+    if(in_array($row['entityID'], array($SUITE, $SUITE_BEER), true)){ continue; }
+    $expected[$row['entityType']][$row['action']] = ($expected[$row['entityType']][$row['action']] ?? 0) + 1;
+}
+$summary = array();
+foreach($j['write_activity']['summary'] as $line){ $summary[$line['resource']] = $line; }
+foreach(array('brewer', 'beer', 'location') as $t){
+    $e = $expected[$t] ?? array();
+    $got = $summary[$t] ?? array('created' => 0, 'updated' => 0, 'deleted' => 0);
+    check("summary matches the table for $t (created " . ($e['create'] ?? 0) . ", updated " . (($e['update'] ?? 0) + ($e['revert'] ?? 0)) . ", deleted " . ($e['delete'] ?? 0) . ")", $got['created'] === ($e['create'] ?? 0) && $got['updated'] === (($e['update'] ?? 0) + ($e['revert'] ?? 0)) && $got['deleted'] === ($e['delete'] ?? 0));
+}
+$names = array_column($j['write_activity']['top_contributors'], 'name');
+check("top contributors name the admin and the plain user, never the suite's rows alone", in_array('Admin', $names, true) && in_array('Plain User', $names, true));
+$recent = $j['write_activity']['recent'];
+$recentIDs = array_column($recent, 'entity_id');
+check("recent: newest first, the suite's entities absent", count($recent) >= 2 && $recent[0]['audit_id'] > $recent[1]['audit_id'] && !in_array($SUITE, $recentIDs, true) && !in_array($SUITE_BEER, $recentIDs, true));
+$tomb = null;
+foreach($recent as $entry){ if($entry['action'] === 'delete' && $entry['entity_type'] === 'beer' && $entry['entity_id'] === $BEER2){ $tomb = $entry; break; } }
+check("a beer tombstone still names the beer (from its last snapshot) and its brewer (from the brewer table)", $tomb !== null && $tomb['resource_name'] === 'Audit Pale' && ($tomb['brewer_id'] ?? '') === $B && ($tomb['brewer_name'] ?? '') === dbRow('brewer', $B)['name']);
+$rev = null;
+foreach($recent as $entry){ if($entry['action'] === 'revert'){ $rev = $entry; break; } }
+check("a restore shows as action revert with revert_of and the admin's name", $rev !== null && $rev['revert_of'] > 0 && $rev['user_name'] === 'Admin');
+check("read traffic still comes from api_logging (empty here)", isset($j['read_traffic']['total']) && $j['read_traffic']['total'] === 0);
+
 // ----- 10. Structural -----
 $create = $admin->query("SHOW CREATE TABLE audit_log")->fetch_assoc()['Create Table'];
 check("canonical schema: audit_log has no foreign key", stripos($create, 'FOREIGN KEY') === false);

@@ -12,7 +12,9 @@ class Activity {
     public $json = array();
 
     public function generateReport($apiKey){
-        // Admin-only: Get activity report from api_logging
+        // Admin-only: the activity report. Writes come from audit_log (every
+        // revision of a brewer, beer or location, with its actor — master keys
+        // included), reads from api_logging, which still logs every GET.
         $apiKeys = new apiKeys();
         if($apiKeys->validate($apiKey, true)){
             $users = new Users();
@@ -48,23 +50,31 @@ class Activity {
         if(!$this->error){
             $db = new Database();
 
-            // 3 calendar months back (matches pruneApiLogging retention)
+            // 3 calendar months back (the same window api_logging keeps, so
+            // the read-traffic half below can match it)
             $cutoffTimestamp = mktime(0, 0, 0, (int)date('n') - 3, 1, (int)date('Y'));
 
-            // 1. Write Activity Summary — by resource and action (successful only)
-            $result = $db->query("SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING_INDEX(uri, '?', 1), '/', 2), '/', -1) AS resource, SUM(CASE WHEN method = 'POST' THEN 1 ELSE 0 END) AS created, SUM(CASE WHEN method IN ('PUT', 'PATCH') THEN 1 ELSE 0 END) AS updated, SUM(CASE WHEN method = 'DELETE' THEN 1 ELSE 0 END) AS deleted FROM api_logging WHERE method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND responseCode >= 200 AND responseCode < 300 AND timestamp >= ? GROUP BY resource ORDER BY COUNT(*) DESC", [$cutoffTimestamp]);
+            // The Newman suite's entities are catalog writes like any other
+            // and would be the top contributor on staging every run. Found by
+            // name: a brewer called "[Postman API Test] ...", and every beer
+            // and location of one (plus a beer so named under any brewer).
+            $testIDs = $this->testEntityIDs($db, $cutoffTimestamp);
             if($db->error){
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
+                $this->dbError($db, 'test entities');
+                return;
+            }
+            $where = "al.entityType IN ('brewer', 'beer', 'location') AND al.action <> 'set' AND al.source <> 'backfill' AND al.changedAt >= ?";
+            $params = array($cutoffTimestamp);
+            if(!empty($testIDs)){
+                $where .= " AND al.entityID NOT IN (" . implode(', ', array_fill(0, count($testIDs), '?')) . ")";
+                $params = array_merge($params, $testIDs);
+            }
 
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 254;
-                $errorLog->errorMsg = 'Database error (GET /activity - write summary)';
-                $errorLog->badData = $db->errorMsg;
-                $errorLog->filename = 'Activity.class.php';
-                $errorLog->write();
-                $db->close();
+            // 1. Write Activity Summary — by resource and action. A revert is
+            // an update that happened to come from the history.
+            $result = $db->query("SELECT al.entityType AS resource, SUM(al.action = 'create') AS created, SUM(al.action IN ('update', 'revert')) AS updated, SUM(al.action = 'delete') AS deleted, COUNT(*) AS total FROM audit_log al WHERE $where GROUP BY al.entityType ORDER BY total DESC", $params);
+            if($db->error){
+                $this->dbError($db, 'write summary');
                 return;
             }
             $writeSummary = array();
@@ -77,104 +87,93 @@ class Activity {
                 );
             }
 
-            // 2. Top Contributors — successful writes, grouped by user
-            $result = $db->query("SELECT u.name, u.email, SUM(CASE WHEN al.method = 'POST' THEN 1 ELSE 0 END) AS created, SUM(CASE WHEN al.method IN ('PUT', 'PATCH') THEN 1 ELSE 0 END) AS updated, COUNT(*) AS total FROM api_logging al LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id WHERE al.method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND al.responseCode >= 200 AND al.responseCode < 300 AND al.timestamp >= ? GROUP BY al.apiKey, u.name, u.email ORDER BY total DESC LIMIT 10", [$cutoffTimestamp]);
+            // 2. Top Contributors — by acting user. Master keys are recorded in
+            // the audit log (they are not in api_logging), so the site's own
+            // writes show under the master-key account.
+            $result = $db->query("SELECT al.actorID, u.name, u.email, SUM(al.action = 'create') AS created, SUM(al.action IN ('update', 'revert')) AS updated, SUM(al.action = 'delete') AS deleted, COUNT(*) AS total FROM audit_log al LEFT JOIN users u ON al.actorID = u.id WHERE $where GROUP BY al.actorID, u.name, u.email ORDER BY total DESC LIMIT 10", $params);
             if($db->error){
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
-
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 254;
-                $errorLog->errorMsg = 'Database error (GET /activity - top contributors)';
-                $errorLog->badData = $db->errorMsg;
-                $errorLog->filename = 'Activity.class.php';
-                $errorLog->write();
-                $db->close();
+                $this->dbError($db, 'top contributors');
                 return;
             }
             $topContributors = array();
             while($row = $result->fetch_assoc()){
                 $topContributors[] = array(
-                    'name' => $row['name'] ?? '(deleted user)',
+                    'user_id' => $row['actorID'],
+                    'name' => $row['name'] ?? ($row['actorID'] === null ? '(system)' : '(deleted user)'),
                     'email' => $row['email'] ?? null,
                     'created' => intval($row['created']),
                     'updated' => intval($row['updated']),
+                    'deleted' => intval($row['deleted']),
                     'total' => intval($row['total'])
                 );
             }
 
-            // 3. Recent Activity — last 50 write operations (all response codes)
-            // Deferred join: pick the 50 ids from idx_method_ts alone, then read
-            // only those rows. Selecting `response` directly makes MySQL scan and
-            // sort every row in the window, text columns and all -- on a box
-            // whose buffer pool is smaller than the table, that is a disk read
-            // of the whole table per page view.
-            $result = $db->query("SELECT al.timestamp, u.name AS user_name, al.method, al.uri, al.responseCode, al.response FROM (SELECT id FROM api_logging WHERE method IN ('POST', 'PUT', 'PATCH', 'DELETE') AND timestamp >= ? ORDER BY timestamp DESC LIMIT 50) recent JOIN api_logging al ON al.id = recent.id LEFT JOIN api_keys ak ON al.apiKey = ak.id LEFT JOIN users u ON ak.userID = u.id ORDER BY al.timestamp DESC", [$cutoffTimestamp]);
+            // 3. Recent Activity — the last 50 revisions. Names come from the
+            // snapshot; a tombstone has none, so its entity's last snapshot is
+            // read instead; a beer's or location's brewer is named from the
+            // brewer table, or from the brewer's own last snapshot when it has
+            // since been deleted.
+            $result = $db->query("SELECT al.id, al.entityType, al.entityID, al.action, al.source, al.note, al.changedAt, al.revertOf, al.actorID, al.snapshot, u.name AS actorName FROM audit_log al LEFT JOIN users u ON al.actorID = u.id WHERE $where ORDER BY al.id DESC LIMIT 50", $params);
             if($db->error){
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
-
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 254;
-                $errorLog->errorMsg = 'Database error (GET /activity - recent activity)';
-                $errorLog->badData = $db->errorMsg;
-                $errorLog->filename = 'Activity.class.php';
-                $errorLog->write();
-                $db->close();
+                $this->dbError($db, 'recent activity');
                 return;
             }
-            $recentActivity = array();
+            $recent = array();
             while($row = $result->fetch_assoc()){
+                $recent[] = $row;
+            }
+            $recentActivity = array();
+            $brewerIDs = array();
+            foreach($recent as $row){
+                $snapshot = $row['snapshot'] === null ? null : json_decode($row['snapshot'], true);
+                if(!is_array($snapshot)){
+                    $snapshot = $this->lastSnapshot($db, $row['entityType'], $row['entityID']);
+                }
                 $entry = array(
-                    'timestamp' => intval($row['timestamp']),
-                    'user_name' => $row['user_name'] ?? '(deleted user)',
-                    'method' => $row['method'],
-                    'uri' => $row['uri'],
-                    'response_code' => intval($row['responseCode'])
+                    'audit_id' => intval($row['id']),
+                    'timestamp' => intval($row['changedAt']),
+                    'user_name' => $row['actorName'] ?? ($row['actorID'] === null ? ucfirst($row['source']) : '(deleted user)'),
+                    'action' => $row['action'],
+                    'source' => $row['source'],
+                    'entity_type' => $row['entityType'],
+                    'entity_id' => $row['entityID'],
+                    'note' => $row['note'],
+                    'revert_of' => $row['revertOf'] === null ? null : intval($row['revertOf'])
                 );
-
-                // Parse response JSON to extract resource name and ID
-                $responseCode = intval($row['responseCode']);
-                if($responseCode >= 200 && $responseCode < 300 && !empty($row['response'])){
-                    $responseData = json_decode($row['response'], true);
-                    if(is_array($responseData)){
-                        if(isset($responseData['name'])){
-                            $entry['resource_name'] = $responseData['name'];
-                        }
-                        if(isset($responseData['id'])){
-                            $entry['resource_id'] = $responseData['id'];
-                        }
-                        // Extract nested brewer info for location/address responses
-                        if(isset($responseData['brewer']) && is_array($responseData['brewer'])){
-                            if(isset($responseData['brewer']['name'])){
-                                $entry['brewer_name'] = $responseData['brewer']['name'];
-                            }
-                            if(isset($responseData['brewer']['id'])){
-                                $entry['brewer_id'] = $responseData['brewer']['id'];
-                            }
-                        }
+                if(is_array($snapshot)){
+                    $name = $snapshot['name'] ?? null;
+                    if(($name === null || $name === '') && $row['entityType'] === 'location'){
+                        $name = $snapshot['locality'] ?? null;
+                    }
+                    if($name !== null && $name !== ''){
+                        $entry['resource_name'] = $name;
+                    }
+                    if($row['entityType'] !== 'brewer' && !empty($snapshot['brewerID'])){
+                        $entry['brewer_id'] = $snapshot['brewerID'];
+                        $brewerIDs[$snapshot['brewerID']] = true;
                     }
                 }
-
                 $recentActivity[] = $entry;
             }
+            if(!empty($brewerIDs)){
+                $names = $this->brewerNames($db, array_keys($brewerIDs));
+                foreach($recentActivity as &$entry){
+                    if(isset($entry['brewer_id']) && isset($names[$entry['brewer_id']])){
+                        $entry['brewer_name'] = $names[$entry['brewer_id']];
+                    }
+                }
+                unset($entry);
+            }
+            if($db->error){
+                $this->dbError($db, 'recent activity names');
+                return;
+            }
 
-            // 4. GET Traffic — grouped by endpoint pattern
+            // 4. GET Traffic — grouped by endpoint pattern, still from
+            // api_logging: reads are not audited.
             $result = $db->query("SELECT SUBSTRING_INDEX(uri, '?', 1) AS clean_uri, COUNT(*) AS count FROM api_logging WHERE method = 'GET' AND timestamp >= ? GROUP BY clean_uri ORDER BY count DESC", [$cutoffTimestamp]);
             if($db->error){
-                $this->error = true;
-                $this->errorMsg = $db->errorMsg;
-                $this->responseCode = $db->responseCode;
-
-                $errorLog = new LogError();
-                $errorLog->errorNumber = 254;
-                $errorLog->errorMsg = 'Database error (GET /activity - read traffic)';
-                $errorLog->badData = $db->errorMsg;
-                $errorLog->filename = 'Activity.class.php';
-                $errorLog->write();
-                $db->close();
+                $this->dbError($db, 'read traffic');
                 return;
             }
             // Collapse UUIDs and aggregate
@@ -203,6 +202,8 @@ class Activity {
             $this->json['object'] = 'activity_report';
             $this->json['url'] = '/activity';
             $this->json['period_months'] = 3;
+            $this->json['source'] = 'audit_log';
+            $this->json['test_entities_excluded'] = count($testIDs);
             $this->json['write_activity'] = array(
                 'summary' => $writeSummary,
                 'top_contributors' => $topContributors,
@@ -213,6 +214,85 @@ class Activity {
                 'by_endpoint' => $getTraffic
             );
         }
+    }
+
+    // A database error on one of the report's queries: 500 and a log row
+    private function dbError($db, $step){
+        $this->error = true;
+        $this->errorMsg = $db->errorMsg;
+        $this->responseCode = $db->responseCode;
+
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 254;
+        $errorLog->errorMsg = 'Database error (GET /activity - ' . $step . ')';
+        $errorLog->badData = $db->errorMsg;
+        $errorLog->filename = 'Activity.class.php';
+        $errorLog->write();
+        $db->close();
+    }
+
+    // The ids of every entity the Newman suite wrote in the window: brewers
+    // named with the test prefix, their beers and locations, and any beer so
+    // named. Found from the snapshots, so the suite's end-of-run deletes (the
+    // tombstones share the entity id) are excluded with the rest.
+    const TEST_PREFIX = '[Postman API Test]';
+    private function testEntityIDs($db, $cutoffTimestamp){
+        $ids = array();
+        $result = $db->query("SELECT DISTINCT entityID FROM audit_log WHERE entityType = 'brewer' AND changedAt >= ? AND snapshot IS NOT NULL AND JSON_UNQUOTE(JSON_EXTRACT(snapshot, '$.name')) LIKE ?", [$cutoffTimestamp, self::TEST_PREFIX . '%']);
+        if($db->error){
+            return array();
+        }
+        $brewerIDs = array();
+        while($row = $result->fetch_assoc()){
+            $brewerIDs[] = $row['entityID'];
+            $ids[$row['entityID']] = true;
+        }
+        $sql = "SELECT DISTINCT entityID FROM audit_log WHERE entityType IN ('beer', 'location') AND changedAt >= ? AND snapshot IS NOT NULL AND (JSON_UNQUOTE(JSON_EXTRACT(snapshot, '$.name')) LIKE ?";
+        $params = array($cutoffTimestamp, self::TEST_PREFIX . '%');
+        if(!empty($brewerIDs)){
+            $sql .= " OR JSON_UNQUOTE(JSON_EXTRACT(snapshot, '$.brewerID')) IN (" . implode(', ', array_fill(0, count($brewerIDs), '?')) . ")";
+            $params = array_merge($params, $brewerIDs);
+        }
+        $result = $db->query($sql . ")", $params);
+        if($db->error){
+            return array();
+        }
+        while($row = $result->fetch_assoc()){
+            $ids[$row['entityID']] = true;
+        }
+        return array_keys($ids);
+    }
+
+    // The newest snapshot an entity ever had (for a tombstone's name)
+    private function lastSnapshot($db, $entityType, $entityID){
+        $result = $db->query("SELECT snapshot FROM audit_log WHERE entityType = ? AND entityID = ? AND snapshot IS NOT NULL ORDER BY id DESC LIMIT 1", [$entityType, $entityID]);
+        if($db->error || $result->num_rows !== 1){
+            return null;
+        }
+        $decoded = json_decode($result->fetch_assoc()['snapshot'], true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    // id => name for a set of brewers: the live row, else the last snapshot
+    private function brewerNames($db, array $brewerIDs){
+        $names = array();
+        $placeholders = implode(', ', array_fill(0, count($brewerIDs), '?'));
+        $result = $db->query("SELECT id, name FROM brewer WHERE id IN ($placeholders)", $brewerIDs);
+        if($db->error){
+            return $names;
+        }
+        while($row = $result->fetch_assoc()){
+            $names[$row['id']] = $row['name'];
+        }
+        foreach($brewerIDs as $brewerID){
+            if(!isset($names[$brewerID])){
+                $snapshot = $this->lastSnapshot($db, 'brewer', $brewerID);
+                if(is_array($snapshot) && !empty($snapshot['name'])){
+                    $names[$brewerID] = $snapshot['name'];
+                }
+            }
+        }
+        return $names;
     }
 
     public function api($method, $function, $id, $apiKey){

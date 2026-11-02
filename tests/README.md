@@ -110,7 +110,7 @@ cascaded child; the settings sites (spend cap, billing, privileges, email,
 password, keys, account deletion); the history and feed reads; revert through
 the entity's own PUT, including restoring a deleted record; the baseline
 backfill script (included with the scratch constants); and that the schema
-carries the table with no foreign key. No network, no secrets file.
+carries the table with no foreign key. No network, no secrets file. The last section proves `GET /activity` reads its write half from `audit_log` and leaves out the test suite's entities by name.
 
 ```bash
 php tests/audit.php [path/to/catalog-beer-schema.sql]
