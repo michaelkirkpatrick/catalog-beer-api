@@ -11,6 +11,14 @@ Charges roll forward while a user's unbilled total is under the $5 invoice
 floor (card fees would eat most of a $1 invoice); the floor is waived once a
 year when December is billed, so no balance rolls across years.
 
+The spend cap has a floor of its own (since 6.6.0): it can never be set below
+what the key has already committed to pay this month, plus last month until
+that charge has been recorded. The gate enforces the cap live and the cron
+clamps the charge to the cap it reads on the 1st, so this one invariant is
+what keeps a cap lowered after heavy usage from shrinking the bill. Turning
+billing off does not forgive usage already served under it either: the record
+phase picks up a disabled key whose count passed the free buffer.
+
 Endpoints (routed from index.php):
 - GET    /billing                   Billing status for the authenticated key
 - POST   /billing/checkout-session  Stripe Checkout (setup mode) to add a card
@@ -54,6 +62,101 @@ class Billing {
         }
         $blocks = intdiv($billable + self::BLOCK_SIZE - 1, self::BLOCK_SIZE);
         return min($blocks * self::BLOCK_PRICE_CENTS, $spendCapCents);
+    }
+
+    // What a month's usage has already committed the key to pay: the overage
+    // when billing is on, and the same figure when billing is off but the
+    // count proves the key was served under billing — the gate checks before
+    // it counts, so a free key's count stops at requestLimit + requestBuffer
+    // + 1 (index.php), and a count past that is only possible with a card on
+    // file at the time. Mirrors the record phase's
+    // query (recordOverageCharges), so the API and the cron agree on what is
+    // owed, and turning billing off after the usage does not forgive it.
+    public function committedCents($count, $requestLimit, $requestBuffer, $billingEnabled, $spendCapCents){
+        if(!$billingEnabled && $count <= $requestLimit + $requestBuffer + 1){
+            return 0;
+        }
+        return $this->overageCents($count, $requestLimit, $spendCapCents);
+    }
+
+    // The lowest cap the key may be set to right now. A cap can never be set
+    // below what the key has already committed to pay this month, and below
+    // last month's charge until the record phase has written its
+    // billing_charges row: the cron reads the live cap, so a cap lowered in
+    // the window between midnight on the 1st and the run (or while the run
+    // has failed) would shrink a charge the usage already earned. With the
+    // floor in place, the stored cap is at or above the blocks served when
+    // the cron runs, and its min(blocks, cap) invoices the right amount with
+    // no new state (Claude Ideas/spend-cap-floor.md).
+    //
+    // Returns null on a database error (the caller's $db carries it), else
+    // an array: cents (0 when nothing binds), until (the first day a lower
+    // cap becomes possible — the 1st of next month while this month binds,
+    // null when only last month does, since that clears as soon as the
+    // charge is recorded), and the binding month's label, count and
+    // recorded flag for the message.
+    public function minimumCap($apiKeys, $apiKey, $db, $now = null){
+        $now = $now ?? time();
+        $thisYear = (int)date('Y', $now);
+        $thisMonth = (int)date('n', $now);
+        $lastTs = mktime(0, 0, 0, $thisMonth - 1, 1, $thisYear);
+        $lastYear = (int)date('Y', $lastTs);
+        $lastMonth = (int)date('n', $lastTs);
+
+        $counts = array();
+        $result = $db->query("SELECT year, month, count FROM api_usage WHERE apiKey=? AND ((year=? AND month=?) OR (year=? AND month=?))", [$apiKey, $thisYear, $thisMonth, $lastYear, $lastMonth]);
+        if($db->error){
+            return null;
+        }
+        while($row = $result->fetch_assoc()){
+            $counts[intval($row['year']) . '-' . intval($row['month'])] = intval($row['count']);
+        }
+        $result = $db->query("SELECT id FROM billing_charges WHERE apiKey=? AND year=? AND month=?", [$apiKey, $lastYear, $lastMonth]);
+        if($db->error){
+            return null;
+        }
+        $lastRecorded = $result->num_rows > 0;
+
+        $thisCount = $counts[$thisYear . '-' . $thisMonth] ?? 0;
+        $lastCount = $counts[$lastYear . '-' . $lastMonth] ?? 0;
+        $current = $this->committedCents($thisCount, $apiKeys->requestLimit, $apiKeys->requestBuffer, $apiKeys->billingEnabled, $apiKeys->monthlySpendCapCents);
+        $previous = $lastRecorded ? 0 : $this->committedCents($lastCount, $apiKeys->requestLimit, $apiKeys->requestBuffer, $apiKeys->billingEnabled, $apiKeys->monthlySpendCapCents);
+
+        if($current <= 0 && $previous <= 0){
+            return array('cents' => 0, 'until' => null, 'month_label' => null, 'count' => 0, 'recorded' => true);
+        }
+        if($current >= $previous){
+            return array(
+                'cents' => $current,
+                'until' => date('Y-m-d', mktime(0, 0, 0, $thisMonth + 1, 1, $thisYear)),
+                'month_label' => date('F Y', $now),
+                'count' => $thisCount,
+                'recorded' => false
+            );
+        }
+        return array(
+            'cents' => $previous,
+            'until' => null,
+            'month_label' => date('F Y', $lastTs),
+            'count' => $lastCount,
+            'recorded' => false
+        );
+    }
+
+    // The 400 for a cap under the floor, written for the person at the form
+    public function floorMessage($minimum){
+        $amount = $this->dollarsShort($minimum['cents']);
+        $usage = 'Your ' . $minimum['month_label'] . ' usage has already reached ' . $this->dollars($minimum['cents']) . ' (' . number_format($minimum['count']) . ' requests)';
+        if($minimum['until'] !== null){
+            return $usage . ', so the cap can\'t be set below ' . $amount . ' this month. Set it to ' . $amount . ' to stop further paid usage; a lower cap can be set from ' . date('F j, Y', strtotime($minimum['until'])) . '.';
+        }
+        return $usage . ' and has not been recorded for billing yet, so the cap can\'t be set below ' . $amount . ' until it has been. That happens on the 1st; if it is later than that, the charge will be recorded shortly.';
+    }
+
+    // "$174" or "$1.50": whole dollars unless the cents matter
+    private function dollarsShort($cents){
+        $cents = intval($cents);
+        return '$' . number_format($cents / 100, ($cents % 100) ? 2 : 0);
     }
 
     /* ----- Authenticated endpoints ----- */
@@ -113,6 +216,12 @@ class Billing {
                 $row = $result->fetch_assoc();
                 $unbilledCents = intval($row['unbilled']);
             }
+
+            // The lowest cap PATCH /billing would accept right now
+            $minimum = null;
+            if(!$db->error){
+                $minimum = $this->minimumCap($apiKeys, $apiKey, $db);
+            }
         }
         if($db->error){
             $this->error = true;
@@ -159,8 +268,13 @@ class Billing {
         $this->json['count'] = $count;
         $this->json['request_limit'] = $apiKeys->requestLimit;
         $this->json['billable_requests'] = $billableRequests;
-        $this->json['estimated_charge_cents'] = $apiKeys->billingEnabled ? $this->overageCents($count, $apiKeys->requestLimit, $apiKeys->monthlySpendCapCents) : 0;
+        // What this month will be billed: the overage under billing, and still
+        // the overage after billing was turned off if the count shows the key
+        // was served under it (a free key never gets past the buffer).
+        $this->json['estimated_charge_cents'] = $this->committedCents($count, $apiKeys->requestLimit, $apiKeys->requestBuffer, $apiKeys->billingEnabled, $apiKeys->monthlySpendCapCents);
         $this->json['unbilled_balance_cents'] = $unbilledCents;
+        $this->json['minimum_cap_cents'] = $minimum['cents'];
+        $this->json['minimum_cap_until'] = $minimum['until'];
     }
 
     public function checkoutSession($apiKey, $data){
@@ -350,7 +464,33 @@ class Billing {
         }
 
         $db = new Database();
-        $db->query("UPDATE api_keys SET monthlySpendCapCents=? WHERE id=?", [$cap, $apiKey]);
+
+        // The floor: never below what the month (or an unrecorded last month)
+        // has already committed the key to pay. Refused here, the cap stays
+        // at or above the blocks served when the cron clamps the charge.
+        $minimum = $this->minimumCap($apiKeys, $apiKey, $db);
+        if($minimum !== null && $cap < $minimum['cents']){
+            $this->error = true;
+            $this->errorMsg = $this->floorMessage($minimum);
+            $this->responseCode = 400;
+            $this->json['minimum_cap_cents'] = $minimum['cents'];
+            $this->json['minimum_cap_until'] = $minimum['until'];
+
+            // Logged on purpose: a cap lowered after heavy usage is the one
+            // billing event worth finding later.
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 378;
+            $errorLog->errorMsg = 'Spend cap refused: below the committed charge (/billing)';
+            $errorLog->badData = "apiKey: $apiKey / requested: $cap / minimum: " . $minimum['cents'] . ' / ' . $minimum['month_label'];
+            $errorLog->filename = 'API / Billing.class.php';
+            $errorLog->write();
+            $db->close();
+            return;
+        }
+
+        if(!$db->error){
+            $db->query("UPDATE api_keys SET monthlySpendCapCents=? WHERE id=?", [$cap, $apiKey]);
+        }
         if($db->error){
             $this->error = true;
             $this->errorMsg = $db->errorMsg;
@@ -370,6 +510,8 @@ class Billing {
         $this->json['object'] = 'billing';
         $this->json['billing_enabled'] = $apiKeys->billingEnabled;
         $this->json['monthly_spend_cap_cents'] = $cap;
+        $this->json['minimum_cap_cents'] = $minimum['cents'];
+        $this->json['minimum_cap_until'] = $minimum['until'];
     }
 
     public function disableBilling($apiKey){
@@ -390,7 +532,20 @@ class Billing {
         }
 
         $db = new Database();
-        $db->query("UPDATE api_keys SET billingEnabled=0 WHERE id=?", [$apiKey]);
+
+        // What this month has already committed, read before the flag flips:
+        // turning billing off stops further paid usage, not the bill for the
+        // usage already served (recordOverageCharges picks the key up again).
+        $committedCents = 0;
+        $result = $db->query("SELECT count FROM api_usage WHERE apiKey=? AND year=? AND month=?", [$apiKey, date('Y'), date('n')]);
+        if(!$db->error && $result->num_rows == 1){
+            $row = $result->fetch_assoc();
+            $committedCents = $this->committedCents(intval($row['count']), $apiKeys->requestLimit, $apiKeys->requestBuffer, $apiKeys->billingEnabled, $apiKeys->monthlySpendCapCents);
+        }
+
+        if(!$db->error){
+            $db->query("UPDATE api_keys SET billingEnabled=0 WHERE id=?", [$apiKey]);
+        }
         if($db->error){
             $this->error = true;
             $this->errorMsg = $db->errorMsg;
@@ -410,6 +565,7 @@ class Billing {
         $this->json['object'] = 'billing';
         $this->json['billing_enabled'] = false;
         $this->json['monthly_spend_cap_cents'] = $apiKeys->monthlySpendCapCents;
+        $this->json['estimated_charge_cents'] = $committedCents;
     }
 
     /* ----- Webhook (unauthenticated; signature-verified) ----- */
@@ -632,15 +788,29 @@ class Billing {
         list($year, $month, $monthLabel) = $this->billingMonth();
         $now = time();
 
-        $db = new Database();
-        if($db->error){
+        $recorded = $this->recordOverageCharges($year, $month, $now);
+        if($recorded === null){
             return;
         }
+        echo "Recorded overage for $monthLabel: $recorded new key(s)\n";
 
-        // Record an overage charge row per billing-enabled key that went past
-        // its free tier last month.
+        $this->sendNotices($year, $month, $monthLabel, $now);
+    }
+
+    // Record an overage charge row per key that went past its free tier in
+    // the month. A key is picked up when billing is on, or when billing is
+    // off but the count is past requestLimit + requestBuffer + 1, where the
+    // gate stops a free key: a higher count was served under billing and is still
+    // owed (the docs have always said so; before 2026-11 the query required
+    // billingEnabled, so removing the card after the usage skipped the month).
+    // Returns the number of rows written, or null on a database error.
+    public function recordOverageCharges($year, $month, $now){
+        $db = new Database();
+        if($db->error){
+            return null;
+        }
         $recorded = 0;
-        $result = $db->query("SELECT au.apiKey, au.count, ak.userID, ak.requestLimit, ak.monthlySpendCapCents FROM api_usage au INNER JOIN api_keys ak ON au.apiKey = ak.id WHERE au.year=? AND au.month=? AND ak.billingEnabled=1 AND au.count > ak.requestLimit", [$year, $month]);
+        $result = $db->query("SELECT au.apiKey, au.count, ak.userID, ak.requestLimit, ak.monthlySpendCapCents FROM api_usage au INNER JOIN api_keys ak ON au.apiKey = ak.id WHERE au.year=? AND au.month=? AND au.count > ak.requestLimit AND (ak.billingEnabled=1 OR au.count > ak.requestLimit + ak.requestBuffer + 1)", [$year, $month]);
         if($db->error){
             $errorLog = new LogError();
             $errorLog->errorNumber = 284;
@@ -649,7 +819,7 @@ class Billing {
             $errorLog->filename = 'API / Billing.class.php';
             $errorLog->write();
             $db->close();
-            return;
+            return null;
         }
         while($row = $result->fetch_assoc()){
             $count = intval($row['count']);
@@ -674,9 +844,7 @@ class Billing {
             }
         }
         $db->close();
-        echo "Recorded overage for $monthLabel: $recorded new key(s)\n";
-
-        $this->sendNotices($year, $month, $monthLabel, $now);
+        return $recorded;
     }
 
     private function sendNotices($year, $month, $monthLabel, $now){

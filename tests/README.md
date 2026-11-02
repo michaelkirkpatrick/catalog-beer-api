@@ -75,6 +75,17 @@ the Google key is IP-restricted) hold real API responses. **Run it for any
 change to address parsing** — Newman cannot cover this ground, because Google
 is live and its answer for the same address varies with the request shape.
 
+`billing.php` covers the spend-cap floor (`PATCH /billing` refusing a cap
+below the month's committed charge, and below an unrecorded last month) and
+the billing cron's record phase (a disabled key past the free buffer is still
+charged; a free key at the buffer never is; re-runs write nothing). Local
+MySQL, scratch `cb_billing_test` from the canonical schema; no Stripe, no
+email.
+
+```bash
+php tests/billing.php              # ~50 checks, exit 1 on failure
+```
+
 `telephone.php` covers `Telephone` (an E.164 number written the way its
 country writes it: `telephone_formatted` / `telephone_national`) and the
 generated `TelephoneMetadata` table it reads. Expected layouts are each
