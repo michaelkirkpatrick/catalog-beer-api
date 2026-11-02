@@ -83548,7 +83548,6 @@
 													"pm.environment.unset('brewer_name_60');",
 													"pm.environment.unset('audit_id_60');",
 													"pm.environment.unset('beer_name_34');",
-													"pm.environment.unset('beer_id_34');",
 													"pm.environment.unset('audit_id_beer_34');",
 													"pm.environment.unset('audit_id_beer_34_tombstone');"
 												],
@@ -83607,7 +83606,7 @@
 									"response": []
 								},
 								{
-									"name": "BR-291 A Deleted Brewery Keeps Its History And Its Children's Tombstones",
+									"name": "BR-291 A Deleted Brewery Keeps Its History",
 									"event": [
 										{
 											"listen": "prerequest",
@@ -83627,11 +83626,15 @@
 													"    pm.response.to.have.status(200);",
 													"});",
 													"",
-													"pm.test(\"Newest brewer row is the tombstone; the cascade left one for the beer\", function () {",
+													"pm.test(\"Newest row for the brewer is its tombstone; the creation is still there\", function () {",
 													"    var jsonData = pm.response.json();",
+													"    // entity_id filters on exactly this id: the children's cascade tombstones",
+													"    // carry their own ids and are read from their own history (BR-292).",
 													"    pm.expect(jsonData.data[0].action).to.equal('delete');",
 													"    pm.expect(jsonData.data[0].entity_type).to.equal('brewer');",
-													"    pm.expect(jsonData.data.map(r => r.entity_type + ':' + r.action + ':' + (r.note || ''))).to.include('beer:delete:cascade: brewer deleted');",
+													"    pm.expect(jsonData.data[0].entity_id).to.equal(pm.environment.get('brewer_id_60'));",
+													"    pm.expect(jsonData.data.map(r => r.action)).to.include('create');",
+													"    jsonData.data.forEach(function (row) { pm.expect(row.entity_id).to.equal(pm.environment.get('brewer_id_60')); });",
 													"});",
 													"",
 													"pm.environment.unset('brewer_id_60');"
@@ -83690,6 +83693,93 @@
 													"key": "entity_id",
 													"value": "{{brewer_id_60}}"
 												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "BR-292 The Cascade Left A Tombstone For Beer #34",
+									"event": [
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
+													"// Role",
+													"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "test",
+											"script": {
+												"exec": [
+													"pm.test(\"Success (HTTP 200)\", function () {",
+													"    pm.response.to.have.status(200);",
+													"});",
+													"",
+													"pm.test(\"The beer's newest row is a cascade tombstone, written by the brewer delete\", function () {",
+													"    var jsonData = pm.response.json();",
+													"    pm.expect(jsonData.data[0].action).to.equal('delete');",
+													"    pm.expect(jsonData.data[0].snapshot).to.equal(null);",
+													"    pm.expect(jsonData.data[0].note).to.equal('cascade: brewer deleted');",
+													"    // the restore (BEER-188) before it, then its own delete and creation",
+													"    pm.expect(jsonData.data[1].action).to.equal('revert');",
+													"});",
+													"",
+													"pm.environment.unset('beer_id_34');"
+												],
+												"type": "text/javascript"
+											}
+										}
+									],
+									"request": {
+										"auth": {
+											"type": "basic",
+											"basic": [
+												{
+													"key": "username",
+													"value": "{{api_key}}",
+													"type": "string"
+												},
+												{
+													"key": "password",
+													"value": "",
+													"type": "string"
+												},
+												{
+													"key": "saveHelperData",
+													"type": "any"
+												},
+												{
+													"key": "showPassword",
+													"value": false,
+													"type": "boolean"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "https://{{base_url}}/beer/{{beer_id_34}}/history",
+											"protocol": "https",
+											"host": [
+												"{{base_url}}"
+											],
+											"path": [
+												"beer",
+												"{{beer_id_34}}",
+												"history"
 											]
 										}
 									},

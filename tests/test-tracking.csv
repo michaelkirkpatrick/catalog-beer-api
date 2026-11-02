@@ -863,4 +863,5 @@ Beer,BEER-187,A Tombstone Cannot Be Reverted To,POST,/beer/{beer_id}/revert,Admi
 Beer,BEER-188,Revert Restores The Deleted Beer Under Its Own Id,POST,/beer/{beer_id}/revert,Admin,201,Pending
 Beer,BEER-189,The Restored Beer Reads Back,GET,/beer/{beer_id},Admin,200,Pending
 Brewer,BR-290,Delete Brewery #60,DELETE,/brewer/{brewer_id},Admin,204,Pending
-Brewer,BR-291,A Deleted Brewery Keeps Its History And Its Children's Tombstones,GET,/audit?entity_id={brewer_id},Admin,200,Pending
+Brewer,BR-291,A Deleted Brewery Keeps Its History,GET,/audit?entity_id={brewer_id},Admin,200,Pending
+Brewer,BR-292,The Cascade Left A Tombstone For Beer #34,GET,/beer/{id}/history,Admin,200,Pending
