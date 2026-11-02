@@ -34,6 +34,12 @@ The environment file requires two keys:
 
 Both should be set to your master API key for the target environment. These keys are **not hardcoded** in the collection — they must be provided via the environment file. During the test run, `api_key` is swapped between admin and non-admin keys as tests create users and exercise different permission levels.
 
+A third, optional key drives the Billing folder:
+
+| Variable | Purpose |
+|----------|---------|
+| `billing_api_key` | A **staging** key whose account has a saved Stripe test card (Claude's staging key). BILL-1..10 run as this key and skip themselves when it is absent or when `base_url` is production, so a production run never touches a real customer's billing. BILL-11..13 (the webhook's refusals) need no key and run everywhere. |
+
 ### Test Pages
 
 The API validates brewer and location URLs by making a live HTTP request. Tests use a static test page hosted on several domains. Each domain must serve a page at `/catalog-beer-test-page.html` that returns HTTP 200:
@@ -68,6 +74,17 @@ IE, CA, AU, ES, IT, JP, MX; captured 2026-10-13 from the staging box, since
 the Google key is IP-restricted) hold real API responses. **Run it for any
 change to address parsing** — Newman cannot cover this ground, because Google
 is live and its answer for the same address varies with the request shape.
+
+`billing.php` covers the spend-cap floor (`PATCH /billing` refusing a cap
+below the month's committed charge, and below an unrecorded last month) and
+the billing cron's record phase (a disabled key past the free buffer is still
+charged; a free key at the buffer never is; re-runs write nothing). Local
+MySQL, scratch `cb_billing_test` from the canonical schema; no Stripe, no
+email.
+
+```bash
+php tests/billing.php              # ~50 checks, exit 1 on failure
+```
 
 `telephone.php` covers `Telephone` (an E.164 number written the way its
 country writes it: `telephone_formatted` / `telephone_national`) and the
@@ -434,6 +451,7 @@ Some tests rely on staging-specific API behavior and are automatically skipped w
 
 | Test | Why | Manual Production Testing |
 |------|-----|--------------------------|
+| BILL-1..10 (Billing) | Run as `billing_api_key`, a staging key with a saved test card; they set and restore its spend cap and open Stripe Checkout / Portal sessions in test mode. Skipped on production (or when the variable is absent) so no live customer's cap or card is touched. | Check `GET /billing` with your own key. |
 | U-41 (Reset Password - User #3) | Requires `password_reset_key`, which is only returned in the staging API response. In production, the key is sent via email only. | Trigger a password reset (U-37), retrieve the key from the database or email, then POST to `/users/password-reset/{key}` with a new password. Expect 204. |
 
 U-37 (Password Reset Request) behaves differently per environment:
