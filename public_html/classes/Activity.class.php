@@ -171,28 +171,37 @@ class Activity {
 
             // 4. GET Traffic — grouped by endpoint pattern, still from
             // api_logging: reads are not audited.
-            $result = $db->query("SELECT SUBSTRING_INDEX(uri, '?', 1) AS clean_uri, COUNT(*) AS count FROM api_logging WHERE method = 'GET' AND timestamp >= ? GROUP BY clean_uri ORDER BY count DESC", [$cutoffTimestamp]);
+            // durationMs is null on rows from before 6.7.0; the sums skip them.
+            $result = $db->query("SELECT SUBSTRING_INDEX(uri, '?', 1) AS clean_uri, COUNT(*) AS count, SUM(durationMs) AS duration_sum, SUM(durationMs IS NOT NULL) AS timed, MAX(durationMs) AS max_ms FROM api_logging WHERE method = 'GET' AND timestamp >= ? GROUP BY clean_uri ORDER BY count DESC", [$cutoffTimestamp]);
             if($db->error){
                 $this->dbError($db, 'read traffic');
                 return;
             }
-            // Collapse UUIDs and aggregate
+            // Collapse UUIDs and aggregate; the average is weighted by the
+            // rows that carry a duration
             $getPatterns = array();
             $getTotal = 0;
             while($row = $result->fetch_assoc()){
                 $pattern = preg_replace('#/[-0-9a-f]{36}#', '/{id}', $row['clean_uri']);
                 if(!isset($getPatterns[$pattern])){
-                    $getPatterns[$pattern] = 0;
+                    $getPatterns[$pattern] = array('count' => 0, 'duration_sum' => 0, 'timed' => 0, 'max_ms' => null);
                 }
-                $getPatterns[$pattern] += intval($row['count']);
+                $getPatterns[$pattern]['count'] += intval($row['count']);
+                $getPatterns[$pattern]['duration_sum'] += intval($row['duration_sum']);
+                $getPatterns[$pattern]['timed'] += intval($row['timed']);
+                if($row['max_ms'] !== null){
+                    $getPatterns[$pattern]['max_ms'] = max(intval($row['max_ms']), intval($getPatterns[$pattern]['max_ms']));
+                }
                 $getTotal += intval($row['count']);
             }
-            arsort($getPatterns);
+            uasort($getPatterns, function($a, $b){ return $b['count'] <=> $a['count']; });
             $getTraffic = array();
-            foreach($getPatterns as $endpoint => $count){
+            foreach($getPatterns as $endpoint => $agg){
                 $getTraffic[] = array(
                     'endpoint' => $endpoint,
-                    'count' => $count
+                    'count' => $agg['count'],
+                    'avg_ms' => $agg['timed'] > 0 ? intval(round($agg['duration_sum'] / $agg['timed'])) : null,
+                    'max_ms' => $agg['max_ms']
                 );
             }
 
