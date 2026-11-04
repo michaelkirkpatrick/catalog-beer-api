@@ -364,6 +364,7 @@ class Activity {
         $external = 0;
         $site = 0;
         $keysActive = 0;
+        $keysDeleted = 0;     // keys whose account is gone (the Newman suite deletes its users; a closed account) — counted, not listed
         foreach($periodTotals as $k => $n){
             if($n <= 0){
                 continue;
@@ -373,6 +374,9 @@ class Activity {
             }else{
                 $external += $n;
                 $keysActive++;
+                if(!isset($keyInfo[$k])){
+                    $keysDeleted++;
+                }
             }
         }
         $daily = array();
@@ -795,6 +799,7 @@ class Activity {
             'external_requests' => $external,
             'site_requests' => $site,
             'keys_active' => $keysActive,
+            'keys_deleted' => $keysDeleted,
             'new_accounts' => $newAccounts,
             'revisions' => $revisions,
             'daily' => array_values($daily)
