@@ -87725,6 +87725,382 @@
 			"description": "Stripe usage billing (/billing, /stripe-webhook). BILL-1..10 use billing_api_key from the environment file -- Claude's staging key, whose account holds a saved test card -- and skip themselves on production or when the variable is absent. BILL-11..13 need no key and run everywhere. Ported 2026-11-02 from the retired postman-api-tests/ copy, where they had lived since the billing launch; the canonical collection had no /billing request until then."
 		},
 		{
+			"name": "Activity",
+			"description": "GET /activity, the admin activity report (API 6.8.0): ?period=month (default) or 3m. ACT-1..3 run as the admin key, ACT-4 as the suite's first user.",
+			"item": [
+				{
+					"name": "ACT-1 Activity Report - Admin (This Month)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Report shape\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r).to.include.all.keys('object', 'url', 'period', 'period_months', 'since', 'until', 'months', 'source', 'test_entities_excluded', 'summary', 'site_keys', 'keys', 'billing', 'write_activity', 'read_traffic');",
+									"    pm.expect(r.object).to.equal('activity_report');",
+									"    pm.expect(r.summary).to.have.all.keys('external_requests', 'site_requests', 'keys_active', 'new_accounts', 'revisions', 'daily');",
+									"    pm.expect(r.summary.daily).to.be.an('array');",
+									"    pm.expect(r.site_keys).to.be.an('array');",
+									"    pm.expect(r.keys).to.be.an('array');",
+									"    pm.expect(r.billing).to.include.all.keys('block_size', 'block_price_cents', 'invoice_floor_cents', 'charge_day', 'this_month', 'last_month', 'refused', 'keys', 'ceiling');",
+									"    pm.expect(r.billing.this_month).to.have.all.keys('month', 'committed_cents', 'forecast_cents', 'elapsed_seconds', 'month_seconds');",
+									"    pm.expect(r.billing.last_month).to.have.all.keys('month', 'charged_cents', 'invoicing_cents', 'rolling_cents', 'charges');",
+									"    pm.expect(r.billing.refused).to.have.all.keys('total', 'keys', 'by_month');",
+									"    pm.expect(r.write_activity).to.have.all.keys('summary', 'top_contributors', 'recent');",
+									"    pm.expect(r.read_traffic).to.have.all.keys('total', 'by_endpoint');",
+									"});",
+									"",
+									"pm.test(\"This month: one calendar month, keys carry the drill-down fields\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r.period).to.equal('month');",
+									"    pm.expect(r.period_months).to.equal(1);",
+									"    pm.expect(r.months).to.have.lengthOf(1);",
+									"    pm.expect(r.since).to.be.a('number');",
+									"    pm.expect(r.until).to.be.at.least(r.since);",
+									"    // The suite itself has made requests this month, so at least one key is listed",
+									"    pm.expect(r.keys.length).to.be.at.least(1);",
+									"    var k = r.keys[0];",
+									"    pm.expect(k).to.include.all.keys('user_id', 'name', 'email', 'api_key_last4', 'request_limit', 'request_buffer', 'billing_enabled', 'spend_cap_cents', 'requests', 'this_month', 'months', 'created_at', 'is_new', 'email_verified', 'signup_ip', 'writes', 'refused', 'first_ts', 'last_ts', 'active_days', 'ip_count', 'detail');",
+									"    pm.expect(k.api_key_last4).to.have.lengthOf(4);",
+									"    pm.expect(k.detail).to.equal(true);",
+									"    pm.expect(k).to.include.all.keys('endpoints', 'statuses', 'mix', 'agents', 'hours', 'searches');",
+									"    pm.expect(k.endpoints[0]).to.have.all.keys('method', 'endpoint', 'count', 'ok', 'avg_ms', 'max_ms');",
+									"    pm.expect(k.searches).to.have.all.keys('count', 'distinct', 'top');",
+									"    // No response carries an API key",
+									"    pm.expect(pm.response.text()).to.not.include(pm.environment.get('api_key_admin'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/activity",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"activity"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ACT-2 Activity Report - Admin (Last 3 Months)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Report shape\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r).to.include.all.keys('object', 'url', 'period', 'period_months', 'since', 'until', 'months', 'source', 'test_entities_excluded', 'summary', 'site_keys', 'keys', 'billing', 'write_activity', 'read_traffic');",
+									"    pm.expect(r.object).to.equal('activity_report');",
+									"    pm.expect(r.summary).to.have.all.keys('external_requests', 'site_requests', 'keys_active', 'new_accounts', 'revisions', 'daily');",
+									"    pm.expect(r.summary.daily).to.be.an('array');",
+									"    pm.expect(r.site_keys).to.be.an('array');",
+									"    pm.expect(r.keys).to.be.an('array');",
+									"    pm.expect(r.billing).to.include.all.keys('block_size', 'block_price_cents', 'invoice_floor_cents', 'charge_day', 'this_month', 'last_month', 'refused', 'keys', 'ceiling');",
+									"    pm.expect(r.billing.this_month).to.have.all.keys('month', 'committed_cents', 'forecast_cents', 'elapsed_seconds', 'month_seconds');",
+									"    pm.expect(r.billing.last_month).to.have.all.keys('month', 'charged_cents', 'invoicing_cents', 'rolling_cents', 'charges');",
+									"    pm.expect(r.billing.refused).to.have.all.keys('total', 'keys', 'by_month');",
+									"    pm.expect(r.write_activity).to.have.all.keys('summary', 'top_contributors', 'recent');",
+									"    pm.expect(r.read_traffic).to.have.all.keys('total', 'by_endpoint');",
+									"});",
+									"",
+									"pm.test(\"Three months: four calendar months, per-key monthly counts, no drill-down\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r.period).to.equal('3m');",
+									"    pm.expect(r.period_months).to.equal(3);",
+									"    pm.expect(r.months).to.have.lengthOf(4);",
+									"    pm.expect(r.keys.length).to.be.at.least(1);",
+									"    var k = r.keys[0];",
+									"    pm.expect(k.months).to.be.an('object');",
+									"    pm.expect(Object.keys(k.months)).to.have.lengthOf(4);",
+									"    pm.expect(k).to.not.have.any.keys('endpoints', 'hours', 'agents', 'detail');",
+									"    pm.expect(r.billing.refused.by_month).to.have.all.keys(r.months);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/activity?period=3m",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"activity"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "3m"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ACT-3 Activity Report - Invalid Period",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Bad Request (HTTP 400)\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Names the two periods\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r.error).to.equal(true);",
+									"    pm.expect(r.error_msg).to.include('month');",
+									"    pm.expect(r.error_msg).to.include('3m');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/activity?period=week",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"activity"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "week"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ACT-4 Activity Report - Non-Admin Unauthorized",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_1'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Unauthorized (HTTP 401)\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Error payload\", function () {",
+									"    var r = pm.response.json();",
+									"    pm.expect(r.error).to.equal(true);",
+									"    pm.expect(r.error_msg).to.include('admin');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/activity",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"activity"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Styles",
 			"item": [
 				{

@@ -33,7 +33,7 @@ ErrorDocument 500 /errors.php?code=500
 ErrorDocument 503 /errors.php?code=503
 
 # API Endpoints
-RewriteRule ^activity/?$ index.php?endpoint=activity [L]
+RewriteRule ^activity/?$ index.php?endpoint=activity [QSA,L]
 
 # Retired in 6.0 (the address rides on /location); answers 404 with a pointer
 RewriteRule ^address(/.*)?$ index.php?endpoint=address [L]
