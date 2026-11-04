@@ -182,25 +182,62 @@ class Activity {
             }
         }
 
-        // ----- 2. The current month, live: per key, method, endpoint and status -----
+        // ----- 2. Hours: per key (every key, index-only), for the drill-down
+        // strips, the daily series and each key's live count for the month -----
+        $hours = array();         // apiKey => [hourTs => n]
         $live = array();          // apiKey => count this month
+        $result = $db->query("SELECT apiKey, timestamp - (timestamp % 3600) AS h, COUNT(*) AS n FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? GROUP BY apiKey, h", [$since]);
+        if($db->error){
+            $this->dbError($db, 'hours');
+            return;
+        }
+        while($row = $result->fetch_assoc()){
+            $h = (int)$row['h'];
+            $n = (int)$row['n'];
+            $hours[$row['apiKey']][$h] = $n;
+            if($h >= $monthStart){
+                $live[$row['apiKey']] = ($live[$row['apiKey']] ?? 0) + $n;
+            }
+        }
+
+        // The keys that get a drill-down: the busiest non-site keys this
+        // month. The queries that must read whole rows (durations, user agents,
+        // addresses, search terms) are asked for these keys only and seek them
+        // through idx_apiKey_ts; a whole-window read of those columns is a
+        // table scan on a box whose buffer pool is smaller than the table.
+        $detailKeys = array();
+        if($period === 'month'){
+            $ranked = array();
+            foreach($live as $k => $n){
+                if(!isset($siteKeys[$k]) && isset($keyInfo[$k]) && $n > 0){
+                    $ranked[$k] = $n;
+                }
+            }
+            arsort($ranked);
+            $detailKeys = array_slice(array_keys($ranked), 0, self::DETAIL_KEYS);
+        }
+        $inDetail = empty($detailKeys) ? '' : "apiKey IN (" . implode(', ', array_fill(0, count($detailKeys), '?')) . ") AND ";
+
+        // ----- 3. The month's drill-down keys: method, endpoint and status -----
+        // Grouped on the path as logged; the ids are collapsed to {id} here,
+        // since a regex per row in SQL costs seconds on the production box.
         $detail = array();        // apiKey => endpoint rows, statuses, families, first/last
-        $result = $db->query("SELECT apiKey, method, REGEXP_REPLACE(SUBSTRING_INDEX(uri, '?', 1), ?, '/{id}') AS pattern, responseCode, COUNT(*) AS n, SUM(durationMs) AS dsum, SUM(durationMs IS NOT NULL) AS timed, MAX(durationMs) AS dmax, MIN(timestamp) AS first, MAX(timestamp) AS last FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? GROUP BY apiKey, method, pattern, responseCode", [self::UUID_RE, $monthStart]);
+        $result = empty($detailKeys) ? null : $db->query("SELECT apiKey, method, SUBSTRING_INDEX(uri, '?', 1) AS path, responseCode, COUNT(*) AS n, SUM(durationMs) AS dsum, SUM(durationMs IS NOT NULL) AS timed, MAX(durationMs) AS dmax, MIN(timestamp) AS first, MAX(timestamp) AS last FROM api_logging WHERE " . $inDetail . "timestamp >= ? GROUP BY apiKey, method, path, responseCode", array_merge($detailKeys, [$monthStart]));
         if($db->error){
             $this->dbError($db, 'month traffic');
             return;
         }
-        while($row = $result->fetch_assoc()){
+        while($result !== null && ($row = $result->fetch_assoc())){
             $k = $row['apiKey'];
             $n = (int)$row['n'];
-            $live[$k] = ($live[$k] ?? 0) + $n;
+            $pattern = self::endpointPattern($row['path']);
             if(!isset($detail[$k])){
                 $detail[$k] = array('endpoints' => array(), 'statuses' => array(), 'families' => array(), 'first' => null, 'last' => null);
             }
             $d =& $detail[$k];
-            $epKey = $row['method'] . ' ' . $row['pattern'];
+            $epKey = $row['method'] . ' ' . $pattern;
             if(!isset($d['endpoints'][$epKey])){
-                $d['endpoints'][$epKey] = array('method' => $row['method'], 'endpoint' => $row['pattern'], 'count' => 0, 'ok' => 0, 'dsum' => 0, 'timed' => 0, 'max_ms' => null);
+                $d['endpoints'][$epKey] = array('method' => $row['method'], 'endpoint' => $pattern, 'count' => 0, 'ok' => 0, 'dsum' => 0, 'timed' => 0, 'max_ms' => null);
             }
             $e =& $d['endpoints'][$epKey];
             $e['count'] += $n;
@@ -215,14 +252,14 @@ class Activity {
             }
             unset($e);
             $d['statuses'][$code] = ($d['statuses'][$code] ?? 0) + $n;
-            $family = self::family($row['method'], $row['pattern']);
+            $family = self::family($row['method'], $pattern);
             $d['families'][$family] = ($d['families'][$family] ?? 0) + $n;
             $d['first'] = ($d['first'] === null) ? (int)$row['first'] : min($d['first'], (int)$row['first']);
             $d['last'] = ($d['last'] === null) ? (int)$row['last'] : max($d['last'], (int)$row['last']);
             unset($d);
         }
 
-        // ----- 3. Closed months from the metering table (the window and last month) -----
+        // ----- 4. Closed months from the metering table (the window and last month) -----
         $usage = array();         // apiKey => ['YYYY-MM' => count], closed months only
         $usageSince = min($threeMonthsBack, $lastMonthStart);
         $result = $db->query("SELECT apiKey, year, month, count FROM api_usage WHERE (year * 100 + month) >= ? AND (year * 100 + month) < ?", [(int)date('Y', $usageSince) * 100 + (int)date('n', $usageSince), $thisYear * 100 + $thisMonth]);
@@ -234,20 +271,9 @@ class Activity {
             $usage[$row['apiKey']][sprintf('%04d-%02d', $row['year'], $row['month'])] = (int)$row['count'];
         }
 
-        // ----- 4. Hours: per key, for the drill-down strips and the daily series -----
-        $hours = array();         // apiKey => [hourTs => n]
-        $result = $db->query("SELECT apiKey, timestamp - (timestamp % 3600) AS h, COUNT(*) AS n FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? GROUP BY apiKey, h", [$since]);
-        if($db->error){
-            $this->dbError($db, 'hours');
-            return;
-        }
-        while($row = $result->fetch_assoc()){
-            $hours[$row['apiKey']][(int)$row['h']] = (int)$row['n'];
-        }
-
         // ----- 5. Refused at the free tier (402), per key and month -----
         $refused = array();       // apiKey => ['YYYY-MM' => n]
-        $result = $db->query("SELECT apiKey, timestamp - (timestamp % 86400) AS d, COUNT(*) AS n FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? AND responseCode = 402 GROUP BY apiKey, d", [$threeMonthsBack]);
+        $result = $db->query("SELECT apiKey, timestamp - (timestamp % 86400) AS d, COUNT(*) AS n FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? AND responseCode = 402 GROUP BY apiKey, d", [$since]);
         if($db->error){
             $this->dbError($db, 'refused');
             return;
@@ -262,28 +288,28 @@ class Activity {
         $ipCounts = array();      // apiKey => distinct addresses
         $searches = array();      // apiKey => ['count' => n, 'terms' => [term => n]]
         if($period === 'month'){
-            $result = $db->query("SELECT apiKey, userAgent, COUNT(*) AS n FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? GROUP BY apiKey, userAgent", [$monthStart]);
+            $result = empty($detailKeys) ? null : $db->query("SELECT apiKey, userAgent, COUNT(*) AS n FROM api_logging WHERE " . $inDetail . "timestamp >= ? GROUP BY apiKey, userAgent", array_merge($detailKeys, [$monthStart]));
             if($db->error){
                 $this->dbError($db, 'agents');
                 return;
             }
-            while($row = $result->fetch_assoc()){
+            while($result !== null && ($row = $result->fetch_assoc())){
                 $agents[$row['apiKey']][$row['userAgent'] ?? ''] = (int)$row['n'];
             }
-            $result = $db->query("SELECT apiKey, COUNT(DISTINCT ipAddress) AS ips FROM api_logging WHERE method IN (" . self::METHODS . ") AND timestamp >= ? GROUP BY apiKey", [$monthStart]);
+            $result = empty($detailKeys) ? null : $db->query("SELECT apiKey, COUNT(DISTINCT ipAddress) AS ips FROM api_logging WHERE " . $inDetail . "timestamp >= ? GROUP BY apiKey", array_merge($detailKeys, [$monthStart]));
             if($db->error){
                 $this->dbError($db, 'addresses');
                 return;
             }
-            while($row = $result->fetch_assoc()){
+            while($result !== null && ($row = $result->fetch_assoc())){
                 $ipCounts[$row['apiKey']] = (int)$row['ips'];
             }
-            $result = $db->query("SELECT apiKey, uri FROM api_logging WHERE method = 'GET' AND timestamp >= ? AND (uri LIKE '/beer/search?%' OR uri LIKE '/brewer/search?%')", [$monthStart]);
+            $result = empty($detailKeys) ? null : $db->query("SELECT apiKey, uri FROM api_logging WHERE " . $inDetail . "timestamp >= ? AND method = 'GET' AND (uri LIKE '/beer/search?%' OR uri LIKE '/brewer/search?%')", array_merge($detailKeys, [$monthStart]));
             if($db->error){
                 $this->dbError($db, 'searches');
                 return;
             }
-            while($row = $result->fetch_assoc()){
+            while($result !== null && ($row = $result->fetch_assoc())){
                 $k = $row['apiKey'];
                 if(!isset($searches[$k])){
                     $searches[$k] = array('count' => 0, 'terms' => array());
@@ -323,15 +349,21 @@ class Activity {
             $where .= " AND al.entityID NOT IN (" . implode(', ', array_fill(0, count($testIDs), '?')) . ")";
             $params = array_merge($params, $testIDs);
         }
+        // One pass over the window's revisions (the rows carry their snapshot,
+        // so every scan of audit_log is a read of the whole row): per actor,
+        // entity type and action, from which the write summary, the top
+        // contributors and each key's write count are all derived.
         $writesByUser = array();
-        $result = $db->query("SELECT al.actorID, COUNT(*) AS n FROM audit_log al WHERE $where GROUP BY al.actorID", $params);
+        $writeCells = array();
+        $result = $db->query("SELECT al.actorID, u.name, u.email, al.entityType, al.action, COUNT(*) AS n FROM audit_log al LEFT JOIN users u ON al.actorID = u.id WHERE $where GROUP BY al.actorID, u.name, u.email, al.entityType, al.action", $params);
         if($db->error){
-            $this->dbError($db, 'writes by user');
+            $this->dbError($db, 'writes');
             return;
         }
         while($row = $result->fetch_assoc()){
+            $writeCells[] = $row;
             if($row['actorID'] !== null){
-                $writesByUser[$row['actorID']] = (int)$row['n'];
+                $writesByUser[$row['actorID']] = ($writesByUser[$row['actorID']] ?? 0) + (int)$row['n'];
             }
         }
         $result = $db->query("SELECT COUNT(*) AS n FROM users WHERE createdAt >= ?", [$since]);
@@ -415,7 +447,8 @@ class Activity {
                 'email_verified' => (int)$info['emailVerified'] === 1,
                 'signup_ip' => $info['signupIP'],
                 'writes' => $writesByUser[$info['userID']] ?? 0,
-                'refused' => 0
+                'refused' => 0,
+                '_key' => $k
             );
             foreach($windowMonths as $ym){
                 $row['refused'] += $refused[$k][$ym] ?? 0;
@@ -438,16 +471,11 @@ class Activity {
 
         // The drill-down for the busiest keys (month view)
         if($period === 'month'){
+            $detailSet = array_flip($detailKeys);
             foreach($keyRows as $i => &$row){
-                if($i >= self::DETAIL_KEYS){
-                    break;
-                }
-                $k = null;
-                foreach($keyInfo as $id => $info){
-                    if($info['userID'] === $row['user_id'] && substr($id, -4) === $row['api_key_last4']){
-                        $k = $id;
-                        break;
-                    }
+                $k = $row['_key'];
+                if(!isset($detailSet[$k])){
+                    continue;
                 }
                 $d = $detail[$k] ?? array('endpoints' => array(), 'statuses' => array(), 'families' => array());
                 $endpoints = array();
@@ -641,41 +669,40 @@ class Activity {
             }
         }
 
-        // ----- Write activity (audit_log) -----
-        $writeSummary = array();
-        $result = $db->query("SELECT al.entityType AS resource, SUM(al.action = 'create') AS created, SUM(al.action IN ('update', 'revert')) AS updated, SUM(al.action = 'delete') AS deleted, COUNT(*) AS total FROM audit_log al WHERE $where GROUP BY al.entityType ORDER BY total DESC", $params);
-        if($db->error){
-            $this->dbError($db, 'write summary');
-            return;
-        }
+        // ----- Write activity (audit_log), from the one grouped pass above -----
+        $byResource = array();
+        $byActor = array();
         $revisions = 0;
-        while($row = $result->fetch_assoc()){
-            $writeSummary[] = array(
-                'resource' => $row['resource'],
-                'created' => intval($row['created']),
-                'updated' => intval($row['updated']),
-                'deleted' => intval($row['deleted'])
-            );
-            $revisions += (int)$row['total'];
+        foreach($writeCells as $row){
+            $n = (int)$row['n'];
+            $bucket = ($row['action'] === 'create') ? 'created' : (($row['action'] === 'delete') ? 'deleted' : 'updated');
+            $r = $row['entityType'];
+            if(!isset($byResource[$r])){
+                $byResource[$r] = array('resource' => $r, 'created' => 0, 'updated' => 0, 'deleted' => 0, 'total' => 0);
+            }
+            $byResource[$r][$bucket] += $n;
+            $byResource[$r]['total'] += $n;
+            $a = $row['actorID'] ?? '';
+            if(!isset($byActor[$a])){
+                $byActor[$a] = array(
+                    'user_id' => $row['actorID'],
+                    'name' => $row['name'] ?? ($row['actorID'] === null ? '(system)' : '(deleted user)'),
+                    'email' => $row['email'] ?? null,
+                    'created' => 0, 'updated' => 0, 'deleted' => 0, 'total' => 0
+                );
+            }
+            $byActor[$a][$bucket] += $n;
+            $byActor[$a]['total'] += $n;
+            $revisions += $n;
         }
-
-        $result = $db->query("SELECT al.actorID, u.name, u.email, SUM(al.action = 'create') AS created, SUM(al.action IN ('update', 'revert')) AS updated, SUM(al.action = 'delete') AS deleted, COUNT(*) AS total FROM audit_log al LEFT JOIN users u ON al.actorID = u.id WHERE $where GROUP BY al.actorID, u.name, u.email ORDER BY total DESC LIMIT 10", $params);
-        if($db->error){
-            $this->dbError($db, 'top contributors');
-            return;
+        usort($byResource, function($a, $b){ return $b['total'] <=> $a['total']; });
+        $writeSummary = array();
+        foreach($byResource as $r){
+            unset($r['total']);
+            $writeSummary[] = $r;
         }
-        $topContributors = array();
-        while($row = $result->fetch_assoc()){
-            $topContributors[] = array(
-                'user_id' => $row['actorID'],
-                'name' => $row['name'] ?? ($row['actorID'] === null ? '(system)' : '(deleted user)'),
-                'email' => $row['email'] ?? null,
-                'created' => intval($row['created']),
-                'updated' => intval($row['updated']),
-                'deleted' => intval($row['deleted']),
-                'total' => intval($row['total'])
-            );
-        }
+        usort($byActor, function($a, $b){ return $b['total'] <=> $a['total']; });
+        $topContributors = array_slice(array_values($byActor), 0, 10);
 
         // Recent revisions: the last 50. Names come from the snapshot; a
         // tombstone has none, so its entity's last snapshot is read instead;
@@ -804,6 +831,10 @@ class Activity {
             'revisions' => $revisions,
             'daily' => array_values($daily)
         );
+        foreach($keyRows as &$row){
+            unset($row['_key']);
+        }
+        unset($row);
         $this->json['site_keys'] = $siteKeyList;
         $this->json['keys'] = $keyRows;
         $this->json['billing'] = array(
