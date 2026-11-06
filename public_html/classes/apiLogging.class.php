@@ -114,7 +114,7 @@ class apiLogging {
     // never saw the path), cut to the column's width so a long query string
     // can never make the INSERT fail.
     public static function loggedUri($uri): string {
-        $uri = preg_replace('#(/users/(?:password-reset|verify-email)/)[^/?]+#', '$1[REDACTED]', (string)$uri);
+        $uri = preg_replace('#(/users/(?:password-reset|verify-email|confirm-email)/)[^/?]+#', '$1[REDACTED]', (string)$uri);
         return mb_strcut($uri, 0, self::URI_MAX);
     }
 

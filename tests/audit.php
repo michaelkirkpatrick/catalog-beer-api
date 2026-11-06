@@ -212,9 +212,13 @@ check("removing a privilege not held writes nothing", count(rows('privilege', $P
 
 $users = new Users();
 $users->validate($ADMIN_USER, true);
+// Since 6.10.0 a verified account's new address is held until its inbox
+// confirms it (tests/email-change.php), so the PATCH records the request,
+// not a change of email. The mail goes to the test outbox.
+SendEmail::$outbox = array();
 $users->createAccount('', 'plain.renamed@example.com', '', '', $ADMIN, 'PATCH', $PLAIN_USER, array('email'));
 $r = rows('user', $PLAIN_USER);
-check("email PATCH (same domain) -> set email old -> new, nothing else", !$users->error && count($r) === 1 && $r[0]['field'] === 'email' && $r[0]['oldValue'] === 'plain@example.com' && $r[0]['newValue'] === 'plain.renamed@example.com');
+check("email PATCH (verified account) -> set pendingEmail null -> new, nothing else", !$users->error && count($r) === 1 && $r[0]['field'] === 'pendingEmail' && $r[0]['oldValue'] === null && $r[0]['newValue'] === 'plain.renamed@example.com' && count(SendEmail::$outbox) === 1);
 $users = new Users();
 $users->validate($ADMIN_USER, true);
 $users->createAccount('', '', 'Correct-Horse-Battery-9', '', $ADMIN, 'PATCH', $PLAIN_USER, array('password'));

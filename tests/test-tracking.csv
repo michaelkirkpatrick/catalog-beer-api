@@ -29,10 +29,19 @@ Users,U-27,Verify User Email - Unauthorized,POST,/users/verify-email/{{guid}},No
 Users,U-28,Update User #1 - Name,PATCH,/users/{{user_id_1}},Non-Admin,403,Done
 Users,U-29,Update User #1 - Name,PATCH,/users/{{user_id_1}},Admin,200,Done
 Users,U-30,Update User #1 - Password,PATCH,/users/{{user_id_1}},Admin,200,Done
-Users,U-31,Update User #1 - Email (Same Domain),PATCH,/users/{{user_id_1}},Admin,200,Done
+Users,U-31,Request Email Change - User #1 (Same Domain),PATCH,/users/{{user_id_1}},Admin,200,Done
+Users,U-49,Confirm Email Change - Signed In As Another Account,POST,/users/confirm-email/{{user_pending_email_auth_1}},Admin,403,Done
+Users,U-50,Confirm Email Change - Non-Admin Key,POST,/users/confirm-email/{{user_pending_email_auth_1}},Non-Admin,403,Done
+Users,U-51,Confirm Email Change - User #1,POST,/users/confirm-email/{{user_pending_email_auth_1}},Admin,200,Done
+Users,U-52,API Key Unchanged After Email Change - User #1,GET,/users/{{user_id_1}}/api-key,Admin,200,Done
+Users,U-53,Confirm Email Change - Code Already Used,POST,/users/confirm-email/{{user_pending_email_auth_1}},Admin,400,Done
 Users,U-32,Update User #2 - Name,PATCH,/users/{{user_id_2}},Non-Admin,200,Done
 Users,U-33,Update User #2 - Password,PATCH,/users/{{user_id_2}},Non-Admin,200,Done
-Users,U-34,Update User #2 - Email (Same Domain),PATCH,/users/{{user_id_2}},Non-Admin,200,Done
+Users,U-34,Request Email Change - User #2 (Own Key),PATCH,/users/{{user_id_2}},Non-Admin,200,Done
+Users,U-54,Request Email Change Again Inside A Minute - User #2,PATCH,/users/{{user_id_2}},Non-Admin,429,Done
+Users,U-55,Pending Code Visible To Admin - User #2,GET,/users/{{user_id_2}},Admin,200,Done
+Users,U-56,Cancel Email Change - User #2,PATCH,/users/{{user_id_2}},Non-Admin,200,Done
+Users,U-57,Confirm Email Change - Cancelled Code,POST,/users/confirm-email/{{user_pending_email_auth_2}},Admin,400,Done
 Users,U-35,Generic Request - No API Key,GET,/,None,401,Done
 Users,U-48,Long API Key (Truncated),GET,/,Ethereum-style,401,Done
 Users,U-36,Password Reset Request - User #3,POST,/users/{{user_id_3}}/reset-password,Non-Admin,403,Done
@@ -41,8 +50,13 @@ Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_
 Users,U-39,Reset Password - User #3 (Invalid Key),POST,/users/password-reset/{{guid}},Test User,400,Done
 Users,U-40,Get User #3 Info,GET,/users/{{user_id_3}},Test User,200,Done
 Users,U-41,Reset Password - User #3,POST,/users/password-reset/{{password_reset_key_3}},Test User,204,Staging only (skipped in prod; test manually)
-Users,U-42,Update User #1 - Email (New Domain),PATCH,/users/{{user_id_1}},Admin,200,Done
-Users,U-43,Confirm No API Key - User #1,GET,/users/{{user_id_1}}/api-key,Admin,200,Done
+Users,U-58,Brewery Privileges - User #1,GET,/users/{{user_id_1}}/privileges,Admin,200,Done
+Users,U-59,Attempt Brewery Privileges - User #1: Non-Admin,GET,/users/{{user_id_1}}/privileges,Non-Admin,403,Done
+Users,U-42,Request Email Change - User #1 (New Domain),PATCH,/users/{{user_id_1}},Admin,200,Done
+Users,U-43,API Key Kept While Change Is Pending - User #1,GET,/users/{{user_id_1}}/api-key,Admin,200,Done
+Users,U-60,Confirm Email Change - User #1 (New Domain),POST,/users/confirm-email/{{user_pending_email_auth_1}},Admin,200,Done
+Users,U-61,API Key Unchanged After Domain Change - User #1,GET,/users/{{user_id_1}}/api-key,Admin,200,Done
+Users,U-62,Brewery Privileges Ended - User #1,GET,/users/{{user_id_1}}/privileges,Admin,200,Done
 Users,U-44,Attempt - Delete User #1,DELETE,/users/{{user_id_1}},Non-Admin,403,Done
 Users,U-45,Delete User #1,DELETE,/users/{{user_id_1}},Admin,204,Done
 Users,U-46,Delete User #2,DELETE,/users/{{user_id_2}},Non-Admin,204,Done

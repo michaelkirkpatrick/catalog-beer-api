@@ -606,7 +606,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -709,7 +709,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -812,7 +812,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -1000,7 +1000,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -1233,7 +1233,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -1326,7 +1326,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -1419,7 +1419,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -2025,7 +2025,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2107,7 +2107,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -2189,7 +2189,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -2520,7 +2520,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2614,7 +2614,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2696,7 +2696,7 @@
 							"response": []
 						},
 						{
-							"name": "U-31 Update User #1 - Email (Same Domain)",
+							"name": "U-31 Request Email Change - User #1 (Same Domain)",
 							"event": [
 								{
 									"listen": "test",
@@ -2706,23 +2706,29 @@
 											"    pm.response.to.have.status(200);",
 											"});",
 											"",
-											"pm.test(\"Valid JSON payload\", function(){",
+											"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
-											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
-											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
 											"    pm.expect(jsonData.email_verified).to.equal(true);",
 											"    pm.expect(jsonData.email_auth).to.equal(null);",
 											"    pm.expect(jsonData.email_auth_sent).to.equal(null);",
+											"    pm.expect(jsonData.pending_email).to.equal(pm.environment.get('user_pending_email_1'));",
+											"    pm.expect(jsonData.pending_email_sent).to.be.at.least(Math.floor(Date.now() / 1000) - 5);",
 											"    pm.expect(jsonData.admin).to.equal(false);",
 											"});",
 											"",
-											"// Save updated values to environment",
-											"var jsonData = pm.response.json();",
-											"pm.environment.set('user_email_verified_1', jsonData.email_verified);",
-											"pm.environment.set('user_email_auth_1', jsonData.email_auth);",
-											"pm.environment.set('user_email_auth_sent_1', jsonData.email_auth_sent);"
+											"pm.test(\"An admin caller receives the confirmation code\", function () {",
+											"    pm.expect(pm.response.json().pending_email_auth).to.be.a('string').and.to.have.lengthOf(36);",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});",
+											"",
+											"// Save the code for the confirmation",
+											"pm.environment.set('user_pending_email_auth_1', pm.response.json().pending_email_auth);"
 										],
 										"type": "text/javascript"
 									}
@@ -2734,8 +2740,8 @@
 											"// Performed by Admin",
 											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
 											"",
-											"// Update Variable",
-											"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@catalog.beer\"));"
+											"// The address being asked for. user_email_1 stays the account's email until U-51 confirms the change.",
+											"pm.environment.set('user_pending_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@catalog.beer\"));"
 										],
 										"type": "text/javascript"
 									}
@@ -2779,7 +2785,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": \"{{user_email_1}}\"\n}"
+									"raw": "{\n    \"email\": \"{{user_pending_email_1}}\"\n}"
 								},
 								"url": {
 									"raw": "https://{{base_url}}/users/{{user_id_1}}",
@@ -2790,6 +2796,456 @@
 									"path": [
 										"users",
 										"{{user_id_1}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-49 Confirm Email Change - Signed In As Another Account",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Forbidden (HTTP 403)\", function () {",
+											"    pm.response.to.have.status(403);",
+											"});",
+											"",
+											"pm.test(\"Valid JSON payload\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+											"    pm.expect(jsonData.error).to.equal(true);",
+											"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"user_id\": \"{{user_id_2}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_1}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"confirm-email",
+										"{{user_pending_email_auth_1}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-50 Confirm Email Change - Non-Admin Key",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Forbidden (HTTP 403)\", function () {",
+											"    pm.response.to.have.status(403);",
+											"});",
+											"",
+											"pm.test(\"Valid JSON payload\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+											"    pm.expect(jsonData.error).to.equal(true);",
+											"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by User #1 with their own key",
+											"pm.environment.set('api_key', pm.environment.get('api_key_1'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"user_id\": \"{{user_id_1}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_1}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"confirm-email",
+										"{{user_pending_email_auth_1}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-51 Confirm Email Change - User #1",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Success (HTTP 200)\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"The pending address is now the email; nothing pending; still verified\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
+											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_pending_email_1'));",
+											"    pm.expect(jsonData.email_verified).to.equal(true);",
+											"    pm.expect(jsonData.pending_email).to.equal(null);",
+											"    pm.expect(jsonData.pending_email_auth).to.equal(null);",
+											"    pm.expect(jsonData.pending_email_sent).to.equal(null);",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});",
+											"",
+											"// The account signs in with the new address from here on",
+											"pm.environment.set('user_email_1', pm.response.json().email);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"user_id\": \"{{user_id_1}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_1}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"confirm-email",
+										"{{user_pending_email_auth_1}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-52 API Key Unchanged After Email Change - User #1",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"OK (HTTP 200)\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"The API key is the one issued at verification\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('object', 'user_id', 'api_key');",
+											"    pm.expect(jsonData.user_id).to.equal(pm.environment.get('user_id_1'));",
+											"    pm.expect(jsonData.api_key).to.equal(pm.environment.get('api_key_1'));",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "https://{{base_url}}/users/{{user_id_1}}/api-key",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"{{user_id_1}}",
+										"api-key"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-53 Confirm Email Change - Code Already Used",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Bad Request (HTTP 400)\", function () {",
+											"    pm.response.to.have.status(400);",
+											"});",
+											"",
+											"pm.test(\"Valid JSON payload\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+											"    pm.expect(jsonData.error).to.equal(true);",
+											"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"user_id\": \"{{user_id_1}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_1}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"confirm-email",
+										"{{user_pending_email_auth_1}}"
 									]
 								}
 							},
@@ -2808,7 +3264,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -2902,7 +3358,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -2984,7 +3440,7 @@
 							"response": []
 						},
 						{
-							"name": "U-34 Update User #2 - Email (Same Domain)",
+							"name": "U-34 Request Email Change - User #2 (Own Key)",
 							"event": [
 								{
 									"listen": "test",
@@ -2994,16 +3450,25 @@
 											"    pm.response.to.have.status(200);",
 											"});",
 											"",
-											"pm.test(\"Valid JSON payload\", function(){",
+											"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
-											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
-											"    pm.expect(jsonData.email_verified).to.equal(pm.environment.get('user_email_verified_2'));",
-											"    pm.expect(jsonData.email_auth).to.equal(pm.environment.get('user_email_auth_2'));",
-											"    pm.expect(jsonData.email_auth_sent).to.equal(pm.environment.get('user_email_auth_sent_2'));",
+											"    pm.expect(jsonData.email_verified).to.equal(true);",
+											"    pm.expect(jsonData.email_auth).to.equal(null);",
+											"    pm.expect(jsonData.email_auth_sent).to.equal(null);",
+											"    pm.expect(jsonData.pending_email).to.equal(pm.environment.get('user_pending_email_2'));",
+											"    pm.expect(jsonData.pending_email_sent).to.be.at.least(Math.floor(Date.now() / 1000) - 5);",
 											"    pm.expect(jsonData.admin).to.equal(false);",
+											"});",
+											"",
+											"pm.test(\"The account's own key never receives the confirmation code\", function () {",
+											"    pm.expect(pm.response.json().pending_email_auth).to.equal(null);",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
 											"});"
 										],
 										"type": "text/javascript"
@@ -3013,11 +3478,271 @@
 									"listen": "prerequest",
 									"script": {
 										"exec": [
-											"// Performed by Admin",
+											"// Performed by User #2 with their own key",
 											"pm.environment.set('api_key', pm.environment.get('api_key_2'));",
 											"",
-											"// Update Variable",
-											"pm.environment.set('user_email_2', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
+											"// The address being asked for; user_email_2 never changes, because U-56 cancels the request.",
+											"pm.environment.set('user_pending_email_2', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{user_pending_email_2}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/{{user_id_2}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"{{user_id_2}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-54 Request Email Change Again Inside A Minute - User #2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Too Many Requests (HTTP 429)\", function () {",
+											"    pm.response.to.have.status(429);",
+											"});",
+											"",
+											"pm.test(\"Retry-After Header Present\", function () {",
+											"    pm.response.to.have.header(\"retry-after\");",
+											"    pm.expect(parseInt(pm.response.headers.get(\"retry-after\"), 10)).to.be.within(1, 60);",
+											"});",
+											"",
+											"pm.test(\"Valid JSON payload\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.include.all.keys('error', 'error_msg');",
+											"    pm.expect(jsonData.error).to.equal(true);",
+											"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by User #2 with their own key",
+											"pm.environment.set('api_key', pm.environment.get('api_key_2'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"{{user_pending_email_2}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/{{user_id_2}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"{{user_id_2}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-55 Pending Code Visible To Admin - User #2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"OK (HTTP 200)\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"An admin caller sees the pending change and its code\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData.pending_email).to.equal(pm.environment.get('user_pending_email_2'));",
+											"    pm.expect(jsonData.pending_email_auth).to.be.a('string').and.to.have.lengthOf(36);",
+											"});",
+											"",
+											"pm.environment.set('user_pending_email_auth_2', pm.response.json().pending_email_auth);"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "https://{{base_url}}/users/{{user_id_2}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"{{user_id_2}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-56 Cancel Email Change - User #2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Success (HTTP 200)\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"Sending the current address withdraws the request\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
+											"    pm.expect(jsonData.email_verified).to.equal(true);",
+											"    pm.expect(jsonData.pending_email).to.equal(null);",
+											"    pm.expect(jsonData.pending_email_auth).to.equal(null);",
+											"    pm.expect(jsonData.pending_email_sent).to.equal(null);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by User #2 with their own key",
+											"pm.environment.set('api_key', pm.environment.get('api_key_2'));"
 										],
 										"type": "text/javascript"
 									}
@@ -3072,6 +3797,97 @@
 									"path": [
 										"users",
 										"{{user_id_2}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "U-57 Confirm Email Change - Cancelled Code",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Bad Request (HTTP 400)\", function () {",
+											"    pm.response.to.have.status(400);",
+											"});",
+											"",
+											"pm.test(\"Valid JSON payload\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+											"    pm.expect(jsonData.error).to.equal(true);",
+											"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+											"});",
+											"",
+											"pm.test(\"Content-Type Header Present\", function () {",
+											"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Performed by Admin",
+											"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "username",
+											"value": "{{api_key}}",
+											"type": "string"
+										},
+										{
+											"key": "password",
+											"value": "",
+											"type": "string"
+										},
+										{
+											"key": "saveHelperData",
+											"type": "any"
+										},
+										{
+											"key": "showPassword",
+											"value": false,
+											"type": "boolean"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"user_id\": \"{{user_id_2}}\"\n}"
+								},
+								"url": {
+									"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_2}}",
+									"protocol": "https",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"confirm-email",
+										"{{user_pending_email_auth_2}}"
 									]
 								}
 							},
@@ -91453,7 +92269,7 @@
 									"",
 									"pm.test(\"Valid JSON payload\", function(){",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
 									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 									"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -91603,7 +92419,180 @@
 					"response": []
 				},
 				{
-					"name": "U-42 Update User #1 - Email (New Domain)",
+					"name": "U-58 Brewery Privileges - User #1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Valid JSON payload\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'data');",
+									"    pm.expect(jsonData.object).to.equal('list');",
+									"    pm.expect(jsonData.url).to.equal('/users/' + pm.environment.get('user_id_1') + '/privileges');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    jsonData.data.forEach(function (brewer) {",
+									"        pm.expect(brewer).to.have.all.keys('brewer_id', 'name');",
+									"        pm.expect(brewer.brewer_id).to.have.lengthOf(36);",
+									"        pm.expect(brewer.name).to.be.a('string').and.not.to.be.empty;",
+									"    });",
+									"});",
+									"",
+									"pm.test(\"Content-Type Header Present\", function () {",
+									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Performed by Admin",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/users/{{user_id_1}}/privileges",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id_1}}",
+								"privileges"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-59 Attempt Brewery Privileges - User #1: Non-Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Forbidden (HTTP 403)\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"",
+									"pm.test(\"Valid JSON payload\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('error', 'error_msg');",
+									"    pm.expect(jsonData.error).to.equal(true);",
+									"    pm.expect(jsonData.error_msg).not.to.be.empty;",
+									"    pm.expect(jsonData.error_msg).to.equal('Sorry, you do not have permission to perform this action.');",
+									"});",
+									"",
+									"pm.test(\"Content-Type Header Present\", function () {",
+									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Performed by User #2 with their own key",
+									"pm.environment.set('api_key', pm.environment.get('api_key_2'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/users/{{user_id_1}}/privileges",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id_1}}",
+								"privileges"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-42 Request Email Change - User #1 (New Domain)",
 					"event": [
 						{
 							"listen": "test",
@@ -91613,30 +92602,29 @@
 									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test(\"Valid JSON payload\", function () {",
+									"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'admin');",
-									"    pm.expect(jsonData.id).to.be.a('string');",
-									"    pm.expect(jsonData.id).to.have.lengthOf(36);",
-									"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
-									"    pm.expect(jsonData.email_verified).to.equal(false);",
-									"    pm.expect(jsonData.email_auth).to.be.a('string');",
-									"    pm.expect(jsonData.email_auth).to.have.lengthOf(36);",
-									"    var minTime = Math.floor(Date.now() / 1000) - 5;",
-									"    pm.expect(jsonData.email_auth_sent).to.be.at.least(minTime);",
+									"    pm.expect(jsonData.email_verified).to.equal(true);",
+									"    pm.expect(jsonData.email_auth).to.equal(null);",
+									"    pm.expect(jsonData.email_auth_sent).to.equal(null);",
+									"    pm.expect(jsonData.pending_email).to.equal(pm.environment.get('user_pending_email_1'));",
+									"    pm.expect(jsonData.pending_email_sent).to.be.at.least(Math.floor(Date.now() / 1000) - 5);",
 									"    pm.expect(jsonData.admin).to.equal(false);",
+									"});",
+									"",
+									"pm.test(\"An admin caller receives the confirmation code\", function () {",
+									"    pm.expect(pm.response.json().pending_email_auth).to.be.a('string').and.to.have.lengthOf(36);",
 									"});",
 									"",
 									"pm.test(\"Content-Type Header Present\", function () {",
 									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
 									"});",
 									"",
-									"// Save New Values",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set('user_email_verified_1', jsonData.email_verified);",
-									"pm.environment.set('user_email_auth_1', jsonData.email_auth);",
-									"pm.environment.set('user_email_auth_sent_1', jsonData.email_auth_sent);"
+									"// Save the code for the confirmation",
+									"pm.environment.set('user_pending_email_auth_1', pm.response.json().pending_email_auth);"
 								],
 								"type": "text/javascript"
 							}
@@ -91648,8 +92636,8 @@
 									"// Performed by Admin",
 									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));",
 									"",
-									"// Update Variable",
-									"pm.environment.set('user_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
+									"// A new domain. Until 6.10.0 this reset verification and deleted the key; now it is held like any other change.",
+									"pm.environment.set('user_pending_email_1', pm.variables.replaceIn(\"michael+{{$randomUUID}}@mekstudios.com\"));"
 								],
 								"type": "text/javascript"
 							}
@@ -91693,7 +92681,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"{{user_email_1}}\"\n}"
+							"raw": "{\n    \"email\": \"{{user_pending_email_1}}\"\n}"
 						},
 						"url": {
 							"raw": "https://{{base_url}}/users/{{user_id_1}}",
@@ -91710,25 +92698,21 @@
 					"response": []
 				},
 				{
-					"name": "U-43 No API Key: User #1",
+					"name": "U-43 API Key Kept While Change Is Pending - User #1",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Not Found (HTTP 404)\", function () {",
-									"    pm.response.to.have.status(404);",
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test(\"Valid JSON payload\", function () {",
+									"pm.test(\"The API key is the one issued at verification\", function () {",
 									"    var jsonData = pm.response.json();",
 									"    pm.expect(jsonData).to.have.all.keys('object', 'user_id', 'api_key');",
 									"    pm.expect(jsonData.user_id).to.equal(pm.environment.get('user_id_1'));",
-									"    pm.expect(jsonData.api_key).to.equal(null);",
-									"});",
-									"",
-									"pm.test(\"Content-Type Header Present\", function () {",
-									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"    pm.expect(jsonData.api_key).to.equal(pm.environment.get('api_key_1'));",
 									"});"
 								],
 								"type": "text/javascript"
@@ -91787,6 +92771,269 @@
 								"users",
 								"{{user_id_1}}",
 								"api-key"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-60 Confirm Email Change - User #1 (New Domain)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Success (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"The pending address is now the email; nothing pending; still verified\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
+									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_pending_email_1'));",
+									"    pm.expect(jsonData.email_verified).to.equal(true);",
+									"    pm.expect(jsonData.pending_email).to.equal(null);",
+									"    pm.expect(jsonData.pending_email_auth).to.equal(null);",
+									"    pm.expect(jsonData.pending_email_sent).to.equal(null);",
+									"});",
+									"",
+									"pm.test(\"Content-Type Header Present\", function () {",
+									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"});",
+									"",
+									"// The account signs in with the new address from here on",
+									"pm.environment.set('user_email_1', pm.response.json().email);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Performed by Admin",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"{{user_id_1}}\"\n}"
+						},
+						"url": {
+							"raw": "https://{{base_url}}/users/confirm-email/{{user_pending_email_auth_1}}",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"confirm-email",
+								"{{user_pending_email_auth_1}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-61 API Key Unchanged After Domain Change - User #1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"The API key is the one issued at verification\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('object', 'user_id', 'api_key');",
+									"    pm.expect(jsonData.user_id).to.equal(pm.environment.get('user_id_1'));",
+									"    pm.expect(jsonData.api_key).to.equal(pm.environment.get('api_key_1'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Performed by Admin",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/users/{{user_id_1}}/api-key",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id_1}}",
+								"api-key"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-62 Brewery Privileges Ended - User #1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Valid JSON payload\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('object', 'url', 'data');",
+									"    pm.expect(jsonData.object).to.equal('list');",
+									"    pm.expect(jsonData.url).to.equal('/users/' + pm.environment.get('user_id_1') + '/privileges');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    // No brewer is on mekstudios.com, and the rows from catalog.beer went at the confirmation",
+									"    pm.expect(jsonData.data).to.have.lengthOf(0);",
+									"});",
+									"",
+									"pm.test(\"Content-Type Header Present\", function () {",
+									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Performed by Admin",
+									"pm.environment.set('api_key', pm.environment.get('api_key_admin'));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/users/{{user_id_1}}/privileges",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id_1}}",
+								"privileges"
 							]
 						}
 					},

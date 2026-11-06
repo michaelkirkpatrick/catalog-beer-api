@@ -9,11 +9,30 @@ class Users {
     public $emailAuth = '';
     public $emailAuthSent = 0;
     public $emailVerified = false;
+    // A requested change of email, held until the new inbox confirms it. All
+    // three empty when none is pending. See confirmEmail().
+    public $pendingEmail = '';
+    public $pendingEmailAuth = '';
+    public $pendingEmailSent = 0;
     public $passwordResetSent = 0;
     public $passwordResetKey = '';
     public $admin = false;
     public $stripeCustomerID = '';
     public $signupIP = '';   // POST /users only: the website visitor's address, sent by the frontend as signup_ip
+
+    // Whether the key making this request belongs to an admin. usersAPI() sets
+    // it once; $this->admin can't answer, because validate($id, true) reloads
+    // it with the TARGET account's flag. The verification codes are shown to
+    // admin callers only (generateUserObject()).
+    private $callerIsAdmin = false;
+
+    // A confirmation link for a change of email works for a day. Sign-up
+    // codes (emailAuth) never expire.
+    const PENDING_EMAIL_TTL = 86400;
+    // Verification mail goes to an address the requester typed, so each one
+    // may be mail to a stranger: one a minute and five a day, per account.
+    const VERIFY_MAIL_GAP = 60;
+    const VERIFY_MAIL_PER_DAY = 5;
 
     // Validation
     public $error = false;
@@ -36,7 +55,7 @@ class Users {
         if(!empty($userID)){
             // Query Database
             $db = new Database();
-            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordResetSent, stripeCustomerID FROM users WHERE id=?", [$userID]);
+            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, pendingEmail, pendingEmailAuth, pendingEmailSent, admin, passwordResetSent, stripeCustomerID FROM users WHERE id=?", [$userID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid User
@@ -55,6 +74,9 @@ class Users {
                         }
                         $this->emailAuth = $array['emailAuth'];
                         $this->emailAuthSent = intval($array['emailAuthSent']);
+                        $this->pendingEmail = $array['pendingEmail'] ?? '';
+                        $this->pendingEmailAuth = $array['pendingEmailAuth'] ?? '';
+                        $this->pendingEmailSent = intval($array['pendingEmailSent'] ?? 0);
                         $this->passwordResetSent = intval($array['passwordResetSent'] ?? 0);
                         if($array['admin']){
                             $this->admin = true;
@@ -123,7 +145,6 @@ class Users {
 
         // Required Classes
         $db = new Database();
-        $privileges = new Privileges();
 
         // Validation already performed by usersAPI()
         $requesterUserID = $this->userID;
@@ -246,8 +267,10 @@ class Users {
                     if($this->validate($userID, true)){
                         // Save Variables
                         $originalEmail = $this->email;
-                        $originalEmailDomainName = $this->emailDomainName($originalEmail);
-                        $originalEmailVerified = $this->emailVerified ? 1 : 0;
+                        $originalEmailVerified = $this->emailVerified;
+                        $originalEmailAuthSent = $this->emailAuthSent;
+                        $originalPendingEmail = $this->pendingEmail;
+                        $originalPendingEmailSent = $this->pendingEmailSent;
 
                         // Reset Variables
                         $this->resetVars();
@@ -266,43 +289,63 @@ class Users {
                             }
                         }
 
-                        // Validate Email
+                        /*--
+                        Email. A verified account's email changes only when the
+                        new inbox confirms it (confirmEmail()), so this request
+                        never touches the key, the privileges or the billing
+                        settings. Until 6.10.0 the address was replaced at once
+                        and a new domain deleted the key to keep an unproven
+                        address from carrying brewery staff rights.
+
+                        $emailAction says what the field asked for:
+                          cancel  - the current address: a pending change is withdrawn
+                          replace - the account is unverified: there is no key to
+                                    protect, so the address is corrected in place
+                                    and the sign-up mail goes out again (always,
+                                    where before a same-domain correction sent none)
+                          pending - the account is verified: the request is stored
+                                    and the confirmation mail goes to the new address
+                        --*/
+                        $emailAction = '';
+                        $pendingEmail = '';
+                        $pendingCode = '';
                         if(in_array('email', $patchFields)){
-                            // Validate Email
-                            $this->email = $email;
-                            $this->validateEmail($userID);
-
-                            // Different Domain?
-                            $emailDomainName = $this->emailDomainName($this->email);
-                            if($originalEmailDomainName != $emailDomainName){
-                                // New Domain Name, Reset Brewery Privileges, Email Verification, API Key
-                                // Remove API Keys
-                                $apiKeys = new apiKeys();
-                                $apiKeys->deleteUser($userID);
-                                if($apiKeys->error){
-                                    $this->error = true;
-                                    $this->errorMsg = $apiKeys->errorMsg;
-                                    $this->responseCode = $apiKeys->responseCode;
+                            $requested = is_string($email) ? strtolower(trim($email)) : '';
+                            if($requested !== '' && $requested === $originalEmail){
+                                // The address the account already has. Not
+                                // validated again: withdrawing a request must
+                                // not depend on today's disposable list.
+                                $this->email = $originalEmail;
+                                $this->validState['email'] = 'valid';
+                                if(!empty($originalPendingEmail)){
+                                    $emailAction = 'cancel';
+                                    $setClauses[] = "pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL";
                                 }
-
-                                // Remove Brewery Privileges
-                                $privileges->deleteUser($userID);
-                                if($privileges->error){
-                                    $this->error = true;
-                                    $this->errorMsg = $privileges->errorMsg;
-                                    $this->responseCode = $privileges->responseCode;
+                            }else{
+                                // Shape, disposable list, not another account's
+                                $this->email = is_string($email) ? $email : '';
+                                $this->validateEmail($userID);
+                                if(!$this->error){
+                                    if(!$originalEmailVerified){
+                                        if($this->verificationMailAllowed($userID, $originalEmailAuthSent, 'email')){
+                                            $emailAction = 'replace';
+                                            $setClauses[] = "email=?";
+                                            $setParams[] = $this->email;
+                                            $sendEmailVerification = true;
+                                        }
+                                    }else{
+                                        if($this->verificationMailAllowed($userID, $originalPendingEmailSent, 'pendingEmail')){
+                                            // A second request replaces the
+                                            // first: new code, the old one dead.
+                                            $emailAction = 'pending';
+                                            $pendingEmail = $this->email;
+                                            $uuid = new uuid();
+                                            $pendingCode = $uuid->createCode();
+                                            $setClauses[] = "pendingEmail=?, pendingEmailAuth=?, pendingEmailSent=?";
+                                            array_push($setParams, $pendingEmail, $pendingCode, time());
+                                        }
+                                    }
                                 }
-
-                                // Send New Email Verification
-                                $sendEmailVerification = true;
-
-                                // SQL - Update Email Verification
-                                $setClauses[] = "emailVerified=b'0'";
-                            }
-                            if(!$this->error){
-                                // Update Email Address
-                                $setClauses[] = "email=?";
-                                $setParams[] = $this->email;
                             }
                         }
 
@@ -321,6 +364,15 @@ class Users {
                                 // Update Password
                                 $setClauses[] = "passwordHash=?";
                                 $setParams[] = $passwordHash;
+
+                                // A change of email waiting from before this
+                                // password does not survive it: an owner who
+                                // is locking someone out should not have to
+                                // know a request is sitting there.
+                                if($emailAction === '' && !empty($originalPendingEmail)){
+                                    $emailAction = 'cleared';
+                                    $setClauses[] = "pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL";
+                                }
                             }
                         }
 
@@ -332,18 +384,44 @@ class Users {
                             // Update Database
                             $db->query($sql, $setParams);
                             if(!$db->error){
-                                // The settings rows (Audit.class.php): the
-                                // email as old -> new, the verification it
-                                // reset, and that the password changed (never
-                                // the value).
-                                if(in_array('email', $patchFields) && $originalEmail !== $this->email){
-                                    Audit::set('user', $userID, 'email', $originalEmail, $this->email);
+                                // The settings rows (Audit.class.php): an
+                                // unverified account's email as old -> new, a
+                                // pending change requested, withdrawn or
+                                // cleared, and that the password changed
+                                // (never the value).
+                                if($emailAction === 'replace'){
+                                    Audit::set('user', $userID, 'email', $originalEmail, $this->email, 'unverified account');
                                 }
-                                if($sendEmailVerification){
-                                    Audit::set('user', $userID, 'emailVerified', $originalEmailVerified, 0, 'email domain changed');
+                                if($emailAction === 'cancel'){
+                                    Audit::set('user', $userID, 'pendingEmail', $originalPendingEmail, null, 'cancelled');
+                                }
+                                if($emailAction === 'cleared'){
+                                    Audit::set('user', $userID, 'pendingEmail', $originalPendingEmail, null, 'password changed');
                                 }
                                 if(in_array('password', $patchFields)){
                                     Audit::set('user', $userID, 'passwordHash', null, null, 'password changed');
+                                }
+                                if($emailAction === 'pending'){
+                                    // The confirmation goes to the NEW address
+                                    // and names the account by its current one.
+                                    $sendEmail = new SendEmail();
+                                    $sendEmail->confirmNewEmail($pendingEmail, $pendingCode, $originalEmail);
+                                    if(!$sendEmail->error){
+                                        // One row per mail sent: the daily cap
+                                        // counts these (verificationMailAllowed()).
+                                        Audit::set('user', $userID, 'pendingEmail', (empty($originalPendingEmail) ? null : $originalPendingEmail), $pendingEmail, ($originalPendingEmail === $pendingEmail ? 'resent' : null));
+                                    }else{
+                                        // No mail, no request: a stored code
+                                        // nobody received would only block the
+                                        // next attempt for a minute.
+                                        $db->query("UPDATE users SET pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=?", [$userID]);
+                                        if(!empty($originalPendingEmail)){
+                                            Audit::set('user', $userID, 'pendingEmail', $originalPendingEmail, null, 'confirmation email failed');
+                                        }
+                                        $this->error = true;
+                                        $this->errorMsg = $sendEmail->errorMsg;
+                                        $this->responseCode = $sendEmail->responseCode;
+                                    }
                                 }
                                 if($sendEmailVerification){
                                     // Generate Email Auth Code
@@ -670,6 +748,9 @@ class Users {
         $this->emailAuth = '';
         $this->emailAuthSent = 0;
         $this->emailVerified = false;
+        $this->pendingEmail = '';
+        $this->pendingEmailAuth = '';
+        $this->pendingEmailSent = 0;
         $this->admin = false;
     }
 
@@ -872,6 +953,297 @@ class Users {
         }
     }
 
+    /*--
+    May this account be sent another verification mail? One a minute, five in
+    any 24 hours (VERIFY_MAIL_GAP, VERIFY_MAIL_PER_DAY). $lastSent is the
+    column that timed the last one (emailAuthSent for an unverified account,
+    pendingEmailSent for a verified one) and $auditField the settings row each
+    of those requests writes ('email' / 'pendingEmail'), which is what the
+    daily count reads, through idx_audit_entity. A cancel writes newValue NULL
+    and is not counted. Sets the 429 and its Retry-After when the answer is no.
+
+    Why it exists: before 6.10.0 a domain change cost the sender their key, so
+    nobody could loop it; now it costs nothing, and the unverified path was
+    never limited at all.
+    --*/
+    private function verificationMailAllowed($userID, $lastSent, $auditField){
+        $now = time();
+        $retryAfter = 0;
+        $msg = '';
+        if(!empty($lastSent) && $now < $lastSent + self::VERIFY_MAIL_GAP){
+            $retryAfter = $lastSent + self::VERIFY_MAIL_GAP - $now;
+            $msg = 'We just sent a confirmation email. Please give it a minute to arrive before asking for another.';
+        }else{
+            $db = new Database();
+            $result = $db->query("SELECT COUNT(*) AS n, MIN(changedAt) AS oldest FROM audit_log WHERE entityType='user' AND entityID=? AND action='set' AND field=? AND newValue IS NOT NULL AND changedAt > ?", [$userID, $auditField, $now - 86400]);
+            if($db->error){
+                $this->error = true;
+                $this->errorMsg = $db->errorMsg;
+                $this->responseCode = $db->responseCode;
+                $db->close();
+                return false;
+            }
+            $row = $result->fetch_assoc();
+            $db->close();
+            if(intval($row['n']) >= self::VERIFY_MAIL_PER_DAY){
+                $retryAfter = max(1, intval($row['oldest']) + 86400 - $now);
+                $msg = 'We have sent several confirmation emails for this account in the last day. Please try again tomorrow, or contact us if you need help changing your email address.';
+            }
+        }
+        if($retryAfter > 0){
+            $this->error = true;
+            $this->errorMsg = $msg;
+            $this->responseCode = 429;
+            $this->responseHeader = 'Retry-After: ' . $retryAfter;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 382;
+            $errorLog->errorMsg = 'Too many verification emails requested';
+            $errorLog->badData = "userID: $userID / $auditField / retry after $retryAfter s";
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return false;
+        }
+        return true;
+    }
+
+    // Drop a pending change of email and say why in the audit log.
+    private function clearPendingEmail($userID, $pendingEmail, $note){
+        $db = new Database();
+        $db->query("UPDATE users SET pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=?", [$userID]);
+        if(!$db->error){
+            Audit::set('user', $userID, 'pendingEmail', $pendingEmail, null, $note);
+        }
+        $db->close();
+    }
+
+    // The Stripe customer's email follows the account's, since Stripe sends
+    // the receipts. Its own method so the offline test can stand in for it.
+    protected function updateStripeCustomerEmail($stripeCustomerID, $email){
+        $stripe = new Stripe();
+        $stripe->request('POST', '/v1/customers/' . $stripeCustomerID, array('email' => $email));
+        return !$stripe->error;
+    }
+
+    /*--
+    POST /users/confirm-email/{code} — the new inbox confirms a change of
+    email, and pendingEmail becomes email. The API key is not touched at any
+    step, which is the point: billingEnabled, the spend cap, the request limit
+    and the month's usage all live on the key's row.
+
+    Admin callers only (the website), and $sessionUserID must be the account
+    the code belongs to: the person clicking has to be signed in to it.
+    Without that, an account could name someone else's address and, if that
+    person clicked the link, take on their domain (and with it brewery staff
+    rights) while the requester still held the password and the key.
+
+    Order matters. Privileges go BEFORE the swap, so a failure between the two
+    leaves the account with fewer rights, never with rights from a domain it
+    has left; every privilege row is the product of a domain match, so a new
+    domain drops all of them. The Stripe update and the notice to the old
+    address come after the swap and never fail it.
+    --*/
+    public function confirmEmail($code, $sessionUserID){
+        // Validation already performed by usersAPI()
+        if(!$this->callerIsAdmin){
+            $this->error = true;
+            $this->errorMsg = 'Sorry, your account does not have permission to perform this action.';
+            $this->responseCode = 403;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 388;
+            $errorLog->errorMsg = 'Non-Admin trying to confirm a change of email';
+            $errorLog->badData = "userID: $this->userID";
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        $code = is_string($code) ? trim($code) : '';
+        if($code === ''){
+            $this->error = true;
+            $this->errorMsg = 'Sorry, we seem to be missing your confirmation code. Try clicking on the link in your email again.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 383;
+            $errorLog->errorMsg = 'Missing pendingEmailAuth';
+            $errorLog->badData = '';
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        $db = new Database();
+        $result = $db->query("SELECT id, email, pendingEmail, pendingEmailSent, stripeCustomerID FROM users WHERE pendingEmailAuth=?", [$code]);
+        if($db->error){
+            $this->error = true;
+            $this->errorMsg = $db->errorMsg;
+            $this->responseCode = $db->responseCode;
+            $db->close();
+            return;
+        }
+        if($result->num_rows !== 1){
+            $db->close();
+            $this->confirmCodeSpent();
+            return;
+        }
+        $row = $result->fetch_assoc();
+        $userID = $row['id'];
+        $oldEmail = $row['email'];
+        $newEmail = $row['pendingEmail'];
+
+        // Expired? The request goes with it.
+        if(intval($row['pendingEmailSent']) + self::PENDING_EMAIL_TTL < time()){
+            $db->close();
+            $this->clearPendingEmail($userID, $newEmail, 'expired');
+            $this->error = true;
+            $this->errorMsg = 'Sorry, this confirmation link has expired. Links work for 24 hours. You can request the change again from your account page.';
+            $this->responseCode = 400;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 385;
+            $errorLog->errorMsg = 'Expired pendingEmailAuth';
+            $errorLog->badData = "userID: $userID";
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        // Signed in as the account that asked?
+        if(!is_string($sessionUserID) || $sessionUserID !== $userID){
+            $db->close();
+            $this->error = true;
+            $this->errorMsg = 'Please sign in to the account that requested this change, then open the link again.';
+            $this->responseCode = 403;
+
+            // Log Error
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 386;
+            $errorLog->errorMsg = 'Change of email confirmed from another account, or from none';
+            $errorLog->badData = "code belongs to userID: $userID / user_id sent: " . (is_string($sessionUserID) ? $sessionUserID : gettype($sessionUserID));
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+            return;
+        }
+
+        // Still usable? Another account may have taken the address since the
+        // request, or the disposable list may have caught up with it.
+        $this->email = $newEmail;
+        $this->validateEmail($userID);
+        if($this->error){
+            $db->close();
+            if($this->validState['email'] === 'invalid'){
+                $this->confirmAddressRefused($userID, $newEmail, $this->validMsg['email']);
+            }
+            return;
+        }
+
+        // A new domain ends the brewery staff rights the old one conferred
+        if($this->emailDomainName($oldEmail) != $this->emailDomainName($newEmail)){
+            $privileges = new Privileges();
+            $privileges->deleteUser($userID);
+            if($privileges->error){
+                $db->close();
+                $this->error = true;
+                $this->errorMsg = $privileges->errorMsg;
+                $this->responseCode = $privileges->responseCode;
+                return;
+            }
+        }
+
+        // The swap. The code in the WHERE makes a second click a no-op.
+        $db->query("UPDATE users SET email=?, pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=? AND pendingEmailAuth=?", [$newEmail, $userID, $code]);
+        if($db->error){
+            // unique_email is the backstop for two accounts confirming one
+            // address in the same instant; anything else is a database error.
+            $dbError = array($db->errorMsg, $db->responseCode);
+            $db->close();
+            $check = new Database();
+            $taken = $check->query("SELECT id FROM users WHERE email=? AND id!=?", [$newEmail, $userID]);
+            $isTaken = (!$check->error && $taken->num_rows > 0);
+            $check->close();
+            if($isTaken){
+                $this->confirmAddressRefused($userID, $newEmail, 'Sorry, someone has already created an account with this email addresses.');
+            }else{
+                $this->error = true;
+                $this->errorMsg = $dbError[0];
+                $this->responseCode = $dbError[1];
+            }
+            return;
+        }
+        $swapped = $db->getAffectedRows();
+        $db->close();
+        if($swapped < 1){
+            $this->confirmCodeSpent();
+            return;
+        }
+
+        Audit::set('user', $userID, 'email', $oldEmail, $newEmail, 'confirmed');
+        Audit::set('user', $userID, 'pendingEmail', $newEmail, null, 'confirmed');
+
+        // Best effort from here: the change has happened.
+        if(!empty($row['stripeCustomerID'])){
+            if(!$this->updateStripeCustomerEmail($row['stripeCustomerID'], $newEmail)){
+                $errorLog = new LogError();
+                $errorLog->errorNumber = 389;
+                $errorLog->errorMsg = 'Stripe customer email not updated after a change of email';
+                $errorLog->badData = "userID: $userID / customer: " . $row['stripeCustomerID'];
+                $errorLog->filename = 'API / Users.class.php';
+                $errorLog->write();
+            }
+        }
+        $sendEmail = new SendEmail();
+        $sendEmail->emailChanged($oldEmail, $newEmail, time());
+        if($sendEmail->error){
+            $errorLog = new LogError();
+            $errorLog->errorNumber = 390;
+            $errorLog->errorMsg = 'Notice of a change of email not sent to the old address';
+            $errorLog->badData = "userID: $userID";
+            $errorLog->filename = 'API / Users.class.php';
+            $errorLog->write();
+        }
+
+        // The account as it now stands, for the response
+        $this->validate($userID, true);
+    }
+
+    // A code that matches nothing: never issued, already used, or replaced by
+    // a newer request.
+    private function confirmCodeSpent(){
+        $this->error = true;
+        $this->errorMsg = 'Sorry, this confirmation link is not valid. It may already have been used, or a newer request may have replaced it. You can check your email address or request the change again from your account page.';
+        $this->responseCode = 400;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 384;
+        $errorLog->errorMsg = 'Unknown or used pendingEmailAuth';
+        $errorLog->badData = '';
+        $errorLog->filename = 'API / Users.class.php';
+        $errorLog->write();
+    }
+
+    // The address stopped being available between the request and the click.
+    private function confirmAddressRefused($userID, $pendingEmail, $why){
+        $this->clearPendingEmail($userID, $pendingEmail, 'refused at confirmation');
+        $this->error = true;
+        $this->errorMsg = $why . ' Your email address has not been changed.';
+        $this->responseCode = 409;
+
+        // Log Error
+        $errorLog = new LogError();
+        $errorLog->errorNumber = 387;
+        $errorLog->errorMsg = 'Pending email no longer available at confirmation';
+        $errorLog->badData = "userID: $userID / $pendingEmail";
+        $errorLog->filename = 'API / Users.class.php';
+        $errorLog->write();
+    }
+
     public function emailDomainName($email){
         preg_match('/(?<=@)[^.]+(?=\.).*/m', $email, $matches);
         return $matches[0];
@@ -1065,7 +1437,7 @@ class Users {
     private function resetPassword($passwordResetKey, $password){
         // Validate Password Reset Key
         $db = new Database();
-        $result = $db->query("SELECT id FROM users WHERE passwordResetKey=?", [$passwordResetKey]);
+        $result = $db->query("SELECT id, pendingEmail FROM users WHERE passwordResetKey=?", [$passwordResetKey]);
         if(!$db->error){
             if($result->num_rows == 1){
                 // Password Key Found
@@ -1083,11 +1455,18 @@ class Users {
                     // Clear Saved Password
                     $this->password = '';
 
+                    // A change of email waiting from before the reset goes
+                    // with it (see the PATCH's password branch)
+                    $pendingEmail = $row['pendingEmail'];
+
                     // Update Password in Database
-                    $db->query("UPDATE users SET passwordHash=?, passwordResetKey=NULL, passwordResetSent=NULL WHERE id=?", [$passwordHash, $userID]);
+                    $db->query("UPDATE users SET passwordHash=?, passwordResetKey=NULL, passwordResetSent=NULL, pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=?", [$passwordHash, $userID]);
                     if(!$db->error){
                         // That it changed, never the value (Audit.class.php)
                         Audit::set('user', $userID, 'passwordHash', null, null, 'password reset');
+                        if(!empty($pendingEmail)){
+                            Audit::set('user', $userID, 'pendingEmail', $pendingEmail, null, 'password reset');
+                        }
                     }
                     if($db->error){
                         // Database Error
@@ -1145,8 +1524,16 @@ class Users {
         $this->json['name'] = $this->name;
         $this->json['email'] = $this->email;
         $this->json['email_verified'] = $this->emailVerified;
-        $this->json['email_auth'] = $this->emailAuth;
+        // The two codes go to admin callers only: whoever may confirm may see
+        // the code. A non-admin key that could read its own pending code
+        // would confirm an inbox it never opened. (email_auth was unreachable
+        // for such a key before 6.10.0 only because an unverified account
+        // had none; that accident is now a rule.)
+        $this->json['email_auth'] = $this->callerIsAdmin ? $this->emailAuth : null;
         $this->json['email_auth_sent'] = $this->emailAuthSent;
+        $this->json['pending_email'] = empty($this->pendingEmail) ? null : $this->pendingEmail;
+        $this->json['pending_email_auth'] = ($this->callerIsAdmin && !empty($this->pendingEmailAuth)) ? $this->pendingEmailAuth : null;
+        $this->json['pending_email_sent'] = empty($this->pendingEmailSent) ? null : $this->pendingEmailSent;
         $this->json['admin'] = $this->admin;
     }
 
@@ -1157,9 +1544,11 @@ class Users {
 
         GET https://api.catalog.beer/users/{id}
         GET https://api.catalog.beer/users/{id}/api-key
+        GET https://api.catalog.beer/users/{id}/privileges
 
         POST https://api.catalog.beer/users
         POST https://api.catalog.beer/users/verify-email/{email_auth}
+        POST https://api.catalog.beer/users/confirm-email/{pending_email_auth}
 
         PATCH https://api.catalog.beer/users/{id}
 
@@ -1170,6 +1559,7 @@ class Users {
         $apiKeys = new apiKeys();
         $apiKeys->validate($apiKey, true);
         $this->validate($apiKeys->userID, true);
+        $this->callerIsAdmin = $this->admin;
 
         // Switch based on HTTP Method
         switch($method){
@@ -1245,6 +1635,44 @@ class Users {
                                 $errorLog->errorNumber = 79;
                                 $errorLog->errorMsg = 'Missing user_id';
                                 $errorLog->badData = "UserID: $apiKeys->userID / function: $function / userID: $id";
+                                $errorLog->filename = 'API / Users.class.php';
+                                $errorLog->write();
+                            }
+                            break;
+                        // GET https://api.catalog.beer/users/{id}/privileges
+                        // The brewers this account is brewery staff of, so the
+                        // website can name them where a change of email would
+                        // end that (Privileges::staffBrewers()).
+                        case 'privileges':
+                            if($this->callerIsAdmin || $id == $apiKeys->userID){
+                                if($this->validate($id, true)){
+                                    $privileges = new Privileges();
+                                    $brewers = $privileges->staffBrewers($this);
+                                    if(!$privileges->error){
+                                        $this->json['object'] = 'list';
+                                        $this->json['url'] = '/users/' . $id . '/privileges';
+                                        $this->json['data'] = $brewers;
+                                    }else{
+                                        $this->responseCode = $privileges->responseCode;
+                                        $this->json['error'] = true;
+                                        $this->json['error_msg'] = $privileges->errorMsg;
+                                    }
+                                }else{
+                                    // Invalid User
+                                    $this->json['error'] = true;
+                                    $this->json['error_msg'] = $this->errorMsg;
+                                }
+                            }else{
+                                // Not Authorized
+                                $this->responseCode = 403;
+                                $this->json['error'] = true;
+                                $this->json['error_msg'] = "Sorry, you do not have permission to perform this action.";
+
+                                // Log Error
+                                $errorLog = new LogError();
+                                $errorLog->errorNumber = 391;
+                                $errorLog->errorMsg = 'Unauthorized attempt to list brewery privileges.';
+                                $errorLog->badData = "userID $apiKeys->userID is trying to list the privileges of userID: $id";
                                 $errorLog->filename = 'API / Users.class.php';
                                 $errorLog->write();
                             }
@@ -1336,6 +1764,17 @@ class Users {
                         case 'verify-email':
                             // POST https://api.catalog.beer/users/verify-email/{email_auth}
                             $this->verifyEmail($id, $apiKey);
+                            if(!$this->error){
+                                $this->generateUserObject();
+                            }else{
+                                $this->json['error'] = true;
+                                $this->json['error_msg'] = $this->errorMsg;
+                            }
+                            break;
+                        case 'confirm-email':
+                            // POST https://api.catalog.beer/users/confirm-email/{pending_email_auth}
+                            // Body: user_id, the account signed in on the website
+                            $this->confirmEmail($id, (isset($data->user_id) ? $data->user_id : null));
                             if(!$this->error){
                                 $this->generateUserObject();
                             }else{

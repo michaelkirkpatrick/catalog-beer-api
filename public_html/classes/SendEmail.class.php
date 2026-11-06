@@ -15,6 +15,13 @@ class SendEmail {
 
     private $testing = false;
 
+    // Account-security mail (an email change) replies here
+    const SECURITY_REPLY_TO = 'Catalog.beer Security <security@catalog.beer>';
+
+    // The offline tests' outbox: when this is an array, send() appends the
+    // message to it and makes no request. Null (always, on a server) sends.
+    public static $outbox = null;
+
     // Validation
     public $error = false;
     public $errorMsg = null;
@@ -104,6 +111,72 @@ class SendEmail {
         }
     }
     
+    // m***@example.com: enough for the owner to recognise their address,
+    // not enough to hand it to whoever received the message.
+    public static function maskEmail($email){
+        $at = strrpos((string)$email, '@');
+        if($at === false || $at === 0){
+            return '***';
+        }
+        return substr($email, 0, 1) . '***' . substr($email, $at);
+    }
+
+    // The website's host for links in mail, so a staging message opens staging.
+    private static function siteHost(){
+        return (defined('ENVIRONMENT') && ENVIRONMENT == 'staging' ? 'staging.' : '') . 'catalog.beer';
+    }
+
+    // A verified account asked to move to $email. Goes to the NEW address and
+    // names the account by its masked current one, so a stranger who receives
+    // it can tell the account is not theirs. Confirming needs a sign-in on
+    // the website (Users::confirmEmail()).
+    public function confirmNewEmail($email, $authCode, $currentEmail){
+        if($this->validateEmail($email)){
+            $subject = 'Confirm your new email address for Catalog.beer';
+            $tag = 'confirm-new-email';
+            $masked = self::maskEmail($currentEmail);
+            $host = self::siteHost();
+
+            // Plain Text
+            $textBody = "Hello!\r\n\r\nWe received a request to change the email address on the Catalog.beer account for $masked to this address. To confirm the change, open this link:\r\n\r\nhttps://$host/confirm-email/$authCode\r\n\r\nIf you aren't already signed in, you'll be asked to sign in first. Use the account's current email address, not this one. The link works for 24 hours.\r\n\r\nIf you didn't request this, you can safely ignore this email; nothing will change. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer";
+
+            // HTML Email
+            $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
+            $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-confirm-new-address.html');
+            $htmlBody = str_replace(
+                array('##CURRENT##', '##HOST##', '##AUTHCODE##'),
+                array(htmlspecialchars($masked, ENT_QUOTES, 'UTF-8'), $host, $authCode),
+                $htmlBody
+            );
+
+            // Send Email
+            $this->send($email, $subject, $tag, $htmlBody, $textBody, [], self::SECURITY_REPLY_TO);
+        }
+    }
+
+    // The change went through. Goes to the OLD address: the one place the
+    // owner still hears about it if the change was not theirs.
+    public function emailChanged($oldEmail, $newEmail, $when){
+        $subject = 'Your Catalog.beer email address was changed';
+        $tag = 'email-changed';
+        $whenText = date('F j, Y \\a\\t g:i A T', $when);
+
+        // Plain Text
+        $textBody = "Hello!\r\n\r\nThe email address on your Catalog.beer account was changed from $oldEmail to $newEmail on $whenText. From now on you sign in with the new address, and messages about your account go there.\r\n\r\nIf you made this change, there's nothing more to do.\r\n\r\nIf you didn't, reply to this email or write to security@catalog.beer right away and we'll help you get your account back.\r\n\r\n-Catalog.beer";
+
+        // HTML Email
+        $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
+        $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-address-changed.html');
+        $htmlBody = str_replace(
+            array('##OLD##', '##NEW##', '##WHEN##'),
+            array(htmlspecialchars($oldEmail, ENT_QUOTES, 'UTF-8'), htmlspecialchars($newEmail, ENT_QUOTES, 'UTF-8'), $whenText),
+            $htmlBody
+        );
+
+        // Send Email
+        $this->send($oldEmail, $subject, $tag, $htmlBody, $textBody, [], self::SECURITY_REPLY_TO);
+    }
+
     public function passwordResetEmail($email, $passwordResetKey){
         // Email address already validated -- precondition of sending password reset
         // Email Basics
@@ -175,6 +248,10 @@ class SendEmail {
     }
 
     private function send($to, $subject, $tag, $htmlBody, $textBody, $attachments = [], $replyTo = ''){
+        if(is_array(self::$outbox)){
+            self::$outbox[] = array('to' => $to, 'subject' => $subject, 'tag' => $tag, 'html' => $htmlBody, 'text' => $textBody, 'replyTo' => $replyTo);
+            return;
+        }
         if(!$this->testing){
             // Generate Postmark Email Body
             $postmarkSendEmail = new PostmarkSendEmail();

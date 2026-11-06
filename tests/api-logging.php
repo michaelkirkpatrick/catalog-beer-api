@@ -43,6 +43,7 @@ check("POST 500: error body kept", apiLogging::loggedResponse('POST', 500, '{"er
 // URI
 check("password-reset token redacted", apiLogging::loggedUri('/users/password-reset/0f3c2a1b-1111-4222-8333-444444444444') === '/users/password-reset/[REDACTED]');
 check("verify-email token redacted, query kept", apiLogging::loggedUri('/users/verify-email/0f3c2a1b-1111-4222-8333-444444444444?x=1') === '/users/verify-email/[REDACTED]?x=1');
+check("confirm-email token redacted", apiLogging::loggedUri('/users/confirm-email/0f3c2a1b-1111-4222-8333-444444444444') === '/users/confirm-email/[REDACTED]');
 check("reset-password by user id is NOT a token: untouched", apiLogging::loggedUri('/users/0f3c2a1b-1111-4222-8333-444444444444/reset-password') === '/users/0f3c2a1b-1111-4222-8333-444444444444/reset-password');
 check("ordinary URI untouched", apiLogging::loggedUri('/brewer/search?q=stone&count=5') === '/brewer/search?q=stone&count=5');
 $long = '/beer/search?q=' . str_repeat('a', 400);

@@ -143,6 +143,37 @@ class Privileges {
         return $brewerIDs;
     }
 
+    /*--
+    The brewers this account is brewery staff of, as brewer_id + name, for
+    GET /users/{id}/privileges. Both halves of isBreweryStaff(): a privileges
+    row, or a brewer whose domainName is the account's email domain. The
+    second half matters because a row is only written on the account's first
+    write to a brewer; a domain match without one is staff all the same. More
+    than one brewer means a shared domain (a sub-brand kept on a page of its
+    owner's site). $users must be a validated instance (validate($id, true)).
+    An unverified account has no key and so no staff rights to list.
+    --*/
+    public function staffBrewers($users){
+        $brewers = array();
+        if(!$users->emailVerified){
+            return $brewers;
+        }
+        $domain = $users->emailDomainName($users->email);
+        $db = new Database();
+        $result = $db->query("SELECT b.id, b.name FROM brewer b WHERE b.id IN (SELECT brewerID FROM privileges WHERE userID=?) OR (b.domainName IS NOT NULL AND b.domainName<>'' AND b.domainName=?) ORDER BY b.name, b.id", [$users->userID, (string)$domain]);
+        if(!$db->error){
+            while($array = $result->fetch_assoc()){
+                $brewers[] = array('brewer_id' => $array['id'], 'name' => $array['name']);
+            }
+        }else{
+            $this->error = true;
+            $this->errorMsg = $db->errorMsg;
+            $this->responseCode = $db->responseCode;
+        }
+        $db->close();
+        return $brewers;
+    }
+
     public function userList($brewerID){
         // Return
         $userIDs = array();

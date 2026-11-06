@@ -209,35 +209,5 @@ class apiKeys {
         // Return
         return $apiKey;
     }
-
-    public function deleteUser($userID){
-        /*--
-        Assume the following for this function
-        1) userID has been validated
-        2) User calling this function has been validated and has permission to perform this action.
-        This function does not perform this validation so as to not do it every time.
-        --*/
-
-        // Delete API Keys for this userID. The keys being withdrawn are read
-        // first so each gets its tombstone (Audit.class.php); the caller is an
-        // email-domain change, and the user's email row written in the same
-        // request says so.
-        $db = new Database();
-        $keyIDs = array();
-        $result = $db->query("SELECT id FROM api_keys WHERE userID=?", [$userID]);
-        if(!$db->error){
-            while($row = $result->fetch_assoc()){ $keyIDs[] = $row['id']; }
-        }
-        $db->query("DELETE FROM api_keys WHERE userID=?", [$userID]);
-        if($db->error){
-            // Database Error
-            $this->error = true;
-            $this->errorMsg = $db->errorMsg;
-            $this->responseCode = $db->responseCode;
-        }else{
-            Audit::recordDeletes('api_key', $keyIDs, 'key withdrawn');
-        }
-        $db->close();
-    }
 }
 ?>
