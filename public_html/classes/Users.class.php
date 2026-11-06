@@ -645,7 +645,7 @@ class Users {
                     // Common Password
                     $this->error = true;
                     $this->validState['password'] = 'invalid';
-                    $this->validMsg['password'] = 'Please use a different password. That password is common and easily guessed.';// [Need some help with a better password?](/support/6256)';
+                    $this->validMsg['password'] = 'Please use a different password. That password is common and easily guessed.';
                     $this->responseCode = 400;
 
                     // Log Error
@@ -660,7 +660,7 @@ class Users {
                 // Short Password
                 $this->error = true;
                 $this->validState['password'] = 'invalid';
-                $this->validMsg['password'] = 'Please enter a password that is at least eight (8) characters in length.';// [Need some help with a better password?](/support/6256)';
+                $this->validMsg['password'] = 'Please enter a password that is at least eight (8) characters in length.';
                 $this->responseCode = 400;
 
                 // Log Error
@@ -817,7 +817,7 @@ class Users {
                     }else{
                         // Email address not found
                         $this->validState['email'] = 'invalid';
-                        $this->validMsg['email'] = 'Sorry, we couldn\'t find your account. Would you like to [create one](/signup)?';
+                        $this->validMsg['email'] = 'Sorry, we couldn\'t find your account. Would you like to create one?';
                         $this->error = true;
                         $this->responseCode = 401;
 

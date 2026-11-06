@@ -203,7 +203,7 @@ class Beer {
                                 if(!$users->admin){
                                     // Deny
                                     $this->error = true;
-                                    $this->errorMsg = 'Sorry, because this beer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+                                    $this->errorMsg = 'Sorry, because this beer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this beer, please contact us: https://catalog.beer/contact';
                                     $this->responseCode = 403;
 
                                     // Log Error

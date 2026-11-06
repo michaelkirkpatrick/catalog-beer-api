@@ -202,7 +202,7 @@ class Brewer {
                                 if(!$users->admin){
                                     // Deny
                                     $this->error = true;
-                                    $this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please [contact us](https://catalog.beer/contact)';
+                                    $this->errorMsg = 'Sorry, because this brewer is brewer_verified, we limit editing capabilities to brewery staff. If you would like to see an update made to this brewer, please contact us: https://catalog.beer/contact';
                                     $this->responseCode = 403;
 
                                     // Log Error
@@ -1075,9 +1075,9 @@ class Brewer {
                     $this->error = true;
                     $this->validState['url'] = 'invalid';
                     if($hit['match'] === 'root'){
-                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' is already in our database with the website ' . $this->domainName . '. A homepage can belong to only one brewery. If this brewery lives on a page of that site, use that page\'s URL; otherwise please [contact us](/contact)';
+                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' is already in our database with the website ' . $this->domainName . '. A homepage can belong to only one brewery. If this brewery lives on a page of that site, use that page\'s URL; otherwise please contact us: https://catalog.beer/contact';
                     }else{
-                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' already uses that page as its website. If this is the same brewery, please [contact us](/contact)';
+                        $this->validMsg['url'] = 'Sorry, ' . $hit['name'] . ' already uses that page as its website. If this is the same brewery, please contact us: https://catalog.beer/contact';
                     }
                     $this->responseCode = 400;
 
