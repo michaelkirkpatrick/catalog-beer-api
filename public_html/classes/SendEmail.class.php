@@ -97,14 +97,15 @@ class SendEmail {
             $to = $email;
             $subject = 'Confirm your Catalog.beer Account';
             $tag = 'confirm-email';
+            $host = self::siteHost();
 
             // Plain Text
-            $textBody = "Hello!\r\n\r\nWelcome to the Catalog.beer community. We'd like to confirm your email address (as a proxy for you being a real human being and not a computer). If you don't mind, please click on the link below to confirm your account.\r\n\r\nhttps://catalog.beer/verify-email/$authCode\r\n\r\nOnce you've confirmed your account, you'll be able to contribute to the Catalog.beer database.\r\n\r\nThanks!\r\n\r\n-Michael\r\n\r\nMichael Kirkpatrick\r\nFounder, Catalog.beer\r\nmichael@catalog.beer";
+            $textBody = "Hello!\r\n\r\nWelcome to the Catalog.beer community. We'd like to confirm your email address (as a proxy for you being a real human being and not a computer). If you don't mind, please click on the link below to confirm your account.\r\n\r\nhttps://$host/verify-email/$authCode\r\n\r\nOnce you've confirmed your account, you'll be able to contribute to the Catalog.beer database.\r\n\r\nThanks!\r\n\r\n-Michael\r\n\r\nMichael Kirkpatrick\r\nFounder, Catalog.beer\r\nmichael@catalog.beer";
 
             // HTML Email
             $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
             $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-confirm-address.html');
-            $htmlBody = str_replace('##AUTHCODE##', $authCode, $htmlBody);
+            $htmlBody = str_replace(array('##HOST##', '##AUTHCODE##'), array($host, $authCode), $htmlBody);
 
             // Send Email
             $this->send($to, $subject, $tag, $htmlBody, $textBody);
@@ -183,14 +184,15 @@ class SendEmail {
         $to = $email;
         $subject = 'Resetting your Catalog.beer Password';
         $tag = 'password-reset';
+        $host = self::siteHost();
 
         // Plain Text
-        $textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://catalog.beer/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn&#8217;t request this, you can safely ignore this email &#8212; your password will not be changed. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer Password Reset Robot";
+        $textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://$host/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn&#8217;t request this, you can safely ignore this email &#8212; your password will not be changed. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer Password Reset Robot";
 
         // HTML Email
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
         $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-password-reset.html');
-        $htmlBody = str_replace('##PASSWORDRESETKEY##', $passwordResetKey, $htmlBody);
+        $htmlBody = str_replace(array('##HOST##', '##PASSWORDRESETKEY##'), array($host, $passwordResetKey), $htmlBody);
 
         // Send Email
         $this->send($to, $subject, $tag, $htmlBody, $textBody);

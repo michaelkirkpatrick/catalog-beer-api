@@ -150,6 +150,20 @@ check("request: privileges still held", privilegeCount($u(1)) === 1);
 $mail = mailTo('alice@new-home.example');
 check("request: one confirmation mail, to the NEW address", count($mail) === 1 && $mail[0]['tag'] === 'confirm-new-email' && count(mailTo('alice@brewery-a.example')) === 0);
 check("mail: carries the link with the code, on the staging host", strpos($mail[0]['html'], "https://staging.catalog.beer/confirm-email/$code1") !== false && strpos($mail[0]['text'], "https://staging.catalog.beer/confirm-email/$code1") !== false);
+$mailKept = SendEmail::$outbox;
+// The sign-up and password-reset mails open the same environment that sent them.
+SendEmail::$outbox = array();
+$hostMail = new SendEmail();
+$hostMail->verifyEmail('host-check@example.com', 'HOSTAUTH');
+$hostMail->passwordResetEmail('host-check@example.com', 'HOSTKEY');
+check("mail: sign-up link is on the staging host, HTML and text",
+    strpos(SendEmail::$outbox[0]['html'], 'https://staging.catalog.beer/verify-email/HOSTAUTH') !== false
+    && strpos(SendEmail::$outbox[0]['text'], 'https://staging.catalog.beer/verify-email/HOSTAUTH') !== false);
+check("mail: password-reset link is on the staging host, HTML and text",
+    strpos(SendEmail::$outbox[1]['html'], 'https://staging.catalog.beer/password-reset/HOSTKEY') !== false
+    && strpos(SendEmail::$outbox[1]['text'], 'https://staging.catalog.beer/password-reset/HOSTKEY') !== false);
+SendEmail::$outbox = $mailKept;
+
 check("mail: names the account by its masked address, never the full one", strpos($mail[0]['html'], 'a***@brewery-a.example') !== false && strpos($mail[0]['html'], 'alice@brewery-a.example') === false && strpos($mail[0]['text'], 'alice@brewery-a.example') === false);
 check("mail: no placeholder left unfilled", strpos($mail[0]['html'], '##') === false);
 check("audit: pendingEmail null -> new address", lastAudit($u(1), 'pendingEmail') === array('oldValue' => null, 'newValue' => 'alice@new-home.example', 'note' => null));
