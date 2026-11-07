@@ -19,8 +19,9 @@ same-domain change; the confirmation needs an admin caller, the right code,
 a code no older than 24 hours and the user_id of the account itself; a code
 is single-use and a newer request kills the older code; an address taken in
 the meantime is a 409 that changes nothing; an unverified account's address
-is corrected in place and always re-mailed; one verification mail a minute
-and five a day, then 429 with Retry-After; a password change or reset clears
+is corrected in place and always re-mailed, with no minute gap but the same
+five a day; a verified account gets one verification mail a minute and five
+a day, then 429 with Retry-After; a password change or reset clears
 a pending change; neither code is ever returned to a non-admin key; the
 Stripe customer follows the account and its failure never fails the change;
 the old address is told; GET /users/{id}/privileges lists row-backed and
@@ -267,7 +268,13 @@ check("same domain: no Stripe call for an account without a customer", count(Tes
 check("unverified: the address is replaced at once, nothing pending", $code === 200 && $j['email'] === 'user3@example.com' && $j['email_verified'] === false && $j['pending_email'] === null);
 check("unverified: a new sign-up code, mailed to the corrected address (same domain included)", is_string($j['email_auth']) && $j['email_auth'] !== $signupCode && count(mailTo('user3@example.com')) === 1 && mailTo('user3@example.com')[0]['tag'] === 'confirm-email' && strpos(mailTo('user3@example.com')[0]['html'], $j['email_auth']) !== false);
 [$code, $j, $header] = patch($u(3), $site, array('email' => 'user3b@example.com'));
-check("unverified: a second correction inside a minute is a 429", $code === 429 && strpos($header, 'Retry-After: ') === 0 && user($u(3))['email'] === 'user3@example.com');
+check("unverified: a second correction inside a minute goes through (no minute gap on this path)", $code === 200 && $j['email'] === 'user3b@example.com' && count(mailTo('user3b@example.com')) === 1);
+foreach(array('c', 'd', 'e') as $suffix){
+    [$code, $j] = patch($u(3), $site, array('email' => 'user3' . $suffix . '@example.com'));
+}
+check("unverified: the fifth correction of the day still goes through", $code === 200 && $j['email'] === 'user3e@example.com');
+[$code, $j, $header] = patch($u(3), $site, array('email' => 'user3f@example.com'));
+check("unverified: the sixth in 24 hours is a 429 with Retry-After, address kept", $code === 429 && preg_match('/^Retry-After: (\d+)$/', $header, $m) === 1 && $m[1] > 3600 && user($u(3))['email'] === 'user3e@example.com');
 
 // 12. Validation of the requested address
 [$code, $j] = patch($u(4), $site, array('email' => 'second@example.com'));

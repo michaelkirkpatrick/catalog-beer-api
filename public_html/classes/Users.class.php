@@ -327,7 +327,14 @@ class Users {
                                 $this->validateEmail($userID);
                                 if(!$this->error){
                                     if(!$originalEmailVerified){
-                                        if($this->verificationMailAllowed($userID, $originalEmailAuthSent, 'email')){
+                                        // No minute gap here: the likeliest
+                                        // moment to notice a mistyped sign-up
+                                        // address is right after the sign-up
+                                        // mail, and this path only ever fires
+                                        // on a DIFFERENT address, so there is
+                                        // no double-send to absorb. The five a
+                                        // day still bound it.
+                                        if($this->verificationMailAllowed($userID, null, 'email')){
                                             $emailAction = 'replace';
                                             $setClauses[] = "email=?";
                                             $setParams[] = $this->email;
@@ -956,11 +963,12 @@ class Users {
     /*--
     May this account be sent another verification mail? One a minute, five in
     any 24 hours (VERIFY_MAIL_GAP, VERIFY_MAIL_PER_DAY). $lastSent is the
-    column that timed the last one (emailAuthSent for an unverified account,
-    pendingEmailSent for a verified one) and $auditField the settings row each
-    of those requests writes ('email' / 'pendingEmail'), which is what the
-    daily count reads, through idx_audit_entity. A cancel writes newValue NULL
-    and is not counted. Sets the 429 and its Retry-After when the answer is no.
+    column that timed the last one (pendingEmailSent for a verified account;
+    null for an unverified one, which skips the minute and keeps the day) and
+    $auditField the settings row each of those requests writes ('email' /
+    'pendingEmail'), which is what the daily count reads, through
+    idx_audit_entity. A cancel writes newValue NULL and is not counted. Sets
+    the 429 and its Retry-After when the answer is no.
 
     Why it exists: before 6.10.0 a domain change cost the sender their key, so
     nobody could loop it; now it costs nothing, and the unverified path was
