@@ -220,7 +220,7 @@ ALTER TABLE api_usage ADD UNIQUE INDEX idx_apiKey_year_month (apiKey, year, mont
 
 ## Code Conventions
 
-- **`error_msg` and `valid_msg` are plain text.** No Markdown or HTML: consumers show them as they are, and the website escapes `valid_msg` with `h()`, so `[contact us](/contact)` reaches the reader literally. Give a link as a bare absolute URL (`https://catalog.beer/contact`), since a relative path means nothing to an API client.
+- **`error_msg` and `valid_msg` are plain text.** No Markdown or HTML: consumers show them as they are, and the website escapes `valid_msg` with `h()`, so `[contact us](/contact)` reaches the reader literally. Give a link as a bare absolute URL (`https://catalog.beer/contact`), since a relative path means nothing to an API client. The website shows known URLs as named links through a table keyed on the exact wording (`apiMessageLinks()` in the frontend's `classes/helpers/html.php`), so a new URL or a reworded sentence around one needs a change there too.
 - 4 spaces for indentation
 - Class files: `ClassName.class.php`
 - Entity JSON uses `snake_case` keys (e.g., `brewer_id`, `error_msg`)
