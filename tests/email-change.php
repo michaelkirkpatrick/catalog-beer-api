@@ -162,6 +162,16 @@ check("mail: sign-up link is on the staging host, HTML and text",
 check("mail: password-reset link is on the staging host, HTML and text",
     strpos(SendEmail::$outbox[1]['html'], 'https://staging.catalog.beer/password-reset/HOSTKEY') !== false
     && strpos(SendEmail::$outbox[1]['text'], 'https://staging.catalog.beer/password-reset/HOSTKEY') !== false);
+$hostMail->emailChanged('host-check@example.com', 'new@example.com', time());
+$hostMail->confirmNewEmail('new@example.com', 'HOSTAUTH2', 'host-check@example.com');
+$hostMail->errorDigest('body', 'text', 1, 'today');
+$hostMail->phpErrorDigest('body', 'text', 1, 'today');
+check("mail: every account and digest footer links to the staging host, no token left",
+    count(SendEmail::$outbox) === 6 && count(array_filter(SendEmail::$outbox, function($m){
+        return strpos($m['html'], '<a href="https://staging.catalog.beer">') !== false && strpos($m['html'], '##') === false;
+    })) === 6);
+check("mail: the password-reset plain text carries no HTML entities",
+    strpos(SendEmail::$outbox[1]['text'], '&#') === false);
 SendEmail::$outbox = $mailKept;
 
 check("mail: names the account by its masked address, never the full one", strpos($mail[0]['html'], 'a***@brewery-a.example') !== false && strpos($mail[0]['html'], 'alice@brewery-a.example') === false && strpos($mail[0]['text'], 'alice@brewery-a.example') === false);

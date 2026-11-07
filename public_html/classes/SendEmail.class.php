@@ -169,8 +169,8 @@ class SendEmail {
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
         $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-address-changed.html');
         $htmlBody = str_replace(
-            array('##OLD##', '##NEW##', '##WHEN##'),
-            array(htmlspecialchars($oldEmail, ENT_QUOTES, 'UTF-8'), htmlspecialchars($newEmail, ENT_QUOTES, 'UTF-8'), $whenText),
+            array('##HOST##', '##OLD##', '##NEW##', '##WHEN##'),
+            array(self::siteHost(), htmlspecialchars($oldEmail, ENT_QUOTES, 'UTF-8'), htmlspecialchars($newEmail, ENT_QUOTES, 'UTF-8'), $whenText),
             $htmlBody
         );
 
@@ -187,7 +187,7 @@ class SendEmail {
         $host = self::siteHost();
 
         // Plain Text
-        $textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://$host/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn&#8217;t request this, you can safely ignore this email &#8212; your password will not be changed. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer Password Reset Robot";
+        $textBody = "Hello!\r\n\r\nWe received a request to reset the password for your account. To reset the password for your Catalog.beer account, click on this link:\r\n\r\nhttps://$host/password-reset/" . $passwordResetKey . "\r\n\r\nIf you didn't request this, you can safely ignore this email; your password will not be changed. If you have any questions about your account, feel free to email security@catalog.beer.\r\n\r\n-Catalog.beer Password Reset Robot";
 
         // HTML Email
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
@@ -207,7 +207,7 @@ class SendEmail {
         // HTML Email
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
         $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-error-digest.html');
-        $htmlBody = str_replace('##CONTENT##', $htmlContent, $htmlBody);
+        $htmlBody = str_replace(array('##HOST##', '##CONTENT##'), array(self::siteHost(), $htmlContent), $htmlBody);
 
         // Send Email
         $this->send($to, $subject, $tag, $htmlBody, $textBody);
@@ -222,7 +222,7 @@ class SendEmail {
         // HTML Email
         $htmlBody = file_get_contents(ROOT . '/classes/resources/email-head.html');
         $htmlBody .= file_get_contents(ROOT . '/classes/resources/email-error-digest.html');
-        $htmlBody = str_replace('##CONTENT##', $htmlContent, $htmlBody);
+        $htmlBody = str_replace(array('##HOST##', '##CONTENT##'), array(self::siteHost(), $htmlContent), $htmlBody);
 
         // Send Email
         $this->send($to, $subject, $tag, $htmlBody, $textBody, $attachments);
