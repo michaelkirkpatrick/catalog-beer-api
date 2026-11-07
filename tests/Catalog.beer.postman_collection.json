@@ -331,7 +331,7 @@
 											"    // Valid Message",
 											"    pm.expect(jsonData.valid_msg).to.have.all.keys('name', 'email', 'password');",
 											"    pm.expect(jsonData.valid_msg.name).to.equal(null);",
-											"    pm.expect(jsonData.valid_msg.email).to.equal('Sorry, someone has already created an account with this email addresses.');",
+											"    pm.expect(jsonData.valid_msg.email).to.equal('Sorry, someone has already created an account with this email address.');",
 											"    pm.expect(jsonData.valid_msg.password).to.equal('Please enter a password.');",
 											"});"
 										],

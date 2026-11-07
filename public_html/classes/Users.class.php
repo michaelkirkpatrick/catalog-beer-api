@@ -609,7 +609,7 @@ class Users {
                     // Someone else has already registered this email
                     $this->error = true;
                     $this->validState['email'] = 'invalid';
-                    $this->validMsg['email'] = 'Sorry, someone has already created an account with this email addresses.';
+                    $this->validMsg['email'] = 'Sorry, someone has already created an account with this email address.';
                     $this->responseCode = 400;
                 }elseif($result->num_rows == 0){
                     // Valid, new email address
@@ -1168,7 +1168,7 @@ class Users {
             $isTaken = (!$check->error && $taken->num_rows > 0);
             $check->close();
             if($isTaken){
-                $this->confirmAddressRefused($userID, $newEmail, 'Sorry, someone has already created an account with this email addresses.');
+                $this->confirmAddressRefused($userID, $newEmail, 'Sorry, someone has already created an account with this email address.');
             }else{
                 $this->error = true;
                 $this->errorMsg = $dbError[0];
