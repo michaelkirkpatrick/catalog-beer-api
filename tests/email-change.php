@@ -22,7 +22,9 @@ the meantime is a 409 that changes nothing; an unverified account's address
 is corrected in place and always re-mailed, with no minute gap but the same
 five a day; a verified account gets one verification mail a minute and five
 a day, then 429 with Retry-After; a password change or reset clears
-a pending change; neither code is ever returned to a non-admin key; the
+a pending change, and moves session_gen on by one (a name or email change
+never does; POST /login returns the number; a new account starts at 0
+whatever the caller's is); neither code is ever returned to a non-admin key; the
 Stripe customer follows the account and its failure never fails the change;
 the old address is told; GET /users/{id}/privileges lists row-backed and
 domain-matched brewers and refuses other accounts.
@@ -124,7 +126,7 @@ function mailTo($address) { $found = array(); foreach(SendEmail::$outbox as $m){
 function check($label, $ok) { echo ($ok ? "PASS" : "FAIL") . "  $label\n"; if(!$ok){ $GLOBALS['fails']++; } }
 $fails = 0;
 $site = $k(0);
-$userKeys = array('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');
+$userKeys = array('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');
 
 // 1. GET /users/{id}/privileges
 [$code, $j] = call('GET', 'privileges', $u(1), $site);
@@ -294,18 +296,45 @@ $admin->query("INSERT INTO users (id,email,passwordHash,name,emailVerified,admin
 check("taken in the meantime: 409, email unchanged, request cleared", $code === 409 && user($u(4))['email'] === 'user4@example.com' && user($u(4))['pendingEmail'] === null && errorCount(387) === 1);
 check("taken in the meantime: the message says nothing changed", strpos($j['error_msg'], 'has not been changed') !== false);
 
-// 14. A password change clears a pending change it did not make
+// 14. A password change clears a pending change it did not make, and moves
+// session_gen on: the number the website's sessions are checked against
+function gen($id) { return (int)one("SELECT sessionGen FROM users WHERE id='$id'")['sessionGen']; }
+function login($email, $password, $key) { $users = new TestUsers(); $users->loginAPI('POST', $key, (object)array('email' => $email, 'password' => $password)); return [$users->responseCode, $users->json]; }
+[$code, $j] = call('GET', '', $u(4), $site);
+check("session_gen: 0 on an account whose password was never changed", $code === 200 && $j['session_gen'] === 0);
+[$code, $j] = patch($u(4), $site, array('name' => 'User Four'));
+check("session_gen: a name change leaves it alone", $code === 200 && $j['session_gen'] === 0);
 ageRequests($u(4));
 patch($u(4), $site, array('email' => 'other@example.org'));
 [$code, $j] = patch($u(4), $site, array('password' => 'a different long password'));
 check("password change: the pending change is cleared", $code === 200 && $j['pending_email'] === null && lastAudit($u(4), 'pendingEmail')['note'] === 'password changed');
+check("password change: session_gen moves to 1, in the response and the row", $j['session_gen'] === 1 && gen($u(4)) === 1);
+[$code, $j] = login('user4@example.com', 'a different long password', $site);
+check("login: returns the account's session_gen", $code === 200 && $j['id'] === $u(4) && $j['session_gen'] === 1);
+[$code, $j] = login('user4@example.com', 'correct horse battery', $site);
+check("login: the old password is refused and carries no session_gen", $code === 401 && !isset($j['session_gen']));
+[$code, $j] = patch($u(4), $site, array('password' => 'short'));
+check("a refused password leaves session_gen alone", $code === 400 && gen($u(4)) === 1);
 ageRequests($u(4));
 [$code, $j] = patch($u(4), $site, array('email' => 'other@example.org', 'password' => 'yet another long password'));
 check("email and password in one request: the request stands", $code === 200 && $j['pending_email'] === 'other@example.org');
+check("a second password change: session_gen 2", $j['session_gen'] === 2);
 $resetKey = '99999999-0000-4000-8000-000000000004';
 $admin->query("UPDATE users SET passwordResetKey='$resetKey', passwordResetSent=" . time() . " WHERE id='{$u(4)}'");
 [$code, $j] = call('POST', 'password-reset', $resetKey, $site, array('password' => 'reset to this long password'));
 check("password reset: 204 and the pending change is cleared", $code === 204 && user($u(4))['pendingEmail'] === null && lastAudit($u(4), 'pendingEmail')['note'] === 'password reset');
+check("password reset: session_gen moves on (3)", gen($u(4)) === 3);
+check("nobody else's session_gen moved", one("SELECT COUNT(*) AS n FROM users WHERE sessionGen<>0 AND id<>'{$u(4)}'")['n'] === '0');
+// A new account starts at 0 even when the key that creates it (the site's)
+// belongs to an account whose own number has moved
+$admin->query("UPDATE users SET sessionGen=7 WHERE id='{$u(0)}'");
+$sent = count(SendEmail::$outbox);
+[$code, $j] = call('POST', '', '', $site, array('name' => 'New Person', 'email' => 'new.person@example.net', 'password' => 'a long enough password', 'terms_agreement' => true));
+check("a new account: 201 with session_gen 0, not the caller's 7", $code === 201 && $j['session_gen'] === 0);
+$admin->query("DELETE FROM audit_log WHERE entityType='user' AND entityID='" . ($j['id'] ?? '') . "'");
+$admin->query("DELETE FROM users WHERE email='new.person@example.net'");
+$admin->query("UPDATE users SET sessionGen=0 WHERE id='{$u(0)}'");
+SendEmail::$outbox = array_slice(SendEmail::$outbox, 0, $sent);
 
 // 15. Five a day
 $admin->query("DELETE FROM audit_log WHERE entityType='user' AND entityID='{$u(4)}'");

@@ -16,6 +16,12 @@ class Users {
     public $pendingEmailSent = 0;
     public $passwordResetSent = 0;
     public $passwordResetKey = '';
+    // Goes up by one each time the password is set (a change or a reset).
+    // The website keeps the number in each session it opens and ends any
+    // session whose number no longer matches, which is how a new password
+    // signs the account out everywhere else. The API itself holds no
+    // sessions and never reads it.
+    public $sessionGen = 0;
     public $admin = false;
     public $stripeCustomerID = '';
     public $signupIP = '';   // POST /users only: the website visitor's address, sent by the frontend as signup_ip
@@ -55,7 +61,7 @@ class Users {
         if(!empty($userID)){
             // Query Database
             $db = new Database();
-            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, pendingEmail, pendingEmailAuth, pendingEmailSent, admin, passwordResetSent, stripeCustomerID FROM users WHERE id=?", [$userID]);
+            $result = $db->query("SELECT email, name, emailAuth, emailVerified, emailAuthSent, pendingEmail, pendingEmailAuth, pendingEmailSent, admin, passwordResetSent, sessionGen, stripeCustomerID FROM users WHERE id=?", [$userID]);
             if(!$db->error){
                 if($result->num_rows == 1){
                     // Valid User
@@ -78,6 +84,7 @@ class Users {
                         $this->pendingEmailAuth = $array['pendingEmailAuth'] ?? '';
                         $this->pendingEmailSent = intval($array['pendingEmailSent'] ?? 0);
                         $this->passwordResetSent = intval($array['passwordResetSent'] ?? 0);
+                        $this->sessionGen = intval($array['sessionGen'] ?? 0);
                         if($array['admin']){
                             $this->admin = true;
                         }else{
@@ -368,8 +375,10 @@ class Users {
                                 // Clear Saved Password
                                 $this->password = '';
 
-                                // Update Password
-                                $setClauses[] = "passwordHash=?";
+                                // Update Password. sessionGen moving on
+                                // ends every website session opened under
+                                // the old one (see $sessionGen).
+                                $setClauses[] = "passwordHash=?, sessionGen=sessionGen+1";
                                 $setParams[] = $passwordHash;
 
                                 // A change of email waiting from before this
@@ -758,6 +767,9 @@ class Users {
         $this->pendingEmail = '';
         $this->pendingEmailAuth = '';
         $this->pendingEmailSent = 0;
+        // Or a new account's object would carry the CALLER's number, loaded
+        // by usersAPI()'s validate() of the key's own account
+        $this->sessionGen = 0;
         $this->admin = false;
     }
 
@@ -772,7 +784,7 @@ class Users {
             if(!empty($password)){
                 // Query Database
                 $db = new Database();
-                $query = "SELECT id, email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordHash FROM users WHERE email=?";
+                $query = "SELECT id, email, name, emailAuth, emailVerified, emailAuthSent, admin, passwordHash, sessionGen FROM users WHERE email=?";
                 $result = $db->query($query, [$email]);
                 if(!$db->error){
                     if($result->num_rows == 1){
@@ -792,6 +804,7 @@ class Users {
                             $this->emailAuth = $array['emailAuth'];
                             $this->emailAuthSent = intval($array['emailAuthSent']);
                             $this->admin = $array['admin'] ? true : false;
+                            $this->sessionGen = intval($array['sessionGen'] ?? 0);
                         }else{
                             // Wrong Password
                             $this->validState['password'] = 'invalid';
@@ -1467,8 +1480,11 @@ class Users {
                     // with it (see the PATCH's password branch)
                     $pendingEmail = $row['pendingEmail'];
 
-                    // Update Password in Database
-                    $db->query("UPDATE users SET passwordHash=?, passwordResetKey=NULL, passwordResetSent=NULL, pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=?", [$passwordHash, $userID]);
+                    // Update Password in Database. sessionGen moving on ends
+                    // every website session opened under the old password: a
+                    // reset is what someone does when a stranger may be
+                    // signed in.
+                    $db->query("UPDATE users SET passwordHash=?, sessionGen=sessionGen+1, passwordResetKey=NULL, passwordResetSent=NULL, pendingEmail=NULL, pendingEmailAuth=NULL, pendingEmailSent=NULL WHERE id=?", [$passwordHash, $userID]);
                     if(!$db->error){
                         // That it changed, never the value (Audit.class.php)
                         Audit::set('user', $userID, 'passwordHash', null, null, 'password reset');
@@ -1542,6 +1558,7 @@ class Users {
         $this->json['pending_email'] = empty($this->pendingEmail) ? null : $this->pendingEmail;
         $this->json['pending_email_auth'] = ($this->callerIsAdmin && !empty($this->pendingEmailAuth)) ? $this->pendingEmailAuth : null;
         $this->json['pending_email_sent'] = empty($this->pendingEmailSent) ? null : $this->pendingEmailSent;
+        $this->json['session_gen'] = $this->sessionGen;
         $this->json['admin'] = $this->admin;
     }
 
@@ -1894,6 +1911,8 @@ class Users {
                     // Successful Login
                     $this->json['object'] = 'user_id';
                     $this->json['id'] = $this->userID;
+                    // The website stores this in the session it opens
+                    $this->json['session_gen'] = $this->sessionGen;
                 }else{
                     // Invalid Login
                     $this->json['error'] = true;

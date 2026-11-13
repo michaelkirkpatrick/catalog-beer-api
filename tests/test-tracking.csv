@@ -50,6 +50,7 @@ Users,U-38,Password Reset Request - User #3 (Repeat Request),POST,/users/{{user_
 Users,U-39,Reset Password - User #3 (Invalid Key),POST,/users/password-reset/{{guid}},Test User,400,Done
 Users,U-40,Get User #3 Info,GET,/users/{{user_id_3}},Test User,200,Done
 Users,U-41,Reset Password - User #3,POST,/users/password-reset/{{password_reset_key_3}},Test User,204,Staging only (skipped in prod; test manually)
+Users,U-63,Get User #3 Info - Reset Moved session_gen,GET,/users/{{user_id_3}},Test User,200,Staging only (skipped in prod)
 Users,U-58,Brewery Privileges - User #1,GET,/users/{{user_id_1}}/privileges,Admin,200,Done
 Users,U-59,Attempt Brewery Privileges - User #1: Non-Admin,GET,/users/{{user_id_1}}/privileges,Non-Admin,403,Done
 Users,U-42,Request Email Change - User #1 (New Domain),PATCH,/users/{{user_id_1}},Admin,200,Done

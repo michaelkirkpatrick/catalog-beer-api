@@ -606,7 +606,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(0);",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -709,7 +710,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(0);",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -812,7 +814,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(0);",
 											"    pm.expect(jsonData.id).to.have.lengthOf(36);",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -1000,7 +1003,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -1233,7 +1236,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -1326,7 +1329,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -1419,7 +1422,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -2025,7 +2028,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2107,7 +2110,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -2189,7 +2192,7 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -2520,7 +2523,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(0);",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2614,7 +2618,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(1);",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
@@ -2708,7 +2713,7 @@
 											"",
 											"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
 											"    pm.expect(jsonData.email_verified).to.equal(true);",
@@ -2996,7 +3001,7 @@
 											"",
 											"pm.test(\"The pending address is now the email; nothing pending; still verified\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_pending_email_1'));",
 											"    pm.expect(jsonData.email_verified).to.equal(true);",
@@ -3264,7 +3269,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(0);",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -3358,7 +3364,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+											"    pm.expect(jsonData.session_gen).to.equal(1);",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
@@ -3452,7 +3459,7 @@
 											"",
 											"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_2'));",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
 											"    pm.expect(jsonData.email_verified).to.equal(true);",
@@ -3646,7 +3653,7 @@
 											"",
 											"pm.test(\"An admin caller sees the pending change and its code\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.pending_email).to.equal(pm.environment.get('user_pending_email_2'));",
 											"    pm.expect(jsonData.pending_email_auth).to.be.a('string').and.to.have.lengthOf(36);",
 											"});",
@@ -3726,7 +3733,7 @@
 											"",
 											"pm.test(\"Sending the current address withdraws the request\", function () {",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 											"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_2'));",
 											"    pm.expect(jsonData.email_verified).to.equal(true);",
 											"    pm.expect(jsonData.pending_email).to.equal(null);",
@@ -4515,7 +4522,8 @@
 											"",
 											"pm.test(\"Valid JSON payload\", function(){",
 											"    var jsonData = pm.response.json();",
-											"    pm.expect(jsonData).to.have.all.keys('id', 'object');",
+											"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'session_gen');",
+											"    pm.expect(jsonData.session_gen).to.equal(1);",
 											"    pm.expect(jsonData.object).to.equal('user_id');",
 											"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 											"});"
@@ -92269,7 +92277,8 @@
 									"",
 									"pm.test(\"Valid JSON payload\", function(){",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+									"    pm.expect(jsonData.session_gen).to.equal(0);",
 									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
 									"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
 									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
@@ -92414,6 +92423,95 @@
 						"body": {
 							"mode": "raw",
 							"raw": "{\n    \"password\": \"{{user_password_3}}\"\n}"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "U-63 Get User #3 Info - Reset Moved session_gen",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Skip in production — the reset in U-41 only runs in staging",
+									"if (pm.environment.get('base_url') !== 'api-staging.catalog.beer') {",
+									"    pm.execution.skipRequest();",
+									"}",
+									"",
+									"// Role",
+									"pm.environment.set('api_key', pm.environment.get('api_key_3'));"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"OK (HTTP 200)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Valid JSON payload\", function(){",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
+									"    pm.expect(jsonData.session_gen).to.equal(1);",
+									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_3'));",
+									"    pm.expect(jsonData.name).to.equal(pm.environment.get('user_name_3'));",
+									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_3'));",
+									"});",
+									"",
+									"pm.test(\"Content-Type Header Present\", function () {",
+									"    pm.response.to.have.header(\"content-type\", \"application/json\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{api_key}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "string"
+								},
+								{
+									"key": "saveHelperData",
+									"type": "any"
+								},
+								{
+									"key": "showPassword",
+									"value": false,
+									"type": "boolean"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "https://{{base_url}}/users/{{user_id_3}}",
+							"protocol": "https",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id_3}}"
+							]
 						}
 					},
 					"response": []
@@ -92604,7 +92702,7 @@
 									"",
 									"pm.test(\"The change is held: email unchanged, pending_email set\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_email_1'));",
 									"    pm.expect(jsonData.email_verified).to.equal(true);",
@@ -92789,7 +92887,7 @@
 									"",
 									"pm.test(\"The pending address is now the email; nothing pending; still verified\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'admin');",
+									"    pm.expect(jsonData).to.have.all.keys('id', 'object', 'name', 'email', 'email_verified', 'email_auth', 'email_auth_sent', 'pending_email', 'pending_email_auth', 'pending_email_sent', 'session_gen', 'admin');",
 									"    pm.expect(jsonData.id).to.equal(pm.environment.get('user_id_1'));",
 									"    pm.expect(jsonData.email).to.equal(pm.environment.get('user_pending_email_1'));",
 									"    pm.expect(jsonData.email_verified).to.equal(true);",
